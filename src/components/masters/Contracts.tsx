@@ -513,7 +513,6 @@ function EntriesView({
                   <p className="truncate text-xs text-muted-foreground">
                     {[e.from_pin_code, e.to_pin_code].filter(Boolean).join(" → ")}
                     {preview ? " · " + preview : ""}
-                    {" · Per month: " + inr(monthlyContractEffect(e))}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
