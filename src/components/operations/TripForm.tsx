@@ -1045,8 +1045,8 @@ function ContractDetails({
     ["Freight basis", contract.freight_basis],
     ["Loading basis", contract.loading_basis],
     ["Rate entries (routes)", String(entryCount)],
-    ["Monthly contract charges (monthly + yearly ÷ 12)", inr(monthlyCharges)],
   ];
+  void monthlyCharges;
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
       {rows
