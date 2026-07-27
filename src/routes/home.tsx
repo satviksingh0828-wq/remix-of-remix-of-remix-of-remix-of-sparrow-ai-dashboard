@@ -38,7 +38,14 @@ export const Route = createFileRoute("/home")({
 });
 
 const MODULES = [
-  { key: "operation", label: "Operation", desc: "Trips, consignments & dispatch", icon: Truck },
+  {
+    key: "operation",
+    label: "Operation",
+    desc: "Trips, consignments & dispatch",
+    icon: Truck,
+    active: true,
+    to: "/operations" as const,
+  },
   {
     key: "masters",
     label: "Masters",
