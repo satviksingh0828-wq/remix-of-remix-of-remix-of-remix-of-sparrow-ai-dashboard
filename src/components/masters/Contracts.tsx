@@ -343,10 +343,11 @@ function EntriesView({
     );
     const pinById = new Map(all.map((l) => [l.id, (l.pin_code ?? "").trim()]));
 
+    // PIN takes precedence — importing with only a PIN auto-fills the matching location.
     const resolve = (name: string, pin: string) => {
       const n = (name ?? "").trim().toLowerCase();
       const p = (pin ?? "").trim();
-      const id = nameToId.get(n) ?? pinToId.get(p) ?? null;
+      const id = pinToId.get(p) ?? nameToId.get(n) ?? null;
       return { id, pin: p || (id ? pinById.get(id) ?? "" : "") };
     };
 
@@ -373,10 +374,6 @@ function EntriesView({
         to_pin_code: to.pin,
         freight_values,
         loading_values,
-        monthly_change_amount: r.monthly_change_amount ?? "",
-        monthly_change_note: r.monthly_change_note ?? "",
-        yearly_change_amount: r.yearly_change_amount ?? "",
-        yearly_change_note: r.yearly_change_note ?? "",
         per_manifest_amount: r.per_manifest_amount ?? "",
         per_manifest_note: r.per_manifest_note ?? "",
       };
@@ -399,10 +396,6 @@ function EntriesView({
       from_pin_code: e.from_pin_code,
       to_location: e.to_location_id ? locNames[e.to_location_id] ?? "" : "",
       to_pin_code: e.to_pin_code,
-      monthly_change_amount: e.monthly_change_amount,
-      monthly_change_note: e.monthly_change_note,
-      yearly_change_amount: e.yearly_change_amount,
-      yearly_change_note: e.yearly_change_note,
       per_manifest_amount: e.per_manifest_amount,
       per_manifest_note: e.per_manifest_note,
     };
