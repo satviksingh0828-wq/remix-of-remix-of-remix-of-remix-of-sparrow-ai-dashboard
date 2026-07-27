@@ -197,6 +197,15 @@ export function Trips() {
                   </span>
                 </div>
                 <span className="text-sm font-semibold">{inr(Number(c.net_income ?? 0))}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reopeningId === c.id}
+                  onClick={() => reopen(c.id)}
+                >
+                  <RotateCcw className="size-4" />
+                  Reopen
+                </Button>
               </li>
             ))}
           </ul>
