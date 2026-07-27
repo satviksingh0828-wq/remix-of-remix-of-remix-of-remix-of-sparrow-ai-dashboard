@@ -62,7 +62,7 @@ export function Contracts() {
       .select("*")
       .order("created_at", { ascending: true });
     if (error) toast.error("Could not load contracts");
-    setContracts((data as ContractRow[]) ?? []);
+    setContracts((data as unknown as ContractRow[]) ?? []);
     setLoading(false);
   }
   useEffect(() => {
@@ -300,7 +300,7 @@ function EntriesView({
       .eq("contract_id", contract.id!)
       .order("created_at", { ascending: true });
     if (error) toast.error("Could not load entries");
-    const rows = (data as EntryRow[]) ?? [];
+    const rows = (data as unknown as EntryRow[]) ?? [];
     setEntries(rows);
     // load location names
     const ids = Array.from(
