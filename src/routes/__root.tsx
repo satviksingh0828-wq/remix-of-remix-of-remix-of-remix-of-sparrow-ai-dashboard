@@ -1,4 +1,5 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
   Outlet,
   Link,
@@ -7,7 +8,8 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { createIdbPersister } from "../lib/query-persist";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -117,9 +119,24 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // Persister uses IndexedDB → client-only. Memoized so we don't rebuild it on every render.
+  const persister = useMemo(
+    () => (typeof window === "undefined" ? null : createIdbPersister()),
+    [],
+  );
 
   return (
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{
+        persister: persister ?? {
+          persistClient: async () => {},
+          restoreClient: async () => undefined,
+          removeClient: async () => {},
+        },
+        maxAge: 24 * 60 * 60 * 1000,
+      }}
+    >
       <SessionProvider>
         <ThemeProvider>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
@@ -127,6 +144,6 @@ function RootComponent() {
           <Toaster position="top-right" />
         </ThemeProvider>
       </SessionProvider>
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   );
 }
