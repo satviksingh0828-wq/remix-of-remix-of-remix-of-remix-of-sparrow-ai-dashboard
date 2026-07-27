@@ -20,8 +20,8 @@ export function LocationPinPair({
 }) {
   const { locations } = useLocations();
 
-  function handleLocation(id: string | null) {
-    const loc = locationById(locations, id);
+  function handleLocation(id: string | null, picked?: { pin_code: string | null }) {
+    const loc = picked ?? locationById(locations, id);
     onChange({ location_id: id, pin_code: loc?.pin_code ?? (id ? pinCode : "") });
   }
 
@@ -36,7 +36,7 @@ export function LocationPinPair({
       <LocationPicker
         label={`${label} Location`}
         value={locationId}
-        onChange={(id) => handleLocation(id)}
+        onChange={(id, loc) => handleLocation(id, loc)}
       />
       <div className="space-y-1.5">
         <Label className="text-xs font-medium text-muted-foreground">{label} PIN Code</Label>
