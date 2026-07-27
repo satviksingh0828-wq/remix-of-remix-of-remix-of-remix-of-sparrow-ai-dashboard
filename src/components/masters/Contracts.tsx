@@ -293,30 +293,32 @@ function EntriesView({
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("contract_entries")
-      .select("*")
-      .eq("contract_id", contract.id!)
-      .order("created_at", { ascending: true });
-    if (error) toast.error("Could not load entries");
-    const rows = (data as unknown as EntryRow[]) ?? [];
-    setEntries(rows);
-    // load location names
-    const ids = Array.from(
-      new Set(
-        rows.flatMap((r) => [r.from_location_id, r.to_location_id]).filter(Boolean),
-      ),
-    ) as string[];
-    if (ids.length) {
-      const { data: locs } = await supabase
-        .from("locations")
-        .select("id,location_name")
-        .in("id", ids);
-      const map: Record<string, string> = {};
-      (locs ?? []).forEach((l) => {
-        map[l.id as string] = l.location_name as string;
-      });
-      setLocNames(map);
+    try {
+      const rows = await fetchAll<EntryRow>(() =>
+        supabase
+          .from("contract_entries")
+          .select("*")
+          .eq("contract_id", contract.id!)
+          .order("created_at", { ascending: true }),
+      );
+      setEntries(rows);
+      const ids = Array.from(
+        new Set(
+          rows.flatMap((r) => [r.from_location_id, r.to_location_id]).filter(Boolean),
+        ),
+      ) as string[];
+      if (ids.length) {
+        const locs = await fetchAll<{ id: string; location_name: string }>(() =>
+          supabase.from("locations").select("id,location_name").in("id", ids),
+        );
+        const map: Record<string, string> = {};
+        locs.forEach((l) => {
+          map[l.id] = l.location_name;
+        });
+        setLocNames(map);
+      }
+    } catch {
+      toast.error("Could not load entries");
     }
     setLoading(false);
   }
