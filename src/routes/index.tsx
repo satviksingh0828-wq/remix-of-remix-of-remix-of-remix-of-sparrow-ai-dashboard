@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Bird, Loader2, Lock, User } from "lucide-react";
+import { Loader2, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
@@ -62,9 +62,7 @@ function LoginPage() {
         <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 -right-16 size-[26rem] rounded-full bg-white/10 blur-3xl" />
         <div className="relative animate-fade-up text-center text-primary-foreground">
-          <span className="mx-auto mb-8 flex size-16 items-center justify-center rounded-2xl border border-white/25 bg-white/15">
-            <Bird className="size-8" />
-          </span>
+
           <h1 className="text-4xl font-semibold uppercase leading-tight tracking-[0.14em] xl:text-5xl">
             Sparrow AI
             <br />
