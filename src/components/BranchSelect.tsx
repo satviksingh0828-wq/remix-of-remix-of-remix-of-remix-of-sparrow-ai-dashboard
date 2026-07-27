@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { Check, ChevronsUpDown, Search } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,34 +12,20 @@ import {
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useBranches } from "@/lib/use-branches";
 
-type Dept = { id: string; name: string; code: string | null };
-
-export function DepartmentSelect({
+export function BranchSelect({
   value,
   onChange,
-  label = "Controlling Department",
+  label = "Controlling Branch",
 }: {
   value: string | null | undefined;
   onChange: (id: string | null) => void;
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [depts, setDepts] = useState<Dept[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("departments")
-        .select("id,name,code")
-        .order("name", { ascending: true });
-      setDepts((data as Dept[]) ?? []);
-      setLoading(false);
-    })();
-  }, []);
-
-  const selected = depts.find((d) => d.id === value);
+  const branches = useBranches();
+  const selected = branches.find((b) => b.id === value);
 
   return (
     <div className="space-y-1.5 sm:col-span-2">
@@ -58,15 +43,15 @@ export function DepartmentSelect({
               <Search className="size-4 shrink-0 text-muted-foreground" />
               {selected ? (
                 <span className="truncate">
-                  {selected.name}
-                  {selected.code ? (
-                    <span className="ml-1 text-muted-foreground">({selected.code})</span>
+                  {selected.branch_name}
+                  {selected.branch_type ? (
+                    <span className="ml-1 text-muted-foreground">
+                      ({selected.branch_type})
+                    </span>
                   ) : null}
                 </span>
               ) : (
-                <span className="text-muted-foreground">
-                  {loading ? "Loading…" : "Select department"}
-                </span>
+                <span className="text-muted-foreground">Select branch</span>
               )}
             </span>
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
@@ -74,9 +59,9 @@ export function DepartmentSelect({
         </PopoverTrigger>
         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Search departments…" />
+            <CommandInput placeholder="Search branches…" />
             <CommandList>
-              <CommandEmpty>No departments found.</CommandEmpty>
+              <CommandEmpty>No branches found.</CommandEmpty>
               <CommandGroup>
                 <CommandItem
                   value="__none__"
@@ -85,26 +70,26 @@ export function DepartmentSelect({
                     setOpen(false);
                   }}
                 >
-                  <Check
-                    className={cn("size-4", !value ? "opacity-100" : "opacity-0")}
-                  />
-                  <span className="text-muted-foreground">No department</span>
+                  <Check className={cn("size-4", !value ? "opacity-100" : "opacity-0")} />
+                  <span className="text-muted-foreground">No branch</span>
                 </CommandItem>
-                {depts.map((d) => (
+                {branches.map((b) => (
                   <CommandItem
-                    key={d.id}
-                    value={`${d.name} ${d.code ?? ""}`}
+                    key={b.id}
+                    value={`${b.branch_name} ${b.branch_type ?? ""}`}
                     onSelect={() => {
-                      onChange(d.id);
+                      onChange(b.id);
                       setOpen(false);
                     }}
                   >
                     <Check
-                      className={cn("size-4", value === d.id ? "opacity-100" : "opacity-0")}
+                      className={cn("size-4", value === b.id ? "opacity-100" : "opacity-0")}
                     />
-                    <span className="truncate">{d.name}</span>
-                    {d.code ? (
-                      <span className="ml-auto text-xs text-muted-foreground">{d.code}</span>
+                    <span className="truncate">{b.branch_name}</span>
+                    {b.branch_type ? (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {b.branch_type}
+                      </span>
                     ) : null}
                   </CommandItem>
                 ))}

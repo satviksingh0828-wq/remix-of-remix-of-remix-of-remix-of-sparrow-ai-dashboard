@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Field } from "./CompanySettings";
+import { CsvIO } from "@/components/CsvIO";
 import {
   Select,
   SelectContent,
@@ -220,19 +221,50 @@ export function BranchSettings() {
     );
   }
 
+  const BRANCH_COLUMNS = Object.keys(EMPTY);
+
+  async function onImport(rows: Record<string, string>[]) {
+    const payload = rows
+      .filter((r) => (r.branch_name || "").trim() !== "")
+      .map((r) => {
+        const o: Record<string, string> = {};
+        for (const k of BRANCH_COLUMNS) o[k] = r[k] ?? "";
+        return o;
+      });
+    if (payload.length === 0) return { inserted: 0, failed: rows.length };
+    const { error, count } = await supabase
+      .from("branches")
+      .insert(payload as never, { count: "exact" });
+    if (error) {
+      toast.error(error.message);
+      return { inserted: 0, failed: payload.length };
+    }
+    await load();
+    return { inserted: count ?? payload.length, failed: rows.length - payload.length };
+  }
+
   return (
     <div className="animate-fade-up space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Branches</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Offices, depots, warehouses and yards linked to your company.
           </p>
         </div>
-        <Button onClick={() => setEditing({ ...EMPTY })}>
-          <Plus className="size-4" />
-          New branch
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <CsvIO
+            entityLabel="Branches"
+            filename="branches"
+            columns={BRANCH_COLUMNS}
+            rows={branches as Record<string, unknown>[]}
+            onImport={onImport}
+          />
+          <Button onClick={() => setEditing({ ...EMPTY })}>
+            <Plus className="size-4" />
+            New branch
+          </Button>
+        </div>
       </div>
 
       {loading ? (

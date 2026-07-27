@@ -1,11 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building, Building2, Check, ChevronRight, Layers, Palette } from "lucide-react";
+import { Building, Building2, Check, ChevronRight, Palette } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { CompanySettings } from "@/components/settings/CompanySettings";
 import { BranchSettings } from "@/components/settings/BranchSettings";
-import { DepartmentSettings } from "@/components/settings/DepartmentSettings";
 import { THEMES, useTheme, type ThemeId } from "@/lib/theme";
 
 export const Route = createFileRoute("/settings")({
@@ -34,7 +33,6 @@ export const Route = createFileRoute("/settings")({
 const TABS = [
   { id: "company", label: "Company", desc: "Profile & registration", icon: Building },
   { id: "branch", label: "Branch", desc: "Locations & managers", icon: Building2 },
-  { id: "department", label: "Departments", desc: "Controlling departments", icon: Layers },
   { id: "theme", label: "Theme Settings", desc: "Appearance", icon: Palette },
 ] as const;
 
@@ -95,7 +93,6 @@ function SettingsPage() {
           </header>
           {tab === "company" ? <CompanySettings /> : null}
           {tab === "branch" ? <BranchSettings /> : null}
-          {tab === "department" ? <DepartmentSettings /> : null}
           {tab === "theme" ? <ThemePanel /> : null}
         </div>
       </div>

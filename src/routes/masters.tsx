@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building2, ChevronRight, MapPin, Truck, User } from "lucide-react";
+import { Building2, ChevronRight, FileText, MapPin, Truck, User } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { MasterList } from "@/components/masters/MasterList";
+import { Contracts } from "@/components/masters/Contracts";
 import {
   DRIVER_CONFIG,
   LOCATION_CONFIG,
@@ -39,6 +40,7 @@ const TABS = [
   { id: "driver", label: "Driver", desc: "Staff & licences", icon: User },
   { id: "transporter", label: "Transporter", desc: "Owners & brokers", icon: Building2 },
   { id: "location", label: "Locations", desc: "Pickup & drop points", icon: MapPin },
+  { id: "contract", label: "Contracts", desc: "Rates & slabs", icon: FileText },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -100,6 +102,7 @@ function MastersPage() {
           {tab === "driver" ? <MasterList config={DRIVER_CONFIG} /> : null}
           {tab === "transporter" ? <MasterList config={TRANSPORTER_CONFIG} /> : null}
           {tab === "location" ? <MasterList config={LOCATION_CONFIG} /> : null}
+          {tab === "contract" ? <Contracts /> : null}
         </div>
       </div>
     </AppShell>
