@@ -1,6 +1,16 @@
 -- ============================================================
--- Supabase Setup SQL — run this in the Supabase SQL Editor
--- (Dashboard → SQL Editor → New Query → paste & run)
+-- Supabase Setup SQL — Project TMS (Sparrow AI Solutions)
+-- Run this once in the Supabase SQL Editor:
+--   Dashboard → SQL Editor → New Query → paste all → Run
+--
+-- This file is the canonical schema, produced by consolidating
+-- all supabase/migrations/* files in order.
+--
+-- RLS note: All policies grant full access to `anon` and
+-- `authenticated` roles. This app uses a localStorage-based
+-- session (no Supabase Auth), so every browser request arrives
+-- as the `anon` role. Before exposing this to the public
+-- internet, restrict policies to authenticated users only.
 -- ============================================================
 
 -- ── Helper: auto-update updated_at ──────────────────────────
@@ -9,7 +19,9 @@ RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$ LANGUAGE plpgsql SET search_path = public;
 
--- ── Core tables ──────────────────────────────────────────────
+-- ════════════════════════════════════════════════════════════
+-- Migration 1: company, branches, app_settings
+-- ════════════════════════════════════════════════════════════
 
 CREATE TABLE public.company (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -86,25 +98,14 @@ ALTER TABLE public.app_settings ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "app can manage app settings" ON public.app_settings FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE TRIGGER app_settings_updated_at BEFORE UPDATE ON public.app_settings FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- Seed initial rows
 INSERT INTO public.app_settings (theme) VALUES ('sky');
 INSERT INTO public.company (company_name) VALUES ('');
 
--- ── Departments & Vehicles & Drivers ─────────────────────────
-
-CREATE TABLE public.departments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  name text NOT NULL,
-  code text DEFAULT '',
-  description text DEFAULT '',
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
-);
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.departments TO anon, authenticated;
-GRANT ALL ON public.departments TO service_role;
-ALTER TABLE public.departments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "app can manage departments" ON public.departments FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-CREATE TRIGGER trg_departments_updated BEFORE UPDATE ON public.departments FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-- ════════════════════════════════════════════════════════════
+-- Migration 2: vehicles, drivers, transporters, locations
+-- (departments table was created then dropped in migration 3;
+--  branch_id is the direct FK used in the final schema)
+-- ════════════════════════════════════════════════════════════
 
 CREATE TABLE public.vehicles (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -118,7 +119,7 @@ CREATE TABLE public.vehicles (
   payload_capacity_kg text DEFAULT '',
   purchase_date text DEFAULT '',
   purchase_cost text DEFAULT '',
-  department_id uuid REFERENCES public.departments(id) ON DELETE SET NULL,
+  branch_id uuid REFERENCES public.branches(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -171,7 +172,7 @@ CREATE TABLE public.drivers (
   upi_id text DEFAULT '',
   aadhaar_number text DEFAULT '',
   pan_number text DEFAULT '',
-  department_id uuid REFERENCES public.departments(id) ON DELETE SET NULL,
+  branch_id uuid REFERENCES public.branches(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -184,23 +185,32 @@ CREATE TRIGGER trg_drivers_updated BEFORE UPDATE ON public.drivers FOR EACH ROW 
 CREATE TABLE public.transporters (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   transporter_name text NOT NULL,
-  contact_person text DEFAULT '',
-  mobile_number text DEFAULT '',
-  alternate_mobile text DEFAULT '',
-  email text DEFAULT '',
+  legal_business_name text DEFAULT '',
+  transporter_type text DEFAULT '',
+  gstin text DEFAULT '',
+  pan text DEFAULT '',
+  msme_udyam text DEFAULT '',
+  tan text DEFAULT '',
   address_line1 text DEFAULT '',
   address_line2 text DEFAULT '',
   city text DEFAULT '',
   state text DEFAULT '',
   country text DEFAULT '',
   pin_code text DEFAULT '',
-  gstin text DEFAULT '',
-  pan text DEFAULT '',
+  primary_contact_name text DEFAULT '',
+  primary_contact_designation text DEFAULT '',
+  mobile_number text DEFAULT '',
+  alternate_mobile text DEFAULT '',
+  email text DEFAULT '',
+  telephone text DEFAULT '',
+  website text DEFAULT '',
   bank_name text DEFAULT '',
   bank_branch text DEFAULT '',
   bank_account_holder text DEFAULT '',
   bank_account_number text DEFAULT '',
   bank_ifsc text DEFAULT '',
+  upi_id text DEFAULT '',
+  branch_id uuid REFERENCES public.branches(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -210,25 +220,111 @@ ALTER TABLE public.transporters ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "app can manage transporters" ON public.transporters FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE TRIGGER trg_transporters_updated BEFORE UPDATE ON public.transporters FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 
--- ── Trips & Finance ──────────────────────────────────────────
+CREATE TABLE public.locations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  location_name text NOT NULL,
+  location_type text DEFAULT '',
+  city text DEFAULT '',
+  district text DEFAULT '',
+  state text DEFAULT '',
+  country text DEFAULT '',
+  pin_code text DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.locations TO anon, authenticated;
+GRANT ALL ON public.locations TO service_role;
+ALTER TABLE public.locations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "app can manage locations" ON public.locations FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE TRIGGER trg_locations_updated BEFORE UPDATE ON public.locations FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ════════════════════════════════════════════════════════════
+-- Migration 3: contracts, contract_entries
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE public.contracts (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  contract_name text NOT NULL,
+  weight_ranges jsonb NOT NULL DEFAULT '[]'::jsonb,
+  quantity_ranges jsonb NOT NULL DEFAULT '[]'::jsonb,
+  freight_basis text NOT NULL DEFAULT 'weight',
+  loading_basis text NOT NULL DEFAULT 'weight',
+  company_name text DEFAULT '',
+  legal_business_name text DEFAULT '',
+  company_type text DEFAULT '',
+  industry text DEFAULT '',
+  pan text DEFAULT '',
+  gstin text DEFAULT '',
+  cin text DEFAULT '',
+  msme_udyam text DEFAULT '',
+  tan text DEFAULT '',
+  iec text DEFAULT '',
+  address_line1 text DEFAULT '',
+  address_line2 text DEFAULT '',
+  city text DEFAULT '',
+  state text DEFAULT '',
+  country text DEFAULT '',
+  pin_code text DEFAULT '',
+  mobile_number text DEFAULT '',
+  telephone_number text DEFAULT '',
+  email text DEFAULT '',
+  website text DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.contracts TO authenticated, anon;
+GRANT ALL ON public.contracts TO service_role;
+ALTER TABLE public.contracts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "app can manage contracts" ON public.contracts FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE TRIGGER contracts_set_updated_at BEFORE UPDATE ON public.contracts FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.contract_entries (
+  id uuid NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  contract_id uuid NOT NULL REFERENCES public.contracts(id) ON DELETE CASCADE,
+  from_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
+  to_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
+  from_pin_code text DEFAULT '',
+  to_pin_code text DEFAULT '',
+  freight_values jsonb NOT NULL DEFAULT '{}'::jsonb,
+  loading_values jsonb NOT NULL DEFAULT '{}'::jsonb,
+  monthly_change_amount text DEFAULT '',
+  monthly_change_note text DEFAULT '',
+  yearly_change_amount text DEFAULT '',
+  yearly_change_note text DEFAULT '',
+  per_manifest_amount text DEFAULT '',
+  per_manifest_note text DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.contract_entries TO authenticated, anon;
+GRANT ALL ON public.contract_entries TO service_role;
+ALTER TABLE public.contract_entries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "app can manage contract entries" ON public.contract_entries FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE TRIGGER contract_entries_set_updated_at BEFORE UPDATE ON public.contract_entries FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE INDEX contract_entries_contract_id_idx ON public.contract_entries(contract_id);
+
+-- ════════════════════════════════════════════════════════════
+-- Migration 4: trips, trip_manifests, trip_other_income, trip_expenses
+-- ════════════════════════════════════════════════════════════
 
 CREATE TABLE public.trips (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  trip_number text NOT NULL DEFAULT '',
-  trip_date text DEFAULT '',
-  from_location text DEFAULT '',
-  to_location text DEFAULT '',
-  distance_km text DEFAULT '',
+  trip_code text NOT NULL,
+  ownership text NOT NULL DEFAULT 'own',
   vehicle_id uuid REFERENCES public.vehicles(id) ON DELETE SET NULL,
   driver_id uuid REFERENCES public.drivers(id) ON DELETE SET NULL,
   transporter_id uuid REFERENCES public.transporters(id) ON DELETE SET NULL,
-  branch_id uuid REFERENCES public.branches(id) ON DELETE SET NULL,
-  freight_amount text DEFAULT '',
-  advance_amount text DEFAULT '',
-  balance_amount text DEFAULT '',
-  payment_status text DEFAULT '',
+  contract_id uuid REFERENCES public.contracts(id) ON DELETE SET NULL,
+  start_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
+  end_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
+  start_date text DEFAULT '',
+  start_time text DEFAULT '',
+  end_date text DEFAULT '',
+  end_time text DEFAULT '',
+  odometer_start text DEFAULT '',
+  odometer_end text DEFAULT '',
   notes text DEFAULT '',
-  status text NOT NULL DEFAULT 'open',
+  branch_id uuid REFERENCES public.branches(id) ON DELETE SET NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -236,15 +332,74 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.trips TO anon, authenticated;
 GRANT ALL ON public.trips TO service_role;
 ALTER TABLE public.trips ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "app can manage trips" ON public.trips FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-CREATE TRIGGER set_trips_updated_at BEFORE UPDATE ON public.trips FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+CREATE TRIGGER trips_updated_at BEFORE UPDATE ON public.trips FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.trip_manifests (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id uuid NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
+  manifest_number text NOT NULL DEFAULT '',
+  from_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
+  from_pin_code text DEFAULT '',
+  to_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
+  to_pin_code text DEFAULT '',
+  weight_kg text DEFAULT '',
+  quantity text DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.trip_manifests TO anon, authenticated;
+GRANT ALL ON public.trip_manifests TO service_role;
+ALTER TABLE public.trip_manifests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "app can manage trip manifests" ON public.trip_manifests FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE TRIGGER trip_manifests_updated_at BEFORE UPDATE ON public.trip_manifests FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.trip_other_income (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id uuid NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
+  income_name text NOT NULL DEFAULT '',
+  amount text DEFAULT '',
+  note text DEFAULT '',
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.trip_other_income TO anon, authenticated;
+GRANT ALL ON public.trip_other_income TO service_role;
+ALTER TABLE public.trip_other_income ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "app can manage trip other income" ON public.trip_other_income FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE TRIGGER trip_other_income_updated_at BEFORE UPDATE ON public.trip_other_income FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.trip_expenses (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  trip_id uuid NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
+  expense_name text NOT NULL DEFAULT '',
+  amount text DEFAULT '',
+  note text DEFAULT '',
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.trip_expenses TO anon, authenticated;
+GRANT ALL ON public.trip_expenses TO service_role;
+ALTER TABLE public.trip_expenses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "app can manage trip expenses" ON public.trip_expenses FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
+CREATE TRIGGER trip_expenses_updated_at BEFORE UPDATE ON public.trip_expenses FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ════════════════════════════════════════════════════════════
+-- Migration 5: closed_trips, incomes, expenditures
+-- ════════════════════════════════════════════════════════════
 
 CREATE TABLE public.closed_trips (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  trip_id uuid REFERENCES public.trips(id) ON DELETE SET NULL,
-  trip_number text DEFAULT '',
-  closed_at timestamptz DEFAULT now(),
-  closed_by text DEFAULT '',
-  notes text DEFAULT '',
+  trip_code text NOT NULL,
+  branch_id uuid,
+  branch_name text DEFAULT '',
+  start_date text DEFAULT '',
+  end_date text DEFAULT '',
+  total_income numeric NOT NULL DEFAULT 0,
+  total_expense numeric NOT NULL DEFAULT 0,
+  net_income numeric NOT NULL DEFAULT 0,
+  snapshot jsonb NOT NULL DEFAULT '{}'::jsonb,
+  closed_at timestamptz NOT NULL DEFAULT now(),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
