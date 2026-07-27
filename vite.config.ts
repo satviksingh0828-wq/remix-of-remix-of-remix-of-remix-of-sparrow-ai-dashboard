@@ -4,7 +4,7 @@ import tailwindcss from "@tailwindcss/vite";
 import tsConfigPaths from "vite-tsconfig-paths";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     // tanstackStart includes the TanStack Router plugin internally —
     // do NOT add TanStackRouterVite separately or plugins will duplicate.
@@ -21,4 +21,8 @@ export default defineConfig({
     allowedHosts: true,
     strictPort: false,
   },
-});
+  // Bundle all node_modules into the SSR output during build so the Vercel
+  // function is self-contained (no node_modules dir exists in the function).
+  // Only applied on `vite build` — dev mode uses Vite's default SSR behaviour.
+  ssr: command === "build" ? { noExternal: true } : {},
+}));
