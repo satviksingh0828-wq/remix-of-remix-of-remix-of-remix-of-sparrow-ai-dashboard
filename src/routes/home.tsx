@@ -92,8 +92,8 @@ function HomePage() {
                   key={m.key}
                   type="button"
                   onClick={() =>
-                    enabled
-                      ? navigate({ to: "/settings" })
+                    enabled && "to" in m && m.to
+                      ? navigate({ to: m.to })
                       : toast.info(`${m.label} module is coming soon`)
                   }
                   style={{ animationDelay: `${i * 55}ms` }}
