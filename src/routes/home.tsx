@@ -39,16 +39,24 @@ export const Route = createFileRoute("/home")({
 
 const MODULES = [
   { key: "operation", label: "Operation", desc: "Trips, consignments & dispatch", icon: Truck },
-  { key: "masters", label: "Masters", desc: "Vehicles, drivers, parties & rates", icon: Database },
+  {
+    key: "masters",
+    label: "Masters",
+    desc: "Vehicles, drivers, transporters & locations",
+    icon: Database,
+    active: true,
+    to: "/masters" as const,
+  },
   { key: "dashboard", label: "Dashboard", desc: "Live fleet & revenue overview", icon: BarChart3 },
   { key: "reports", label: "Reports", desc: "Statements, MIS & exports", icon: FileText },
   { key: "users", label: "Users", desc: "Roles, access & activity log", icon: Users },
   {
     key: "settings",
     label: "Settings",
-    desc: "Company, branches & appearance",
+    desc: "Company, branches, departments & appearance",
     icon: Settings2,
     active: true,
+    to: "/settings" as const,
   },
 ] as const;
 
