@@ -16,6 +16,7 @@ import {
 import { CsvIO } from "@/components/CsvIO";
 import { BranchSelect } from "@/components/BranchSelect";
 import { useBranches, branchName } from "@/lib/use-branches";
+import { fetchAll } from "@/lib/fetch-all";
 
 export type FieldDef = {
   key: string;
@@ -56,12 +57,14 @@ export function MasterList({ config }: { config: MasterConfig }) {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from(config.table)
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (error) toast.error(`Could not load ${config.entityLabel.toLowerCase()}`);
-    setItems((data as Row[]) ?? []);
+    try {
+      const rows = await fetchAll<Row>(() =>
+        supabase.from(config.table).select("*").order("created_at", { ascending: true }),
+      );
+      setItems(rows);
+    } catch {
+      toast.error(`Could not load ${config.entityLabel.toLowerCase()}`);
+    }
     setLoading(false);
   }
   useEffect(() => {

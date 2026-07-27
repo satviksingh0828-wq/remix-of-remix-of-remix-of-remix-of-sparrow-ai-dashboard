@@ -58,12 +58,14 @@ export function Contracts() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("contracts")
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (error) toast.error("Could not load contracts");
-    setContracts((data as unknown as ContractRow[]) ?? []);
+    try {
+      const rows = await fetchAll<ContractRow>(() =>
+        supabase.from("contracts").select("*").order("created_at", { ascending: true }),
+      );
+      setContracts(rows);
+    } catch {
+      toast.error("Could not load contracts");
+    }
     setLoading(false);
   }
   useEffect(() => {
