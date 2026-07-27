@@ -32,6 +32,39 @@ export type Database = {
         }
         Relationships: []
       }
+      app_users: {
+        Row: {
+          id: string
+          username: string
+          password: string
+          full_name: string
+          role: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          username: string
+          password: string
+          full_name?: string
+          role?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          username?: string
+          password?: string
+          full_name?: string
+          role?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address_line1: string | null
@@ -112,6 +145,42 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      user_branch_access: {
+        Row: {
+          id: string
+          user_id: string
+          branch_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          branch_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          branch_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_branch_access_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "app_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_branch_access_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       closed_trips: {
         Row: {

@@ -23,6 +23,7 @@ import {
 import { EntityPicker, type PickerOption } from "@/components/EntityPicker";
 import { CsvIO } from "@/components/CsvIO";
 import { useBranches } from "@/lib/use-branches";
+import { useSession } from "@/lib/session";
 import { inr, num } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
 import {
@@ -52,7 +53,15 @@ const CSV_COLUMNS = [
 
 export function FinanceList({ kind }: { kind: FinanceKind }) {
   const cfg = FINANCE_CONFIG[kind];
-  const branches = useBranches();
+  const allBranches = useBranches();
+  const { user } = useSession();
+
+  // Basic users: filter to their allowed branches only
+  const isBasic = user?.role === "basic";
+  const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
+  const branches = allowedBranchIds !== null
+    ? allBranches.filter((b) => allowedBranchIds.includes(b.id))
+    : allBranches;
 
   const [rows, setRows] = useState<FinanceRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,9 +79,23 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   async function load() {
     setLoading(true);
     try {
-      const data = await fetchAll<Record<string, unknown>>(() =>
-        supabase.from(cfg.table).select("*").order("entry_date", { ascending: false }),
-      );
+      // Basic user with no branches: show nothing
+      if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+
+      const data = await fetchAll<Record<string, unknown>>(() => {
+        let q = supabase
+          .from(cfg.table)
+          .select("*")
+          .order("entry_date", { ascending: false });
+        if (allowedBranchIds !== null) {
+          q = q.in("branch_id", allowedBranchIds) as typeof q;
+        }
+        return q;
+      });
       setRows(
         data.map((r) => ({
           id: r.id as string,
@@ -96,13 +119,27 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
 
   async function loadMasters() {
     const [v, d, t] = await Promise.all([
-      fetchAll<AnyRow>(() =>
-        supabase.from("vehicles").select("*").order("registration_number"),
-      ),
-      fetchAll<AnyRow>(() => supabase.from("drivers").select("*").order("full_name")),
-      fetchAll<AnyRow>(() =>
-        supabase.from("transporters").select("*").order("transporter_name"),
-      ),
+      fetchAll<AnyRow>(() => {
+        let q = supabase.from("vehicles").select("*").order("registration_number");
+        if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
+          q = q.in("branch_id", allowedBranchIds) as typeof q;
+        }
+        return q;
+      }),
+      fetchAll<AnyRow>(() => {
+        let q = supabase.from("drivers").select("*").order("full_name");
+        if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
+          q = q.in("branch_id", allowedBranchIds) as typeof q;
+        }
+        return q;
+      }),
+      fetchAll<AnyRow>(() => {
+        let q = supabase.from("transporters").select("*").order("transporter_name");
+        if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
+          q = q.in("branch_id", allowedBranchIds) as typeof q;
+        }
+        return q;
+      }),
     ]);
     setVehicles(v);
     setDrivers(d);
@@ -113,7 +150,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
     load();
     loadMasters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind]);
+  }, [kind, user?.id]);
 
   const branchOpts: PickerOption[] = branches.map((b) => ({
     id: b.id,

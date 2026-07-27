@@ -13,6 +13,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useBranches } from "@/lib/use-branches";
+import { useSession } from "@/lib/session";
 
 export function BranchSelect({
   value,
@@ -24,8 +25,17 @@ export function BranchSelect({
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const branches = useBranches();
-  const selected = branches.find((b) => b.id === value);
+  const allBranches = useBranches();
+  const { user } = useSession();
+
+  // Basic users can only select from their allowed branches
+  const branches =
+    user?.role === "basic"
+      ? allBranches.filter((b) => user.branchIds.includes(b.id))
+      : allBranches;
+
+  const selected = branches.find((b) => b.id === value) ??
+    allBranches.find((b) => b.id === value); // fallback for display
 
   return (
     <div className="space-y-1.5 sm:col-span-2">
@@ -63,16 +73,18 @@ export function BranchSelect({
             <CommandList>
               <CommandEmpty>No branches found.</CommandEmpty>
               <CommandGroup>
-                <CommandItem
-                  value="__none__"
-                  onSelect={() => {
-                    onChange(null);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn("size-4", !value ? "opacity-100" : "opacity-0")} />
-                  <span className="text-muted-foreground">No branch</span>
-                </CommandItem>
+                {user?.role !== "basic" && (
+                  <CommandItem
+                    value="__none__"
+                    onSelect={() => {
+                      onChange(null);
+                      setOpen(false);
+                    }}
+                  >
+                    <Check className={cn("size-4", !value ? "opacity-100" : "opacity-0")} />
+                    <span className="text-muted-foreground">No branch</span>
+                  </CommandItem>
+                )}
                 {branches.map((b) => (
                   <CommandItem
                     key={b.id}

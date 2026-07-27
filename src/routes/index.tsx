@@ -43,7 +43,7 @@ function LoginPage() {
     setBusy(true);
     setError(null);
     await new Promise((r) => setTimeout(r, 650));
-    if (signIn(id, password)) {
+    if (await signIn(id, password)) {
       toast.success("Welcome back");
       navigate({ to: "/home", replace: true });
     } else {

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/home")({
   ),
 });
 
-const MODULES = [
+const ALL_MODULES = [
   {
     key: "operation",
     label: "Operation",
@@ -45,6 +46,7 @@ const MODULES = [
     icon: Truck,
     active: true,
     to: "/operations" as const,
+    roles: ["admin", "basic"] as const,
   },
   {
     key: "masters",
@@ -53,10 +55,31 @@ const MODULES = [
     icon: Database,
     active: true,
     to: "/masters" as const,
+    roles: ["admin", "basic"] as const,
   },
-  { key: "dashboard", label: "Dashboard", desc: "Live fleet & revenue overview", icon: BarChart3 },
-  { key: "reports", label: "Reports", desc: "Statements, MIS & exports", icon: FileText },
-  { key: "users", label: "Users", desc: "Roles, access & activity log", icon: Users },
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    desc: "Live fleet & revenue overview",
+    icon: BarChart3,
+    roles: ["admin"] as const,
+  },
+  {
+    key: "reports",
+    label: "Reports",
+    desc: "Statements, MIS & exports",
+    icon: FileText,
+    roles: ["admin"] as const,
+  },
+  {
+    key: "users",
+    label: "Users",
+    desc: "Roles, access & activity log",
+    icon: Users,
+    active: true,
+    to: "/users" as const,
+    roles: ["admin"] as const,
+  },
   {
     key: "settings",
     label: "Settings",
@@ -64,11 +87,13 @@ const MODULES = [
     icon: Settings2,
     active: true,
     to: "/settings" as const,
+    roles: ["admin"] as const,
   },
 ] as const;
 
 function HomePage() {
   const navigate = useNavigate();
+  const { user } = useSession();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -76,19 +101,26 @@ function HomePage() {
     return () => clearTimeout(t);
   }, []);
 
+  const role = user?.role ?? "basic";
+  const MODULES = ALL_MODULES.filter((m) =>
+    (m.roles as readonly string[]).includes(role),
+  );
+
   return (
     <AppShell>
       <div className="animate-fade-up">
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">Workspace</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Choose a module</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Six modules power Project TMS. Settings is live today — the rest are being rolled out.
+          {role === "admin"
+            ? "Six modules power Project TMS. Settings, Operations and Masters are live today."
+            : "Operations and Masters are available for your account."}
         </p>
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {loading
-          ? Array.from({ length: 6 }).map((_, i) => (
+          ? Array.from({ length: MODULES.length }).map((_, i) => (
               <Skeleton key={i} className="h-40 rounded-2xl" />
             ))
           : MODULES.map((m, i) => {

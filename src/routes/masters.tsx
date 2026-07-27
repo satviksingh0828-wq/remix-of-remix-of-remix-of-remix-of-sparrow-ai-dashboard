@@ -5,6 +5,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { MasterList } from "@/components/masters/MasterList";
 import { Contracts } from "@/components/masters/Contracts";
+import { useSession } from "@/lib/session";
 import {
   DRIVER_CONFIG,
   LOCATION_CONFIG,
@@ -35,19 +36,26 @@ export const Route = createFileRoute("/masters")({
   ),
 });
 
-const TABS = [
-  { id: "vehicle", label: "Vehicle", desc: "Fleet & specifications", icon: Truck },
-  { id: "driver", label: "Driver", desc: "Staff & licences", icon: User },
-  { id: "transporter", label: "Transporter", desc: "Owners & brokers", icon: Building2 },
-  { id: "location", label: "Locations", desc: "Pickup & drop points", icon: MapPin },
-  { id: "contract", label: "Contracts", desc: "Rates & slabs", icon: FileText },
+const ALL_TABS = [
+  { id: "vehicle", label: "Vehicle", desc: "Fleet & specifications", icon: Truck, adminOnly: true },
+  { id: "driver", label: "Driver", desc: "Staff & licences", icon: User, adminOnly: false },
+  { id: "transporter", label: "Transporter", desc: "Owners & brokers", icon: Building2, adminOnly: false },
+  { id: "location", label: "Locations", desc: "Pickup & drop points", icon: MapPin, adminOnly: true },
+  { id: "contract", label: "Contracts", desc: "Rates & slabs", icon: FileText, adminOnly: true },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
+type TabId = (typeof ALL_TABS)[number]["id"];
 
 function MastersPage() {
-  const [tab, setTab] = useState<TabId>("vehicle");
-  const active = TABS.find((t) => t.id === tab)!;
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
+
+  // Basic users only see Transporter and Driver tabs
+  const TABS = isAdmin ? ALL_TABS : ALL_TABS.filter((t) => !t.adminOnly);
+
+  const [tab, setTab] = useState<TabId>(isAdmin ? "vehicle" : "driver");
+  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const safeTab = active?.id ?? "driver";
 
   return (
     <AppShell
@@ -69,7 +77,7 @@ function MastersPage() {
           <ul className="space-y-1">
             {TABS.map((t) => {
               const Icon = t.icon;
-              const isActive = t.id === tab;
+              const isActive = t.id === safeTab;
               return (
                 <li key={t.id}>
                   <button
@@ -93,16 +101,16 @@ function MastersPage() {
           </ul>
         </nav>
 
-        <div key={tab} className="animate-fade-in min-w-0">
+        <div key={safeTab} className="animate-fade-in min-w-0">
           <header className="mb-6">
-            <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{active?.label}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{active?.desc}</p>
           </header>
-          {tab === "vehicle" ? <MasterList config={VEHICLE_CONFIG} /> : null}
-          {tab === "driver" ? <MasterList config={DRIVER_CONFIG} /> : null}
-          {tab === "transporter" ? <MasterList config={TRANSPORTER_CONFIG} /> : null}
-          {tab === "location" ? <MasterList config={LOCATION_CONFIG} /> : null}
-          {tab === "contract" ? <Contracts /> : null}
+          {safeTab === "vehicle" ? <MasterList config={VEHICLE_CONFIG} /> : null}
+          {safeTab === "driver" ? <MasterList config={DRIVER_CONFIG} /> : null}
+          {safeTab === "transporter" ? <MasterList config={TRANSPORTER_CONFIG} /> : null}
+          {safeTab === "location" ? <MasterList config={LOCATION_CONFIG} /> : null}
+          {safeTab === "contract" ? <Contracts /> : null}
         </div>
       </div>
     </AppShell>

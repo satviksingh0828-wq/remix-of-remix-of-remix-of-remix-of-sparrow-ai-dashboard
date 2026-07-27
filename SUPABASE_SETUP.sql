@@ -450,3 +450,57 @@ GRANT ALL ON public.expenditures TO service_role;
 ALTER TABLE public.expenditures ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "app can manage expenditures" ON public.expenditures FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 CREATE TRIGGER set_expenditures_updated_at BEFORE UPDATE ON public.expenditures FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ════════════════════════════════════════════════════════════
+-- Migration 6: app_users, user_branch_access
+-- (User management with role-based access control)
+--
+-- Security design:
+--   • app_users — NO anon/authenticated access; service_role only.
+--     Passwords never reach the browser; auth runs server-side via
+--     TanStack Start server functions with the service-role key.
+--   • user_branch_access — same; branch filtering is resolved
+--     server-side and stored in the session object.
+-- ════════════════════════════════════════════════════════════
+
+CREATE TABLE public.app_users (
+  id           uuid    PRIMARY KEY DEFAULT gen_random_uuid(),
+  username     text    NOT NULL UNIQUE,
+  password     text    NOT NULL,
+  full_name    text    NOT NULL DEFAULT '',
+  role         text    NOT NULL DEFAULT 'basic'
+               CHECK (role IN ('admin', 'basic')),
+  is_active    boolean NOT NULL DEFAULT true,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+-- Only service_role may access app_users; deny anon/authenticated entirely
+GRANT ALL ON public.app_users TO service_role;
+REVOKE ALL ON public.app_users FROM anon;
+REVOKE ALL ON public.app_users FROM authenticated;
+ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
+-- No permissive policies for anon/authenticated (RLS implicitly denies them).
+-- service_role bypasses RLS automatically.
+CREATE TRIGGER app_users_updated_at
+  BEFORE UPDATE ON public.app_users
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+CREATE TABLE public.user_branch_access (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES public.app_users(id) ON DELETE CASCADE,
+  branch_id  uuid NOT NULL REFERENCES public.branches(id)  ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (user_id, branch_id)
+);
+GRANT ALL ON public.user_branch_access TO service_role;
+REVOKE ALL ON public.user_branch_access FROM anon;
+REVOKE ALL ON public.user_branch_access FROM authenticated;
+ALTER TABLE public.user_branch_access ENABLE ROW LEVEL SECURITY;
+CREATE INDEX user_branch_access_user_id_idx   ON public.user_branch_access(user_id);
+CREATE INDEX user_branch_access_branch_id_idx ON public.user_branch_access(branch_id);
+
+-- Default admin account (username: admin | password: testplay)
+-- Change after first login via the Users module.
+INSERT INTO public.app_users (username, password, full_name, role)
+VALUES ('admin', 'testplay', 'Administrator', 'admin')
+ON CONFLICT (username) DO NOTHING;

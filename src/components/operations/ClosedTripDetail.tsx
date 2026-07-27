@@ -310,7 +310,7 @@ function ManifestView({
         </thead>
         <tbody>
           {lines.map((l, i) => {
-            const m = l.manifest ?? byId.get(l.manifest?.id as string) ?? {};
+            const m = l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {};
             return (
               <tr key={i} className="border-b border-border/60">
                 <td className="py-2 pr-3 font-medium">
@@ -446,13 +446,15 @@ function ContractView({ contract }: { contract: Record<string, unknown> | null }
   if (!contract)
     return <p className="text-sm text-muted-foreground">No contract was linked to this trip.</p>;
 
-  const rows: [string, string][] = [
-    ["Contract name", String(contract.contract_name ?? "")],
-    ["Company", String(contract.company_name ?? "")],
-    ["GSTIN", String(contract.gstin ?? "")],
-    ["Freight basis", String(contract.freight_basis ?? "")],
-    ["Loading basis", String(contract.loading_basis ?? "")],
-  ].filter(([, v]) => v.trim() !== "");
+  const rows = (
+    [
+      ["Contract name", String(contract.contract_name ?? "")],
+      ["Company", String(contract.company_name ?? "")],
+      ["GSTIN", String(contract.gstin ?? "")],
+      ["Freight basis", String(contract.freight_basis ?? "")],
+      ["Loading basis", String(contract.loading_basis ?? "")],
+    ] as [string, string][]
+  ).filter(([, v]) => v.trim() !== "");
 
   if (rows.length === 0)
     return <p className="text-sm text-muted-foreground">No contract details recorded.</p>;

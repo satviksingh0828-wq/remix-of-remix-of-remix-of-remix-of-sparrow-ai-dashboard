@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut } from "lucide-react";
+import { LogOut, ShieldCheck, User } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
@@ -28,8 +28,16 @@ export function AppShell({
           </Link>
           <div className="ml-2 hidden md:block">{breadcrumb}</div>
           <div className="ml-auto flex items-center gap-3">
-            <span className="hidden text-sm text-muted-foreground sm:inline">
-              Signed in as <span className="font-medium text-foreground">{user}</span>
+            <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
+              {user?.role === "admin" ? (
+                <ShieldCheck className="size-3.5 text-primary" />
+              ) : (
+                <User className="size-3.5" />
+              )}
+              <span className="font-medium text-foreground">{user?.fullName ?? user?.username}</span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide">
+                {user?.role === "admin" ? "Admin" : "User"}
+              </span>
             </span>
             <Button
               variant="outline"

@@ -16,6 +16,7 @@ import {
 import { CsvIO } from "@/components/CsvIO";
 import { BranchSelect } from "@/components/BranchSelect";
 import { useBranches, branchName } from "@/lib/use-branches";
+import { useSession } from "@/lib/session";
 import { fetchAll } from "@/lib/fetch-all";
 
 export type FieldDef = {
@@ -48,6 +49,11 @@ export function MasterList({ config }: { config: MasterConfig }) {
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const branches = useBranches();
+  const { user } = useSession();
+
+  // For basic users, restrict data to their allowed branches
+  const isBasic = user?.role === "basic";
+  const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
   const allFieldKeys = config.sections.flatMap((s) => s.fields.map((f) => f.key));
   const emptyRow: Row = Object.fromEntries(allFieldKeys.map((k) => [k, ""])) as Row;
@@ -58,18 +64,35 @@ export function MasterList({ config }: { config: MasterConfig }) {
   async function load() {
     setLoading(true);
     try {
-      const rows = await fetchAll<Row>(() =>
-        supabase.from(config.table).select("*").order("created_at", { ascending: true }),
-      );
+      // If basic user has no branches assigned, show nothing
+      if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
+        setItems([]);
+        setLoading(false);
+        return;
+      }
+
+      const rows = await fetchAll<Row>(() => {
+        let q = supabase
+          .from(config.table)
+          .select("*")
+          .order("created_at", { ascending: true });
+        // Filter by allowed branches for basic users (only applies to branch-linked tables)
+        if (allowedBranchIds !== null && config.hasBranch) {
+          q = q.in("branch_id", allowedBranchIds) as typeof q;
+        }
+        return q;
+      });
       setItems(rows);
     } catch {
       toast.error(`Could not load ${config.entityLabel.toLowerCase()}`);
     }
     setLoading(false);
   }
+
   useEffect(() => {
     load();
-  }, [config.table]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.table, user?.id]);
 
   const set = (k: string) => (v: string) => setEditing((f) => (f ? { ...f, [k]: v } : f));
 
@@ -262,7 +285,9 @@ export function MasterList({ config }: { config: MasterConfig }) {
           </span>
           <p className="mt-4 text-sm font-medium">No {config.entityLabel.toLowerCase()} yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create one, or import a filled template.
+            {isBasic
+              ? "No records found for your assigned branches."
+              : "Create one, or import a filled template."}
           </p>
           <Button className="mt-5" onClick={() => setEditing({ ...emptyRow })}>
             <Plus className="size-4" />

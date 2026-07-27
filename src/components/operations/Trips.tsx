@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { inr } from "@/lib/trip-calc";
@@ -30,19 +31,42 @@ export function Trips() {
   const [closingId, setClosingId] = useState<string | null>(null);
   const [reopeningId, setReopeningId] = useState<string | null>(null);
 
+  const { user } = useSession();
+  const isBasic = user?.role === "basic";
+  const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
+
   async function load() {
     setLoading(true);
     try {
+      // Basic user with no branches: show nothing
+      if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
+        setTrips([]);
+        setClosed([]);
+        setLoading(false);
+        return;
+      }
+
       const [live, archived] = await Promise.all([
-        fetchAll<TripRow>(() =>
-          supabase.from("trips").select("*").order("created_at", { ascending: false }),
-        ),
-        fetchAll<ClosedTrip>(() =>
-          supabase
+        fetchAll<TripRow>(() => {
+          let q = supabase
+            .from("trips")
+            .select("*")
+            .order("created_at", { ascending: false });
+          if (allowedBranchIds !== null) {
+            q = q.in("branch_id", allowedBranchIds) as typeof q;
+          }
+          return q;
+        }),
+        fetchAll<ClosedTrip>(() => {
+          let q = supabase
             .from("closed_trips")
             .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
-            .order("closed_at", { ascending: false }),
-        ),
+            .order("closed_at", { ascending: false });
+          if (allowedBranchIds !== null) {
+            q = q.in("branch_id", allowedBranchIds) as typeof q;
+          }
+          return q;
+        }),
       ]);
       setTrips(live);
       setClosed(archived);
@@ -54,7 +78,8 @@ export function Trips() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   async function remove(id: string) {
     const { error } = await supabase.from("trips").delete().eq("id", id);
@@ -148,7 +173,9 @@ export function Trips() {
         </div>
       ) : trips.length === 0 ? (
         <p className="rounded-xl bg-muted px-4 py-8 text-center text-sm text-muted-foreground">
-          No trips yet. Create a trip to record manifests, income and expenses.
+          {isBasic && allowedBranchIds?.length === 0
+            ? "No branches assigned to your account. Contact your administrator."
+            : "No trips yet. Create a trip to record manifests, income and expenses."}
         </p>
       ) : (
         <ul className="space-y-2">
@@ -230,18 +257,20 @@ export function Trips() {
                   title="View full archived details"
                 >
                   <Eye className="size-4" />
-                  View
+                  Details
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={reopeningId === c.id}
-                  onClick={() => reopen(c.id)}
-                  title="Move back to live trips"
-                >
-                  <RotateCcw className="size-4" />
-                  Reopen
-                </Button>
+                {!isBasic && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={reopeningId === c.id}
+                    onClick={() => reopen(c.id)}
+                    title="Move back to live trips"
+                  >
+                    <RotateCcw className="size-4" />
+                    Reopen
+                  </Button>
+                )}
               </li>
             ))}
           </ul>

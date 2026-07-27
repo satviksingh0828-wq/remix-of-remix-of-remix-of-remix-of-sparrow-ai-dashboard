@@ -1,43 +1,55 @@
 # Project TMS — Sparrow AI Solutions
 
-Transport Management System built with TanStack Start, React, Tailwind CSS, and Supabase.
+A Transport Management System built with TanStack Start, React, TypeScript, Tailwind CSS and Supabase.
 
 ## Stack
-- **Framework**: TanStack Start (SSR, server functions via Nitro)
-- **Routing**: TanStack Router (file-based)
-- **Database**: Supabase (PostgreSQL)
-- **Styling**: Tailwind CSS v4
-- **Package manager**: Bun
+- **Frontend:** React 19, TanStack Router (file-based), TanStack Query
+- **Styling:** Tailwind CSS v4, shadcn/ui components
+- **Backend/DB:** Supabase (Postgres + RLS)
+- **Runtime:** Bun + Vite 8
+- **Deploy target:** Vercel
 
-## Running locally (Replit)
-```
+## How to run
+```sh
 bun install
-bun run dev
+bun run dev      # starts Vite dev server on :5000
 ```
-Serves on port 5000.
 
-## Deploying to Vercel
-1. Connect GitHub repo in Vercel dashboard
-2. Set environment variables (see below)
-3. Build command: `bun run build`
-4. Output directory: `.output/public`
-5. Install command: `bun install`
+## Environment variables (required)
+Set all of these in your Vercel project settings (and locally in `.env`):
 
-## Environment variables required
-
-| Variable | Where to get it |
+| Variable | Where to find it |
 |---|---|
-| `VITE_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase → Project Settings → API → anon/publishable key |
-| `SUPABASE_URL` | Same as above (server-side) |
-| `SUPABASE_PUBLISHABLE_KEY` | Same as above (server-side) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API → service_role key (**keep secret**) |
+| `VITE_SUPABASE_URL` | Supabase Dashboard → Project Settings → API → Project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase Dashboard → Project Settings → API → anon/publishable key |
+| `SUPABASE_URL` | Same as above (used server-side) |
+| `SUPABASE_PUBLISHABLE_KEY` | Same as above (used server-side) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase Dashboard → Project Settings → API → service_role key |
 
-## Supabase schema
-Run `SUPABASE_SETUP.sql` in the Supabase SQL Editor to create all tables.
+**No values are hardcoded.** All Supabase credentials come exclusively from environment variables.
 
-## Auth
-Session is localStorage-based (`admin` / `testplay`). No Supabase Auth used.
+## Database setup
+1. Run `SUPABASE_SETUP.sql` once in the Supabase SQL Editor (full canonical schema).
+2. If you already ran the old SQL, run only `USER_MANAGEMENT_SQL.sql` to add the new user-management tables.
+
+## Authentication
+The app uses its own `app_users` table (not Supabase Auth).  
+Default admin: **username** `admin` **password** `testplay` — change after first login via the **Users** module.
+
+## User roles
+| Role | Access |
+|---|---|
+| **Admin** | All modules: Operations, Masters (all tabs), Settings, Users, Dashboard (soon), Reports (soon) |
+| **Basic user** | Operations (trips/income/expenditure for their branches only) + Masters (Driver & Transporter tabs only, branch-filtered) |
+
+Branch assignment for basic users is managed in the **Users** module (admin only).
+
+## Modules
+- **Operations** — Trips (live + closed with inline detail view), Income, Expenditure
+- **Masters** — Vehicles, Drivers, Transporters, Locations, Contracts
+- **Users** — Admin-only user management with role and branch assignment
+- **Settings** — Company profile, branch management, theme
 
 ## User preferences
-- Keep existing project structure; do not restructure or migrate.
+- Keep the project's existing structure and file conventions.
+- All Supabase env vars must come from environment variables — never hardcode.
