@@ -194,30 +194,175 @@ export type Database = {
         }
         Relationships: []
       }
-      departments: {
+      contract_entries: {
         Row: {
-          code: string | null
+          contract_id: string
           created_at: string
-          description: string | null
+          freight_values: Json
+          from_location_id: string | null
+          from_pin_code: string | null
           id: string
-          name: string
+          loading_values: Json
+          monthly_change_amount: string | null
+          monthly_change_note: string | null
+          per_manifest_amount: string | null
+          per_manifest_note: string | null
+          to_location_id: string | null
+          to_pin_code: string | null
           updated_at: string
+          yearly_change_amount: string | null
+          yearly_change_note: string | null
         }
         Insert: {
-          code?: string | null
+          contract_id: string
           created_at?: string
-          description?: string | null
+          freight_values?: Json
+          from_location_id?: string | null
+          from_pin_code?: string | null
           id?: string
-          name: string
+          loading_values?: Json
+          monthly_change_amount?: string | null
+          monthly_change_note?: string | null
+          per_manifest_amount?: string | null
+          per_manifest_note?: string | null
+          to_location_id?: string | null
+          to_pin_code?: string | null
           updated_at?: string
+          yearly_change_amount?: string | null
+          yearly_change_note?: string | null
         }
         Update: {
-          code?: string | null
+          contract_id?: string
           created_at?: string
-          description?: string | null
+          freight_values?: Json
+          from_location_id?: string | null
+          from_pin_code?: string | null
           id?: string
-          name?: string
+          loading_values?: Json
+          monthly_change_amount?: string | null
+          monthly_change_note?: string | null
+          per_manifest_amount?: string | null
+          per_manifest_note?: string | null
+          to_location_id?: string | null
+          to_pin_code?: string | null
           updated_at?: string
+          yearly_change_amount?: string | null
+          yearly_change_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_entries_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_entries_from_location_id_fkey"
+            columns: ["from_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_entries_to_location_id_fkey"
+            columns: ["to_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          cin: string | null
+          city: string | null
+          company_name: string | null
+          company_type: string | null
+          contract_name: string
+          country: string | null
+          created_at: string
+          email: string | null
+          freight_basis: string
+          gstin: string | null
+          id: string
+          iec: string | null
+          industry: string | null
+          legal_business_name: string | null
+          loading_basis: string
+          mobile_number: string | null
+          msme_udyam: string | null
+          pan: string | null
+          pin_code: string | null
+          quantity_ranges: Json
+          state: string | null
+          tan: string | null
+          telephone_number: string | null
+          updated_at: string
+          website: string | null
+          weight_ranges: Json
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          cin?: string | null
+          city?: string | null
+          company_name?: string | null
+          company_type?: string | null
+          contract_name: string
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          freight_basis?: string
+          gstin?: string | null
+          id?: string
+          iec?: string | null
+          industry?: string | null
+          legal_business_name?: string | null
+          loading_basis?: string
+          mobile_number?: string | null
+          msme_udyam?: string | null
+          pan?: string | null
+          pin_code?: string | null
+          quantity_ranges?: Json
+          state?: string | null
+          tan?: string | null
+          telephone_number?: string | null
+          updated_at?: string
+          website?: string | null
+          weight_ranges?: Json
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          cin?: string | null
+          city?: string | null
+          company_name?: string | null
+          company_type?: string | null
+          contract_name?: string
+          country?: string | null
+          created_at?: string
+          email?: string | null
+          freight_basis?: string
+          gstin?: string | null
+          id?: string
+          iec?: string | null
+          industry?: string | null
+          legal_business_name?: string | null
+          loading_basis?: string
+          mobile_number?: string | null
+          msme_udyam?: string | null
+          pan?: string | null
+          pin_code?: string | null
+          quantity_ranges?: Json
+          state?: string | null
+          tan?: string | null
+          telephone_number?: string | null
+          updated_at?: string
+          website?: string | null
+          weight_ranges?: Json
         }
         Relationships: []
       }
@@ -231,6 +376,7 @@ export type Database = {
           bank_ifsc: string | null
           bank_name: string | null
           blood_group: string | null
+          branch_id: string | null
           created_at: string
           curr_address_line1: string | null
           curr_address_line2: string | null
@@ -240,7 +386,6 @@ export type Database = {
           curr_same_as_perm: string | null
           curr_state: string | null
           date_of_birth: string | null
-          department_id: string | null
           driver_code: string
           email: string | null
           emergency_contact_name: string | null
@@ -278,6 +423,7 @@ export type Database = {
           bank_ifsc?: string | null
           bank_name?: string | null
           blood_group?: string | null
+          branch_id?: string | null
           created_at?: string
           curr_address_line1?: string | null
           curr_address_line2?: string | null
@@ -287,7 +433,6 @@ export type Database = {
           curr_same_as_perm?: string | null
           curr_state?: string | null
           date_of_birth?: string | null
-          department_id?: string | null
           driver_code: string
           email?: string | null
           emergency_contact_name?: string | null
@@ -325,6 +470,7 @@ export type Database = {
           bank_ifsc?: string | null
           bank_name?: string | null
           blood_group?: string | null
+          branch_id?: string | null
           created_at?: string
           curr_address_line1?: string | null
           curr_address_line2?: string | null
@@ -334,7 +480,6 @@ export type Database = {
           curr_same_as_perm?: string | null
           curr_state?: string | null
           date_of_birth?: string | null
-          department_id?: string | null
           driver_code?: string
           email?: string | null
           emergency_contact_name?: string | null
@@ -365,10 +510,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "drivers_department_id_fkey"
-            columns: ["department_id"]
+            foreignKeyName: "drivers_branch_id_fkey"
+            columns: ["branch_id"]
             isOneToOne: false
-            referencedRelation: "departments"
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -422,10 +567,10 @@ export type Database = {
           bank_branch: string | null
           bank_ifsc: string | null
           bank_name: string | null
+          branch_id: string | null
           city: string | null
           country: string | null
           created_at: string
-          department_id: string | null
           email: string | null
           gstin: string | null
           id: string
@@ -454,10 +599,10 @@ export type Database = {
           bank_branch?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          branch_id?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
-          department_id?: string | null
           email?: string | null
           gstin?: string | null
           id?: string
@@ -486,10 +631,10 @@ export type Database = {
           bank_branch?: string | null
           bank_ifsc?: string | null
           bank_name?: string | null
+          branch_id?: string | null
           city?: string | null
           country?: string | null
           created_at?: string
-          department_id?: string | null
           email?: string | null
           gstin?: string | null
           id?: string
@@ -511,18 +656,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "transporters_department_id_fkey"
-            columns: ["department_id"]
+            foreignKeyName: "transporters_branch_id_fkey"
+            columns: ["branch_id"]
             isOneToOne: false
-            referencedRelation: "departments"
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
       }
       vehicles: {
         Row: {
+          branch_id: string | null
           created_at: string
-          department_id: string | null
           fuel_type: string | null
           id: string
           internal_code: string | null
@@ -537,8 +682,8 @@ export type Database = {
           year_of_manufacture: string | null
         }
         Insert: {
+          branch_id?: string | null
           created_at?: string
-          department_id?: string | null
           fuel_type?: string | null
           id?: string
           internal_code?: string | null
@@ -553,8 +698,8 @@ export type Database = {
           year_of_manufacture?: string | null
         }
         Update: {
+          branch_id?: string | null
           created_at?: string
-          department_id?: string | null
           fuel_type?: string | null
           id?: string
           internal_code?: string | null
@@ -570,10 +715,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "vehicles_department_id_fkey"
-            columns: ["department_id"]
+            foreignKeyName: "vehicles_branch_id_fkey"
+            columns: ["branch_id"]
             isOneToOne: false
-            referencedRelation: "departments"
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
