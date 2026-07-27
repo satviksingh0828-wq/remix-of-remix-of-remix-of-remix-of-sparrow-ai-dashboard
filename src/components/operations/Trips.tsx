@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { closeTrip } from "@/lib/close-trip";
 import { inr } from "@/lib/trip-calc";
+import { fetchAll } from "@/lib/fetch-all";
 import { TripForm, emptyTrip, type TripRow } from "./TripForm";
 
 type ClosedTrip = {
@@ -27,16 +28,23 @@ export function Trips() {
 
   async function load() {
     setLoading(true);
-    const [{ data, error }, closedRes] = await Promise.all([
-      supabase.from("trips").select("*").order("created_at", { ascending: false }),
-      supabase
-        .from("closed_trips")
-        .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
-        .order("closed_at", { ascending: false }),
-    ]);
-    if (error) toast.error("Could not load trips");
-    setTrips((data as unknown as TripRow[]) ?? []);
-    setClosed((closedRes.data as unknown as ClosedTrip[]) ?? []);
+    try {
+      const [live, archived] = await Promise.all([
+        fetchAll<TripRow>(() =>
+          supabase.from("trips").select("*").order("created_at", { ascending: false }),
+        ),
+        fetchAll<ClosedTrip>(() =>
+          supabase
+            .from("closed_trips")
+            .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
+            .order("closed_at", { ascending: false }),
+        ),
+      ]);
+      setTrips(live);
+      setClosed(archived);
+    } catch {
+      toast.error("Could not load trips");
+    }
     setLoading(false);
   }
   useEffect(() => {

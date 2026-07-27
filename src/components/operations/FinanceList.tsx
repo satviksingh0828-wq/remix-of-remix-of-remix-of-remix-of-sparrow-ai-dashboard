@@ -24,6 +24,7 @@ import { EntityPicker, type PickerOption } from "@/components/EntityPicker";
 import { CsvIO } from "@/components/CsvIO";
 import { useBranches } from "@/lib/use-branches";
 import { inr, num } from "@/lib/trip-calc";
+import { fetchAll } from "@/lib/fetch-all";
 import {
   emptyFinanceRow,
   FINANCE_CONFIG,
@@ -68,38 +69,44 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from(cfg.table)
-      .select("*")
-      .order("entry_date", { ascending: false });
-    if (error) toast.error(`Could not load ${cfg.title.toLowerCase()}`);
-    setRows(
-      ((data as unknown as Record<string, unknown>[]) ?? []).map((r) => ({
-        id: r.id as string,
-        name: String(r[cfg.nameCol] ?? ""),
-        amount: String(r.amount ?? ""),
-        note: String(r.note ?? ""),
-        entry_date: String(r.entry_date ?? ""),
-        branch_id: (r.branch_id as string) ?? null,
-        vehicle_id: (r.vehicle_id as string) ?? null,
-        driver_id: (r.driver_id as string) ?? null,
-        transporter_id: (r.transporter_id as string) ?? null,
-        settled: Boolean(r[cfg.statusCol]),
-        settled_date: String(r[cfg.statusDateCol] ?? ""),
-      })),
-    );
+    try {
+      const data = await fetchAll<Record<string, unknown>>(() =>
+        supabase.from(cfg.table).select("*").order("entry_date", { ascending: false }),
+      );
+      setRows(
+        data.map((r) => ({
+          id: r.id as string,
+          name: String(r[cfg.nameCol] ?? ""),
+          amount: String(r.amount ?? ""),
+          note: String(r.note ?? ""),
+          entry_date: String(r.entry_date ?? ""),
+          branch_id: (r.branch_id as string) ?? null,
+          vehicle_id: (r.vehicle_id as string) ?? null,
+          driver_id: (r.driver_id as string) ?? null,
+          transporter_id: (r.transporter_id as string) ?? null,
+          settled: Boolean(r[cfg.statusCol]),
+          settled_date: String(r[cfg.statusDateCol] ?? ""),
+        })),
+      );
+    } catch {
+      toast.error(`Could not load ${cfg.title.toLowerCase()}`);
+    }
     setLoading(false);
   }
 
   async function loadMasters() {
     const [v, d, t] = await Promise.all([
-      supabase.from("vehicles").select("*").order("registration_number"),
-      supabase.from("drivers").select("*").order("full_name"),
-      supabase.from("transporters").select("*").order("transporter_name"),
+      fetchAll<AnyRow>(() =>
+        supabase.from("vehicles").select("*").order("registration_number"),
+      ),
+      fetchAll<AnyRow>(() => supabase.from("drivers").select("*").order("full_name")),
+      fetchAll<AnyRow>(() =>
+        supabase.from("transporters").select("*").order("transporter_name"),
+      ),
     ]);
-    setVehicles((v.data as AnyRow[]) ?? []);
-    setDrivers((d.data as AnyRow[]) ?? []);
-    setTransporters((t.data as AnyRow[]) ?? []);
+    setVehicles(v);
+    setDrivers(d);
+    setTransporters(t);
   }
 
   useEffect(() => {
