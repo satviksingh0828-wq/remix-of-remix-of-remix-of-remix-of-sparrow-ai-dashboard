@@ -6,9 +6,9 @@ export const VEHICLE_CONFIG: MasterConfig = {
   entityLabel: "Vehicles",
   singular: "vehicle",
   icon: Truck,
-  hasDepartment: true,
+  hasBranch: true,
   titleKey: "registration_number",
-  subtitleKeys: ["manufacturer", "model", "department_name"],
+  subtitleKeys: ["manufacturer", "model", "branch_name"],
   emptyMsg: "Registered vehicles in your fleet, linked to a controlling department.",
   sections: [
     {
@@ -48,9 +48,9 @@ export const DRIVER_CONFIG: MasterConfig = {
   entityLabel: "Drivers",
   singular: "driver",
   icon: User,
-  hasDepartment: true,
+  hasBranch: true,
   titleKey: "full_name",
-  subtitleKeys: ["driver_code", "mobile_number", "department_name"],
+  subtitleKeys: ["driver_code", "mobile_number", "branch_name"],
   emptyMsg: "Driving staff with licence, contact and payroll details.",
   sections: [
     {
@@ -154,9 +154,9 @@ export const TRANSPORTER_CONFIG: MasterConfig = {
   entityLabel: "Transporters",
   singular: "transporter",
   icon: Building2,
-  hasDepartment: true,
+  hasBranch: true,
   titleKey: "transporter_name",
-  subtitleKeys: ["transporter_type", "city", "department_name"],
+  subtitleKeys: ["transporter_type", "city", "branch_name"],
   emptyMsg: "Fleet owners, brokers and transport companies you work with.",
   sections: [
     {
@@ -222,7 +222,7 @@ export const LOCATION_CONFIG: MasterConfig = {
   entityLabel: "Locations",
   singular: "location",
   icon: MapPin,
-  hasDepartment: false,
+  hasBranch: false,
   titleKey: "location_name",
   subtitleKeys: ["location_type", "city", "state", "country"],
   emptyMsg: "Pickup, drop and hub locations used across operations.",
