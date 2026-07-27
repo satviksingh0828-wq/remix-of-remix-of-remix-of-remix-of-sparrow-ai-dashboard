@@ -113,6 +113,54 @@ export type Database = {
         }
         Relationships: []
       }
+      closed_trips: {
+        Row: {
+          branch_id: string | null
+          branch_name: string | null
+          closed_at: string
+          created_at: string
+          end_date: string | null
+          id: string
+          net_income: number
+          snapshot: Json
+          start_date: string | null
+          total_expense: number
+          total_income: number
+          trip_code: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id?: string | null
+          branch_name?: string | null
+          closed_at?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          net_income?: number
+          snapshot?: Json
+          start_date?: string | null
+          total_expense?: number
+          total_income?: number
+          trip_code: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string | null
+          branch_name?: string | null
+          closed_at?: string
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          net_income?: number
+          snapshot?: Json
+          start_date?: string | null
+          total_expense?: number
+          total_income?: number
+          trip_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       company: {
         Row: {
           address_line1: string | null
@@ -518,6 +566,160 @@ export type Database = {
           },
         ]
       }
+      expenditures: {
+        Row: {
+          amount: string | null
+          branch_id: string | null
+          created_at: string
+          driver_id: string | null
+          entry_date: string | null
+          expenditure_name: string
+          id: string
+          is_paid: boolean
+          note: string | null
+          paid_date: string | null
+          transporter_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          amount?: string | null
+          branch_id?: string | null
+          created_at?: string
+          driver_id?: string | null
+          entry_date?: string | null
+          expenditure_name?: string
+          id?: string
+          is_paid?: boolean
+          note?: string | null
+          paid_date?: string | null
+          transporter_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          amount?: string | null
+          branch_id?: string | null
+          created_at?: string
+          driver_id?: string | null
+          entry_date?: string | null
+          expenditure_name?: string
+          id?: string
+          is_paid?: boolean
+          note?: string | null
+          paid_date?: string | null
+          transporter_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenditures_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenditures_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenditures_transporter_id_fkey"
+            columns: ["transporter_id"]
+            isOneToOne: false
+            referencedRelation: "transporters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenditures_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incomes: {
+        Row: {
+          amount: string | null
+          branch_id: string | null
+          created_at: string
+          driver_id: string | null
+          entry_date: string | null
+          id: string
+          income_name: string
+          is_received: boolean
+          note: string | null
+          received_date: string | null
+          transporter_id: string | null
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          amount?: string | null
+          branch_id?: string | null
+          created_at?: string
+          driver_id?: string | null
+          entry_date?: string | null
+          id?: string
+          income_name?: string
+          is_received?: boolean
+          note?: string | null
+          received_date?: string | null
+          transporter_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          amount?: string | null
+          branch_id?: string | null
+          created_at?: string
+          driver_id?: string | null
+          entry_date?: string | null
+          id?: string
+          income_name?: string
+          is_received?: boolean
+          note?: string | null
+          received_date?: string | null
+          transporter_id?: string | null
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incomes_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incomes_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incomes_transporter_id_fkey"
+            columns: ["transporter_id"]
+            isOneToOne: false
+            referencedRelation: "transporters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incomes_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       locations: {
         Row: {
           city: string | null
@@ -809,6 +1011,7 @@ export type Database = {
       }
       trips: {
         Row: {
+          branch_id: string | null
           contract_id: string | null
           created_at: string
           driver_id: string | null
@@ -829,6 +1032,7 @@ export type Database = {
           vehicle_id: string | null
         }
         Insert: {
+          branch_id?: string | null
           contract_id?: string | null
           created_at?: string
           driver_id?: string | null
@@ -849,6 +1053,7 @@ export type Database = {
           vehicle_id?: string | null
         }
         Update: {
+          branch_id?: string | null
           contract_id?: string | null
           created_at?: string
           driver_id?: string | null
@@ -869,6 +1074,13 @@ export type Database = {
           vehicle_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "trips_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trips_contract_id_fkey"
             columns: ["contract_id"]
