@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inr, num } from "@/lib/trip-calc";
+import { reopenTrip } from "@/lib/reopen-trip";
 
 // ── Snapshot shape (mirrors what closeTrip() writes) ──────────────────────────
 
@@ -117,7 +118,6 @@ export function ClosedTripDetail({
       return;
     setReopening(true);
     try {
-      const { reopenTrip } = await import("@/lib/reopen-trip");
       await reopenTrip(closedId);
       toast.success("Trip reopened with current rates");
       onReopened();
