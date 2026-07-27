@@ -7,6 +7,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CsvIO } from "@/components/CsvIO";
 import { rangeKey, rangeLabel, basisRanges, basisUnit } from "@/lib/contract-ranges";
 import type { Range } from "@/lib/contract-ranges";
+import { monthlyContractEffect } from "@/lib/finance";
+import { inr } from "@/lib/trip-calc";
 import { ContractForm, EMPTY_CONTRACT, type ContractRow } from "./ContractForm";
 import {
   ContractEntryForm,
@@ -523,6 +525,7 @@ function EntriesView({
                   <p className="truncate text-xs text-muted-foreground">
                     {[e.from_pin_code, e.to_pin_code].filter(Boolean).join(" → ")}
                     {preview ? " · " + preview : ""}
+                    {" · Per month: " + inr(monthlyContractEffect(e))}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">
