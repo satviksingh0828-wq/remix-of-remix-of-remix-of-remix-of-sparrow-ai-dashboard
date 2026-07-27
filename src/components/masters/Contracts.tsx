@@ -7,8 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CsvIO } from "@/components/CsvIO";
 import { rangeKey, rangeLabel, basisRanges, basisUnit } from "@/lib/contract-ranges";
 import type { Range } from "@/lib/contract-ranges";
-import { monthlyContractEffect } from "@/lib/finance";
-import { inr } from "@/lib/trip-calc";
+import { fetchAll } from "@/lib/fetch-all";
 import { ContractForm, EMPTY_CONTRACT, type ContractRow } from "./ContractForm";
 import {
   ContractEntryForm,
@@ -59,12 +58,14 @@ export function Contracts() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("contracts")
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (error) toast.error("Could not load contracts");
-    setContracts((data as unknown as ContractRow[]) ?? []);
+    try {
+      const rows = await fetchAll<ContractRow>(() =>
+        supabase.from("contracts").select("*").order("created_at", { ascending: true }),
+      );
+      setContracts(rows);
+    } catch {
+      toast.error("Could not load contracts");
+    }
     setLoading(false);
   }
   useEffect(() => {
@@ -285,10 +286,6 @@ function EntriesView({
       "to_pin_code",
       ...freightCols,
       ...loadingCols,
-      "monthly_change_amount",
-      "monthly_change_note",
-      "yearly_change_amount",
-      "yearly_change_note",
       "per_manifest_amount",
       "per_manifest_note",
     ];
@@ -296,30 +293,32 @@ function EntriesView({
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("contract_entries")
-      .select("*")
-      .eq("contract_id", contract.id!)
-      .order("created_at", { ascending: true });
-    if (error) toast.error("Could not load entries");
-    const rows = (data as unknown as EntryRow[]) ?? [];
-    setEntries(rows);
-    // load location names
-    const ids = Array.from(
-      new Set(
-        rows.flatMap((r) => [r.from_location_id, r.to_location_id]).filter(Boolean),
-      ),
-    ) as string[];
-    if (ids.length) {
-      const { data: locs } = await supabase
-        .from("locations")
-        .select("id,location_name")
-        .in("id", ids);
-      const map: Record<string, string> = {};
-      (locs ?? []).forEach((l) => {
-        map[l.id as string] = l.location_name as string;
-      });
-      setLocNames(map);
+    try {
+      const rows = await fetchAll<EntryRow>(() =>
+        supabase
+          .from("contract_entries")
+          .select("*")
+          .eq("contract_id", contract.id!)
+          .order("created_at", { ascending: true }),
+      );
+      setEntries(rows);
+      const ids = Array.from(
+        new Set(
+          rows.flatMap((r) => [r.from_location_id, r.to_location_id]).filter(Boolean),
+        ),
+      ) as string[];
+      if (ids.length) {
+        const locs = await fetchAll<{ id: string; location_name: string }>(() =>
+          supabase.from("locations").select("id,location_name").in("id", ids),
+        );
+        const map: Record<string, string> = {};
+        locs.forEach((l) => {
+          map[l.id] = l.location_name;
+        });
+        setLocNames(map);
+      }
+    } catch {
+      toast.error("Could not load entries");
     }
     setLoading(false);
   }
@@ -335,11 +334,10 @@ function EntriesView({
   }
 
   async function onImport(rows: Record<string, string>[]) {
-    // Build location lookups so a missing name or PIN auto-fills from the other.
-    const { data: locs } = await supabase
-      .from("locations")
-      .select("id,location_name,pin_code");
-    const all = (locs ?? []) as { id: string; location_name: string; pin_code: string | null }[];
+    // Load ALL locations so importing 50k+ entries can still resolve PIN→location.
+    const all = await fetchAll<{ id: string; location_name: string; pin_code: string | null }>(
+      () => supabase.from("locations").select("id,location_name,pin_code"),
+    );
     const nameToId = new Map(all.map((l) => [l.location_name.trim().toLowerCase(), l.id]));
     const pinToId = new Map(
       all
@@ -348,10 +346,11 @@ function EntriesView({
     );
     const pinById = new Map(all.map((l) => [l.id, (l.pin_code ?? "").trim()]));
 
+    // PIN takes precedence — importing with only a PIN auto-fills the matching location.
     const resolve = (name: string, pin: string) => {
       const n = (name ?? "").trim().toLowerCase();
       const p = (pin ?? "").trim();
-      const id = nameToId.get(n) ?? pinToId.get(p) ?? null;
+      const id = pinToId.get(p) ?? nameToId.get(n) ?? null;
       return { id, pin: p || (id ? pinById.get(id) ?? "" : "") };
     };
 
@@ -378,10 +377,6 @@ function EntriesView({
         to_pin_code: to.pin,
         freight_values,
         loading_values,
-        monthly_change_amount: r.monthly_change_amount ?? "",
-        monthly_change_note: r.monthly_change_note ?? "",
-        yearly_change_amount: r.yearly_change_amount ?? "",
-        yearly_change_note: r.yearly_change_note ?? "",
         per_manifest_amount: r.per_manifest_amount ?? "",
         per_manifest_note: r.per_manifest_note ?? "",
       };
@@ -404,10 +399,6 @@ function EntriesView({
       from_pin_code: e.from_pin_code,
       to_location: e.to_location_id ? locNames[e.to_location_id] ?? "" : "",
       to_pin_code: e.to_pin_code,
-      monthly_change_amount: e.monthly_change_amount,
-      monthly_change_note: e.monthly_change_note,
-      yearly_change_amount: e.yearly_change_amount,
-      yearly_change_note: e.yearly_change_note,
       per_manifest_amount: e.per_manifest_amount,
       per_manifest_note: e.per_manifest_note,
     };
@@ -525,7 +516,6 @@ function EntriesView({
                   <p className="truncate text-xs text-muted-foreground">
                     {[e.from_pin_code, e.to_pin_code].filter(Boolean).join(" → ")}
                     {preview ? " · " + preview : ""}
-                    {" · Per month: " + inr(monthlyContractEffect(e))}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-2">

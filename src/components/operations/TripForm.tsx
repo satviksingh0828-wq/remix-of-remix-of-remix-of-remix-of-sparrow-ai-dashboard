@@ -32,7 +32,7 @@ import {
 import { useLocations } from "@/lib/use-locations";
 import { useBranches } from "@/lib/use-branches";
 import { closeTrip } from "@/lib/close-trip";
-import { monthlyContractEffect } from "@/lib/finance";
+// monthlyContractEffect removed with monthly/yearly change fields
 import {
   findEntry,
   inr,
@@ -332,10 +332,7 @@ export function TripForm({
     label: b.branch_name,
     sub: b.branch_type ?? undefined,
   }));
-  const monthlyContractCharges = entries.reduce(
-    (s, e) => s + monthlyContractEffect(e as never),
-    0,
-  );
+  const monthlyContractCharges = 0;
 
   return (
     <div className="animate-fade-up space-y-5">
@@ -1048,8 +1045,8 @@ function ContractDetails({
     ["Freight basis", contract.freight_basis],
     ["Loading basis", contract.loading_basis],
     ["Rate entries (routes)", String(entryCount)],
-    ["Monthly contract charges (monthly + yearly ÷ 12)", inr(monthlyCharges)],
   ];
+  void monthlyCharges;
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
       {rows

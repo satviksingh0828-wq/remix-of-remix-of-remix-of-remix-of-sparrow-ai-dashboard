@@ -19,10 +19,6 @@ export type EntryRow = {
   to_pin_code: string;
   freight_values: Record<string, string>;
   loading_values: Record<string, string>;
-  monthly_change_amount: string;
-  monthly_change_note: string;
-  yearly_change_amount: string;
-  yearly_change_note: string;
   per_manifest_amount: string;
   per_manifest_note: string;
 };
@@ -36,10 +32,6 @@ export function emptyEntry(contract_id: string): EntryRow {
     to_pin_code: "",
     freight_values: {},
     loading_values: {},
-    monthly_change_amount: "",
-    monthly_change_note: "",
-    yearly_change_amount: "",
-    yearly_change_note: "",
     per_manifest_amount: "",
     per_manifest_note: "",
   };
@@ -218,20 +210,6 @@ export function ContractEntryForm({
         </div>
       </section>
 
-      <AmountNote
-        title="Monthly change"
-        amount={form.monthly_change_amount}
-        note={form.monthly_change_note}
-        onAmount={(v) => patch({ monthly_change_amount: v })}
-        onNote={(v) => patch({ monthly_change_note: v })}
-      />
-      <AmountNote
-        title="Yearly change"
-        amount={form.yearly_change_amount}
-        note={form.yearly_change_note}
-        onAmount={(v) => patch({ yearly_change_amount: v })}
-        onNote={(v) => patch({ yearly_change_note: v })}
-      />
       <AmountNote
         title="Per manifest change"
         amount={form.per_manifest_amount}

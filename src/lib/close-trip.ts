@@ -6,7 +6,7 @@ import {
   type ContractLite,
   type EntryLite,
 } from "./trip-calc";
-import { monthlyContractEffect } from "./finance";
+// monthlyContractEffect removed with monthly/yearly change fields
 
 /**
  * Closes a trip: takes a full snapshot of every record the trip used
@@ -69,10 +69,7 @@ export async function closeTrip(tripId: string) {
   const manifestTotal = manifestLines.reduce((s, l) => s + l.total, 0);
   const otherIncomeTotal = otherIncome.reduce((s, r) => s + num(r.amount), 0);
   const expenseTotal = expenses.reduce((s, r) => s + num(r.amount), 0);
-  const monthlyContractCharges = entries.reduce(
-    (s, e) => s + monthlyContractEffect(e as never),
-    0,
-  );
+  const monthlyContractCharges = 0;
   const totalIncome = manifestTotal + otherIncomeTotal;
 
   const insert = await supabase.from("closed_trips").insert({
