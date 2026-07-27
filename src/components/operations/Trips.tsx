@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Archive, Lock, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
+import { Archive, Eye, Lock, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { reopenTrip } from "@/lib/reopen-trip";
 import { inr } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
 import { TripForm, emptyTrip, type TripRow } from "./TripForm";
+import { ClosedTripDetail } from "./ClosedTripDetail";
 
 type ClosedTrip = {
   id: string;
@@ -25,6 +26,7 @@ export function Trips() {
   const [closed, setClosed] = useState<ClosedTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<TripRow | null>(null);
+  const [viewingClosedId, setViewingClosedId] = useState<string | null>(null);
   const [closingId, setClosingId] = useState<string | null>(null);
   const [reopeningId, setReopeningId] = useState<string | null>(null);
 
@@ -49,6 +51,7 @@ export function Trips() {
     }
     setLoading(false);
   }
+
   useEffect(() => {
     load();
   }, []);
@@ -98,6 +101,8 @@ export function Trips() {
     }
   }
 
+  // ── Inline detail views (replace the list) ────────────────────────────────
+
   if (editing)
     return (
       <TripForm
@@ -109,6 +114,23 @@ export function Trips() {
         onSaved={load}
       />
     );
+
+  if (viewingClosedId)
+    return (
+      <ClosedTripDetail
+        closedId={viewingClosedId}
+        onBack={() => {
+          setViewingClosedId(null);
+          load();
+        }}
+        onReopened={() => {
+          setViewingClosedId(null);
+          load();
+        }}
+      />
+    );
+
+  // ── List view ─────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-4">
@@ -188,20 +210,34 @@ export function Trips() {
             {closed.map((c) => (
               <li key={c.id} className="surface-card flex items-center gap-3 p-4">
                 <Archive className="size-4 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left"
+                  onClick={() => setViewingClosedId(c.id)}
+                >
                   <span className="block text-sm font-medium">{c.trip_code}</span>
                   <span className="block text-xs text-muted-foreground">
                     {[c.branch_name, c.start_date, c.end_date]
                       .filter(Boolean)
                       .join(" · ") || "—"}
                   </span>
-                </div>
+                </button>
                 <span className="text-sm font-semibold">{inr(Number(c.net_income ?? 0))}</span>
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => setViewingClosedId(c.id)}
+                  title="View full archived details"
+                >
+                  <Eye className="size-4" />
+                  View
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   disabled={reopeningId === c.id}
                   onClick={() => reopen(c.id)}
+                  title="Move back to live trips"
                 >
                   <RotateCcw className="size-4" />
                   Reopen
