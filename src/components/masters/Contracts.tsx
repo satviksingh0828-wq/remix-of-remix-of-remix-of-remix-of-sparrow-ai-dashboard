@@ -7,8 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { CsvIO } from "@/components/CsvIO";
 import { rangeKey, rangeLabel, basisRanges, basisUnit } from "@/lib/contract-ranges";
 import type { Range } from "@/lib/contract-ranges";
-import { monthlyContractEffect } from "@/lib/finance";
-import { inr } from "@/lib/trip-calc";
+import { fetchAll } from "@/lib/fetch-all";
 import { ContractForm, EMPTY_CONTRACT, type ContractRow } from "./ContractForm";
 import {
   ContractEntryForm,
