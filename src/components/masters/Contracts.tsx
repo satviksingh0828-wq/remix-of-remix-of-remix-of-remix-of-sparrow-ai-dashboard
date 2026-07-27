@@ -333,13 +333,25 @@ function EntriesView({
   }
 
   async function onImport(rows: Record<string, string>[]) {
-    // Build location name → id map
-    const { data: locs } = await supabase.from("locations").select("id,location_name");
-    const nameToId = new Map(
-      (locs ?? []).map(
-        (l) => [String(l.location_name).toLowerCase(), l.id as string] as const,
-      ),
+    // Build location lookups so a missing name or PIN auto-fills from the other.
+    const { data: locs } = await supabase
+      .from("locations")
+      .select("id,location_name,pin_code");
+    const all = (locs ?? []) as { id: string; location_name: string; pin_code: string | null }[];
+    const nameToId = new Map(all.map((l) => [l.location_name.trim().toLowerCase(), l.id]));
+    const pinToId = new Map(
+      all
+        .filter((l) => (l.pin_code ?? "").trim() !== "")
+        .map((l) => [(l.pin_code ?? "").trim(), l.id]),
     );
+    const pinById = new Map(all.map((l) => [l.id, (l.pin_code ?? "").trim()]));
+
+    const resolve = (name: string, pin: string) => {
+      const n = (name ?? "").trim().toLowerCase();
+      const p = (pin ?? "").trim();
+      const id = nameToId.get(n) ?? pinToId.get(p) ?? null;
+      return { id, pin: p || (id ? pinById.get(id) ?? "" : "") };
+    };
 
     const payload = rows.map((r) => {
       const freight_values: Record<string, string> = {};
@@ -354,14 +366,14 @@ function EntriesView({
         const v = r[`loading_${k}`];
         if (v !== undefined && v !== "") loading_values[k] = v;
       });
-      const from_id = nameToId.get((r.from_location || "").trim().toLowerCase()) ?? null;
-      const to_id = nameToId.get((r.to_location || "").trim().toLowerCase()) ?? null;
+      const from = resolve(r.from_location ?? "", r.from_pin_code ?? "");
+      const to = resolve(r.to_location ?? "", r.to_pin_code ?? "");
       return {
         contract_id: contract.id!,
-        from_location_id: from_id,
-        to_location_id: to_id,
-        from_pin_code: r.from_pin_code ?? "",
-        to_pin_code: r.to_pin_code ?? "",
+        from_location_id: from.id,
+        to_location_id: to.id,
+        from_pin_code: from.pin,
+        to_pin_code: to.pin,
         freight_values,
         loading_values,
         monthly_change_amount: r.monthly_change_amount ?? "",

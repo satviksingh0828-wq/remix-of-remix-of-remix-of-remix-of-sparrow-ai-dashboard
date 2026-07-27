@@ -44,6 +44,7 @@ export type TripRow = {
   id?: string;
   trip_code: string;
   ownership: string;
+  branch_id: string | null;
   vehicle_id: string | null;
   driver_id: string | null;
   transporter_id: string | null;
@@ -90,6 +91,7 @@ export function emptyTrip(): TripRow {
   return {
     trip_code: newTripCode(),
     ownership: "own",
+    branch_id: null,
     vehicle_id: null,
     driver_id: null,
     transporter_id: null,
