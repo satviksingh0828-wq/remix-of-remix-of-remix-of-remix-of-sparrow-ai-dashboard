@@ -334,11 +334,10 @@ function EntriesView({
   }
 
   async function onImport(rows: Record<string, string>[]) {
-    // Build location lookups so a missing name or PIN auto-fills from the other.
-    const { data: locs } = await supabase
-      .from("locations")
-      .select("id,location_name,pin_code");
-    const all = (locs ?? []) as { id: string; location_name: string; pin_code: string | null }[];
+    // Load ALL locations so importing 50k+ entries can still resolve PIN→location.
+    const all = await fetchAll<{ id: string; location_name: string; pin_code: string | null }>(
+      () => supabase.from("locations").select("id,location_name,pin_code"),
+    );
     const nameToId = new Map(all.map((l) => [l.location_name.trim().toLowerCase(), l.id]));
     const pinToId = new Map(
       all
