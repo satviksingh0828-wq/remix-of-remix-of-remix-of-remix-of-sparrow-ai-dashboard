@@ -134,38 +134,22 @@ export function ContractEntryForm({
       <section className="surface-card p-6">
         <h3 className="text-sm font-semibold tracking-tight">Route</h3>
         <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-          <LocationPicker
-            label="From Location"
-            value={form.from_location_id}
-            onChange={(id) => patch({ from_location_id: id })}
-            onPinCode={(pin) => patch({ from_pin_code: pin })}
+          <LocationPinPair
+            label="From"
+            locationId={form.from_location_id}
+            pinCode={form.from_pin_code}
+            onChange={(n) =>
+              patch({ from_location_id: n.location_id, from_pin_code: n.pin_code })
+            }
           />
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">
-              From PIN Code
-            </Label>
-            <Input
-              className="h-10"
-              value={form.from_pin_code}
-              onChange={(e) => patch({ from_pin_code: e.target.value })}
-            />
-          </div>
-          <LocationPicker
-            label="To Location"
-            value={form.to_location_id}
-            onChange={(id) => patch({ to_location_id: id })}
-            onPinCode={(pin) => patch({ to_pin_code: pin })}
+          <LocationPinPair
+            label="To"
+            locationId={form.to_location_id}
+            pinCode={form.to_pin_code}
+            onChange={(n) =>
+              patch({ to_location_id: n.location_id, to_pin_code: n.pin_code })
+            }
           />
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">
-              To PIN Code
-            </Label>
-            <Input
-              className="h-10"
-              value={form.to_pin_code}
-              onChange={(e) => patch({ to_pin_code: e.target.value })}
-            />
-          </div>
         </div>
       </section>
 
