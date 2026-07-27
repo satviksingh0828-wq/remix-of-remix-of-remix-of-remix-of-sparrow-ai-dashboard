@@ -35,7 +35,6 @@ import {
 } from "@/lib/finance";
 
 type AnyRow = Record<string, unknown> & { id: string };
-type LinkKind = "none" | "vehicle" | "driver" | "transporter";
 
 const CSV_COLUMNS = [
   "entry_date",
@@ -240,14 +239,6 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
     return { inserted: payload.length, failed: imported.length - payload.length };
   }
 
-  const linkKind: LinkKind = editing?.vehicle_id
-    ? "vehicle"
-    : editing?.driver_id
-      ? "driver"
-      : editing?.transporter_id
-        ? "transporter"
-        : "none";
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -423,29 +414,8 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                 options={branchOpts}
                 onChange={(id) => setEditing({ ...editing, branch_id: id })}
               />
-              <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Link to</Label>
-                <Select
-                  value={linkKind}
-                  onValueChange={(v) =>
-                    setEditing({
-                      ...editing,
-                      vehicle_id: null,
-                      driver_id: null,
-                      transporter_id: null,
-                    })
-                  }
-                >
-                  <SelectTrigger className="h-10">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No link</SelectItem>
-                    <SelectItem value="vehicle">Vehicle</SelectItem>
-                    <SelectItem value="driver">Driver</SelectItem>
-                    <SelectItem value="transporter">Transporter</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="text-xs text-muted-foreground sm:col-span-2">
+                Optionally link this {cfg.single} to one vehicle, driver or transporter.
               </div>
               <EntityPicker
                 label="Vehicle"
