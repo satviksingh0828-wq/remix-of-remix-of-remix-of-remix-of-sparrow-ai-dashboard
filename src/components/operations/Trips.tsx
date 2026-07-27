@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Archive, Lock, Plus, Trash2, Truck } from "lucide-react";
+import { Archive, Lock, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { closeTrip } from "@/lib/close-trip";
+import { reopenTrip } from "@/lib/reopen-trip";
 import { inr } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
 import { TripForm, emptyTrip, type TripRow } from "./TripForm";
@@ -25,6 +26,7 @@ export function Trips() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<TripRow | null>(null);
   const [closingId, setClosingId] = useState<string | null>(null);
+  const [reopeningId, setReopeningId] = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
@@ -74,6 +76,25 @@ export function Trips() {
       toast.error(err instanceof Error ? err.message : "Could not close trip");
     } finally {
       setClosingId(null);
+    }
+  }
+
+  async function reopen(id: string) {
+    if (
+      !window.confirm(
+        "Reopen this trip? It moves back to live trips and current contract rates apply. You can close it again later.",
+      )
+    )
+      return;
+    setReopeningId(id);
+    try {
+      await reopenTrip(id);
+      toast.success("Trip reopened with current rates");
+      load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not reopen trip");
+    } finally {
+      setReopeningId(null);
     }
   }
 
