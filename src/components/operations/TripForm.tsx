@@ -1034,9 +1034,11 @@ function Details({
 function ContractDetails({
   contract,
   entryCount,
+  monthlyCharges,
 }: {
   contract: (Record<string, unknown> & ContractLite) | undefined;
   entryCount: number;
+  monthlyCharges: number;
 }) {
   if (!contract) return <p className="text-sm text-muted-foreground">No contract selected.</p>;
   const rows: [string, string][] = [
@@ -1046,6 +1048,7 @@ function ContractDetails({
     ["Freight basis", contract.freight_basis],
     ["Loading basis", contract.loading_basis],
     ["Rate entries (routes)", String(entryCount)],
+    ["Monthly contract charges (monthly + yearly ÷ 12)", inr(monthlyCharges)],
   ];
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
