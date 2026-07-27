@@ -1,4 +1,4 @@
-import { num } from "./trip-calc";
+// (num import no longer needed after monthlyContractEffect was removed)
 
 export type FinanceKind = "income" | "expenditure";
 
@@ -96,15 +96,4 @@ export function yearOf(date: string): string {
 
 export function monthOf(date: string): string {
   return (date || "").slice(5, 7);
-}
-
-/**
- * Contract change amounts expressed per month:
- * a monthly change lands entirely on that month, a yearly change is spread as 1/12.
- */
-export function monthlyContractEffect(entry: {
-  monthly_change_amount?: string | null;
-  yearly_change_amount?: string | null;
-}): number {
-  return num(entry.monthly_change_amount) + num(entry.yearly_change_amount) / 12;
 }
