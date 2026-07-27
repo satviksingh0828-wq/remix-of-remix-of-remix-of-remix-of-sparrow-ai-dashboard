@@ -194,6 +194,390 @@ export type Database = {
         }
         Relationships: []
       }
+      departments: {
+        Row: {
+          code: string | null
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      drivers: {
+        Row: {
+          aadhaar_number: string | null
+          alternate_mobile: string | null
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_branch: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          blood_group: string | null
+          created_at: string
+          curr_address_line1: string | null
+          curr_address_line2: string | null
+          curr_city: string | null
+          curr_country: string | null
+          curr_pin_code: string | null
+          curr_same_as_perm: string | null
+          curr_state: string | null
+          date_of_birth: string | null
+          department_id: string | null
+          driver_code: string
+          email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_number: string | null
+          emergency_contact_relationship: string | null
+          full_name: string
+          gender: string | null
+          guardian_name: string | null
+          id: string
+          licence_authority: string | null
+          licence_expiry_date: string | null
+          licence_issue_date: string | null
+          licence_number: string | null
+          licence_type: string | null
+          marital_status: string | null
+          mobile_number: string | null
+          pan_number: string | null
+          perm_address_line1: string | null
+          perm_address_line2: string | null
+          perm_city: string | null
+          perm_country: string | null
+          perm_pin_code: string | null
+          perm_state: string | null
+          salary_amount: string | null
+          salary_type: string | null
+          updated_at: string
+          upi_id: string | null
+        }
+        Insert: {
+          aadhaar_number?: string | null
+          alternate_mobile?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          blood_group?: string | null
+          created_at?: string
+          curr_address_line1?: string | null
+          curr_address_line2?: string | null
+          curr_city?: string | null
+          curr_country?: string | null
+          curr_pin_code?: string | null
+          curr_same_as_perm?: string | null
+          curr_state?: string | null
+          date_of_birth?: string | null
+          department_id?: string | null
+          driver_code: string
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_relationship?: string | null
+          full_name: string
+          gender?: string | null
+          guardian_name?: string | null
+          id?: string
+          licence_authority?: string | null
+          licence_expiry_date?: string | null
+          licence_issue_date?: string | null
+          licence_number?: string | null
+          licence_type?: string | null
+          marital_status?: string | null
+          mobile_number?: string | null
+          pan_number?: string | null
+          perm_address_line1?: string | null
+          perm_address_line2?: string | null
+          perm_city?: string | null
+          perm_country?: string | null
+          perm_pin_code?: string | null
+          perm_state?: string | null
+          salary_amount?: string | null
+          salary_type?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Update: {
+          aadhaar_number?: string | null
+          alternate_mobile?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          blood_group?: string | null
+          created_at?: string
+          curr_address_line1?: string | null
+          curr_address_line2?: string | null
+          curr_city?: string | null
+          curr_country?: string | null
+          curr_pin_code?: string | null
+          curr_same_as_perm?: string | null
+          curr_state?: string | null
+          date_of_birth?: string | null
+          department_id?: string | null
+          driver_code?: string
+          email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_number?: string | null
+          emergency_contact_relationship?: string | null
+          full_name?: string
+          gender?: string | null
+          guardian_name?: string | null
+          id?: string
+          licence_authority?: string | null
+          licence_expiry_date?: string | null
+          licence_issue_date?: string | null
+          licence_number?: string | null
+          licence_type?: string | null
+          marital_status?: string | null
+          mobile_number?: string | null
+          pan_number?: string | null
+          perm_address_line1?: string | null
+          perm_address_line2?: string | null
+          perm_city?: string | null
+          perm_country?: string | null
+          perm_pin_code?: string | null
+          perm_state?: string | null
+          salary_amount?: string | null
+          salary_type?: string | null
+          updated_at?: string
+          upi_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "drivers_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      locations: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string
+          district: string | null
+          id: string
+          location_name: string
+          location_type: string | null
+          pin_code: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          district?: string | null
+          id?: string
+          location_name: string
+          location_type?: string | null
+          pin_code?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          district?: string | null
+          id?: string
+          location_name?: string
+          location_type?: string | null
+          pin_code?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transporters: {
+        Row: {
+          address_line1: string | null
+          address_line2: string | null
+          alternate_mobile: string | null
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_branch: string | null
+          bank_ifsc: string | null
+          bank_name: string | null
+          city: string | null
+          country: string | null
+          created_at: string
+          department_id: string | null
+          email: string | null
+          gstin: string | null
+          id: string
+          legal_business_name: string | null
+          mobile_number: string | null
+          msme_udyam: string | null
+          pan: string | null
+          pin_code: string | null
+          primary_contact_designation: string | null
+          primary_contact_name: string | null
+          state: string | null
+          tan: string | null
+          telephone: string | null
+          transporter_name: string
+          transporter_type: string | null
+          updated_at: string
+          upi_id: string | null
+          website: string | null
+        }
+        Insert: {
+          address_line1?: string | null
+          address_line2?: string | null
+          alternate_mobile?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          department_id?: string | null
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          legal_business_name?: string | null
+          mobile_number?: string | null
+          msme_udyam?: string | null
+          pan?: string | null
+          pin_code?: string | null
+          primary_contact_designation?: string | null
+          primary_contact_name?: string | null
+          state?: string | null
+          tan?: string | null
+          telephone?: string | null
+          transporter_name: string
+          transporter_type?: string | null
+          updated_at?: string
+          upi_id?: string | null
+          website?: string | null
+        }
+        Update: {
+          address_line1?: string | null
+          address_line2?: string | null
+          alternate_mobile?: string | null
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_branch?: string | null
+          bank_ifsc?: string | null
+          bank_name?: string | null
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          department_id?: string | null
+          email?: string | null
+          gstin?: string | null
+          id?: string
+          legal_business_name?: string | null
+          mobile_number?: string | null
+          msme_udyam?: string | null
+          pan?: string | null
+          pin_code?: string | null
+          primary_contact_designation?: string | null
+          primary_contact_name?: string | null
+          state?: string | null
+          tan?: string | null
+          telephone?: string | null
+          transporter_name?: string
+          transporter_type?: string | null
+          updated_at?: string
+          upi_id?: string | null
+          website?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transporters_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicles: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          fuel_type: string | null
+          id: string
+          internal_code: string | null
+          manufacturer: string | null
+          model: string | null
+          nickname: string | null
+          payload_capacity_kg: string | null
+          purchase_cost: string | null
+          purchase_date: string | null
+          registration_number: string
+          updated_at: string
+          year_of_manufacture: string | null
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          fuel_type?: string | null
+          id?: string
+          internal_code?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          nickname?: string | null
+          payload_capacity_kg?: string | null
+          purchase_cost?: string | null
+          purchase_date?: string | null
+          registration_number: string
+          updated_at?: string
+          year_of_manufacture?: string | null
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          fuel_type?: string | null
+          id?: string
+          internal_code?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          nickname?: string | null
+          payload_capacity_kg?: string | null
+          purchase_cost?: string | null
+          purchase_date?: string | null
+          registration_number?: string
+          updated_at?: string
+          year_of_manufacture?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
