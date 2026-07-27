@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,9 @@ import {
   VEHICLE_CONFIG,
 } from "@/components/masters/configs";
 import { useLocations } from "@/lib/use-locations";
+import { useBranches } from "@/lib/use-branches";
+import { closeTrip } from "@/lib/close-trip";
+import { monthlyContractEffect } from "@/lib/finance";
 import {
   findEntry,
   inr,
@@ -44,6 +47,7 @@ export type TripRow = {
   id?: string;
   trip_code: string;
   ownership: string;
+  branch_id: string | null;
   vehicle_id: string | null;
   driver_id: string | null;
   transporter_id: string | null;
@@ -90,6 +94,7 @@ export function emptyTrip(): TripRow {
   return {
     trip_code: newTripCode(),
     ownership: "own",
+    branch_id: null,
     vehicle_id: null,
     driver_id: null,
     transporter_id: null,
@@ -130,6 +135,7 @@ export function TripForm({
 }) {
   const [trip, setTrip] = useState<TripRow>(initial);
   const [saving, setSaving] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [tab, setTab] = useState<TabId>("manifest");
 
   const [vehicles, setVehicles] = useState<AnyRow[]>([]);
@@ -146,6 +152,7 @@ export function TripForm({
   );
 
   const { locations } = useLocations();
+  const branches = useBranches();
   const patch = (p: Partial<TripRow>) => setTrip((t) => ({ ...t, ...p }));
 
   async function loadMasters() {
@@ -230,6 +237,10 @@ export function TripForm({
 
   async function saveTrip(e?: React.FormEvent) {
     e?.preventDefault();
+    if (!trip.branch_id) {
+      toast.error("Branch is required");
+      return;
+    }
     setSaving(true);
     const { id, ...rest } = trip;
     const res = id
@@ -275,6 +286,27 @@ export function TripForm({
     loadChildren(tripId);
   }
 
+  async function handleClose() {
+    if (!trip.id) return toast.error("Save the trip before closing it");
+    if (
+      !window.confirm(
+        "Close this trip? A full snapshot is archived and the live trip is removed. This cannot be undone.",
+      )
+    )
+      return;
+    setClosing(true);
+    try {
+      await closeTrip(trip.id);
+      toast.success("Trip closed and archived");
+      onSaved();
+      onBack();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not close trip");
+    } finally {
+      setClosing(false);
+    }
+  }
+
   const vehicleOpts: PickerOption[] = vehicles.map((v) => ({
     id: v.id,
     label: String(v.registration_number ?? ""),
@@ -295,6 +327,15 @@ export function TripForm({
     label: String(c.contract_name ?? ""),
     sub: String(c.company_name ?? "") || undefined,
   }));
+  const branchOpts: PickerOption[] = branches.map((b) => ({
+    id: b.id,
+    label: b.branch_name,
+    sub: b.branch_type ?? undefined,
+  }));
+  const monthlyContractCharges = entries.reduce(
+    (s, e) => s + monthlyContractEffect(e as never),
+    0,
+  );
 
   return (
     <div className="animate-fade-up space-y-5">
@@ -307,6 +348,15 @@ export function TripForm({
         <Button className="ml-auto" onClick={() => saveTrip()} disabled={saving}>
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           {trip.id ? "Update trip" : "Save trip"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleClose}
+          disabled={closing || !trip.id}
+          title="Archive a snapshot of this trip and remove it from live records"
+        >
+          {closing ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
+          Close trip
         </Button>
       </div>
 
@@ -371,6 +421,12 @@ export function TripForm({
             value={trip.contract_id}
             options={contractOpts}
             onChange={(id) => patch({ contract_id: id })}
+          />
+          <EntityPicker
+            label="Branch (required)"
+            value={trip.branch_id}
+            options={branchOpts}
+            onChange={(id) => patch({ branch_id: id })}
           />
 
           <LocationPicker
@@ -492,7 +548,11 @@ export function TripForm({
             />
           ) : null}
           {tab === "contract" ? (
-            <ContractDetails contract={contract} entryCount={entries.length} />
+            <ContractDetails
+              contract={contract}
+              entryCount={entries.length}
+              monthlyCharges={monthlyContractCharges}
+            />
           ) : null}
           {tab === "summary" ? (
             <Summary
@@ -974,9 +1034,11 @@ function Details({
 function ContractDetails({
   contract,
   entryCount,
+  monthlyCharges,
 }: {
   contract: (Record<string, unknown> & ContractLite) | undefined;
   entryCount: number;
+  monthlyCharges: number;
 }) {
   if (!contract) return <p className="text-sm text-muted-foreground">No contract selected.</p>;
   const rows: [string, string][] = [
@@ -986,6 +1048,7 @@ function ContractDetails({
     ["Freight basis", contract.freight_basis],
     ["Loading basis", contract.loading_basis],
     ["Rate entries (routes)", String(entryCount)],
+    ["Monthly contract charges (monthly + yearly ÷ 12)", inr(monthlyCharges)],
   ];
   return (
     <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">

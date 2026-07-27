@@ -1,9 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronRight, Route as RouteIcon } from "lucide-react";
+import { ChevronRight, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Trips } from "@/components/operations/Trips";
+import { FinanceList } from "@/components/operations/FinanceList";
 
 export const Route = createFileRoute("/operations")({
   head: () => ({
@@ -32,6 +33,13 @@ export const Route = createFileRoute("/operations")({
 
 const TABS = [
   { id: "trip", label: "Trip", desc: "Manifests, income & expenses", icon: RouteIcon },
+  { id: "income", label: "Income", desc: "Other income, branch-wise", icon: TrendingUp },
+  {
+    id: "expenditure",
+    label: "Expenditure",
+    desc: "Other spend, branch-wise",
+    icon: TrendingDown,
+  },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -90,6 +98,8 @@ function OperationsPage() {
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
           {tab === "trip" ? <Trips /> : null}
+          {tab === "income" ? <FinanceList kind="income" /> : null}
+          {tab === "expenditure" ? <FinanceList kind="expenditure" /> : null}
         </div>
       </div>
     </AppShell>
