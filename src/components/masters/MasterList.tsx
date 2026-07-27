@@ -14,8 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { CsvIO } from "@/components/CsvIO";
-import { DepartmentSelect } from "@/components/DepartmentSelect";
-import { useDepartments, deptName } from "@/lib/use-departments";
+import { BranchSelect } from "@/components/BranchSelect";
+import { useBranches, branchName } from "@/lib/use-branches";
 
 export type FieldDef = {
   key: string;
@@ -33,26 +33,26 @@ export type MasterConfig = {
   singular: string; // "vehicle"
   icon: LucideIcon;
   sections: SectionDef[];
-  hasDepartment: boolean;
+  hasBranch: boolean;
   titleKey: string; // column used as primary display name
   subtitleKeys: string[]; // fields to join for subtitle
   emptyMsg: string;
 };
 
-type Row = Record<string, unknown> & { id?: string; department_id?: string | null };
+type Row = Record<string, unknown> & { id?: string; branch_id?: string | null };
 
 export function MasterList({ config }: { config: MasterConfig }) {
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
-  const depts = useDepartments();
+  const branches = useBranches();
 
   const allFieldKeys = config.sections.flatMap((s) => s.fields.map((f) => f.key));
   const emptyRow: Row = Object.fromEntries(allFieldKeys.map((k) => [k, ""])) as Row;
-  if (config.hasDepartment) emptyRow.department_id = null;
+  if (config.hasBranch) emptyRow.branch_id = null;
 
-  const columns = [...allFieldKeys, ...(config.hasDepartment ? ["department_name"] : [])];
+  const columns = [...allFieldKeys, ...(config.hasBranch ? ["branch_name"] : [])];
 
   async function load() {
     setLoading(true);
@@ -74,10 +74,10 @@ export function MasterList({ config }: { config: MasterConfig }) {
     e.preventDefault();
     if (!editing) return;
     setSaving(true);
-    const { id, created_at: _c, updated_at: _u, department_name: _dn, ...rest } = editing as Row & {
+    const { id, created_at: _c, updated_at: _u, branch_name: _bn, ...rest } = editing as Row & {
       created_at?: unknown;
       updated_at?: unknown;
-      department_name?: unknown;
+      branch_name?: unknown;
     };
     const payload = rest as never;
     const res = id
@@ -98,15 +98,17 @@ export function MasterList({ config }: { config: MasterConfig }) {
   }
 
   async function onImport(rows: Record<string, string>[]) {
-    const nameToId = new Map(depts.map((d) => [d.name.toLowerCase(), d.id]));
+    const nameToId = new Map(
+      branches.map((b) => [b.branch_name.toLowerCase(), b.id] as const),
+    );
     const payload = rows
       .filter((r) => (r[config.titleKey] || "").trim() !== "")
       .map((r) => {
         const o: Record<string, unknown> = {};
         for (const k of allFieldKeys) o[k] = r[k] ?? "";
-        if (config.hasDepartment) {
-          const n = (r.department_name || "").trim().toLowerCase();
-          o.department_id = n ? nameToId.get(n) ?? null : null;
+        if (config.hasBranch) {
+          const n = (r.branch_name || "").trim().toLowerCase();
+          o.branch_id = n ? nameToId.get(n) ?? null : null;
         }
         return o;
       });
@@ -124,8 +126,8 @@ export function MasterList({ config }: { config: MasterConfig }) {
 
   const rowsForExport = items.map((r) => ({
     ...r,
-    department_name: config.hasDepartment
-      ? deptName(depts, r.department_id as string | null | undefined)
+    branch_name: config.hasBranch
+      ? branchName(branches, r.branch_id as string | null | undefined)
       : undefined,
   })) as Record<string, unknown>[];
 
@@ -190,17 +192,17 @@ export function MasterList({ config }: { config: MasterConfig }) {
           </section>
         ))}
 
-        {config.hasDepartment ? (
+        {config.hasBranch ? (
           <section className="surface-card p-6">
-            <h3 className="text-sm font-semibold tracking-tight">Controlling department</h3>
+            <h3 className="text-sm font-semibold tracking-tight">Controlling branch</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Link this {config.singular} to a department defined in Settings.
+              Link this {config.singular} to a branch defined in Settings.
             </p>
             <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-              <DepartmentSelect
-                value={(editing.department_id as string | null | undefined) ?? null}
-                onChange={(id) =>
-                  setEditing((f) => (f ? { ...f, department_id: id } : f))
+              <BranchSelect
+                value={(editing.branch_id as string | null | undefined) ?? null}
+                onChange={(id: string | null) =>
+                  setEditing((f) => (f ? { ...f, branch_id: id } : f))
                 }
               />
             </div>
@@ -281,8 +283,8 @@ export function MasterList({ config }: { config: MasterConfig }) {
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {config.subtitleKeys
-                    .map((k) => (k === "department_name"
-                      ? deptName(depts, r.department_id as string | null | undefined)
+                    .map((k) => (k === "branch_name"
+                      ? branchName(branches, r.branch_id as string | null | undefined)
                       : String(r[k] ?? "")))
                     .filter(Boolean)
                     .join(" · ") || "No details"}
