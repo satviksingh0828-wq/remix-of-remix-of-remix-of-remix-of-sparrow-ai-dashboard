@@ -37,7 +37,6 @@ export function LocationPinPair({
         label={`${label} Location`}
         value={locationId}
         onChange={(id) => handleLocation(id)}
-        onPinCode={(pin) => onChange({ location_id: locationId ?? null, pin_code: pin })}
       />
       <div className="space-y-1.5">
         <Label className="text-xs font-medium text-muted-foreground">{label} PIN Code</Label>
