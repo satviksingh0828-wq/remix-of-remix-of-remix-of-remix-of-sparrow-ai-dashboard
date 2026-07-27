@@ -73,7 +73,9 @@ export function manifestCharges(
   const pick = (basis: Basis, values: Record<string, string>) => {
     const value = basis === "weight" ? num(m.weight_kg) : num(m.quantity);
     const r = matchRange(basisRanges(contract, basis), value);
-    return r ? num(values?.[rangeKey(r)]) : 0;
+    const rate = r ? num(values?.[rangeKey(r)]) : 0;
+    // Contract values are per-unit rates → multiply by weight/qty for the line total.
+    return rate * value;
   };
   return {
     freight: pick(contract.freight_basis, entry.freight_values ?? {}),
