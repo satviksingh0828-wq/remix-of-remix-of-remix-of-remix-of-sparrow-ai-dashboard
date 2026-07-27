@@ -727,10 +727,10 @@ function ManifestTab({
                   <tr key={l.m.id} className="border-b border-border/60">
                     <td className="py-2 pr-3 font-medium">{l.m.manifest_number || "—"}</td>
                     <td className="py-2 pr-3">
-                      {nameById.get(l.m.from_location_id ?? "") ?? l.m.from_pin_code || "—"}
+                      {nameById.get(l.m.from_location_id ?? "") ?? (l.m.from_pin_code || "—")}
                     </td>
                     <td className="py-2 pr-3">
-                      {nameById.get(l.m.to_location_id ?? "") ?? l.m.to_pin_code || "—"}
+                      {nameById.get(l.m.to_location_id ?? "") ?? (l.m.to_pin_code || "—")}
                     </td>
                     <td className="py-2 pr-3 text-right">{l.m.weight_kg || "—"}</td>
                     <td className="py-2 pr-3 text-right">{l.m.quantity || "—"}</td>
