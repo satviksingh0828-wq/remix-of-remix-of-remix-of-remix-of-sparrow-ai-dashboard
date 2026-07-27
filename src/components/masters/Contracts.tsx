@@ -284,10 +284,6 @@ function EntriesView({
       "to_pin_code",
       ...freightCols,
       ...loadingCols,
-      "monthly_change_amount",
-      "monthly_change_note",
-      "yearly_change_amount",
-      "yearly_change_note",
       "per_manifest_amount",
       "per_manifest_note",
     ];
