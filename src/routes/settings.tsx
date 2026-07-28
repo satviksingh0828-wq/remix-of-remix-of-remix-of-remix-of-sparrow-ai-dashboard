@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building, Building2, Check, ChevronRight, Palette } from "lucide-react";
+import { Building, Building2, Check, ChevronRight, PanelLeftClose, PanelLeftOpen, Palette } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { CompanySettings } from "@/components/settings/CompanySettings";
@@ -31,60 +31,99 @@ export const Route = createFileRoute("/settings")({
 });
 
 const TABS = [
-  { id: "company", label: "Company", desc: "Profile & registration", icon: Building },
-  { id: "branch", label: "Branch", desc: "Locations & managers", icon: Building2 },
-  { id: "theme", label: "Theme Settings", desc: "Appearance", icon: Palette },
+  { id: "company", label: "Company",        desc: "Profile & registration", icon: Building  },
+  { id: "branch",  label: "Branch",         desc: "Locations & managers",   icon: Building2 },
+  { id: "theme",   label: "Theme Settings", desc: "Appearance",             icon: Palette   },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
 function SettingsPage() {
-  const [tab, setTab] = useState<TabId>("company");
+  const [tab, setTab]     = useState<TabId>("company");
+  const [navOpen, setNavOpen] = useState(true);
+
   const active = TABS.find((t) => t.id === tab)!;
 
   return (
     <AppShell
       breadcrumb={
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/home" className="hover:text-foreground">
-            Workspace
-          </Link>
+          <Link to="/home" className="hover:text-foreground">Workspace</Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Settings</span>
         </span>
       }
+      headerEnd={
+        <button
+          type="button"
+          onClick={() => setNavOpen(v => !v)}
+          title={navOpen ? "Hide sidebar" : "Show sidebar"}
+          className="hidden lg:flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          {navOpen
+            ? <><PanelLeftClose className="size-3.5" /><span>Hide sidebar</span></>
+            : <><PanelLeftOpen  className="size-3.5" /><span>Show sidebar</span></>
+          }
+        </button>
+      }
     >
-      <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-        <nav className="lg:sticky lg:top-24 lg:self-start">
-          <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Settings
-          </p>
-          <ul className="space-y-1">
+      <div className={`grid gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
+        {/* Desktop left nav */}
+        {navOpen && (
+          <nav className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
+            <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Settings
+            </p>
+            <ul className="space-y-1">
+              {TABS.map((t) => {
+                const Icon     = t.icon;
+                const isActive = t.id === tab;
+                return (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => setTab(t.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
+                        isActive
+                          ? "bg-primary-soft text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className={`size-4 shrink-0 ${isActive ? "text-primary" : ""}`} />
+                      <span className="leading-tight min-w-0">
+                        <span className="block text-sm font-medium truncate">{t.label}</span>
+                        <span className="block text-[11px] opacity-70 truncate">{t.desc}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
+
+        {/* Mobile horizontal tab bar */}
+        <div className="lg:hidden -mx-1">
+          <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
             {TABS.map((t) => {
-              const Icon = t.icon;
+              const Icon     = t.icon;
               const isActive = t.id === tab;
               return (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
-                      isActive
-                        ? "bg-primary-soft text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className={`size-4 ${isActive ? "text-primary" : ""}`} />
-                    <span className="leading-tight">
-                      <span className="block text-sm font-medium">{t.label}</span>
-                      <span className="block text-[11px] opacity-70">{t.desc}</span>
-                    </span>
-                  </button>
-                </li>
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors ${
+                    isActive ? "bg-primary text-primary-foreground font-medium" : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  {t.label}
+                </button>
               );
             })}
-          </ul>
-        </nav>
+          </div>
+        </div>
 
         <div key={tab} className="animate-fade-in min-w-0">
           <header className="mb-6">
@@ -92,8 +131,8 @@ function SettingsPage() {
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
           {tab === "company" ? <CompanySettings /> : null}
-          {tab === "branch" ? <BranchSettings /> : null}
-          {tab === "theme" ? <ThemePanel /> : null}
+          {tab === "branch"  ? <BranchSettings />  : null}
+          {tab === "theme"   ? <ThemePanel />       : null}
         </div>
       </div>
     </AppShell>

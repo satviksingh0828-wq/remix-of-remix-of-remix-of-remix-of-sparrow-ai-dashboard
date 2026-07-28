@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Shield } from "lucide-react";
 
-const INACTIVITY_MS   = 30 * 60 * 1000; // 30 minutes
+const INACTIVITY_MS   = 5 * 60 * 1000; // 5 minutes
 const BOT_CLICK_LIMIT = 20;              // >20 clicks in 2 s = suspicious
 const BOT_WINDOW_MS   = 2_000;
 

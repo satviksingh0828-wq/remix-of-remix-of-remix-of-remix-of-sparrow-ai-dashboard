@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BarChart2, ChevronRight, DollarSign, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart2, ChevronRight, DollarSign, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Trips } from "@/components/operations/Trips";
@@ -31,11 +31,11 @@ export const Route = createFileRoute("/operations")({
 });
 
 const ALL_TABS = [
-  { id: "trip",          label: "Trip",           desc: "Manifests, income & expenses",    icon: RouteIcon,   adminOnly: false },
-  { id: "income",        label: "Income",          desc: "Other income, branch-wise",       icon: TrendingUp,  adminOnly: false },
-  { id: "expenditure",   label: "Expenditure",     desc: "Other spend, branch-wise",        icon: TrendingDown,adminOnly: false },
-  { id: "fixed-income",  label: "Fixed Income",    desc: "Contract recurring charges",      icon: DollarSign,  adminOnly: true  },
-  { id: "trip-averages", label: "Trip Averages",   desc: "Monthly distribution analysis",   icon: BarChart2,   adminOnly: true  },
+  { id: "trip",          label: "Trip",          desc: "Manifests, income & expenses",  icon: RouteIcon,    adminOnly: false },
+  { id: "income",        label: "Income",         desc: "Other income, branch-wise",     icon: TrendingUp,   adminOnly: false },
+  { id: "expenditure",   label: "Expenditure",    desc: "Other spend, branch-wise",      icon: TrendingDown, adminOnly: false },
+  { id: "fixed-income",  label: "Fixed Income",   desc: "Contract recurring charges",    icon: DollarSign,   adminOnly: true  },
+  { id: "trip-averages", label: "Trip Averages",  desc: "Monthly distribution analysis", icon: BarChart2,    adminOnly: true  },
 ] as const;
 
 type TabId = (typeof ALL_TABS)[number]["id"];
@@ -45,7 +45,8 @@ function OperationsPage() {
   const isAdmin = user?.role === "admin";
 
   const TABS = ALL_TABS.filter(t => isAdmin || !t.adminOnly);
-  const [tab, setTab] = useState<TabId>("trip");
+  const [tab, setTab]     = useState<TabId>("trip");
+  const [navOpen, setNavOpen] = useState(true);
 
   const safeTab: TabId = (TABS.find(t => t.id === tab) ? tab : "trip") as TabId;
   const active = TABS.find(t => t.id === safeTab) ?? TABS[0];
@@ -59,38 +60,77 @@ function OperationsPage() {
           <span className="text-foreground">Operations</span>
         </span>
       }
+      headerEnd={
+        <button
+          type="button"
+          onClick={() => setNavOpen(v => !v)}
+          title={navOpen ? "Hide sidebar" : "Show sidebar"}
+          className="hidden lg:flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          {navOpen
+            ? <><PanelLeftClose className="size-3.5" /><span>Hide sidebar</span></>
+            : <><PanelLeftOpen  className="size-3.5" /><span>Show sidebar</span></>
+          }
+        </button>
+      }
     >
-      <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-        <nav className="lg:sticky lg:top-24 lg:self-start">
-          <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Operations
-          </p>
-          <ul className="space-y-1">
+      <div className={`grid gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
+        {/* Desktop left nav */}
+        {navOpen && (
+          <nav className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
+            <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Operations
+            </p>
+            <ul className="space-y-1">
+              {TABS.map(t => {
+                const Icon     = t.icon;
+                const isActive = t.id === safeTab;
+                return (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => setTab(t.id)}
+                      className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
+                        isActive
+                          ? "bg-primary-soft text-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <Icon className={`size-4 shrink-0 ${isActive ? "text-primary" : ""}`} />
+                      <span className="leading-tight min-w-0">
+                        <span className="block text-sm font-medium truncate">{t.label}</span>
+                        <span className="block text-[11px] opacity-70 truncate">{t.desc}</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
+
+        {/* Mobile horizontal tab bar */}
+        <div className="lg:hidden -mx-1">
+          <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
             {TABS.map(t => {
               const Icon     = t.icon;
               const isActive = t.id === safeTab;
               return (
-                <li key={t.id}>
-                  <button
-                    type="button"
-                    onClick={() => setTab(t.id)}
-                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
-                      isActive
-                        ? "bg-primary-soft text-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className={`size-4 ${isActive ? "text-primary" : ""}`} />
-                    <span className="leading-tight">
-                      <span className="block text-sm font-medium">{t.label}</span>
-                      <span className="block text-[11px] opacity-70">{t.desc}</span>
-                    </span>
-                  </button>
-                </li>
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTab(t.id)}
+                  className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors ${
+                    isActive ? "bg-primary text-primary-foreground font-medium" : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="size-3.5" />
+                  {t.label}
+                </button>
               );
             })}
-          </ul>
-        </nav>
+          </div>
+        </div>
 
         <div key={safeTab} className="animate-fade-in min-w-0">
           <header className="mb-6">
