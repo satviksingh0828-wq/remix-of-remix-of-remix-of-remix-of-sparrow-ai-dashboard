@@ -626,6 +626,9 @@ export function TripForm({
               startLocationId={trip.start_location_id ?? null}
               reload={(id) => loadChildren(id)}
               isAdmin={isAdmin}
+              otherIncomeTotal={otherIncomeTotal}
+              expenseTotal={expenseTotal}
+              totalWeight={totalWeight}
             />
           ) : null}
           {activeTab === "income" ? (
@@ -752,6 +755,9 @@ function ManifestTab({
   startLocationId,
   reload,
   isAdmin,
+  otherIncomeTotal,
+  expenseTotal,
+  totalWeight,
 }: {
   tripId: string | null;
   requireTripId: () => Promise<string | null>;
@@ -763,6 +769,9 @@ function ManifestTab({
   startLocationId: string | null;
   reload: (tripId: string) => void;
   isAdmin: boolean;
+  otherIncomeTotal: number;
+  expenseTotal: number;
+  totalWeight: number;
 }) {
   const [editing, setEditing] = useState<ManifestRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -893,7 +902,7 @@ function ManifestTab({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: isAdmin ? 860 : 640 }}>
+          <table className="w-full text-sm" style={{ minWidth: isAdmin ? 1100 : 800 }}>
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2 pr-3">Manifest</th>
@@ -901,12 +910,14 @@ function ManifestTab({
                 <th className="py-2 pr-3">To</th>
                 <th className="py-2 pr-3 text-right">Weight</th>
                 <th className="py-2 pr-3 text-right">Qty</th>
+                <th className="py-2 pr-3 text-right">Wtd. Income</th>
+                <th className="py-2 pr-3 text-right">Wtd. Expense</th>
                 {isAdmin ? (
                   <>
                     <th className="py-2 pr-3 text-right">Freight</th>
                     <th className="py-2 pr-3 text-right">Loading</th>
-                    <th className="py-2 pr-3 text-right">Fixed</th>
-                    <th className="py-2 pr-3 text-right">Line total</th>
+                    <th className="py-2 pr-3 text-right">Gross</th>
+                    <th className="py-2 pr-3 text-right">Net</th>
                   </>
                 ) : null}
                 <th className="py-2" />
@@ -914,7 +925,11 @@ function ManifestTab({
             </thead>
             <tbody>
               {lines.map((l) => {
-                const lineTotal = l.freight + l.loading + l.fixed;
+                const wt = num(l.m.weight_kg);
+                const wi = totalWeight === 0 ? 0 : (otherIncomeTotal / totalWeight) * wt;
+                const we = totalWeight === 0 ? 0 : (expenseTotal / totalWeight) * wt;
+                const gross = l.freight + l.loading + l.fixed;
+                const net = gross + wi - we;
                 return (
                   <tr key={l.m.id} className="border-b border-border/60">
                     <td className="py-2 pr-3 font-medium">{l.m.manifest_number || "—"}</td>
@@ -926,12 +941,14 @@ function ManifestTab({
                     </td>
                     <td className="py-2 pr-3 text-right">{l.m.weight_kg || "—"}</td>
                     <td className="py-2 pr-3 text-right">{l.m.quantity || "—"}</td>
+                    <td className="py-2 pr-3 text-right">{inr(wi)}</td>
+                    <td className="py-2 pr-3 text-right">{inr(we)}</td>
                     {isAdmin ? (
                       <>
                         <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
                         <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
-                        <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
-                        <td className="py-2 pr-3 text-right font-semibold">{inr(lineTotal)}</td>
+                        <td className="py-2 pr-3 text-right font-semibold">{inr(gross)}</td>
+                        <td className="py-2 pr-3 text-right font-semibold">{inr(net)}</td>
                       </>
                     ) : null}
                     <td className="py-2 text-right">
@@ -955,15 +972,22 @@ function ManifestTab({
                   </tr>
                 );
               })}
-              {isAdmin ? (
-                <tr>
-                  <td colSpan={8} className="py-3 text-right font-semibold">
-                    Total manifest income
-                  </td>
-                  <td className="py-3 pr-3 text-right font-semibold">{inr(total)}</td>
-                  <td />
-                </tr>
-              ) : null}
+              <tr>
+                <td colSpan={5} className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Totals
+                </td>
+                <td className="py-3 pr-3 text-right font-semibold">{inr(otherIncomeTotal)}</td>
+                <td className="py-3 pr-3 text-right font-semibold">{inr(expenseTotal)}</td>
+                {isAdmin ? (
+                  <>
+                    <td />
+                    <td />
+                    <td className="py-3 pr-3 text-right font-semibold">{inr(total)}</td>
+                    <td className="py-3 pr-3 text-right font-semibold">{inr(total + otherIncomeTotal - expenseTotal)}</td>
+                  </>
+                ) : null}
+                <td />
+              </tr>
             </tbody>
           </table>
         </div>

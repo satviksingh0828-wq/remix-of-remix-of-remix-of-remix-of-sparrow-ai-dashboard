@@ -428,7 +428,7 @@ function ManifestView({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full text-sm" style={{ minWidth: isAdmin ? 700 : 480 }}>
+        <table className="w-full text-sm" style={{ minWidth: isAdmin ? 1100 : 800 }}>
           <thead>
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="py-2 pr-3">Manifest</th>
@@ -436,19 +436,26 @@ function ManifestView({
               <th className="py-2 pr-3">To</th>
               <th className="py-2 pr-3 text-right">Weight</th>
               <th className="py-2 pr-3 text-right">Qty</th>
+              <th className="py-2 pr-3 text-right">Wtd. Income</th>
+              <th className="py-2 pr-3 text-right">Wtd. Expense</th>
               {isAdmin ? (
                 <>
                   <th className="py-2 pr-3 text-right">Freight</th>
                   <th className="py-2 pr-3 text-right">Loading</th>
-                  <th className="py-2 pr-3 text-right">Fixed</th>
-                  <th className="py-2 text-right">Total</th>
+                  <th className="py-2 pr-3 text-right">Gross</th>
+                  <th className="py-2 pr-3 text-right">Net</th>
                 </>
               ) : null}
             </tr>
           </thead>
           <tbody>
             {lines.map((l, i) => {
-              const m = l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {};
+              const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+              const wt = num(m.weight_kg);
+              const wi = weightedIncome(wt);
+              const we = weightedExpense(wt);
+              const gross = l.total; // freight + loading + fixed
+              const net = gross + wi - we;
               return (
                 <tr key={i} className="border-b border-border/60">
                   <td className="py-2 pr-3 font-medium">
@@ -458,25 +465,34 @@ function ManifestView({
                   <td className="py-2 pr-3">{String(m.to_pin_code || "—")}</td>
                   <td className="py-2 pr-3 text-right">{String(m.weight_kg ?? "—")}</td>
                   <td className="py-2 pr-3 text-right">{String(m.quantity ?? "—")}</td>
+                  <td className="py-2 pr-3 text-right">{inr(wi)}</td>
+                  <td className="py-2 pr-3 text-right">{inr(we)}</td>
                   {isAdmin ? (
                     <>
                       <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
                       <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
-                      <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
-                      <td className="py-2 text-right font-semibold">{inr(l.total)}</td>
+                      <td className="py-2 pr-3 text-right font-semibold">{inr(gross)}</td>
+                      <td className="py-2 pr-3 text-right font-semibold">{inr(net)}</td>
                     </>
                   ) : null}
                 </tr>
               );
             })}
-            {isAdmin ? (
-              <tr>
-                <td colSpan={8} className="py-3 text-right font-semibold">
-                  Total manifest income
-                </td>
-                <td className="py-3 text-right font-semibold">{inr(grandTotal)}</td>
-              </tr>
-            ) : null}
+            <tr>
+              <td colSpan={5} className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Totals
+              </td>
+              <td className="py-3 pr-3 text-right font-semibold">{inr(totals.other_income)}</td>
+              <td className="py-3 pr-3 text-right font-semibold">{inr(totals.total_expense)}</td>
+              {isAdmin ? (
+                <>
+                  <td />
+                  <td />
+                  <td className="py-3 pr-3 text-right font-semibold">{inr(grandTotal)}</td>
+                  <td className="py-3 pr-3 text-right font-semibold">{inr(grandTotal + totals.other_income - totals.total_expense)}</td>
+                </>
+              ) : null}
+            </tr>
           </tbody>
         </table>
       </div>
