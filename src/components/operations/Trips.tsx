@@ -227,6 +227,11 @@ export function Trips() {
   }
 
   async function close(trip: TripRow) {
+    // Contract must be selected before a trip can be closed
+    if (!trip.contract_id) {
+      toast.error("Select a contract on this trip before closing it.");
+      return;
+    }
     if (
       !window.confirm(
         "Close this trip? A full snapshot is archived and the live trip is removed. This cannot be undone.",
@@ -373,9 +378,11 @@ export function Trips() {
                 size="sm"
                 disabled={closingId === t.id}
                 onClick={() => close(t)}
+                title={!t.contract_id ? "Assign a contract before closing" : "Close & archive this trip"}
+                className={!t.contract_id ? "opacity-50" : ""}
               >
                 <Lock className="size-4" />
-                Close
+                {!t.contract_id ? "No contract" : "Close"}
               </Button>
             </li>
           ))}

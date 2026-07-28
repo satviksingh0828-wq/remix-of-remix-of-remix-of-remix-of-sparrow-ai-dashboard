@@ -18,6 +18,7 @@ import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "../components/ui/sonner";
 import { PasskeyGate } from "../components/PasskeyGate";
 import { InactivityChallenge } from "../components/InactivityChallenge";
+import { MobileBlock } from "../components/MobileBlock";
 
 function NotFoundComponent() {
   return (
@@ -147,10 +148,13 @@ function RootComponent() {
       <SessionProvider>
         <ThemeProvider>
           <SecurityInit />
+          {/* MobileBlock: desktop-only wall before anything else */}
+          <MobileBlock>
           {/* PasskeyGate: device-level WebAuthn check before any page renders */}
           <PasskeyGate>
             <Outlet />
           </PasskeyGate>
+          </MobileBlock>
           <InactivityChallenge />
           <Toaster position="top-right" />
         </ThemeProvider>
