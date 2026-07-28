@@ -168,7 +168,9 @@ function LoginPage() {
         <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 -right-16 size-[26rem] rounded-full bg-white/10 blur-3xl" />
         <div className="relative animate-fade-up text-center text-primary-foreground">
-          <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="mx-auto w-64 xl:w-72" />
+          <div className="mx-auto w-64 xl:w-72 rounded-2xl bg-white p-3">
+            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="w-full" />
+          </div>
           <div className="mx-auto my-7 h-px w-24 bg-white/40" />
           <p className="text-lg font-medium uppercase tracking-[0.42em] opacity-90">Project TMS</p>
           <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed opacity-80">
