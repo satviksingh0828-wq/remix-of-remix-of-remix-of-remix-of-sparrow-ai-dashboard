@@ -32,11 +32,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data } = await supabase.from("app_settings").select("theme").limit(1).maybeSingle();
-      const next = (data?.theme as ThemeId) ?? "sky";
-      if (!active) return;
-      setThemeState(next);
-      apply(next);
+      try {
+        const { data } = await supabase.from("app_settings").select("theme").limit(1).maybeSingle();
+        const next = (data?.theme as ThemeId) ?? "sky";
+        if (!active) return;
+        setThemeState(next);
+        apply(next);
+      } catch {
+        // Supabase not configured yet — keep the default theme.
+      }
     })();
     apply("sky");
     return () => {
@@ -49,9 +53,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setThemeState(t);
       apply(t);
       setSaving(true);
-      const { data } = await supabase.from("app_settings").select("id").limit(1).maybeSingle();
-      if (data?.id) await supabase.from("app_settings").update({ theme: t }).eq("id", data.id);
-      else await supabase.from("app_settings").insert({ theme: t });
+      try {
+        const { data } = await supabase.from("app_settings").select("id").limit(1).maybeSingle();
+        if (data?.id) await supabase.from("app_settings").update({ theme: t }).eq("id", data.id);
+        else await supabase.from("app_settings").insert({ theme: t });
+      } catch {
+        // Supabase not configured yet — theme applied locally only.
+      }
       setSaving(false);
     },
     [apply],

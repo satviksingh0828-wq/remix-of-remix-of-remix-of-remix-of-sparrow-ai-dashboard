@@ -1,0 +1,55 @@
+15:05:51.819 Running build in Washington, D.C., USA (East) – iad1
+15:05:51.820 Build machine configuration: 2 cores, 8 GB
+15:05:51.961 Cloning github.com/satviksingh0828-wq/remix-of-remix-of-remix-of-remix-of-sparrow-ai-dashboard (Branch: main, Commit: 3a5f1e7)
+15:05:52.383 Cloning completed: 422.000ms
+15:05:52.856 Restored build cache from previous deployment (GsNWtKHgFJdEQeyrRVxBbTpockcD)
+15:05:53.045 Running "vercel build"
+15:05:53.065 Vercel CLI 56.5.0
+15:05:53.596 Running "install" command: `bun install`...
+15:05:53.638 bun install v1.3.12 (700fc117)
+15:05:54.006 error: ConnectionRefused downloading tarball @peculiar/asn1-pkcs8@2.8.0
+15:05:54.006 
+15:05:54.006 error: FailedToOpenSocket downloading tarball @peculiar/asn1-rsa@2.8.0
+15:05:54.006 
+15:05:54.006 error: ConnectionRefused downloading tarball @peculiar/asn1-schema@2.8.0
+15:05:54.006 
+15:05:54.006 error: ConnectionRefused downloading tarball @simplewebauthn/browser@13.3.0
+15:05:54.008 
+15:05:54.008 error: ConnectionRefused downloading tarball @peculiar/asn1-ecc@2.8.0
+15:05:54.008 
+15:05:54.008 error: FailedToOpenSocket downloading tarball @simplewebauthn/server@13.3.2
+15:05:54.008 
+15:05:54.008 error: ConnectionRefused downloading tarball @hexagon/base64@1.1.28
+15:05:54.008 
+15:05:54.008 error: ConnectionRefused downloading tarball @peculiar/asn1-x509@2.8.0
+15:05:54.008 
+15:05:54.008 error: ConnectionRefused downloading tarball @peculiar/asn1-android@2.8.0
+15:05:54.009 
+15:05:54.009 error: ConnectionRefused downloading tarball reflect-metadata@0.2.2
+15:05:54.009 
+15:05:54.009 error: FailedToOpenSocket downloading tarball @peculiar/asn1-cms@2.8.0
+15:05:54.009 
+15:05:54.009 error: ConnectionRefused downloading tarball @peculiar/asn1-csr@2.8.0
+15:05:54.009 
+15:05:54.009 error: ConnectionRefused downloading tarball @levischuck/tiny-cbor@0.2.11
+15:05:54.009 
+15:05:54.009 error: ConnectionRefused downloading tarball pvtsutils@1.3.6
+15:05:54.009 
+15:05:54.009 error: ConnectionRefused downloading tarball @peculiar/utils@2.0.3
+15:05:54.009 
+15:05:54.009 error: FailedToOpenSocket downloading tarball @peculiar/asn1-pfx@2.8.0
+15:05:54.009 
+15:05:54.009 error: ConnectionRefused downloading tarball @peculiar/x509@1.14.3
+15:05:54.009 
+15:05:54.010 error: ConnectionRefused downloading tarball tsyringe@4.10.0
+15:05:54.010 
+15:05:54.010 error: ConnectionRefused downloading tarball @peculiar/asn1-pkcs9@2.8.0
+15:05:54.010 
+15:05:54.010 error: ConnectionRefused downloading tarball asn1js@3.0.10
+15:05:54.010 
+15:05:54.010 error: FailedToOpenSocket downloading tarball @peculiar/asn1-x509-attr@2.8.0
+15:05:54.010 
+15:05:54.010 error: ConnectionRefused downloading tarball pvutils@1.1.5
+15:05:54.010 
+15:05:54.010 error: FailedToOpenSocket downloading tarball tslib@1.14.1
+15:05:54.014 Error: Command "bun install" exited with 1
