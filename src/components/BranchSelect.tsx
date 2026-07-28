@@ -1,5 +1,5 @@
-import { Check, ChevronsUpDown, Search } from "lucide-react";
-import { useState } from "react";
+import { Check, ChevronsUpDown, Lock, Search } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,9 +34,42 @@ export function BranchSelect({
       ? allBranches.filter((b) => user.branchIds.includes(b.id))
       : allBranches;
 
-  const selected = branches.find((b) => b.id === value) ??
+  // Auto-fill: if the user has exactly one allowed branch and none is selected, apply it
+  const singleBranch = branches.length === 1 ? branches[0] : null;
+  useEffect(() => {
+    if (singleBranch && !value) {
+      onChange(singleBranch.id);
+    }
+  }, [singleBranch?.id, value]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selected =
+    branches.find((b) => b.id === value) ??
     allBranches.find((b) => b.id === value); // fallback for display
 
+  // ── Locked display: user has exactly 1 branch — no choice to make ─────────
+  if (singleBranch) {
+    return (
+      <div className="space-y-1.5 sm:col-span-2">
+        <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+        <div className="flex h-10 w-full items-center gap-2 rounded-md border border-border bg-muted/40 px-3 text-sm">
+          <Lock className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="flex-1 truncate font-medium">
+            {singleBranch.branch_name}
+            {singleBranch.branch_type ? (
+              <span className="ml-1.5 font-normal text-muted-foreground">
+                ({singleBranch.branch_type})
+              </span>
+            ) : null}
+          </span>
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+            Auto-selected
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Normal dropdown ───────────────────────────────────────────────────────
   return (
     <div className="space-y-1.5 sm:col-span-2">
       <Label className="text-xs font-medium text-muted-foreground">{label}</Label>

@@ -304,7 +304,12 @@ export function Trips() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => setEditing(emptyTrip())}>
+        <Button size="sm" onClick={() => {
+          const t = emptyTrip();
+          // Auto-fill branch when user has exactly one allowed branch
+          if (allowedBranchIds?.length === 1) t.branch_id = allowedBranchIds[0];
+          setEditing(t);
+        }}>
           <Plus className="size-4" />
           New trip
         </Button>

@@ -60,7 +60,11 @@ export function MasterList({ config }: { config: MasterConfig }) {
 
   const allFieldKeys = config.sections.flatMap((s) => s.fields.map((f) => f.key));
   const emptyRow: Row = Object.fromEntries(allFieldKeys.map((k) => [k, ""])) as Row;
-  if (config.hasBranch) emptyRow.branch_id = null;
+  // Auto-fill branch when user has exactly one allowed branch
+  if (config.hasBranch) {
+    emptyRow.branch_id =
+      allowedBranchIds?.length === 1 ? allowedBranchIds[0] : null;
+  }
 
   const columns = [...allFieldKeys, ...(config.hasBranch ? ["branch_name"] : [])];
 

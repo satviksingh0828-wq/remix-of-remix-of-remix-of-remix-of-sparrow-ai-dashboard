@@ -302,7 +302,12 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={() => setEditing(emptyFinanceRow())}>
+        <Button size="sm" onClick={() => {
+          const row = emptyFinanceRow();
+          // Auto-fill branch when user has exactly one allowed branch
+          if (allowedBranchIds?.length === 1) row.branch_id = allowedBranchIds[0];
+          setEditing(row);
+        }}>
           <Plus className="size-4" />
           New {cfg.single}
         </Button>
