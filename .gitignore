@@ -21,6 +21,9 @@ dist-ssr
 .nitro
 *.local
 
+# Vercel build output — never commit; Vercel rebuilds it on every deploy
+.vercel/output/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
