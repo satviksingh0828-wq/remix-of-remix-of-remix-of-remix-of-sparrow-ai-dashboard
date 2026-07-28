@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { serverSignIn } from "@/lib/user-auth";
 import type { SessionUser } from "@/lib/user-auth";
+import type { PowToken } from "@/lib/pow-captcha";
 import { secureSession } from "@/lib/storage";
 import { setLoggerUser } from "@/lib/log-actions";
 
@@ -20,8 +21,8 @@ type SessionValue = {
   signIn: (
     username: string,
     password: string,
-    turnstileToken: string,
-    credentialId?: string
+    powToken: PowToken,
+    credentialId?: string,
   ) => Promise<SignInOutcome>;
   signOut: () => void;
 };
@@ -34,7 +35,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      // Read from encrypted sessionStorage (clears on window close = auto logout)
       const raw = secureSession.getItem(KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as SessionUser;
@@ -44,7 +44,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore corrupt storage
     }
-    // Clean up any legacy localStorage session keys
     try {
       localStorage.removeItem("tms.session.v2");
       localStorage.removeItem("tms.session");
@@ -57,11 +56,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (
     username: string,
     password: string,
-    turnstileToken: string,
-    credentialId?: string
+    powToken: PowToken,
+    credentialId?: string,
   ): Promise<SignInOutcome> => {
     try {
-      const result = await serverSignIn({ data: { username, password, turnstileToken, credentialId } });
+      const result = await serverSignIn({ data: { username, password, powToken, credentialId } });
       if (!result.ok) return result;
       secureSession.setItem(KEY, JSON.stringify(result.user));
       setUser(result.user);
@@ -75,7 +74,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(() => {
     secureSession.removeItem(KEY);
-    // Clear any legacy keys
     try {
       localStorage.removeItem("tms.session.v2");
       localStorage.removeItem("tms.session");

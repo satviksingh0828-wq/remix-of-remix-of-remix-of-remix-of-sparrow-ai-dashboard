@@ -291,6 +291,10 @@ export function TripForm({
         return;
       }
     }
+    if (isRented && !trip.transporter_id) {
+      toast.error("Transporter is required for rented trips — please select one before saving");
+      return;
+    }
 
     setSaving(true);
     const { id, created_at, reopened_at, ...rest } = trip;

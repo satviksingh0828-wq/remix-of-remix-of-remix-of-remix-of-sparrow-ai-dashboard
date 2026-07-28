@@ -4,10 +4,11 @@ import { Loader2, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { usePasskeyContext } from "@/components/PasskeyGate";
+import { PowCaptcha } from "@/components/PowCaptcha";
+import type { PowToken } from "@/lib/pow-captcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TurnstileWidget } from "@/components/TurnstileWidget";
 import {
   getLockoutRemaining,
   lockoutLabel,
@@ -34,16 +35,16 @@ function LoginPage() {
   const { credentialId }        = usePasskeyContext();
   const navigate                = useNavigate();
 
-  const [id, setId]           = useState("");
+  const [id, setId]             = useState("");
   const [password, setPassword] = useState("");
-  const [busy, setBusy]       = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  const [busy, setBusy]         = useState(false);
+  const [error, setError]       = useState<string | null>(null);
 
-  // Turnstile state
-  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
-  const turnstileResetRef = useRef<(() => void) | null>(null);
+  // PoW CAPTCHA state
+  const [powToken, setPowToken] = useState<PowToken | null>(null);
+  const powResetRef             = useRef<(() => void) | null>(null);
 
-  // Honeypot field (bots fill this; humans don't see it)
+  // Honeypot
   const [honeypot, setHoneypot] = useState("");
 
   // Rate limit countdown
@@ -54,7 +55,6 @@ function LoginPage() {
     if (ready && user) navigate({ to: "/home", replace: true });
   }, [ready, user, navigate]);
 
-  // Poll for lockout expiry
   useEffect(() => {
     function tick() {
       const remaining = id.trim() ? getLockoutRemaining(id.trim()) : 0;
@@ -71,24 +71,24 @@ function LoginPage() {
     };
   }, [id]);
 
-  function resetTurnstile() {
-    setTurnstileToken(null);
-    turnstileResetRef.current?.();
+  function resetCaptcha() {
+    setPowToken(null);
+    powResetRef.current?.();
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Honeypot check
+    // Honeypot
     if (honeypot.trim() !== "") return;
 
-    // Turnstile check
-    if (!turnstileToken) {
-      setError("Please wait for the security check to complete.");
+    // PoW check
+    if (!powToken) {
+      setError("Security check is still running — please wait a moment.");
       return;
     }
 
-    // Rate limit check
+    // Rate limit
     const remaining = getLockoutRemaining(id.trim());
     if (remaining > 0) {
       setError(`Too many failed attempts. Try again in ${lockoutLabel(remaining)}.`);
@@ -98,8 +98,9 @@ function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 650));
-      const outcome = await signIn(id, password, turnstileToken, credentialId ?? undefined);
+      await new Promise((r) => setTimeout(r, 400));
+      const outcome = await signIn(id, password, powToken, credentialId ?? undefined);
+
       if (outcome.ok) {
         clearRateLimit(id.trim());
         logAction("login_success", "login", { entityLabel: id.trim() });
@@ -108,7 +109,8 @@ function LoginPage() {
       } else {
         const lockMs = recordFailedAttempt(id.trim());
         logAction("login_failed", "login", { entityLabel: id.trim(), details: { reason: outcome.reason } });
-        resetTurnstile();
+        // Always refresh PoW after a failed attempt
+        resetCaptcha();
         if (lockMs > 0) {
           setError(`Too many failed attempts. Account locked for ${lockoutLabel(lockMs)}.`);
         } else {
@@ -116,17 +118,16 @@ function LoginPage() {
         }
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      void msg;
+      void (err instanceof Error ? err.message : String(err));
       setError("Unexpected error — please try again.");
-      resetTurnstile();
+      resetCaptcha();
     } finally {
       setBusy(false);
     }
   }
 
-  const isLocked = lockedUntilMs > 0;
-  const canSubmit = !!turnstileToken && !isLocked && !busy;
+  const isLocked  = lockedUntilMs > 0;
+  const canSubmit = !!powToken && !isLocked && !busy;
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
@@ -167,8 +168,12 @@ function LoginPage() {
           </p>
 
           <form onSubmit={onSubmit} className="mt-8 space-y-5">
-            {/* Honeypot — visually hidden, bots fill it */}
-            <div style={{ position: "absolute", left: "-9999px", top: "-9999px", opacity: 0, height: 0, overflow: "hidden" }} aria-hidden="true" tabIndex={-1}>
+            {/* Honeypot */}
+            <div
+              style={{ position: "absolute", left: "-9999px", top: "-9999px", opacity: 0, height: 0, overflow: "hidden" }}
+              aria-hidden="true"
+              tabIndex={-1}
+            >
               <label>Leave this field empty</label>
               <input
                 type="text"
@@ -215,21 +220,14 @@ function LoginPage() {
               </div>
             </div>
 
-            {/* Cloudflare Turnstile */}
+            {/* PoW CAPTCHA — no registration, no keys, fully self-contained */}
             <div className="space-y-1.5">
               <Label className="text-sm">Security check</Label>
-              <TurnstileWidget
-                onToken={(token) => setTurnstileToken(token)}
-                onExpire={resetTurnstile}
-                onError={resetTurnstile}
-                theme="auto"
-                resetRef={turnstileResetRef}
+              <PowCaptcha
+                onToken={setPowToken}
+                onExpire={() => setPowToken(null)}
+                resetRef={powResetRef}
               />
-              {!turnstileToken && !busy && (
-                <p className="text-xs text-muted-foreground">
-                  Complete the check above to sign in.
-                </p>
-              )}
             </div>
 
             {error ? (
@@ -242,7 +240,11 @@ function LoginPage() {
 
             <Button type="submit" disabled={!canSubmit} className="h-11 w-full">
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-              {busy ? "Signing in…" : isLocked ? `Locked — ${lockoutLabel(lockedUntilMs)}` : "Sign in"}
+              {busy
+                ? "Signing in…"
+                : isLocked
+                  ? `Locked — ${lockoutLabel(lockedUntilMs)}`
+                  : "Sign in"}
             </Button>
           </form>
 
