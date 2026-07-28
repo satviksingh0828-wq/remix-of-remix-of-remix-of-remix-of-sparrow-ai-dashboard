@@ -164,6 +164,10 @@ function HomePage() {
               );
             })}
       </div>
+
+      <p className="mt-12 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
+        Powered by Sparrow AI Solutions
+      </p>
     </AppShell>
   );
 }
