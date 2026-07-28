@@ -60,8 +60,13 @@ type GateState =
 
 function Screen({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm text-center">{children}</div>
+    <div className="flex min-h-screen flex-col bg-background px-4">
+      <div className="flex flex-1 items-center justify-center">
+        <div className="w-full max-w-sm text-center">{children}</div>
+      </div>
+      <p className="py-6 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
+        Powered by Sparrow AI Solutions
+      </p>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Loader2, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
@@ -28,6 +28,14 @@ export const Route = createFileRoute("/")({
   component: LoginPage,
 });
 
+// ── Math CAPTCHA helpers ────────────────────────────────────────────────────
+
+function makeMathChallenge() {
+  const a = Math.floor(Math.random() * 9) + 1;
+  const b = Math.floor(Math.random() * 9) + 1;
+  return { a, b, answer: String(a + b) };
+}
+
 // ── Login page ─────────────────────────────────────────────────────────────────
 
 function LoginPage() {
@@ -43,6 +51,15 @@ function LoginPage() {
   // PoW CAPTCHA state
   const [powToken, setPowToken] = useState<PowToken | null>(null);
   const powResetRef             = useRef<(() => void) | null>(null);
+
+  // Math CAPTCHA state
+  const [mathChallenge, setMathChallenge] = useState(() => makeMathChallenge());
+  const [mathInput, setMathInput]         = useState("");
+  const [mathError, setMathError]         = useState(false);
+  const mathPassed = useMemo(
+    () => mathInput.trim() === mathChallenge.answer,
+    [mathInput, mathChallenge.answer],
+  );
 
   // Honeypot
   const [honeypot, setHoneypot] = useState("");
@@ -74,6 +91,10 @@ function LoginPage() {
   function resetCaptcha() {
     setPowToken(null);
     powResetRef.current?.();
+    // Refresh math challenge too
+    setMathChallenge(makeMathChallenge());
+    setMathInput("");
+    setMathError(false);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -81,6 +102,14 @@ function LoginPage() {
 
     // Honeypot
     if (honeypot.trim() !== "") return;
+
+    // Math CAPTCHA check
+    if (!mathPassed) {
+      setMathError(true);
+      setMathChallenge(makeMathChallenge());
+      setMathInput("");
+      return;
+    }
 
     // PoW check
     if (!powToken) {
@@ -109,7 +138,7 @@ function LoginPage() {
       } else {
         const lockMs = recordFailedAttempt(id.trim());
         logAction("login_failed", "login", { entityLabel: id.trim(), details: { reason: outcome.reason } });
-        // Always refresh PoW after a failed attempt
+        // Always refresh PoW + math after a failed attempt
         resetCaptcha();
         if (lockMs > 0) {
           setError(`Too many failed attempts. Account locked for ${lockoutLabel(lockMs)}.`);
@@ -127,7 +156,7 @@ function LoginPage() {
   }
 
   const isLocked  = lockedUntilMs > 0;
-  const canSubmit = !!powToken && !isLocked && !busy;
+  const canSubmit = !!powToken && mathPassed && !isLocked && !busy;
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
@@ -153,7 +182,7 @@ function LoginPage() {
       </aside>
 
       {/* Login */}
-      <section className="flex items-center justify-center bg-background px-6 py-14">
+      <section className="flex flex-col items-center justify-center bg-background px-6 py-14">
         <div className="w-full max-w-sm animate-fade-up">
           <div className="mb-9 lg:hidden">
             <p className="text-xl font-semibold uppercase tracking-[0.12em]">Sparrow AI Solutions</p>
@@ -220,6 +249,36 @@ function LoginPage() {
               </div>
             </div>
 
+            {/* ── Math CAPTCHA ───────────────────────────────────────── */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">
+                Quick check — what is{" "}
+                <span className="font-bold text-foreground">
+                  {mathChallenge.a} + {mathChallenge.b}
+                </span>
+                ?
+              </Label>
+              <Input
+                type="number"
+                value={mathInput}
+                onChange={(e) => {
+                  setMathInput(e.target.value);
+                  setMathError(false);
+                }}
+                placeholder="Enter answer"
+                min={0}
+                max={18}
+                className={`h-11 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                  mathError ? "border-destructive ring-destructive/30" : ""
+                }`}
+                disabled={isLocked || busy}
+                autoComplete="off"
+              />
+              {mathError && (
+                <p className="text-xs text-destructive">Incorrect answer — please try again.</p>
+              )}
+            </div>
+
             {/* PoW CAPTCHA — no registration, no keys, fully self-contained */}
             <div className="space-y-1.5">
               <Label className="text-sm">Security check</Label>
@@ -252,6 +311,11 @@ function LoginPage() {
             Access is limited to authorised operators. Contact your administrator for credentials.
           </p>
         </div>
+
+        {/* Powered by branding */}
+        <p className="mt-auto pt-10 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
+          Powered by Sparrow AI Solutions
+        </p>
       </section>
     </div>
   );

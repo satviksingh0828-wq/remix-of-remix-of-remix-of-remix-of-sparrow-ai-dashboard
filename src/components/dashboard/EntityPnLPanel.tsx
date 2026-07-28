@@ -37,9 +37,9 @@ const PIE_COLORS = ["#22c55e","#3b82f6","#8b5cf6","#f97316","#ef4444","#06b6d4",
 function StatCard({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
   const isPos = value >= 0;
   return (
-    <div className="surface-card p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-xl font-bold tracking-tight ${
+    <div className="surface-card p-3 sm:p-4">
+      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+      <p className={`mt-1 text-base sm:text-xl font-bold tracking-tight break-all ${
         highlight ? (isPos ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400") : "text-foreground"
       }`}>
         {inr(value)}
@@ -60,7 +60,8 @@ function Leaderboard({ rows, onSelect }: { rows: LeaderRow[]; onSelect: (id: str
   const sorted = [...rows].sort((a, b) => b.stats.netPnL - a.stats.netPnL);
   return (
     <div className="surface-card overflow-hidden">
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[520px] text-sm">
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
             <th className="px-4 py-2">#</th>
@@ -89,6 +90,7 @@ function Leaderboard({ rows, onSelect }: { rows: LeaderRow[]; onSelect: (id: str
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
@@ -260,7 +262,7 @@ export function EntityPnLPanel({ kind }: Props) {
           ) : (
             <>
               {/* Stats */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
                 <StatCard label="Net P&L" value={stats.netPnL} highlight />
                 <StatCard label="Trip Gross Profit" value={stats.tripGrossProfit} />
                 <StatCard label="Other Income" value={stats.otherIncome} />

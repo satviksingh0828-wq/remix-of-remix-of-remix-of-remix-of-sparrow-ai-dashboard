@@ -223,7 +223,8 @@ export function TripSummaryPanel() {
                 <div className="border-b border-border px-4 py-3">
                   <h3 className="text-sm font-semibold tracking-tight">Branch-wise Trip Breakdown</h3>
                 </div>
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full min-w-[420px] text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                       <th className="px-4 py-2">Branch</th>
@@ -252,6 +253,7 @@ export function TripSummaryPanel() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {/* Pie chart */}

@@ -17,6 +17,7 @@ import { SessionProvider } from "../lib/session";
 import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "../components/ui/sonner";
 import { PasskeyGate } from "../components/PasskeyGate";
+import { InactivityChallenge } from "../components/InactivityChallenge";
 
 function NotFoundComponent() {
   return (
@@ -150,6 +151,7 @@ function RootComponent() {
           <PasskeyGate>
             <Outlet />
           </PasskeyGate>
+          <InactivityChallenge />
           <Toaster position="top-right" />
         </ThemeProvider>
       </SessionProvider>

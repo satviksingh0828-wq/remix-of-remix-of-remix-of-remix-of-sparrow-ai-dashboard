@@ -36,9 +36,9 @@ const BAR_COLORS = { tripIncome: "#22c55e", otherIncome: "#3b82f6", fixedIncome:
 function StatCard({ label, value, positive }: { label: string; value: number; positive?: boolean }) {
   const isPos = value >= 0;
   return (
-    <div className="surface-card p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`mt-1 text-xl font-bold tracking-tight ${
+    <div className="surface-card p-3 sm:p-4">
+      <p className="text-xs text-muted-foreground leading-tight">{label}</p>
+      <p className={`mt-1 text-base sm:text-xl font-bold tracking-tight break-all ${
         positive !== undefined
           ? isPos ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
           : "text-foreground"
@@ -163,7 +163,7 @@ export function ProfitLossPanel() {
       ) : (
         <>
           {/* Key metrics */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
             <StatCard label="Trip Gross Profit" value={stats.tripGrossProfit} positive />
             <StatCard label="Other Income" value={stats.otherIncome} />
             <StatCard label="Fixed Income" value={stats.fixedIncome} />
@@ -173,7 +173,7 @@ export function ProfitLossPanel() {
           </div>
 
           {/* Secondary metrics */}
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             <div className="surface-card p-3 text-center">
               <p className="text-xs text-muted-foreground">Trips Closed</p>
               <p className="mt-0.5 text-lg font-bold">{stats.tripCount}</p>
