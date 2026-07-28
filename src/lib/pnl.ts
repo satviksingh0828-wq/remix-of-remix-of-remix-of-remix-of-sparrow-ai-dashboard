@@ -4,7 +4,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
-import { num } from "./trip-calc";
+import { num, manifestCharges, findEntry, type ContractLite, type EntryLite } from "./trip-calc";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -127,14 +127,19 @@ export type PeriodSpec = { year: number; month?: number };
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
 function mapTrip(r: Record<string, unknown>): PnLClosedTrip {
+  // vehicle_id/driver_id/transporter_id were not columns in the original
+  // closed_trips schema. For older records they live in snapshot.trip;
+  // for newer records (after close-trip.ts was updated) they are top-level.
+  const snap = r.snapshot as Record<string, unknown> | null | undefined;
+  const snapTrip = snap?.trip as Record<string, unknown> | null | undefined;
   return {
     id: r.id as string,
     trip_code: String(r.trip_code ?? ""),
     branch_id: (r.branch_id as string) ?? null,
     branch_name: String(r.branch_name ?? ""),
-    vehicle_id: (r.vehicle_id as string) ?? null,
-    driver_id: (r.driver_id as string) ?? null,
-    transporter_id: (r.transporter_id as string) ?? null,
+    vehicle_id: (r.vehicle_id as string) ?? (snapTrip?.vehicle_id as string) ?? null,
+    driver_id: (r.driver_id as string) ?? (snapTrip?.driver_id as string) ?? null,
+    transporter_id: (r.transporter_id as string) ?? (snapTrip?.transporter_id as string) ?? null,
     total_income: Number(r.total_income ?? 0),
     total_expense: Number(r.total_expense ?? 0),
     net_income: Number(r.net_income ?? 0),
@@ -193,6 +198,112 @@ function mapContract(c: Record<string, unknown>): PnLContractRow {
   };
 }
 
+// ── Active-trip helper ─────────────────────────────────────────────────────────
+
+/**
+ * Fetch active (non-closed) trips in a date range and compute their P&L from
+ * raw trip data (manifests × contract rates + other income − expenses).
+ * Uses `created_at` for date-range filtering since active trips have no closed_at.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchActiveTrips(db: any, start: string, end: string): Promise<PnLClosedTrip[]> {
+  const tripsRes = await db
+    .from("trips")
+    .select("id,trip_code,branch_id,vehicle_id,driver_id,transporter_id,contract_id,created_at")
+    .gte("created_at", start)
+    .lt("created_at", end);
+
+  const trips: Record<string, unknown>[] = tripsRes.data ?? [];
+  if (trips.length === 0) return [];
+
+  const tripIds = trips.map((t) => t.id as string);
+  const contractIds = [...new Set(trips.map((t) => t.contract_id as string).filter(Boolean))];
+  const branchIds   = [...new Set(trips.map((t) => t.branch_id   as string).filter(Boolean))];
+
+  const [manifRes, incRes, expRes, branchRes, contractRes, entryRes] = await Promise.all([
+    db.from("trip_manifests")
+      .select("trip_id,weight_kg,quantity,from_location_id,to_location_id,from_pin_code,to_pin_code")
+      .in("trip_id", tripIds),
+    db.from("trip_other_income").select("trip_id,amount").in("trip_id", tripIds),
+    db.from("trip_expenses").select("trip_id,amount").in("trip_id", tripIds),
+    branchIds.length > 0
+      ? db.from("branches").select("id,branch_name").in("id", branchIds)
+      : Promise.resolve({ data: [] }),
+    contractIds.length > 0
+      ? db.from("contracts")
+          .select("id,freight_basis,loading_basis,weight_ranges,quantity_ranges")
+          .in("id", contractIds)
+      : Promise.resolve({ data: [] }),
+    contractIds.length > 0
+      ? db.from("contract_entries")
+          .select("contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_values,loading_values,per_manifest_amount")
+          .in("contract_id", contractIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  // Build lookup maps
+  const manifestsByTrip  = new Map<string, Record<string, unknown>[]>();
+  for (const m of manifRes.data ?? []) {
+    const tid = m.trip_id as string;
+    if (!manifestsByTrip.has(tid)) manifestsByTrip.set(tid, []);
+    manifestsByTrip.get(tid)!.push(m);
+  }
+  const incomeByTrip = new Map<string, Record<string, unknown>[]>();
+  for (const i of incRes.data ?? []) {
+    const tid = i.trip_id as string;
+    if (!incomeByTrip.has(tid)) incomeByTrip.set(tid, []);
+    incomeByTrip.get(tid)!.push(i);
+  }
+  const expenseByTrip = new Map<string, Record<string, unknown>[]>();
+  for (const e of expRes.data ?? []) {
+    const tid = e.trip_id as string;
+    if (!expenseByTrip.has(tid)) expenseByTrip.set(tid, []);
+    expenseByTrip.get(tid)!.push(e);
+  }
+  const branchNameMap = new Map<string, string>();
+  for (const b of branchRes.data ?? []) branchNameMap.set(b.id as string, String(b.branch_name ?? ""));
+
+  const contractMap = new Map<string, ContractLite>();
+  for (const c of contractRes.data ?? []) contractMap.set(c.id as string, c as ContractLite);
+
+  const entriesByContract = new Map<string, EntryLite[]>();
+  for (const e of entryRes.data ?? []) {
+    const cid = e.contract_id as string;
+    if (!entriesByContract.has(cid)) entriesByContract.set(cid, []);
+    entriesByContract.get(cid)!.push(e as EntryLite);
+  }
+
+  return trips.map((t): PnLClosedTrip => {
+    const manifests  = manifestsByTrip.get(t.id as string)  ?? [];
+    const otherIncs  = incomeByTrip.get(t.id as string)     ?? [];
+    const expenses   = expenseByTrip.get(t.id as string)    ?? [];
+    const contract   = t.contract_id ? contractMap.get(t.contract_id as string) : undefined;
+    const entries    = t.contract_id ? (entriesByContract.get(t.contract_id as string) ?? []) : [];
+
+    const manifestIncome = manifests.reduce((s, m) => {
+      const ch = manifestCharges(contract, findEntry(entries, m as never), m as never);
+      return s + ch.freight + ch.loading + ch.fixed;
+    }, 0);
+    const otherIncomeTotal = otherIncs.reduce((s, r)  => s + num(r.amount), 0);
+    const expenseTotal     = expenses.reduce((s, r)   => s + num(r.amount), 0);
+    const totalIncome      = manifestIncome + otherIncomeTotal;
+
+    return {
+      id: t.id as string,
+      trip_code: String(t.trip_code ?? ""),
+      branch_id: (t.branch_id as string) ?? null,
+      branch_name: t.branch_id ? (branchNameMap.get(t.branch_id as string) ?? "") : "",
+      vehicle_id: (t.vehicle_id as string) ?? null,
+      driver_id: (t.driver_id as string) ?? null,
+      transporter_id: (t.transporter_id as string) ?? null,
+      total_income: totalIncome,
+      total_expense: expenseTotal,
+      net_income: totalIncome - expenseTotal,
+      closed_at: t.created_at as string, // use creation date as proxy for period filtering
+    };
+  });
+}
+
 // ── Server functions ───────────────────────────────────────────────────────────
 
 export const serverFetchPnLYear = createServerFn({ method: "POST" })
@@ -206,12 +317,15 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
     const start = `${y}-01-01`;
     const end = `${y + 1}-01-01`;
 
-    const [tripsRes, incomesRes, expendituresRes, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
+    const [tripsRes, activeTrips, incomesRes, expendituresRes, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
       await Promise.all([
+        // select snapshot so mapTrip can extract vehicle/driver/transporter for
+        // older rows that don't yet have those as top-level columns
         db.from("closed_trips")
-          .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at")
+          .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
           .gte("closed_at", start)
           .lt("closed_at", end),
+        fetchActiveTrips(db, start, end),
         db.from("incomes")
           .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
           .gte("entry_date", start)
@@ -229,7 +343,7 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
       ]);
 
     return {
-      closedTrips: (tripsRes.data ?? []).map(mapTrip),
+      closedTrips: [...(tripsRes.data ?? []).map(mapTrip), ...activeTrips],
       incomes: (incomesRes.data ?? []).map(mapIncome),
       expenditures: (expendituresRes.data ?? []).map(mapExpenditure),
       contracts: (contractsRes.data ?? []).map(mapContract),
@@ -274,12 +388,13 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
 
     const months = month !== undefined ? 1 : 12;
 
-    const [tripsRes, incomesRes, expendituresRes, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
+    const [tripsRes, activeTrips, incomesRes, expendituresRes, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
       await Promise.all([
         db.from("closed_trips")
-          .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at")
+          .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
           .gte("closed_at", start)
           .lt("closed_at", end),
+        fetchActiveTrips(db, start, end),
         db.from("incomes")
           .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
           .gte("entry_date", start)
@@ -297,7 +412,7 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
       ]);
 
     return {
-      closedTrips: (tripsRes.data ?? []).map(mapTrip),
+      closedTrips: [...(tripsRes.data ?? []).map(mapTrip), ...activeTrips],
       incomes: (incomesRes.data ?? []).map(mapIncome),
       expenditures: (expendituresRes.data ?? []).map(mapExpenditure),
       contracts: (contractsRes.data ?? []).map((c: Record<string, unknown>) => ({
