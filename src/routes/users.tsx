@@ -1,10 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ChevronRight, ScrollText, Users } from "lucide-react";
+import { ChevronRight, Fingerprint, ScrollText, Users } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { UserList } from "@/components/users/UserList";
 import { LogsPanel } from "@/components/users/LogsPanel";
+import { DevicesPanel } from "@/components/users/DevicesPanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/users")({
@@ -25,48 +26,44 @@ export const Route = createFileRoute("/users")({
 });
 
 const TABS = [
-  { id: "users", label: "Users", desc: "Accounts & branch access", icon: Users },
-  { id: "logs", label: "Activity Logs", desc: "Full audit trail", icon: ScrollText },
+  { id: "users",   label: "Users",               desc: "Accounts & branch access",          icon: Users },
+  { id: "devices", label: "Devices",              desc: "Windows Hello / Passkey approvals", icon: Fingerprint },
+  { id: "logs",    label: "Activity Logs",        desc: "Full audit trail",                  icon: ScrollText },
 ] as const;
+
 type TabId = (typeof TABS)[number]["id"];
 
 function UsersPage() {
   const { user } = useSession();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const [tab, setTab] = useState<TabId>("users");
 
-  // Only admins can access this page
   useEffect(() => {
-    if (user && user.role !== "admin") {
-      navigate({ to: "/home", replace: true });
-    }
+    if (user && user.role !== "admin") navigate({ to: "/home", replace: true });
   }, [user, navigate]);
 
   if (user?.role !== "admin") return null;
 
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const active = TABS.find(t => t.id === tab) ?? TABS[0];
 
   return (
     <AppShell
       breadcrumb={
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/home" className="hover:text-foreground">
-            Workspace
-          </Link>
+          <Link to="/home" className="hover:text-foreground">Workspace</Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Users</span>
         </span>
       }
     >
       <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-        {/* Sidebar nav — same pattern as Operations & Masters */}
         <nav className="lg:sticky lg:top-24 lg:self-start">
           <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             Users
           </p>
           <ul className="space-y-1">
-            {TABS.map((t) => {
-              const Icon = t.icon;
+            {TABS.map(t => {
+              const Icon     = t.icon;
               const isActive = t.id === tab;
               return (
                 <li key={t.id}>
@@ -96,8 +93,9 @@ function UsersPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
-          {tab === "users" ? <UserList /> : null}
-          {tab === "logs" ? <LogsPanel /> : null}
+          {tab === "users"   && <UserList />}
+          {tab === "devices" && <DevicesPanel />}
+          {tab === "logs"    && <LogsPanel />}
         </div>
       </div>
     </AppShell>

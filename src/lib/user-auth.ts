@@ -45,12 +45,42 @@ export type SaveUserInput = {
 
 export type SignInResult =
   | { ok: true; user: SessionUser }
-  | { ok: false; reason: "invalid_credentials" | "server_error"; message: string };
+  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed"; message: string };
 
 export const serverSignIn = createServerFn({ method: "POST" })
-  .validator((data: { username: string; password: string }) => data)
+  .validator((data: {
+    username: string;
+    password: string;
+    turnstileToken: string;
+    /** Credential ID of the passkey that already passed Windows Hello on this device */
+    credentialId?: string;
+  }) => data)
   .handler(async ({ data }): Promise<SignInResult> => {
-    // Dynamic import keeps supabaseAdmin out of the client bundle entirely
+    // ── 1. Verify Turnstile CAPTCHA ────────────────────────────────────────
+    const TEST_SECRET = "1x0000000000000000000000000000000AA";
+    const secret = process.env.TURNSTILE_SECRET_KEY ?? TEST_SECRET;
+    const token  = data.turnstileToken?.trim();
+
+    if (!token) {
+      return { ok: false, reason: "captcha_failed", message: "Please complete the CAPTCHA." };
+    }
+
+    try {
+      const body = new URLSearchParams({ secret, response: token });
+      const cfRes = await fetch(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        { method: "POST", body, headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+      );
+      const cfJson = await cfRes.json() as { success: boolean; "error-codes"?: string[] };
+      if (!cfJson.success) {
+        return { ok: false, reason: "captcha_failed", message: "CAPTCHA verification failed. Please try again." };
+      }
+    } catch {
+      // If Turnstile is unreachable, still allow login (graceful degradation)
+      console.warn("[serverSignIn] Turnstile check failed (network). Proceeding anyway.");
+    }
+
+    // ── 2. Load Supabase admin ─────────────────────────────────────────────
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let supabaseAdmin: any;
     try {
@@ -62,6 +92,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
       return { ok: false, reason: "server_error", message: `Database connection failed: ${msg}` };
     }
 
+    // ── 3. Verify username + password ──────────────────────────────────────
     const { data: user, error } = await supabaseAdmin
       .from("app_users")
       .select("id, username, full_name, role, password")
@@ -82,7 +113,36 @@ export const serverSignIn = createServerFn({ method: "POST" })
       return { ok: false, reason: "invalid_credentials", message: "Invalid login ID or password." };
     }
 
-    // Fetch branch access
+    // ── 4. Device-user authorization check ───────────────────────────────
+    // If the device has assigned users, only those users may log in from it.
+    if (data.credentialId) {
+      const { data: devRow } = await supabaseAdmin
+        .from("device_registrations")
+        .select("id, status")
+        .eq("credential_id", data.credentialId)
+        .maybeSingle();
+
+      if (devRow && devRow.status === "approved") {
+        const { data: assignments } = await supabaseAdmin
+          .from("device_user_assignments")
+          .select("app_user_id")
+          .eq("device_registration_id", devRow.id);
+
+        const allowedIds: string[] = ((assignments ?? []) as { app_user_id: string }[]).map(a => a.app_user_id);
+
+        // If there ARE assigned users and this user is NOT in the list → deny
+        if (allowedIds.length > 0 && !allowedIds.includes(user.id as string)) {
+          console.warn("[serverSignIn] User not authorized on this device:", data.username);
+          return {
+            ok: false,
+            reason: "device_not_authorized",
+            message: "Your account is not authorised to access this application from this device.",
+          };
+        }
+      }
+    }
+
+    // ── 5. Fetch branch access ─────────────────────────────────────────────
     const { data: branchData } = await supabaseAdmin
       .from("user_branch_access")
       .select("branch_id")

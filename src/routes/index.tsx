@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Lock, RefreshCw, User } from "lucide-react";
+import { Loader2, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
+import { usePasskeyContext } from "@/components/PasskeyGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 import {
   getLockoutRemaining,
   lockoutLabel,
@@ -19,35 +21,27 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "Sign in — Project TMS | Sparrow AI Solutions" },
       { name: "description", content: "Secure operator sign-in for Project TMS." },
-      // Prevent this page from being indexed or cached by search engines
       { name: "robots", content: "noindex, nofollow, noarchive" },
     ],
   }),
   component: LoginPage,
 });
 
-// ── Simple math CAPTCHA (no API, no registration) ─────────────────────────────
-
-function generateCaptcha() {
-  const a = Math.floor(Math.random() * 9) + 1;
-  const b = Math.floor(Math.random() * 9) + 1;
-  return { a, b, answer: a + b };
-}
-
 // ── Login page ─────────────────────────────────────────────────────────────────
 
 function LoginPage() {
   const { signIn, user, ready } = useSession();
-  const navigate = useNavigate();
-  const [id, setId] = useState("");
-  const [password, setPassword] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { credentialId }        = usePasskeyContext();
+  const navigate                = useNavigate();
 
-  // CAPTCHA state
-  const [captcha, setCaptcha] = useState(generateCaptcha);
-  const [captchaInput, setCaptchaInput] = useState("");
-  const [captchaError, setCaptchaError] = useState(false);
+  const [id, setId]           = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy]       = useState(false);
+  const [error, setError]     = useState<string | null>(null);
+
+  // Turnstile state
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileResetRef = useRef<(() => void) | null>(null);
 
   // Honeypot field (bots fill this; humans don't see it)
   const [honeypot, setHoneypot] = useState("");
@@ -77,27 +71,22 @@ function LoginPage() {
     };
   }, [id]);
 
-  function refreshCaptcha() {
-    setCaptcha(generateCaptcha());
-    setCaptchaInput("");
-    setCaptchaError(false);
+  function resetTurnstile() {
+    setTurnstileToken(null);
+    turnstileResetRef.current?.();
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Honeypot check — bots fill it, humans leave it blank
+    // Honeypot check
     if (honeypot.trim() !== "") return;
 
-    // CAPTCHA check
-    const expectedAnswer = captcha.answer;
-    const providedAnswer = parseInt(captchaInput.trim(), 10);
-    if (isNaN(providedAnswer) || providedAnswer !== expectedAnswer) {
-      setCaptchaError(true);
-      refreshCaptcha();
+    // Turnstile check
+    if (!turnstileToken) {
+      setError("Please wait for the security check to complete.");
       return;
     }
-    setCaptchaError(false);
 
     // Rate limit check
     const remaining = getLockoutRemaining(id.trim());
@@ -110,7 +99,7 @@ function LoginPage() {
     setError(null);
     try {
       await new Promise((r) => setTimeout(r, 650));
-      const outcome = await signIn(id, password);
+      const outcome = await signIn(id, password, turnstileToken, credentialId ?? undefined);
       if (outcome.ok) {
         clearRateLimit(id.trim());
         logAction("login_success", "login", { entityLabel: id.trim() });
@@ -119,26 +108,25 @@ function LoginPage() {
       } else {
         const lockMs = recordFailedAttempt(id.trim());
         logAction("login_failed", "login", { entityLabel: id.trim(), details: { reason: outcome.reason } });
+        resetTurnstile();
         if (lockMs > 0) {
-          setError(
-            `Too many failed attempts. Account locked for ${lockoutLabel(lockMs)}.`,
-          );
+          setError(`Too many failed attempts. Account locked for ${lockoutLabel(lockMs)}.`);
         } else {
           setError(outcome.message);
         }
-        refreshCaptcha();
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      setError(`Unexpected error — please try again.`);
       void msg;
-      refreshCaptcha();
+      setError("Unexpected error — please try again.");
+      resetTurnstile();
     } finally {
       setBusy(false);
     }
   }
 
   const isLocked = lockedUntilMs > 0;
+  const canSubmit = !!turnstileToken && !isLocked && !busy;
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
@@ -227,38 +215,21 @@ function LoginPage() {
               </div>
             </div>
 
-            {/* Math CAPTCHA */}
-            <div className="space-y-2">
-              <Label htmlFor="captcha">
-                Security check — What is {captcha.a} + {captcha.b}?
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  id="captcha"
-                  type="number"
-                  value={captchaInput}
-                  onChange={(e) => { setCaptchaInput(e.target.value); setCaptchaError(false); }}
-                  placeholder="Answer"
-                  className={`h-11 flex-1 ${captchaError ? "border-destructive" : ""}`}
-                  required
-                  disabled={isLocked || busy}
-                  autoComplete="off"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  className="h-11 w-11"
-                  onClick={refreshCaptcha}
-                  title="New question"
-                  disabled={isLocked || busy}
-                >
-                  <RefreshCw className="size-4" />
-                </Button>
-              </div>
-              {captchaError ? (
-                <p className="text-xs text-destructive">Incorrect answer — a new question has been generated.</p>
-              ) : null}
+            {/* Cloudflare Turnstile */}
+            <div className="space-y-1.5">
+              <Label className="text-sm">Security check</Label>
+              <TurnstileWidget
+                onToken={(token) => setTurnstileToken(token)}
+                onExpire={resetTurnstile}
+                onError={resetTurnstile}
+                theme="auto"
+                resetRef={turnstileResetRef}
+              />
+              {!turnstileToken && !busy && (
+                <p className="text-xs text-muted-foreground">
+                  Complete the check above to sign in.
+                </p>
+              )}
             </div>
 
             {error ? (
@@ -269,7 +240,7 @@ function LoginPage() {
               </p>
             ) : null}
 
-            <Button type="submit" disabled={busy || isLocked} className="h-11 w-full">
+            <Button type="submit" disabled={!canSubmit} className="h-11 w-full">
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
               {busy ? "Signing in…" : isLocked ? `Locked — ${lockoutLabel(lockedUntilMs)}` : "Sign in"}
             </Button>

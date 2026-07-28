@@ -16,6 +16,7 @@ import appCss from "../styles.css?url";
 import { SessionProvider } from "../lib/session";
 import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "../components/ui/sonner";
+import { PasskeyGate } from "../components/PasskeyGate";
 
 function NotFoundComponent() {
   return (
@@ -41,7 +42,7 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
-  void error; // suppress in production
+  void error;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -80,7 +81,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "author", content: "Sparrow AI Solutions" },
-      // Prevent all search engine indexing — internal business tool
       { name: "robots", content: "noindex, nofollow, noarchive, nosnippet, noimageindex" },
       { name: "googlebot", content: "noindex, nofollow" },
       { property: "og:type", content: "website" },
@@ -117,7 +117,6 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-/** Initializes client-side security hardening once on mount. */
 function SecurityInit() {
   useEffect(() => {
     initSecurity();
@@ -147,8 +146,10 @@ function RootComponent() {
       <SessionProvider>
         <ThemeProvider>
           <SecurityInit />
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
+          {/* PasskeyGate: device-level WebAuthn check before any page renders */}
+          <PasskeyGate>
+            <Outlet />
+          </PasskeyGate>
           <Toaster position="top-right" />
         </ThemeProvider>
       </SessionProvider>

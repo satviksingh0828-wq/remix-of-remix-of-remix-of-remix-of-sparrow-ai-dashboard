@@ -12,12 +12,17 @@ const KEY = "tms.session.v2";
 
 export type SignInOutcome =
   | { ok: true }
-  | { ok: false; reason: "invalid_credentials" | "server_error"; message: string };
+  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed"; message: string };
 
 type SessionValue = {
   ready: boolean;
   user: SessionUser | null;
-  signIn: (username: string, password: string) => Promise<SignInOutcome>;
+  signIn: (
+    username: string,
+    password: string,
+    turnstileToken: string,
+    credentialId?: string
+  ) => Promise<SignInOutcome>;
   signOut: () => void;
 };
 
@@ -49,9 +54,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
-  const signIn = useCallback(async (username: string, password: string): Promise<SignInOutcome> => {
+  const signIn = useCallback(async (
+    username: string,
+    password: string,
+    turnstileToken: string,
+    credentialId?: string
+  ): Promise<SignInOutcome> => {
     try {
-      const result = await serverSignIn({ data: { username, password } });
+      const result = await serverSignIn({ data: { username, password, turnstileToken, credentialId } });
       if (!result.ok) return result;
       secureSession.setItem(KEY, JSON.stringify(result.user));
       setUser(result.user);
