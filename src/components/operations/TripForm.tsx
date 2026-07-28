@@ -62,6 +62,7 @@ export type TripRow = {
   end_time: string;
   odometer_start: string;
   odometer_end: string;
+  third_party_vehicle_number: string;
   created_at?: string;
   reopened_at?: string | null;
 };
@@ -111,6 +112,7 @@ export function emptyTrip(): TripRow {
     end_time: "",
     odometer_start: "",
     odometer_end: "",
+    third_party_vehicle_number: "",
   };
 }
 
@@ -448,9 +450,17 @@ export function TripForm({
           from_location: (fromLoc as Record<string, unknown>)?.location_name as string | null ?? null,
           to_location: (toLoc as Record<string, unknown>)?.location_name as string | null ?? null,
         },
-        vehicle: vehicle ?? null,
-        driver: driver ?? null,
-        transporter: transporter ?? null,
+        vehicle: (vehicle as Record<string, unknown> | undefined) ?? null,
+        driver: (driver as Record<string, unknown> | undefined) ?? null,
+        transporter: transporter
+          ? {
+              transporter_name: transporter.transporter_name,
+              city: transporter.city,
+              pan_number: transporter.pan_number,
+              gst_number: transporter.gst_number,
+            }
+          : null,
+        third_party_vehicle_number: trip.third_party_vehicle_number || null,
         manifests: manifests.map((m) => ({
           manifest_number: m.manifest_number,
           quantity: m.quantity,
@@ -560,14 +570,21 @@ export function TripForm({
 
           {/* Rented: transporter required; no vehicle/driver/odometer */}
           {isRented ? (
-            <EntityPicker
-              label="Transporter (required for rented)"
-              value={trip.transporter_id}
-              options={transporterOpts}
-              onChange={(id) => patch({ transporter_id: id })}
-              onAdd={() => setShowTransporterForm(true)}
-              addLabel="Add new transporter"
-            />
+            <>
+              <EntityPicker
+                label="Transporter (required for rented)"
+                value={trip.transporter_id}
+                options={transporterOpts}
+                onChange={(id) => patch({ transporter_id: id })}
+                onAdd={() => setShowTransporterForm(true)}
+                addLabel="Add new transporter"
+              />
+              <Field
+                label="Vehicle Number (3rd party)"
+                value={trip.third_party_vehicle_number}
+                onChange={(v) => patch({ third_party_vehicle_number: v })}
+              />
+            </>
           ) : null}
 
           <EntityPicker

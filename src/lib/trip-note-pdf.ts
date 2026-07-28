@@ -36,7 +36,8 @@ export type TripNoteData = {
   };
   vehicle?: { registration_number?: unknown; model?: unknown; manufacturer?: unknown } | null;
   driver?: { full_name?: unknown; license_number?: unknown } | null;
-  transporter?: { transporter_name?: unknown; city?: unknown } | null;
+  transporter?: { transporter_name?: unknown; city?: unknown; pan_number?: unknown; gst_number?: unknown } | null;
+  third_party_vehicle_number?: string | null;
   manifests: TripNoteManifest[];
 };
 
@@ -122,6 +123,10 @@ export function printTripNote(data: TripNoteData): void {
   const driverLic = s(driver?.license_number);
   const transporterName = s(transporter?.transporter_name);
   const transporterCity = s(transporter?.city);
+  const transporterPan = s(transporter?.pan_number);
+  const transporterGstin = s(transporter?.gst_number);
+  const thirdPartyVehicle = s(data.third_party_vehicle_number);
+  const isOwn = trip.ownership === "own";
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -216,8 +221,12 @@ export function printTripNote(data: TripNoteData): void {
     .footer-box { text-align: center; }
     .footer-sig { margin-top: 24px; border-top: 1px solid #000; padding-top: 3px; font-size: 9.5px; }
 
+    /* ── Page footer ── */
+    .page-footer { margin-top: 20px; text-align: center; font-size: 8.5px; color: #888; letter-spacing: 0.04em; border-top: 0.5px solid #ccc; padding-top: 5px; }
+
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .page-footer { position: fixed; bottom: 6mm; left: 0; right: 0; text-align: center; }
     }
   </style>
 </head>
@@ -269,23 +278,22 @@ export function printTripNote(data: TripNoteData): void {
 
     <!-- Left: vehicle / driver / transporter -->
     <div class="details-col">
-      <h4>Vehicle &amp; Crew Details</h4>
-      ${
-        vehicleReg
-          ? `<div class="detail-row"><span class="detail-label">Vehicle</span><span class="detail-value">${vehicleReg}${vehicleDesc ? " — " + vehicleDesc : ""}</span></div>`
-          : `<div class="detail-row empty"><span class="detail-label">Vehicle</span><span class="detail-value">—</span></div>`
-      }
-      ${
-        driverName
-          ? `<div class="detail-row"><span class="detail-label">Driver</span><span class="detail-value">${driverName}</span></div>${driverLic ? `<div class="detail-row"><span class="detail-label">Licence No.</span><span class="detail-value">${driverLic}</span></div>` : ""}`
-          : ""
-      }
-      ${
-        transporterName
-          ? `<div class="detail-row"><span class="detail-label">Transporter</span><span class="detail-value">${transporterName}${transporterCity ? ", " + transporterCity : ""}</span></div>`
-          : ""
-      }
-      ${!vehicleReg && !driverName && !transporterName ? `<div class="detail-row empty"><span class="detail-label" style="color:#bbb">No vehicle/driver details recorded</span></div>` : ""}
+      ${isOwn ? `<h4>Vehicle &amp; Driver Details</h4>
+      ${vehicleReg
+        ? `<div class="detail-row"><span class="detail-label">Vehicle Reg.</span><span class="detail-value">${vehicleReg}</span></div>${vehicleDesc ? `<div class="detail-row"><span class="detail-label">Make / Model</span><span class="detail-value">${vehicleDesc}</span></div>` : ""}`
+        : `<div class="detail-row empty"><span class="detail-label">Vehicle</span><span class="detail-value">—</span></div>`}
+      ${driverName
+        ? `<div class="detail-row"><span class="detail-label">Driver</span><span class="detail-value">${driverName}</span></div>${driverLic ? `<div class="detail-row"><span class="detail-label">Licence No.</span><span class="detail-value">${driverLic}</span></div>` : ""}`
+        : ""}
+      ${!vehicleReg && !driverName ? `<div class="detail-row empty"><span class="detail-label" style="color:#bbb">No vehicle / driver details recorded</span></div>` : ""}`
+      : `<h4>Third-Party Transporter Details</h4>
+      ${transporterName
+        ? `<div class="detail-row"><span class="detail-label">Transporter</span><span class="detail-value">${transporterName}</span></div>`
+        : `<div class="detail-row empty"><span class="detail-label">Transporter</span><span class="detail-value">—</span></div>`}
+      ${transporterPan ? `<div class="detail-row"><span class="detail-label">PAN No.</span><span class="detail-value">${transporterPan}</span></div>` : ""}
+      ${transporterGstin ? `<div class="detail-row"><span class="detail-label">GSTIN</span><span class="detail-value">${transporterGstin}</span></div>` : ""}
+      ${thirdPartyVehicle ? `<div class="detail-row"><span class="detail-label">Vehicle No.</span><span class="detail-value">${thirdPartyVehicle}</span></div>` : ""}
+      ${!transporterName && !thirdPartyVehicle ? `<div class="detail-row empty"><span class="detail-label" style="color:#bbb">No transporter details recorded</span></div>` : ""}`}
     </div>
 
     <!-- Right: trip details -->
@@ -340,6 +348,9 @@ export function printTripNote(data: TripNoteData): void {
       <div class="footer-sig">Authorised Signatory</div>
     </div>
   </div>
+
+  <!-- Page footer -->
+  <div class="page-footer">POWERED BY SPARROW AI SOLUTIONS</div>
 
 </body>
 </html>`;
