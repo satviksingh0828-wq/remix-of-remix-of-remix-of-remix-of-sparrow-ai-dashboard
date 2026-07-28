@@ -49,8 +49,13 @@ CREATE TABLE IF NOT EXISTS emi_installments (
 );
 
 -- Back-link the installment → expenditure foreign key on expenditures
+-- (DROP first is safe because the column is brand-new; avoids IF NOT EXISTS
+--  which PostgreSQL does not support for ADD CONSTRAINT)
 ALTER TABLE expenditures
-  ADD CONSTRAINT IF NOT EXISTS expenditures_emi_installment_id_fkey
+  DROP CONSTRAINT IF EXISTS expenditures_emi_installment_id_fkey;
+
+ALTER TABLE expenditures
+  ADD CONSTRAINT expenditures_emi_installment_id_fkey
     FOREIGN KEY (emi_installment_id)
     REFERENCES emi_installments(id)
     ON DELETE SET NULL;
