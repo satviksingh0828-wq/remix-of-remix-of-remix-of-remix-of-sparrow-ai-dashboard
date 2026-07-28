@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Archive, ArrowLeft, Download, FileSpreadsheet, Loader2, RotateCcw } from "lucide-react";
+import { Archive, ArrowLeft, Download, FileSpreadsheet, Loader2, Printer, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import { inr, num } from "@/lib/trip-calc";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { useSession } from "@/lib/session";
+import { fetchCompany, printTripNote } from "@/lib/trip-note-pdf";
 
 // ── Snapshot shape (mirrors what closeTrip() writes) ──────────────────────────
 
@@ -107,6 +108,7 @@ export function ClosedTripDetail({
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>("manifest");
   const [reopening, setReopening] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -145,6 +147,46 @@ export function ClosedTripDetail({
     }
   }
 
+  async function handleTripNote() {
+    if (!record) return;
+    setGeneratingPdf(true);
+    try {
+      const company = await fetchCompany();
+      if (!company) {
+        toast.error("Company details not configured — add them in Settings first.");
+        return;
+      }
+      const snap = record.snapshot;
+      const manifests = snap.manifests as Record<string, unknown>[];
+      const firstM = manifests[0] ?? {};
+      const lastM = manifests[manifests.length - 1] ?? {};
+      printTripNote({
+        company,
+        trip: {
+          trip_code: record.trip_code,
+          start_date: record.start_date,
+          end_date: record.end_date,
+          start_time: snap.trip.start_time as string | null,
+          ownership: snap.trip.ownership as string | null,
+          from_location: (firstM.from_pin_code as string) ?? null,
+          to_location: (lastM.to_pin_code as string) ?? null,
+        },
+        vehicle: snap.vehicle,
+        driver: snap.driver,
+        transporter: snap.transporter,
+        manifests: manifests.map((m) => ({
+          manifest_number: String(m.manifest_number ?? ""),
+          quantity: m.quantity as string | null,
+          weight_kg: m.weight_kg as string | null,
+          from_pin_code: m.from_pin_code as string | null,
+          to_pin_code: m.to_pin_code as string | null,
+        })),
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
+
   if (loading)
     return (
       <div className="space-y-4">
@@ -174,11 +216,21 @@ export function ClosedTripDetail({
             Closed
           </span>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          disabled={generatingPdf}
+          onClick={handleTripNote}
+          title="Generate Trip Note PDF"
+        >
+          {generatingPdf ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+          Trip Note
+        </Button>
         {isAdmin ? (
           <Button
             variant="outline"
             size="sm"
-            className="ml-auto"
             disabled={reopening}
             onClick={handleReopen}
           >

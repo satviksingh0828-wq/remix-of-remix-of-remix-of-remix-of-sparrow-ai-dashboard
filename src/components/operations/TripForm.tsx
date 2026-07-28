@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Lock, Plus, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Plus, Printer, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ import {
   type ContractLite,
   type EntryLite,
 } from "@/lib/trip-calc";
+import { fetchCompany, printTripNote } from "@/lib/trip-note-pdf";
 
 export type TripRow = {
   id?: string;
@@ -159,6 +160,7 @@ export function TripForm({
   const [trip, setTrip] = useState<TripRow>(initial);
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [tab, setTab] = useState<TabId>("manifest");
 
   const [vehicles, setVehicles] = useState<AnyRow[]>([]);
@@ -424,6 +426,43 @@ export function TripForm({
 
   const monthlyContractCharges = 0;
 
+  async function handleTripNote() {
+    setGeneratingPdf(true);
+    try {
+      const company = await fetchCompany();
+      if (!company) {
+        toast.error("Company details not configured — add them in Settings first.");
+        return;
+      }
+      const fromLoc = locations.find((l) => l.id === trip.start_location_id);
+      const toLoc = locations.find((l) => l.id === trip.end_location_id);
+      printTripNote({
+        company,
+        trip: {
+          trip_code: trip.trip_code,
+          start_date: trip.start_date,
+          end_date: trip.end_date,
+          start_time: trip.start_time,
+          ownership: trip.ownership,
+          from_location: (fromLoc as Record<string, unknown>)?.location_name as string | null ?? null,
+          to_location: (toLoc as Record<string, unknown>)?.location_name as string | null ?? null,
+        },
+        vehicle: vehicle ?? null,
+        driver: driver ?? null,
+        transporter: transporter ?? null,
+        manifests: manifests.map((m) => ({
+          manifest_number: m.manifest_number,
+          quantity: m.quantity,
+          weight_kg: m.weight_kg,
+          from_pin_code: m.from_pin_code,
+          to_pin_code: m.to_pin_code,
+        })),
+      });
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
+
   // Ensure selected tab exists in TABS (e.g. basic user was on "summary")
   const activeTab = (TABS as readonly { id: string; label: string }[]).find((t) => t.id === tab)
     ? tab
@@ -442,7 +481,18 @@ export function TripForm({
             Reopened
           </span>
         ) : null}
-        <Button className="ml-auto" onClick={() => saveTrip()} disabled={saving}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto"
+          onClick={handleTripNote}
+          disabled={generatingPdf}
+          title="Generate Trip Note PDF"
+        >
+          {generatingPdf ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+          Trip Note
+        </Button>
+        <Button onClick={() => saveTrip()} disabled={saving}>
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           {trip.id ? "Update trip" : "Save trip"}
         </Button>
