@@ -43,13 +43,23 @@ export type SaveUserInput = {
 
 // ── Sign in ──────────────────────────────────────────────────────────────────
 
+export type SignInResult =
+  | { ok: true; user: SessionUser }
+  | { ok: false; reason: "invalid_credentials" | "server_error"; message: string };
+
 export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: { username: string; password: string }) => data)
-  .handler(async ({ data }): Promise<SessionUser | null> => {
+  .handler(async ({ data }): Promise<SignInResult> => {
     // Dynamic import keeps supabaseAdmin out of the client bundle entirely
-    const { supabaseAdmin } = await import(
-      "@/integrations/supabase/client.server"
-    );
+    let supabaseAdmin: Awaited<ReturnType<typeof import("@/integrations/supabase/client.server")>>["supabaseAdmin"];
+    try {
+      const mod = await import("@/integrations/supabase/client.server");
+      supabaseAdmin = mod.supabaseAdmin;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[serverSignIn] Failed to init Supabase admin client:", msg);
+      return { ok: false, reason: "server_error", message: `Database connection failed: ${msg}` };
+    }
 
     const { data: user, error } = await supabaseAdmin
       .from("app_users")
@@ -60,15 +70,15 @@ export const serverSignIn = createServerFn({ method: "POST" })
 
     if (error) {
       console.error("[serverSignIn] Supabase query error:", error.message, error.code, error.details);
-      return null;
+      return { ok: false, reason: "server_error", message: `Database error: ${error.message} (code: ${error.code})` };
     }
     if (!user) {
       console.warn("[serverSignIn] No active user found for username:", data.username.trim().toLowerCase());
-      return null;
+      return { ok: false, reason: "invalid_credentials", message: "Invalid login ID or password." };
     }
     if (user.password !== data.password) {
       console.warn("[serverSignIn] Password mismatch for username:", data.username.trim().toLowerCase());
-      return null;
+      return { ok: false, reason: "invalid_credentials", message: "Invalid login ID or password." };
     }
 
     // Fetch branch access
@@ -78,13 +88,16 @@ export const serverSignIn = createServerFn({ method: "POST" })
       .eq("user_id", user.id);
 
     return {
-      id: user.id as string,
-      username: user.username as string,
-      fullName: (user.full_name as string) || (user.username as string),
-      role: user.role as "admin" | "basic",
-      branchIds: ((branchData ?? []) as { branch_id: string }[]).map(
-        (r) => r.branch_id,
-      ),
+      ok: true,
+      user: {
+        id: user.id as string,
+        username: user.username as string,
+        fullName: (user.full_name as string) || (user.username as string),
+        role: user.role as "admin" | "basic",
+        branchIds: ((branchData ?? []) as { branch_id: string }[]).map(
+          (r) => r.branch_id,
+        ),
+      },
     };
   });
 

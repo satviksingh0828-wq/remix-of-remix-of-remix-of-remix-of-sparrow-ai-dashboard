@@ -44,15 +44,16 @@ function LoginPage() {
     setError(null);
     try {
       await new Promise((r) => setTimeout(r, 650));
-      if (await signIn(id, password)) {
+      const outcome = await signIn(id, password);
+      if (outcome.ok) {
         toast.success("Welcome back");
         navigate({ to: "/home", replace: true });
       } else {
-        setError("Invalid login ID or password.");
+        setError(outcome.message);
       }
     } catch (err) {
       console.error("[login] unexpected error:", err);
-      setError("Something went wrong. Please try again.");
+      setError("Unexpected error — please try again.");
     } finally {
       setBusy(false);
     }

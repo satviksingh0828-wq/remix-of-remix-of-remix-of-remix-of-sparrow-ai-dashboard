@@ -7,10 +7,14 @@ export type { SessionUser };
 
 const KEY = "tms.session.v2";
 
+export type SignInOutcome =
+  | { ok: true }
+  | { ok: false; reason: "invalid_credentials" | "server_error"; message: string };
+
 type SessionValue = {
   ready: boolean;
   user: SessionUser | null;
-  signIn: (username: string, password: string) => Promise<boolean>;
+  signIn: (username: string, password: string) => Promise<SignInOutcome>;
   signOut: () => void;
 };
 
@@ -30,18 +34,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
-  const signIn = useCallback(async (username: string, password: string): Promise<boolean> => {
-    // Credentials are verified server-side via service-role Supabase client.
-    // The password is never returned to the browser — only the SessionUser shape.
+  const signIn = useCallback(async (username: string, password: string): Promise<SignInOutcome> => {
     try {
-      const sessionUser = await serverSignIn({ data: { username, password } });
-      if (!sessionUser) return false;
-      window.localStorage.setItem(KEY, JSON.stringify(sessionUser));
-      setUser(sessionUser);
-      return true;
+      const result = await serverSignIn({ data: { username, password } });
+      if (!result.ok) return result;
+      window.localStorage.setItem(KEY, JSON.stringify(result.user));
+      setUser(result.user);
+      return { ok: true };
     } catch (err) {
-      console.error("[signIn] server function failed:", err);
-      return false;
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[signIn] server function threw:", msg);
+      return { ok: false, reason: "server_error", message: `Unexpected error: ${msg}` };
     }
   }, []);
 
