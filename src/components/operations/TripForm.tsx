@@ -439,7 +439,7 @@ export function TripForm({
       const locMap = await fetchLocationMap();
       const fromLoc = locations.find((l) => l.id === trip.start_location_id);
       const toLoc = locations.find((l) => l.id === trip.end_location_id);
-      printTripNote({
+      await printTripNote({
         company,
         trip: {
           trip_code: trip.trip_code,

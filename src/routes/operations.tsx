@@ -1,12 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BarChart2, ChevronRight, DollarSign, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart2, CalendarCheck, ChevronRight, DollarSign, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Trips } from "@/components/operations/Trips";
 import { FinanceList } from "@/components/operations/FinanceList";
 import { FixedIncomeList } from "@/components/operations/FixedIncomeList";
 import { TripAveragesPanel } from "@/components/operations/TripAveragesPanel";
+import { EmiScheduler } from "@/components/operations/EmiScheduler";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/operations")({
@@ -35,7 +36,8 @@ const ALL_TABS = [
   { id: "income",        label: "Income",         desc: "Other income, branch-wise",     icon: TrendingUp,   adminOnly: false },
   { id: "expenditure",   label: "Expenditure",    desc: "Other spend, branch-wise",      icon: TrendingDown, adminOnly: false },
   { id: "fixed-income",  label: "Fixed Income",   desc: "Contract recurring charges",    icon: DollarSign,   adminOnly: true  },
-  { id: "trip-averages", label: "Trip Averages",  desc: "Monthly distribution analysis", icon: BarChart2,    adminOnly: true  },
+  { id: "trip-averages", label: "Trip Averages",  desc: "Monthly distribution analysis", icon: BarChart2,      adminOnly: true  },
+  { id: "emi-scheduler", label: "EMI Scheduler",  desc: "Vehicle loan & EMI tracker",    icon: CalendarCheck,  adminOnly: true  },
 ] as const;
 
 type TabId = (typeof ALL_TABS)[number]["id"];
@@ -142,6 +144,7 @@ function OperationsPage() {
           {safeTab === "expenditure"   && <FinanceList kind="expenditure" />}
           {safeTab === "fixed-income"  && isAdmin && <FixedIncomeList />}
           {safeTab === "trip-averages" && isAdmin && <TripAveragesPanel />}
+          {safeTab === "emi-scheduler" && isAdmin && <EmiScheduler />}
         </div>
       </div>
     </AppShell>

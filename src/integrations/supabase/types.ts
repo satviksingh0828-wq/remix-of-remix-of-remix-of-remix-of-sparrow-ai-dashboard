@@ -635,6 +635,138 @@ export type Database = {
           },
         ]
       }
+      emi_schedules: {
+        Row: {
+          id: string
+          vehicle_id: string
+          branch_id: string | null
+          loan_amount: number
+          purchase_amount: number | null
+          down_payment: number | null
+          emi_type: string
+          interest_rate: number | null
+          tenure_months: number | null
+          start_date: string | null
+          lender_name: string | null
+          notes: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          vehicle_id: string
+          branch_id?: string | null
+          loan_amount: number
+          purchase_amount?: number | null
+          down_payment?: number | null
+          emi_type?: string
+          interest_rate?: number | null
+          tenure_months?: number | null
+          start_date?: string | null
+          lender_name?: string | null
+          notes?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          vehicle_id?: string
+          branch_id?: string | null
+          loan_amount?: number
+          purchase_amount?: number | null
+          down_payment?: number | null
+          emi_type?: string
+          interest_rate?: number | null
+          tenure_months?: number | null
+          start_date?: string | null
+          lender_name?: string | null
+          notes?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emi_schedules_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emi_schedules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emi_installments: {
+        Row: {
+          id: string
+          schedule_id: string
+          installment_number: number
+          due_date: string
+          amount: number
+          principal: number | null
+          interest: number | null
+          is_paid: boolean
+          paid_date: string | null
+          expenditure_id: string | null
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          schedule_id: string
+          installment_number: number
+          due_date: string
+          amount: number
+          principal?: number | null
+          interest?: number | null
+          is_paid?: boolean
+          paid_date?: string | null
+          expenditure_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          schedule_id?: string
+          installment_number?: number
+          due_date?: string
+          amount?: number
+          principal?: number | null
+          interest?: number | null
+          is_paid?: boolean
+          paid_date?: string | null
+          expenditure_id?: string | null
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emi_installments_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "emi_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emi_installments_expenditure_id_fkey"
+            columns: ["expenditure_id"]
+            isOneToOne: false
+            referencedRelation: "expenditures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenditures: {
         Row: {
           amount: string | null
@@ -644,6 +776,8 @@ export type Database = {
           entry_date: string | null
           expenditure_name: string
           id: string
+          is_emi: boolean
+          emi_installment_id: string | null
           is_paid: boolean
           note: string | null
           paid_date: string | null
@@ -659,6 +793,8 @@ export type Database = {
           entry_date?: string | null
           expenditure_name?: string
           id?: string
+          is_emi?: boolean
+          emi_installment_id?: string | null
           is_paid?: boolean
           note?: string | null
           paid_date?: string | null
@@ -674,6 +810,8 @@ export type Database = {
           entry_date?: string | null
           expenditure_name?: string
           id?: string
+          is_emi?: boolean
+          emi_installment_id?: string | null
           is_paid?: boolean
           note?: string | null
           paid_date?: string | null

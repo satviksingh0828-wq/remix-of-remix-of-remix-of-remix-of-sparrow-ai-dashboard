@@ -163,7 +163,7 @@ export function ClosedTripDetail({
       const lastM = manifests[manifests.length - 1] ?? {};
       const firstName = locMap.get(firstM.from_location_id as string) || String(firstM.from_pin_code ?? "");
       const lastName = locMap.get(lastM.to_location_id as string) || String(lastM.to_pin_code ?? "");
-      printTripNote({
+      await printTripNote({
         company,
         trip: {
           trip_code: record.trip_code,

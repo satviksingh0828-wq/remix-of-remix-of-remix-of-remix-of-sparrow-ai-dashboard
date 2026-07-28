@@ -687,17 +687,18 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
 </body>
 </html>`;
 
-    const viewerBlob = new Blob([viewerHtml], { type: "text/html" });
-    const viewerUrl  = URL.createObjectURL(viewerBlob);
-    const tab = window.open(viewerUrl, "_blank");
+    // Open a blank window first (inherits opener origin → can access pdfUrl blob)
+    const tab = window.open("", "_blank");
     if (!tab) {
       alert("Pop-up blocked — please allow pop-ups for this site to open the Trip Note PDF.");
-    }
-    // Revoke both URLs after 5 minutes to free memory
-    setTimeout(() => {
       URL.revokeObjectURL(pdfUrl);
-      URL.revokeObjectURL(viewerUrl);
-    }, 300_000);
+      return;
+    }
+    tab.document.open("text/html", "replace");
+    tab.document.write(viewerHtml);
+    tab.document.close();
+    // Revoke PDF blob after 5 minutes to free memory
+    setTimeout(() => URL.revokeObjectURL(pdfUrl), 300_000);
   } finally {
     // Always clean up DOM
     document.head.removeChild(styleEl);
