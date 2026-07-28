@@ -60,15 +60,19 @@ const ALL_MODULES = [
   {
     key: "dashboard",
     label: "Dashboard",
-    desc: "Live fleet & revenue overview",
+    desc: "Profit & loss, revenue overview",
     icon: BarChart3,
+    active: true,
+    to: "/dashboard" as const,
     roles: ["admin"] as const,
   },
   {
     key: "reports",
     label: "Reports",
-    desc: "Statements, MIS & exports",
+    desc: "P&L comparison & period reports",
     icon: FileText,
+    active: true,
+    to: "/reports" as const,
     roles: ["admin"] as const,
   },
   {

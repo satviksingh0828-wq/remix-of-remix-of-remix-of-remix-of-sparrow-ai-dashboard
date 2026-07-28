@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Archive, Eye, Lock, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
+import { Archive, Clock, Eye, Lock, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { reopenTrip } from "@/lib/reopen-trip";
 import { inr } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
 import { logAction } from "@/lib/log-actions";
+import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import { TripForm, emptyTrip, type TripRow } from "./TripForm";
 import { ClosedTripDetail } from "./ClosedTripDetail";
 
@@ -23,7 +24,79 @@ type ClosedTrip = {
   closed_at: string;
 };
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** Returns the auto-close deadline for a live trip. */
+function getTripDeadline(t: TripRow): Date | null {
+  // Reopened trips: auto-close 1 day after reopen
+  if (t.reopened_at) {
+    return new Date(new Date(t.reopened_at).getTime() + ONE_DAY_MS);
+  }
+  // Normal trips: auto-close 2 days after start_date + start_time
+  if (t.start_date) {
+    const isoStr = t.start_time
+      ? `${t.start_date}T${t.start_time}:00`
+      : `${t.start_date}T00:00:00`;
+    return new Date(new Date(isoStr).getTime() + TWO_DAYS_MS);
+  }
+  // Fallback: 2 days from creation
+  if (t.created_at) {
+    return new Date(new Date(t.created_at as string).getTime() + TWO_DAYS_MS);
+  }
+  return null;
+}
+
+/** Live countdown badge shown on each trip row. Updates every minute. */
+function TimeLeft({ trip }: { trip: TripRow }) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const deadline = getTripDeadline(trip);
+  if (!deadline) return null;
+
+  const msLeft = deadline.getTime() - Date.now();
+
+  if (msLeft <= 0) {
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+        <Clock className="size-3" />
+        Closing…
+      </span>
+    );
+  }
+
+  const totalHours = Math.floor(msLeft / (1000 * 60 * 60));
+  const mins = Math.floor((msLeft % (1000 * 60 * 60)) / (1000 * 60));
+
+  if (totalHours >= 24) {
+    const days = Math.floor(totalHours / 24);
+    const hrs = totalHours % 24;
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+        <Clock className="size-3" />
+        {trip.reopened_at ? "Reopened · " : ""}Closes in {days}d {hrs}h
+      </span>
+    );
+  }
+  if (totalHours >= 4) {
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+        <Clock className="size-3" />
+        Closes in {totalHours}h {mins}m
+      </span>
+    );
+  }
+  return (
+    <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+      <Clock className="size-3" />
+      Closes in {totalHours}h {mins}m
+    </span>
+  );
+}
 
 export function Trips() {
   const [trips, setTrips] = useState<TripRow[]>([]);
@@ -73,15 +146,15 @@ export function Trips() {
         }),
       ]);
 
-      // Auto-close trips older than 2 days
+      // Auto-close trips that have passed their deadline
       const now = Date.now();
       const stale = live.filter((t) => {
-        if (!t.created_at) return false;
-        return now - new Date(t.created_at as string).getTime() > TWO_DAYS_MS;
+        const deadline = getTripDeadline(t);
+        if (!deadline) return false;
+        return now > deadline.getTime();
       });
 
       if (stale.length > 0) {
-        // Auto-close stale trips silently
         let autoClosed = 0;
         for (const staleTrip of stale) {
           try {
@@ -89,7 +162,11 @@ export function Trips() {
             logAction("auto_closed", "trip", {
               entityId: staleTrip.id,
               entityLabel: staleTrip.trip_code,
-              details: { reason: "auto-closed after 2 days" },
+              details: {
+                reason: staleTrip.reopened_at
+                  ? "auto-closed 1 day after reopen"
+                  : "auto-closed after 2 days",
+              },
             });
             autoClosed++;
           } catch {
@@ -97,7 +174,7 @@ export function Trips() {
           }
         }
         if (autoClosed > 0) {
-          toast.info(`${autoClosed} trip${autoClosed > 1 ? "s" : ""} auto-closed (over 2 days old)`);
+          toast.info(`${autoClosed} trip${autoClosed > 1 ? "s" : ""} auto-closed`);
         }
 
         // Reload after auto-close
@@ -176,7 +253,7 @@ export function Trips() {
     }
     if (
       !window.confirm(
-        "Reopen this trip? It moves back to live trips and current contract rates apply. You can close it again later.",
+        "Reopen this trip? It moves back to live trips (current contract rates apply) and will auto-close in 1 day if not manually closed.",
       )
     )
       return;
@@ -184,7 +261,7 @@ export function Trips() {
     try {
       const newId = await reopenTrip(c.id);
       logAction("reopened", "trip", { entityId: newId, entityLabel: c.trip_code });
-      toast.success("Trip reopened with current rates");
+      toast.success("Trip reopened — auto-closes in 1 day");
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not reopen trip");
@@ -249,9 +326,9 @@ export function Trips() {
           {trips.map((t) => (
             <li
               key={t.id}
-              className="surface-card flex items-center gap-3 p-4 transition-colors hover:bg-muted/40"
+              className="surface-card flex flex-wrap items-center gap-3 p-4 transition-colors hover:bg-muted/40"
             >
-              <Truck className="size-4 text-primary" />
+              <Truck className="size-4 shrink-0 text-primary" />
               <button
                 type="button"
                 className="min-w-0 flex-1 text-left"
@@ -260,7 +337,7 @@ export function Trips() {
                 <span className="block text-sm font-medium">{t.trip_code}</span>
                 <span className="block text-xs text-muted-foreground">
                   {[
-                    t.ownership === "own" ? "Own vehicle" : "Rented (Third party)",
+                    t.ownership === "own" ? "Own vehicle" : "Rented",
                     t.start_date,
                     t.start_time,
                   ]
@@ -268,6 +345,16 @@ export function Trips() {
                     .join(" · ")}
                 </span>
               </button>
+              {/* Auto-close countdown — visible to all users */}
+              <TimeLeft trip={t} />
+              {/* Admin-only: per-row logs */}
+              {isAdmin && t.id ? (
+                <ItemLogsButton
+                  entityType="trip"
+                  entityId={t.id}
+                  entityLabel={t.trip_code}
+                />
+              ) : null}
               <Button
                 variant="ghost"
                 size="sm"

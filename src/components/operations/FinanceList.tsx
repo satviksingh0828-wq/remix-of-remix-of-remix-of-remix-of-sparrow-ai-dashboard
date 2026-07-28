@@ -26,6 +26,8 @@ import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { inr, num } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
+import { logAction } from "@/lib/log-actions";
+import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import {
   emptyFinanceRow,
   FINANCE_CONFIG,
@@ -58,6 +60,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
 
   // Basic users: filter to their allowed branches only
   const isBasic = user?.role === "basic";
+  const isAdmin = user?.role === "admin";
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
   const branches = allowedBranchIds !== null
     ? allBranches.filter((b) => allowedBranchIds.includes(b.id))
@@ -210,11 +213,17 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
       [cfg.statusCol]: editing.settled,
       [cfg.statusDateCol]: editing.settled_date,
     };
+    const isNew = !editing.id;
     const res = editing.id
       ? await supabase.from(cfg.table).update(payload as never).eq("id", editing.id)
       : await supabase.from(cfg.table).insert(payload as never);
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
+    logAction(isNew ? "created" : "updated", kind, {
+      entityId: editing.id ?? "",
+      entityLabel: editing.name,
+      details: { branch_id: editing.branch_id ?? "", amount: editing.amount },
+    });
     toast.success("Saved");
     setEditing(null);
     load();
@@ -229,13 +238,19 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
       } as never)
       .eq("id", row.id!);
     if (error) return toast.error(error.message);
+    logAction("settled", kind, {
+      entityId: row.id ?? "",
+      entityLabel: row.name,
+    });
     toast.success(cfg.doneLabel);
     load();
   }
 
-  async function remove(id: string) {
-    const { error } = await supabase.from(cfg.table).delete().eq("id", id);
+  async function remove(row: FinanceRow) {
+    if (!window.confirm(`Delete "${row.name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from(cfg.table).delete().eq("id", row.id!);
     if (error) return toast.error(error.message);
+    logAction("deleted", kind, { entityId: row.id ?? "", entityLabel: row.name });
     load();
   }
 
@@ -279,6 +294,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
       toast.error(error.message);
       return { inserted: 0, failed: payload.length };
     }
+    logAction("imported", kind, { details: { count: payload.length } });
     await load();
     return { inserted: payload.length, failed: imported.length - payload.length };
   }
@@ -403,8 +419,16 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                       <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
                         Edit
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => r.id && remove(r.id)}>
-                        <Trash2 className="size-4" />
+                      {/* Admin-only: per-row logs */}
+                      {isAdmin && r.id ? (
+                        <ItemLogsButton
+                          entityType={kind}
+                          entityId={r.id}
+                          entityLabel={r.name}
+                        />
+                      ) : null}
+                      <Button variant="ghost" size="sm" onClick={() => remove(r)}>
+                        <Trash2 className="size-4 text-destructive" />
                       </Button>
                     </td>
                   </tr>

@@ -249,6 +249,12 @@ CREATE TABLE public.contracts (
   quantity_ranges jsonb NOT NULL DEFAULT '[]'::jsonb,
   freight_basis text NOT NULL DEFAULT 'weight',
   loading_basis text NOT NULL DEFAULT 'weight',
+  -- Fixed recurring charges (used in Fixed Incomes tab)
+  fixed_monthly_charge  numeric NOT NULL DEFAULT 0,
+  fixed_monthly_charge_note text NOT NULL DEFAULT '',
+  fixed_yearly_charge   numeric NOT NULL DEFAULT 0,
+  fixed_yearly_charge_note  text NOT NULL DEFAULT '',
+  -- Company details
   company_name text DEFAULT '',
   legal_business_name text DEFAULT '',
   company_type text DEFAULT '',
@@ -325,6 +331,7 @@ CREATE TABLE public.trips (
   odometer_end text DEFAULT '',
   notes text DEFAULT '',
   branch_id uuid REFERENCES public.branches(id) ON DELETE SET NULL,
+  reopened_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
@@ -453,14 +460,6 @@ CREATE TRIGGER set_expenditures_updated_at BEFORE UPDATE ON public.expenditures 
 
 -- ════════════════════════════════════════════════════════════
 -- Migration 6: app_users, user_branch_access
--- (User management with role-based access control)
---
--- Security design:
---   • app_users — NO anon/authenticated access; service_role only.
---     Passwords never reach the browser; auth runs server-side via
---     TanStack Start server functions with the service-role key.
---   • user_branch_access — same; branch filtering is resolved
---     server-side and stored in the session object.
 -- ════════════════════════════════════════════════════════════
 
 CREATE TABLE public.app_users (
@@ -474,13 +473,10 @@ CREATE TABLE public.app_users (
   created_at   timestamptz NOT NULL DEFAULT now(),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
--- Only service_role may access app_users; deny anon/authenticated entirely
 GRANT ALL ON public.app_users TO service_role;
 REVOKE ALL ON public.app_users FROM anon;
 REVOKE ALL ON public.app_users FROM authenticated;
 ALTER TABLE public.app_users ENABLE ROW LEVEL SECURITY;
--- No permissive policies for anon/authenticated (RLS implicitly denies them).
--- service_role bypasses RLS automatically.
 CREATE TRIGGER app_users_updated_at
   BEFORE UPDATE ON public.app_users
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
@@ -500,7 +496,24 @@ CREATE INDEX user_branch_access_user_id_idx   ON public.user_branch_access(user_
 CREATE INDEX user_branch_access_branch_id_idx ON public.user_branch_access(branch_id);
 
 -- Default admin account (username: admin | password: testplay)
--- Change after first login via the Users module.
 INSERT INTO public.app_users (username, password, full_name, role)
 VALUES ('admin', 'testplay', 'Administrator', 'admin')
 ON CONFLICT (username) DO NOTHING;
+
+-- ════════════════════════════════════════════════════════════
+-- Migration 7: app_logs
+-- ════════════════════════════════════════════════════════════
+-- See SUPABASE_LOGS_SETUP.sql for the app_logs table definition.
+
+-- ════════════════════════════════════════════════════════════
+-- Migration 8: fixed charges on contracts + reopened_at on trips
+-- ════════════════════════════════════════════════════════════
+-- Already included above in the contracts and trips tables.
+-- When running on an existing DB, use:
+--   ALTER TABLE public.contracts
+--     ADD COLUMN IF NOT EXISTS fixed_monthly_charge  numeric NOT NULL DEFAULT 0,
+--     ADD COLUMN IF NOT EXISTS fixed_monthly_charge_note text NOT NULL DEFAULT '',
+--     ADD COLUMN IF NOT EXISTS fixed_yearly_charge   numeric NOT NULL DEFAULT 0,
+--     ADD COLUMN IF NOT EXISTS fixed_yearly_charge_note  text NOT NULL DEFAULT '';
+--   ALTER TABLE public.trips ADD COLUMN IF NOT EXISTS reopened_at timestamptz;
+-- See supabase/migrations/20260728120000_pnl_fixed_charges.sql

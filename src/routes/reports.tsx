@@ -1,41 +1,41 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ChevronRight, ScrollText, Users } from "lucide-react";
+import { ChevronRight, FileBarChart } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
-import { UserList } from "@/components/users/UserList";
-import { LogsPanel } from "@/components/users/LogsPanel";
+import { ProfitLossComparison } from "@/components/reports/ProfitLossComparison";
 import { useSession } from "@/lib/session";
 
-export const Route = createFileRoute("/users")({
+export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
-      { title: "Users — Project TMS | Sparrow AI Solutions" },
+      { title: "Reports — Project TMS | Sparrow AI Solutions" },
       {
         name: "description",
-        content: "Manage operator accounts and branch access for Project TMS.",
+        content: "Compare P&L between two periods with detailed charts and breakdowns.",
       },
+      { property: "og:title", content: "Reports — Project TMS" },
+      { property: "og:type", content: "website" },
     ],
   }),
   component: () => (
     <RequireAuth>
-      <UsersPage />
+      <ReportsPage />
     </RequireAuth>
   ),
 });
 
 const TABS = [
-  { id: "users", label: "Users", desc: "Accounts & branch access", icon: Users },
-  { id: "logs", label: "Activity Logs", desc: "Full audit trail", icon: ScrollText },
+  { id: "pnl-compare", label: "P&L Comparison", desc: "Compare two periods side-by-side", icon: FileBarChart },
 ] as const;
+
 type TabId = (typeof TABS)[number]["id"];
 
-function UsersPage() {
+function ReportsPage() {
   const { user } = useSession();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<TabId>("users");
+  const [tab, setTab] = useState<TabId>("pnl-compare");
 
-  // Only admins can access this page
   useEffect(() => {
     if (user && user.role !== "admin") {
       navigate({ to: "/home", replace: true });
@@ -54,15 +54,14 @@ function UsersPage() {
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
-          <span className="text-foreground">Users</span>
+          <span className="text-foreground">Reports</span>
         </span>
       }
     >
       <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-        {/* Sidebar nav — same pattern as Operations & Masters */}
         <nav className="lg:sticky lg:top-24 lg:self-start">
           <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            Users
+            Reports
           </p>
           <ul className="space-y-1">
             {TABS.map((t) => {
@@ -96,8 +95,7 @@ function UsersPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
-          {tab === "users" ? <UserList /> : null}
-          {tab === "logs" ? <LogsPanel /> : null}
+          {tab === "pnl-compare" ? <ProfitLossComparison /> : null}
         </div>
       </div>
     </AppShell>

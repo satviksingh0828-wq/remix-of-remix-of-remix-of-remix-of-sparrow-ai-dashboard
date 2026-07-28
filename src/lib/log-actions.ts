@@ -108,6 +108,32 @@ export const serverDeleteLogs = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
   });
 
+// ── Server: list logs for a specific entity (admin-only) ─────────────────────
+
+export type ListLogsByEntityInput = {
+  entity_type: string;
+  entity_id: string;
+  limit?: number;
+};
+
+export const serverListLogsByEntity = createServerFn({ method: "POST" })
+  .validator((input: ListLogsByEntityInput) => input)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  .handler(async ({ data }): Promise<any[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabaseAdmin as any;
+    const { data: rows, error } = await db
+      .from("app_logs")
+      .select("*")
+      .eq("entity_type", data.entity_type)
+      .eq("entity_id", data.entity_id)
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 200);
+    if (error) throw new Error(error.message);
+    return rows ?? [];
+  });
+
 // ── Client-side fire-and-forget logger ────────────────────────────────────────
 
 let _cachedUser: { id: string; username: string } | null = null;

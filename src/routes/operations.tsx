@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronRight, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronRight, DollarSign, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Trips } from "@/components/operations/Trips";
 import { FinanceList } from "@/components/operations/FinanceList";
+import { FixedIncomeList } from "@/components/operations/FixedIncomeList";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/operations")({
@@ -34,13 +35,20 @@ export const Route = createFileRoute("/operations")({
 
 const ALL_TABS = [
   { id: "trip", label: "Trip", desc: "Manifests, income & expenses", icon: RouteIcon, adminOnly: false },
-  { id: "income", label: "Income", desc: "Other income, branch-wise", icon: TrendingUp, adminOnly: true },
+  { id: "income", label: "Income", desc: "Other income, branch-wise", icon: TrendingUp, adminOnly: false },
   {
     id: "expenditure",
     label: "Expenditure",
     desc: "Other spend, branch-wise",
     icon: TrendingDown,
     adminOnly: false,
+  },
+  {
+    id: "fixed-income",
+    label: "Fixed Income",
+    desc: "Contract recurring charges",
+    icon: DollarSign,
+    adminOnly: true,
   },
 ] as const;
 
@@ -50,15 +58,15 @@ function OperationsPage() {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
 
-  // Filter tabs: basic users do not see the Income tab
+  // Filter tabs: basic users do not see Fixed Income tab
   const TABS = ALL_TABS.filter((t) => isAdmin || !t.adminOnly);
 
   const [tab, setTab] = useState<TabId>("trip");
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
 
-  // If the currently selected tab is no longer visible (e.g. basic user lands on income),
+  // If the currently selected tab is no longer visible (e.g. basic user lands on fixed-income),
   // reset to trip
-  const safeTab = TABS.find((t) => t.id === tab) ? tab : "trip";
+  const safeTab: TabId = (TABS.find((t) => t.id === tab) ? tab : "trip") as TabId;
+  const active = TABS.find((t) => t.id === safeTab) ?? TABS[0];
 
   return (
     <AppShell
@@ -106,12 +114,13 @@ function OperationsPage() {
 
         <div key={safeTab} className="animate-fade-in min-w-0">
           <header className="mb-6">
-            <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{active?.label}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{active?.desc}</p>
           </header>
           {safeTab === "trip" ? <Trips /> : null}
           {safeTab === "income" ? <FinanceList kind="income" /> : null}
           {safeTab === "expenditure" ? <FinanceList kind="expenditure" /> : null}
+          {safeTab === "fixed-income" && isAdmin ? <FixedIncomeList /> : null}
         </div>
       </div>
     </AppShell>

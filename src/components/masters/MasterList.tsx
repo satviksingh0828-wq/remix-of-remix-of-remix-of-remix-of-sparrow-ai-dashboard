@@ -18,6 +18,8 @@ import { BranchSelect } from "@/components/BranchSelect";
 import { useBranches, branchName } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { fetchAll } from "@/lib/fetch-all";
+import { logAction } from "@/lib/log-actions";
+import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 
 export type FieldDef = {
   key: string;
@@ -50,6 +52,7 @@ export function MasterList({ config }: { config: MasterConfig }) {
   const [saving, setSaving] = useState(false);
   const branches = useBranches();
   const { user } = useSession();
+  const isAdmin = user?.role === "admin";
 
   // For basic users, restrict data to their allowed branches
   const isBasic = user?.role === "basic";
@@ -111,14 +114,25 @@ export function MasterList({ config }: { config: MasterConfig }) {
       : await supabase.from(config.table).insert(payload);
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
+    const isNew = !id;
+    const label = String(editing[config.titleKey] ?? "");
+    logAction(isNew ? "created" : "updated", config.singular, {
+      entityId: id ?? "",
+      entityLabel: label,
+    });
     toast.success(id ? `${config.singular} updated` : `${config.singular} created`);
     setEditing(null);
     load();
   }
 
-  async function remove(id: string) {
-    const { error } = await supabase.from(config.table).delete().eq("id", id);
+  async function remove(item: Row) {
+    if (!window.confirm(`Delete this ${config.singular}? This cannot be undone.`)) return;
+    const { error } = await supabase.from(config.table).delete().eq("id", item.id!);
     if (error) return toast.error(error.message);
+    logAction("deleted", config.singular, {
+      entityId: String(item.id ?? ""),
+      entityLabel: String(item[config.titleKey] ?? ""),
+    });
     toast.success(`${config.singular} removed`);
     load();
   }
@@ -146,6 +160,9 @@ export function MasterList({ config }: { config: MasterConfig }) {
       toast.error(error.message);
       return { inserted: 0, failed: payload.length };
     }
+    logAction("imported", config.singular, {
+      details: { count: count ?? payload.length },
+    });
     await load();
     return { inserted: count ?? payload.length, failed: rows.length - payload.length };
   }
@@ -318,14 +335,22 @@ export function MasterList({ config }: { config: MasterConfig }) {
                     .join(" · ") || "No details"}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 items-center gap-1">
+                {/* Admin-only: per-row logs button */}
+                {isAdmin && r.id ? (
+                  <ItemLogsButton
+                    entityType={config.singular}
+                    entityId={String(r.id)}
+                    entityLabel={String(r[config.titleKey] ?? "")}
+                  />
+                ) : null}
                 <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
                   Edit
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => r.id && remove(r.id as string)}
+                  onClick={() => remove(r)}
                 >
                   <Trash2 className="size-4 text-destructive" />
                 </Button>

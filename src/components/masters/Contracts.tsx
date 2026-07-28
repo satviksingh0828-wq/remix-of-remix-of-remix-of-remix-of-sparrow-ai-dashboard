@@ -8,12 +8,15 @@ import { CsvIO } from "@/components/CsvIO";
 import { rangeKey, rangeLabel, basisRanges, basisUnit } from "@/lib/contract-ranges";
 import type { Range } from "@/lib/contract-ranges";
 import { fetchAll } from "@/lib/fetch-all";
+import { logAction } from "@/lib/log-actions";
+import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import { ContractForm, EMPTY_CONTRACT, type ContractRow } from "./ContractForm";
 import {
   ContractEntryForm,
   emptyEntry,
   type EntryRow,
 } from "./ContractEntryForm";
+import { useSession } from "@/lib/session";
 
 const CONTRACT_COLUMNS = [
   "contract_name",
@@ -21,6 +24,10 @@ const CONTRACT_COLUMNS = [
   "quantity_ranges",
   "freight_basis",
   "loading_basis",
+  "fixed_monthly_charge",
+  "fixed_monthly_charge_note",
+  "fixed_yearly_charge",
+  "fixed_yearly_charge_note",
   "company_name",
   "legal_business_name",
   "company_type",
@@ -55,6 +62,8 @@ export function Contracts() {
   const [view, setView] = useState<View>({ kind: "list" });
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
 
   async function load() {
     setLoading(true);
@@ -72,9 +81,11 @@ export function Contracts() {
     load();
   }, []);
 
-  async function removeContract(id: string) {
-    const { error } = await supabase.from("contracts").delete().eq("id", id);
+  async function removeContract(c: ContractRow) {
+    if (!window.confirm(`Delete contract "${c.contract_name}"? This cannot be undone.`)) return;
+    const { error } = await supabase.from("contracts").delete().eq("id", c.id!);
     if (error) return toast.error(error.message);
+    logAction("deleted", "contract", { entityId: c.id ?? "", entityLabel: c.contract_name });
     toast.success("Contract removed");
     load();
   }
@@ -98,6 +109,8 @@ export function Contracts() {
         }
         o.freight_basis = (r.freight_basis || "weight").trim() || "weight";
         o.loading_basis = (r.loading_basis || "weight").trim() || "weight";
+        o.fixed_monthly_charge = r.fixed_monthly_charge ? Number(r.fixed_monthly_charge) : 0;
+        o.fixed_yearly_charge = r.fixed_yearly_charge ? Number(r.fixed_yearly_charge) : 0;
         return o;
       });
     if (payload.length === 0) return { inserted: 0, failed: rows.length };
@@ -108,6 +121,7 @@ export function Contracts() {
       toast.error(error.message);
       return { inserted: 0, failed: payload.length };
     }
+    logAction("imported", "contract", { details: { count: count ?? payload.length } });
     await load();
     return { inserted: count ?? payload.length, failed: rows.length - payload.length };
   }
@@ -220,9 +234,20 @@ export function Contracts() {
                   Freight: {c.freight_basis} · Loading: {c.loading_basis} ·{" "}
                   {(c.weight_ranges as Range[])?.length ?? 0} weight slabs ·{" "}
                   {(c.quantity_ranges as Range[])?.length ?? 0} qty slabs
+                  {Number(c.fixed_monthly_charge) > 0 || Number(c.fixed_yearly_charge) > 0
+                    ? " · Has fixed charges"
+                    : ""}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 items-center gap-1">
+                {/* Admin-only per-row logs */}
+                {isAdmin && c.id ? (
+                  <ItemLogsButton
+                    entityType="contract"
+                    entityId={c.id}
+                    entityLabel={c.contract_name}
+                  />
+                ) : null}
                 <Button
                   size="sm"
                   onClick={() => setView({ kind: "entries", contract: c })}
@@ -239,7 +264,7 @@ export function Contracts() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => c.id && removeContract(c.id)}
+                  onClick={() => removeContract(c)}
                 >
                   <Trash2 className="size-4 text-destructive" />
                 </Button>
@@ -329,12 +354,15 @@ function EntriesView({
   async function remove(id: string) {
     const { error } = await supabase.from("contract_entries").delete().eq("id", id);
     if (error) return toast.error(error.message);
+    logAction("deleted", "contract_entry", {
+      entityId: id,
+      entityLabel: contract.contract_name,
+    });
     toast.success("Entry removed");
     load();
   }
 
   async function onImport(rows: Record<string, string>[]) {
-    // Load ALL locations so importing 50k+ entries can still resolve PIN→location.
     const all = await fetchAll<{ id: string; location_name: string; pin_code: string | null }>(
       () => supabase.from("locations").select("id,location_name,pin_code"),
     );
@@ -346,7 +374,6 @@ function EntriesView({
     );
     const pinById = new Map(all.map((l) => [l.id, (l.pin_code ?? "").trim()]));
 
-    // PIN takes precedence — importing with only a PIN auto-fills the matching location.
     const resolve = (name: string, pin: string) => {
       const n = (name ?? "").trim().toLowerCase();
       const p = (pin ?? "").trim();

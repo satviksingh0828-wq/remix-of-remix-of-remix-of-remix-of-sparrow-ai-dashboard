@@ -62,6 +62,7 @@ export type TripRow = {
   odometer_start: string;
   odometer_end: string;
   created_at?: string;
+  reopened_at?: string | null;
 };
 
 export type ManifestRow = {
@@ -124,9 +125,10 @@ const TABS_ALL = [
   { id: "summary", label: "Summary" },
 ] as const;
 
-// Tabs visible to basic users only (hide summary, hide income details)
+// Tabs visible to basic users only
 const TABS_BASIC = [
   { id: "manifest", label: "Manifest" },
+  { id: "income", label: "Other Income" },
   { id: "expense", label: "Expenses" },
   { id: "vehicle", label: "Vehicle" },
   { id: "driver", label: "Driver" },
@@ -150,6 +152,7 @@ export function TripForm({
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
   const isBasic = user?.role === "basic";
+  const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
   const TABS = isBasic ? TABS_BASIC : TABS_ALL;
 
@@ -172,7 +175,7 @@ export function TripForm({
   );
 
   const { locations } = useLocations();
-  const branches = useBranches();
+  const allBranches = useBranches();
   const patch = (p: Partial<TripRow>) => setTrip((t) => ({ ...t, ...p }));
 
   async function loadMasters() {
@@ -260,13 +263,39 @@ export function TripForm({
 
   async function saveTrip(e?: React.FormEvent) {
     e?.preventDefault();
+
+    // ── Validation ──────────────────────────────────────────────────────────
+    if (!trip.start_date) {
+      toast.error("Start date is required");
+      return;
+    }
+    if (!trip.start_time) {
+      toast.error("Start time is required");
+      return;
+    }
     if (!trip.branch_id) {
       toast.error("Branch is required");
       return;
     }
+    if (isOwn) {
+      if (!trip.vehicle_id) {
+        toast.error("Vehicle is required for own-vehicle trips");
+        return;
+      }
+      if (!trip.driver_id) {
+        toast.error("Driver is required for own-vehicle trips");
+        return;
+      }
+      if (!trip.odometer_start) {
+        toast.error("Odometer start is required for own-vehicle trips");
+        return;
+      }
+    }
+
     setSaving(true);
-    const { id, created_at, ...rest } = trip;
+    const { id, created_at, reopened_at, ...rest } = trip;
     void created_at;
+    void reopened_at;
     const res = id
       ? await supabase.from("trips").update(rest as never).eq("id", id).select("id").single()
       : await supabase.from("trips").insert(rest as never).select("id").single();
@@ -278,7 +307,7 @@ export function TripForm({
     logAction(isNew ? "created" : "updated", "trip", {
       entityId: newId,
       entityLabel: trip.trip_code,
-      details: { ownership: trip.ownership, branch_id: trip.branch_id },
+      details: { ownership: trip.ownership, branch_id: trip.branch_id ?? "" },
     });
     toast.success(id ? "Trip updated" : "Trip created");
     onSaved();
@@ -319,6 +348,24 @@ export function TripForm({
 
   async function handleClose() {
     if (!trip.id) return toast.error("Save the trip before closing it");
+
+    // ── Close validation ─────────────────────────────────────────────────────
+    if (!trip.end_date) {
+      toast.error("End date is required to close the trip");
+      return;
+    }
+    if (!trip.end_time) {
+      toast.error("End time is required to close the trip");
+      return;
+    }
+    if (isOwn && !trip.odometer_end) {
+      toast.error("Odometer end reading is required to close an own-vehicle trip");
+      return;
+    }
+
+    // Save any unsaved changes first (e.g. end_date/end_time just entered)
+    await saveTrip();
+
     if (
       !window.confirm(
         "Close this trip? A full snapshot is archived and the live trip is removed. This cannot be undone.",
@@ -359,11 +406,18 @@ export function TripForm({
     label: String(c.contract_name ?? ""),
     sub: String(c.company_name ?? "") || undefined,
   }));
-  const branchOpts: PickerOption[] = branches.map((b) => ({
+
+  // Branch options: basic users only see their allowed branches
+  const branchOpts: PickerOption[] = (
+    allowedBranchIds !== null
+      ? allBranches.filter((b) => allowedBranchIds.includes(b.id))
+      : allBranches
+  ).map((b) => ({
     id: b.id,
     label: b.branch_name,
     sub: b.branch_type ?? undefined,
   }));
+
   const monthlyContractCharges = 0;
 
   // Ensure selected tab exists in TABS (e.g. basic user was on "summary")
@@ -379,6 +433,11 @@ export function TripForm({
           Back to trips
         </Button>
         <h2 className="text-lg font-semibold tracking-tight">{trip.trip_code}</h2>
+        {trip.reopened_at ? (
+          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+            Reopened
+          </span>
+        ) : null}
         <Button className="ml-auto" onClick={() => saveTrip()} disabled={saving}>
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
           {trip.id ? "Update trip" : "Save trip"}
@@ -430,13 +489,13 @@ export function TripForm({
           {isOwn ? (
             <>
               <EntityPicker
-                label="Vehicle (required for own)"
+                label="Vehicle (required)"
                 value={trip.vehicle_id}
                 options={vehicleOpts}
                 onChange={(id) => patch({ vehicle_id: id })}
               />
               <EntityPicker
-                label="Driver (required for own)"
+                label="Driver (required)"
                 value={trip.driver_id}
                 options={driverOpts}
                 onChange={(id) => patch({ driver_id: id })}
@@ -480,29 +539,29 @@ export function TripForm({
             onChange={(id) => patch({ end_location_id: id })}
           />
 
-          {/* Start date & time */}
+          {/* Start date & time — required */}
           <Field
-            label={isOwn ? "Start Date (required)" : "Start Date"}
+            label="Start Date (required)"
             type="date"
             value={trip.start_date}
             onChange={(v) => patch({ start_date: v })}
           />
           <Field
-            label={isOwn ? "Start Time (required)" : "Start Time"}
+            label="Start Time (required)"
             type="time"
             value={trip.start_time}
             onChange={(v) => patch({ start_time: v })}
           />
 
-          {/* End date & time — for closing the trip */}
+          {/* End date & time — required to close */}
           <Field
-            label="End Date"
+            label="End Date (required to close)"
             type="date"
             value={trip.end_date}
             onChange={(v) => patch({ end_date: v })}
           />
           <Field
-            label="End Time"
+            label="End Time (required to close)"
             type="time"
             value={trip.end_time}
             onChange={(v) => patch({ end_time: v })}
@@ -512,13 +571,13 @@ export function TripForm({
           {isOwn ? (
             <>
               <Field
-                label="Odometer Start (required for own)"
+                label="Odometer Start (required)"
                 type="number"
                 value={trip.odometer_start}
                 onChange={(v) => patch({ odometer_start: v })}
               />
               <Field
-                label="Odometer End"
+                label="Odometer End (required to close)"
                 type="number"
                 value={trip.odometer_end}
                 onChange={(v) => patch({ odometer_end: v })}
@@ -564,7 +623,7 @@ export function TripForm({
               isAdmin={isAdmin}
             />
           ) : null}
-          {activeTab === "income" && !isBasic ? (
+          {activeTab === "income" ? (
             <LineTab
               title="Other income"
               nameLabel="Income name"
@@ -825,7 +884,6 @@ function ManifestTab({
                 <th className="py-2 pr-3">To</th>
                 <th className="py-2 pr-3 text-right">Weight</th>
                 <th className="py-2 pr-3 text-right">Qty</th>
-                {/* Freight & Loading columns visible to admins only */}
                 {isAdmin ? (
                   <>
                     <th className="py-2 pr-3 text-right">Freight</th>
@@ -1104,6 +1162,10 @@ function ContractDetails({
   monthlyCharges: number;
 }) {
   if (!contract) return <p className="text-sm text-muted-foreground">No contract selected.</p>;
+  const monthly = num(contract.fixed_monthly_charge as unknown);
+  const yearly = num(contract.fixed_yearly_charge as unknown);
+  const monthlyEquivalent = monthly + yearly / 12;
+
   const rows: [string, string][] = [
     ["Contract name", contract.contract_name],
     ["Company", String(contract.company_name ?? "")],
@@ -1111,6 +1173,9 @@ function ContractDetails({
     ["Freight basis", contract.freight_basis],
     ["Loading basis", contract.loading_basis],
     ["Rate entries (routes)", String(entryCount)],
+    ...(monthlyEquivalent > 0
+      ? ([["Monthly fixed cost", inr(monthlyEquivalent)]] as [string, string][])
+      : []),
   ];
   void monthlyCharges;
   return (

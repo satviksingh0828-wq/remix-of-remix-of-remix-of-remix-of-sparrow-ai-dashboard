@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Basis, Range } from "@/lib/contract-ranges";
+import { logAction } from "@/lib/log-actions";
 
 export type ContractRow = {
   id?: string;
@@ -21,6 +22,12 @@ export type ContractRow = {
   quantity_ranges: Range[];
   freight_basis: Basis;
   loading_basis: Basis;
+  // Fixed recurring charges
+  fixed_monthly_charge?: number | string;
+  fixed_monthly_charge_note?: string;
+  fixed_yearly_charge?: number | string;
+  fixed_yearly_charge_note?: string;
+  // Company details
   company_name?: string;
   legal_business_name?: string;
   company_type?: string;
@@ -49,6 +56,10 @@ export const EMPTY_CONTRACT: ContractRow = {
   quantity_ranges: [{ from: "0", to: "100" }],
   freight_basis: "weight",
   loading_basis: "weight",
+  fixed_monthly_charge: "",
+  fixed_monthly_charge_note: "",
+  fixed_yearly_charge: "",
+  fixed_yearly_charge_note: "",
   company_name: "",
   legal_business_name: "",
   company_type: "",
@@ -199,6 +210,11 @@ export function ContractForm({
       : await supabase.from("contracts").insert(payload);
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
+    const isNew = !id;
+    logAction(isNew ? "created" : "updated", "contract", {
+      entityId: id ?? "",
+      entityLabel: form.contract_name,
+    });
     toast.success(id ? "Contract updated" : "Contract created");
     onSaved();
   }
@@ -245,6 +261,66 @@ export function ContractForm({
           ranges={form.quantity_ranges}
           onChange={(r) => patch({ quantity_ranges: r })}
         />
+      </Section>
+
+      {/* Fixed recurring charges — shown below quantity ranges */}
+      <Section title="Fixed recurring charges">
+        <p className="mb-4 text-xs text-muted-foreground">
+          Optional fixed charges billed on this contract. Yearly charges are automatically
+          divided by 12 to calculate monthly cost in Fixed Incomes reports.
+        </p>
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Fixed Monthly Charge (₹)
+            </Label>
+            <Input
+              className="h-10"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={String(form.fixed_monthly_charge ?? "")}
+              onChange={(e) => patch({ fixed_monthly_charge: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Monthly Charge Note
+            </Label>
+            <Input
+              className="h-10"
+              placeholder="e.g. Software license fee"
+              value={form.fixed_monthly_charge_note ?? ""}
+              onChange={(e) => patch({ fixed_monthly_charge_note: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Fixed Yearly Charge (₹)
+            </Label>
+            <Input
+              className="h-10"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={String(form.fixed_yearly_charge ?? "")}
+              onChange={(e) => patch({ fixed_yearly_charge: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Yearly Charge Note
+            </Label>
+            <Input
+              className="h-10"
+              placeholder="e.g. Annual maintenance contract"
+              value={form.fixed_yearly_charge_note ?? ""}
+              onChange={(e) => patch({ fixed_yearly_charge_note: e.target.value })}
+            />
+          </div>
+        </div>
       </Section>
 
       <Section title="Basis">
