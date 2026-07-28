@@ -515,15 +515,189 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
       pdf.addImage(imgData, "JPEG", 0, -(i * A4_H), imgW, imgH);
     }
 
-    // Open in native browser PDF viewer
+    // Open in a custom HTML PDF viewer with branded footer
     const pdfBlob = pdf.output("blob");
     const pdfUrl  = URL.createObjectURL(pdfBlob);
-    const tab = window.open(pdfUrl, "_blank");
+
+    const viewerHtml = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trip Note — ${data.trip.trip_code}</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: #1e1e2e;
+      font-family: Arial, Helvetica, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+    /* ── Top toolbar ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      background: #111827;
+      border-bottom: 1px solid #374151;
+      flex-shrink: 0;
+    }
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .toolbar-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .toolbar-icon svg { color: #fff; }
+    .toolbar-title {
+      color: #f3f4f6;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+    .toolbar-subtitle {
+      color: #9ca3af;
+      font-size: 11px;
+      margin-top: 1px;
+    }
+    .toolbar-actions { display: flex; gap: 8px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s, opacity 0.15s;
+      text-decoration: none;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn-primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      color: #fff;
+    }
+    .btn-secondary {
+      background: #374151;
+      color: #f3f4f6;
+    }
+    /* ── PDF frame area ── */
+    .pdf-wrapper {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+    /* ── Branded footer ── */
+    .pdf-footer {
+      flex-shrink: 0;
+      background: #111827;
+      border-top: 1px solid #374151;
+      padding: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .pdf-footer-logo {
+      width: 18px;
+      height: 18px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border-radius: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .pdf-footer-logo svg { display: block; }
+    .pdf-footer-text {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #6b7280;
+    }
+    .pdf-footer-text span {
+      color: #a78bfa;
+    }
+  </style>
+</head>
+<body>
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="toolbar-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <div>
+        <div class="toolbar-title">Trip Note</div>
+        <div class="toolbar-subtitle">Trip #${data.trip.trip_code}${data.trip.start_date ? " &nbsp;·&nbsp; " + data.trip.start_date : ""}</div>
+      </div>
+    </div>
+    <div class="toolbar-actions">
+      <a id="dl-btn" href="${pdfUrl}" download="TripNote-${data.trip.trip_code}.pdf" class="btn btn-secondary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download
+      </a>
+      <button onclick="window.frames[0].print ? window.frames[0].print() : window.print()" class="btn btn-primary">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+        </svg>
+        Print
+      </button>
+    </div>
+  </div>
+
+  <!-- PDF viewer -->
+  <div class="pdf-wrapper">
+    <iframe src="${pdfUrl}" title="Trip Note PDF"></iframe>
+  </div>
+
+  <!-- Branded footer -->
+  <div class="pdf-footer">
+    <div class="pdf-footer-logo">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+    </div>
+    <div class="pdf-footer-text">Powered by <span>Sparrow AI Solution</span></div>
+  </div>
+</body>
+</html>`;
+
+    const viewerBlob = new Blob([viewerHtml], { type: "text/html" });
+    const viewerUrl  = URL.createObjectURL(viewerBlob);
+    const tab = window.open(viewerUrl, "_blank");
     if (!tab) {
       alert("Pop-up blocked — please allow pop-ups for this site to open the Trip Note PDF.");
     }
-    // Revoke after 2 minutes to free memory
-    setTimeout(() => URL.revokeObjectURL(pdfUrl), 120_000);
+    // Revoke both URLs after 5 minutes to free memory
+    setTimeout(() => {
+      URL.revokeObjectURL(pdfUrl);
+      URL.revokeObjectURL(viewerUrl);
+    }, 300_000);
   } finally {
     // Always clean up DOM
     document.head.removeChild(styleEl);
