@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ChevronRight, DollarSign, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart2, ChevronRight, DollarSign, Route as RouteIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Trips } from "@/components/operations/Trips";
 import { FinanceList } from "@/components/operations/FinanceList";
 import { FixedIncomeList } from "@/components/operations/FixedIncomeList";
+import { TripAveragesPanel } from "@/components/operations/TripAveragesPanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/operations")({
@@ -14,14 +15,10 @@ export const Route = createFileRoute("/operations")({
       { title: "Operations — Project TMS | Sparrow AI Solutions" },
       {
         name: "description",
-        content:
-          "Plan and record trips with manifests, contract-based freight, other income, expenses and a profit summary.",
+        content: "Plan and record trips with manifests, contract-based freight, other income, expenses and a profit summary.",
       },
       { property: "og:title", content: "Operations — Project TMS" },
-      {
-        property: "og:description",
-        content: "Trips, manifests, income and expenses for Project TMS.",
-      },
+      { property: "og:description", content: "Trips, manifests, income and expenses for Project TMS." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -34,22 +31,11 @@ export const Route = createFileRoute("/operations")({
 });
 
 const ALL_TABS = [
-  { id: "trip", label: "Trip", desc: "Manifests, income & expenses", icon: RouteIcon, adminOnly: false },
-  { id: "income", label: "Income", desc: "Other income, branch-wise", icon: TrendingUp, adminOnly: false },
-  {
-    id: "expenditure",
-    label: "Expenditure",
-    desc: "Other spend, branch-wise",
-    icon: TrendingDown,
-    adminOnly: false,
-  },
-  {
-    id: "fixed-income",
-    label: "Fixed Income",
-    desc: "Contract recurring charges",
-    icon: DollarSign,
-    adminOnly: true,
-  },
+  { id: "trip",          label: "Trip",           desc: "Manifests, income & expenses",    icon: RouteIcon,   adminOnly: false },
+  { id: "income",        label: "Income",          desc: "Other income, branch-wise",       icon: TrendingUp,  adminOnly: false },
+  { id: "expenditure",   label: "Expenditure",     desc: "Other spend, branch-wise",        icon: TrendingDown,adminOnly: false },
+  { id: "fixed-income",  label: "Fixed Income",    desc: "Contract recurring charges",      icon: DollarSign,  adminOnly: true  },
+  { id: "trip-averages", label: "Trip Averages",   desc: "Monthly distribution analysis",   icon: BarChart2,   adminOnly: true  },
 ] as const;
 
 type TabId = (typeof ALL_TABS)[number]["id"];
@@ -58,23 +44,17 @@ function OperationsPage() {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
 
-  // Filter tabs: basic users do not see Fixed Income tab
-  const TABS = ALL_TABS.filter((t) => isAdmin || !t.adminOnly);
-
+  const TABS = ALL_TABS.filter(t => isAdmin || !t.adminOnly);
   const [tab, setTab] = useState<TabId>("trip");
 
-  // If the currently selected tab is no longer visible (e.g. basic user lands on fixed-income),
-  // reset to trip
-  const safeTab: TabId = (TABS.find((t) => t.id === tab) ? tab : "trip") as TabId;
-  const active = TABS.find((t) => t.id === safeTab) ?? TABS[0];
+  const safeTab: TabId = (TABS.find(t => t.id === tab) ? tab : "trip") as TabId;
+  const active = TABS.find(t => t.id === safeTab) ?? TABS[0];
 
   return (
     <AppShell
       breadcrumb={
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/home" className="hover:text-foreground">
-            Workspace
-          </Link>
+          <Link to="/home" className="hover:text-foreground">Workspace</Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Operations</span>
         </span>
@@ -86,8 +66,8 @@ function OperationsPage() {
             Operations
           </p>
           <ul className="space-y-1">
-            {TABS.map((t) => {
-              const Icon = t.icon;
+            {TABS.map(t => {
+              const Icon     = t.icon;
               const isActive = t.id === safeTab;
               return (
                 <li key={t.id}>
@@ -117,10 +97,11 @@ function OperationsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active?.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active?.desc}</p>
           </header>
-          {safeTab === "trip" ? <Trips /> : null}
-          {safeTab === "income" ? <FinanceList kind="income" /> : null}
-          {safeTab === "expenditure" ? <FinanceList kind="expenditure" /> : null}
-          {safeTab === "fixed-income" && isAdmin ? <FixedIncomeList /> : null}
+          {safeTab === "trip"          && <Trips />}
+          {safeTab === "income"        && <FinanceList kind="income" />}
+          {safeTab === "expenditure"   && <FinanceList kind="expenditure" />}
+          {safeTab === "fixed-income"  && isAdmin && <FixedIncomeList />}
+          {safeTab === "trip-averages" && isAdmin && <TripAveragesPanel />}
         </div>
       </div>
     </AppShell>

@@ -3,47 +3,35 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
-  serverFetchPnLYear,
-  computePnL,
-  computeMonthlyPnL,
-  type PnLRawData,
-  type PnLStats,
+  serverFetchPnLYear, serverFetchPnLPeriod,
+  computePnL, computeMonthlyPnL,
+  type PnLRawData, type PnLStats,
 } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
 
-const MONTHS = [
-  "All Year","January","February","March","April","May","June",
-  "July","August","September","October","November","December",
+const MONTH_OPTIONS = [
+  { value: "0",  label: "All Year" },
+  { value: "1",  label: "January" },  { value: "2",  label: "February" },
+  { value: "3",  label: "March" },    { value: "4",  label: "April" },
+  { value: "5",  label: "May" },      { value: "6",  label: "June" },
+  { value: "7",  label: "July" },     { value: "8",  label: "August" },
+  { value: "9",  label: "September" },{ value: "10", label: "October" },
+  { value: "11", label: "November" }, { value: "12", label: "December" },
 ];
 
-const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-
 const PIE_COLORS = ["#22c55e", "#3b82f6", "#8b5cf6", "#f97316", "#ef4444"];
-const BAR_COLORS = { tripIncome: "#22c55e", otherIncome: "#3b82f6", fixedIncome: "#8b5cf6", expenditures: "#ef4444", netPnL: "#f59e0b" };
+const BAR_COLORS = { tripIncome: "#22c55e", otherIncome: "#3b82f6", fixedIncome: "#8b5cf6", expenditures: "#ef4444" };
 
 function StatCard({ label, value, positive }: { label: string; value: number; positive?: boolean }) {
   const isPos = value >= 0;
@@ -61,19 +49,29 @@ function StatCard({ label, value, positive }: { label: string; value: number; po
   );
 }
 
+function formatYAxis(v: number) {
+  if (Math.abs(v) >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+  if (Math.abs(v) >= 1000) return `₹${(v / 1000).toFixed(0)}K`;
+  return `₹${v}`;
+}
+
 export function ProfitLossPanel() {
   const currentYear = new Date().getFullYear();
-  const [year, setYear] = useState(String(currentYear));
-  const [data, setData] = useState<PnLRawData | null>(null);
+  const [year, setYear]       = useState(String(currentYear));
+  const [month, setMonth]     = useState("0");
+  const [data, setData]       = useState<PnLRawData | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchTab, setBranchTab] = useState<string>("all");
 
   const years = useMemo(() => Array.from({ length: 6 }, (_, i) => currentYear - 3 + i), [currentYear]);
 
-  async function load(y: string) {
+  async function load(y: string, m: string) {
     setLoading(true);
     try {
-      const result = await serverFetchPnLYear({ data: { year: Number(y) } });
+      const mn = Number(m);
+      const result = mn > 0
+        ? await serverFetchPnLPeriod({ data: { period: { year: Number(y), month: mn } } })
+        : await serverFetchPnLYear({ data: { year: Number(y) } });
       setData(result);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not load P&L data");
@@ -81,22 +79,20 @@ export function ProfitLossPanel() {
     setLoading(false);
   }
 
-  useEffect(() => {
-    load(year);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [year]);
+  useEffect(() => { load(year, month); }, [year, month]);
 
   const branchId = branchTab === "all" ? null : branchTab;
+  const monthNum = Number(month);
 
-  const stats = useMemo<PnLStats | null>(() => {
-    if (!data) return null;
-    return computePnL(data, branchId);
-  }, [data, branchId]);
+  const stats = useMemo<PnLStats | null>(
+    () => (data ? computePnL(data, branchId) : null),
+    [data, branchId],
+  );
 
   const monthlyData = useMemo(() => {
-    if (!data) return [];
+    if (!data || monthNum > 0) return [];
     return computeMonthlyPnL(data, branchId);
-  }, [data, branchId]);
+  }, [data, branchId, monthNum]);
 
   const pieData = useMemo(() => {
     if (!stats) return [];
@@ -106,14 +102,10 @@ export function ProfitLossPanel() {
       { name: "Fixed Income", value: stats.fixedIncome },
       { name: "Expenditures", value: stats.totalExpenditure },
       { name: "Trip Expenses", value: stats.tripExpense },
-    ].filter((d) => d.value > 0);
+    ].filter(d => d.value > 0);
   }, [stats]);
 
-  function formatYAxis(v: number) {
-    if (Math.abs(v) >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
-    if (Math.abs(v) >= 1000) return `₹${(v / 1000).toFixed(0)}K`;
-    return `₹${v}`;
-  }
+  const periodLabel = monthNum > 0 ? `${MONTH_OPTIONS[monthNum]?.label} ${year}` : year;
 
   if (loading) {
     return (
@@ -133,17 +125,15 @@ export function ProfitLossPanel() {
     <div className="animate-fade-up space-y-6">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={year} onValueChange={(v) => setYear(v)}>
-          <SelectTrigger className="h-9 w-28">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {years.map((y) => (
-              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
-            ))}
-          </SelectContent>
+        <Select value={year} onValueChange={v => setYear(v)}>
+          <SelectTrigger className="h-9 w-28"><SelectValue /></SelectTrigger>
+          <SelectContent>{years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
         </Select>
-        <Button variant="outline" size="sm" onClick={() => load(year)} disabled={loading}>
+        <Select value={month} onValueChange={v => setMonth(v)}>
+          <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>{MONTH_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={() => load(year, month)} disabled={loading}>
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -154,24 +144,13 @@ export function ProfitLossPanel() {
 
       {/* Branch sub-tabs */}
       <div className="flex flex-wrap gap-1.5 rounded-xl bg-muted/40 p-1.5">
-        <button
-          type="button"
-          onClick={() => setBranchTab("all")}
-          className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-            branchTab === "all" ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
+        <button type="button" onClick={() => setBranchTab("all")}
+          className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${branchTab === "all" ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
           All Branches
         </button>
-        {branches.map((b) => (
-          <button
-            key={b.id}
-            type="button"
-            onClick={() => setBranchTab(b.id)}
-            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              branchTab === b.id ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
+        {branches.map(b => (
+          <button key={b.id} type="button" onClick={() => setBranchTab(b.id)}
+            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${branchTab === b.id ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
             {b.branch_name}
           </button>
         ))}
@@ -179,7 +158,7 @@ export function ProfitLossPanel() {
 
       {!stats ? (
         <p className="rounded-xl bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
-          No data found for {year}. Close some trips or add income/expenditure records to see P&amp;L.
+          No data found for {periodLabel}.
         </p>
       ) : (
         <>
@@ -219,79 +198,57 @@ export function ProfitLossPanel() {
             </div>
           </div>
 
-          {/* Monthly bar chart */}
-          <div className="surface-card p-5">
-            <h3 className="mb-4 text-sm font-semibold tracking-tight">Monthly Trend — {year}</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(v: number) => inr(v)}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
-                />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="tripIncome" name="Trip Income" fill={BAR_COLORS.tripIncome} radius={[2,2,0,0]} />
-                <Bar dataKey="otherIncome" name="Other Income" fill={BAR_COLORS.otherIncome} radius={[2,2,0,0]} />
-                <Bar dataKey="fixedIncome" name="Fixed Income" fill={BAR_COLORS.fixedIncome} radius={[2,2,0,0]} />
-                <Bar dataKey="expenditures" name="Expenditures" fill={BAR_COLORS.expenditures} radius={[2,2,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Net P&L line chart (on same area, separate) */}
-          <div className="surface-card p-5">
-            <h3 className="mb-4 text-sm font-semibold tracking-tight">Net P&L by Month — {year}</h3>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(v: number) => inr(v)}
-                  contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
-                />
-                <Bar
-                  dataKey="netPnL"
-                  name="Net P&L"
-                  radius={[2,2,0,0]}
-                  // Color bars individually: green if positive, red if negative
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  fill="#f59e0b"
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Pie chart: income breakdown */}
-          {pieData.length > 0 ? (
+          {/* Monthly bar chart (all year only) */}
+          {monthlyData.length > 0 && (
             <div className="surface-card p-5">
-              <h3 className="mb-4 text-sm font-semibold tracking-tight">Income & Expense Breakdown</h3>
+              <h3 className="mb-4 text-sm font-semibold tracking-tight">Monthly Trend — {year}</h3>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => inr(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="tripIncome" name="Trip Income" fill={BAR_COLORS.tripIncome} radius={[2,2,0,0]} />
+                  <Bar dataKey="otherIncome" name="Other Income" fill={BAR_COLORS.otherIncome} radius={[2,2,0,0]} />
+                  <Bar dataKey="fixedIncome" name="Fixed Income" fill={BAR_COLORS.fixedIncome} radius={[2,2,0,0]} />
+                  <Bar dataKey="expenditures" name="Expenditures" fill={BAR_COLORS.expenditures} radius={[2,2,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Net P&L chart (all year only) */}
+          {monthlyData.length > 0 && (
+            <div className="surface-card p-5">
+              <h3 className="mb-4 text-sm font-semibold tracking-tight">Net P&amp;L by Month — {year}</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(v: number) => inr(v)} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }} />
+                  <Bar dataKey="netPnL" name="Net P&L" fill="#f59e0b" radius={[2,2,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+
+          {/* Pie: income breakdown */}
+          {pieData.length > 0 && (
+            <div className="surface-card p-5">
+              <h3 className="mb-4 text-sm font-semibold tracking-tight">Income &amp; Expense Breakdown — {periodLabel}</h3>
               <div className="flex flex-wrap items-center gap-8">
                 <PieChart width={220} height={220}>
-                  <Pie
-                    data={pieData}
-                    cx={100}
-                    cy={100}
-                    innerRadius={55}
-                    outerRadius={95}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    {pieData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
+                  <Pie data={pieData} cx={100} cy={100} innerRadius={55} outerRadius={95} paddingAngle={2} dataKey="value">
+                    {pieData.map((_, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                   </Pie>
                   <Tooltip formatter={(v: number) => inr(v)} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                 </PieChart>
                 <div className="space-y-2">
                   {pieData.map((d, i) => (
                     <div key={d.name} className="flex items-center gap-2 text-sm">
-                      <span
-                        className="size-3 rounded-sm shrink-0"
-                        style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }}
-                      />
+                      <span className="size-3 rounded-sm shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
                       <span className="text-muted-foreground">{d.name}:</span>
                       <span className="font-medium">{inr(d.value)}</span>
                     </div>
@@ -299,7 +256,7 @@ export function ProfitLossPanel() {
                 </div>
               </div>
             </div>
-          ) : null}
+          )}
         </>
       )}
     </div>

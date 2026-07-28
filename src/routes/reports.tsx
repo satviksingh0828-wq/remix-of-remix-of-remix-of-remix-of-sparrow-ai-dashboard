@@ -1,19 +1,18 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ChevronRight, FileBarChart } from "lucide-react";
+import { BarChart3, Car, ChevronRight, FileBarChart, Route as RouteIcon, Users } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { ProfitLossComparison } from "@/components/reports/ProfitLossComparison";
+import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
+import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
       { title: "Reports — Project TMS | Sparrow AI Solutions" },
-      {
-        name: "description",
-        content: "Compare P&L between two periods with detailed charts and breakdowns.",
-      },
+      { name: "description", content: "Compare P&L between two periods with detailed charts and breakdowns." },
       { property: "og:title", content: "Reports — Project TMS" },
       { property: "og:type", content: "website" },
     ],
@@ -26,33 +25,33 @@ export const Route = createFileRoute("/reports")({
 });
 
 const TABS = [
-  { id: "pnl-compare", label: "P&L Comparison", desc: "Compare two periods side-by-side", icon: FileBarChart },
+  { id: "pnl-compare",   label: "P&L Comparison",  desc: "Compare two periods side-by-side",     icon: FileBarChart },
+  { id: "vehicles",      label: "Vehicles",          desc: "Vehicle-wise P&L & distribution",      icon: Car },
+  { id: "drivers",       label: "Drivers",           desc: "Driver-wise P&L & performance",        icon: Users },
+  { id: "transporters",  label: "Transporters",      desc: "Transporter-wise P&L",                 icon: BarChart3 },
+  { id: "trips",         label: "Trips",             desc: "All trips — income & net",             icon: RouteIcon },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
 function ReportsPage() {
   const { user } = useSession();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
   const [tab, setTab] = useState<TabId>("pnl-compare");
 
   useEffect(() => {
-    if (user && user.role !== "admin") {
-      navigate({ to: "/home", replace: true });
-    }
+    if (user && user.role !== "admin") navigate({ to: "/home", replace: true });
   }, [user, navigate]);
 
   if (user?.role !== "admin") return null;
 
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const active = TABS.find(t => t.id === tab) ?? TABS[0];
 
   return (
     <AppShell
       breadcrumb={
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/home" className="hover:text-foreground">
-            Workspace
-          </Link>
+          <Link to="/home" className="hover:text-foreground">Workspace</Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Reports</span>
         </span>
@@ -64,8 +63,8 @@ function ReportsPage() {
             Reports
           </p>
           <ul className="space-y-1">
-            {TABS.map((t) => {
-              const Icon = t.icon;
+            {TABS.map(t => {
+              const Icon     = t.icon;
               const isActive = t.id === tab;
               return (
                 <li key={t.id}>
@@ -95,7 +94,11 @@ function ReportsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
-          {tab === "pnl-compare" ? <ProfitLossComparison /> : null}
+          {tab === "pnl-compare"   && <ProfitLossComparison />}
+          {tab === "vehicles"      && <EntityPnLPanel kind="vehicle" />}
+          {tab === "drivers"       && <EntityPnLPanel kind="driver" />}
+          {tab === "transporters"  && <EntityPnLPanel kind="transporter" />}
+          {tab === "trips"         && <TripSummaryPanel />}
         </div>
       </div>
     </AppShell>
