@@ -452,41 +452,63 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 /**
- * Render the trip note into a hidden DOM container, capture with html2canvas,
- * build a real jsPDF document, and open it as application/pdf in a new tab
- * so the browser shows its native PDF viewer.
+ * Opens a new tab immediately (inside the user-gesture) to avoid popup
+ * blockers, shows a loading screen, then generates the PDF and writes the
+ * final viewer into that same tab.
+ *
+ * Key insight: any await before window.open() causes the browser to lose
+ * the user-gesture context and silently block the popup.
  */
 export async function printTripNote(data: TripNoteData): Promise<void> {
-  const logoUrl = `${window.location.origin}/garuda-logo.png`;
+  // ── OPEN WINDOW FIRST — must be synchronous inside the click handler ────────
+  const tab = window.open("", "_blank");
+  if (!tab) {
+    alert(
+      "Pop-up blocked. Please allow pop-ups for this site, then try again.",
+    );
+    return;
+  }
 
-  // Pre-fetch logo as base64 so html2canvas doesn't hit CORS issues
-  const logoDataUri = await toDataUri(logoUrl);
+  // Show a loading screen immediately so the user sees something in the tab.
+  tab.document.open();
+  tab.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Generating…</title>
+<style>
+  body{margin:0;display:flex;align-items:center;justify-content:center;
+       min-height:100vh;background:#111827;font-family:Arial,sans-serif;flex-direction:column;gap:16px}
+  .ring{width:44px;height:44px;border:3px solid #374151;border-top-color:#8b5cf6;
+        border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  p{color:#9ca3af;font-size:13px;letter-spacing:.05em;margin:0}
+</style></head><body>
+<div class="ring"></div><p>Generating Trip Note PDF…</p>
+</body></html>`);
+  tab.document.close();
 
-  // Build body HTML
-  const bodyHtml = buildBodyHtml(data, logoDataUri);
-
-  // Inject scoped CSS into document head temporarily
+  // ── ALL ASYNC WORK HAPPENS AFTER THE WINDOW IS ALREADY OPEN ────────────────
   const styleEl = document.createElement("style");
   styleEl.setAttribute("data-tn", "1");
   styleEl.textContent = TRIP_NOTE_CSS;
   document.head.appendChild(styleEl);
 
-  // Create off-screen container
   const container = document.createElement("div");
+  // z-index must be positive so html2canvas can actually see the element
   container.style.cssText =
-    "position:fixed;left:-9999px;top:0;width:770px;background:#fff;z-index:-1;";
-  container.innerHTML = bodyHtml;
+    "position:fixed;left:-9999px;top:0;width:770px;background:#fff;z-index:99999;pointer-events:none;";
   document.body.appendChild(container);
 
   try {
-    // Lazy-load heavy libraries only when needed
+    const logoDataUri = await toDataUri(
+      `${window.location.origin}/garuda-logo.png`,
+    );
+    container.innerHTML = buildBodyHtml(data, logoDataUri);
+
     const [html2canvasModule, { jsPDF }] = await Promise.all([
       import("html2canvas"),
       import("jspdf"),
     ]);
     const html2canvas = html2canvasModule.default;
 
-    // Render the root element to canvas at 2× for sharpness
     const root = container.querySelector(".tn-root") as HTMLElement;
     const canvas = await html2canvas(root, {
       scale: 2,
@@ -494,213 +516,111 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
       allowTaint: true,
       backgroundColor: "#ffffff",
       logging: false,
+      // windowWidth prevents layout collapse on narrow viewports
+      windowWidth: 900,
     });
 
-    // A4 dimensions in mm
     const A4_W = 210;
     const A4_H = 297;
+    const pdf  = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-
-    // Scale canvas width to A4 width (full bleed)
-    const imgW = A4_W;
-    const imgH = (canvas.height * A4_W) / canvas.width;
+    const imgW    = A4_W;
+    const imgH    = (canvas.height * A4_W) / canvas.width;
     const imgData = canvas.toDataURL("image/jpeg", 0.92);
 
-    // Slice the canvas height across multiple A4 pages
     const totalPages = Math.ceil(imgH / A4_H);
     for (let i = 0; i < totalPages; i++) {
       if (i > 0) pdf.addPage();
-      // Shift image upwards so each page shows the next slice
       pdf.addImage(imgData, "JPEG", 0, -(i * A4_H), imgW, imgH);
     }
 
-    // Open in a custom HTML PDF viewer with branded footer
-    const pdfBlob = pdf.output("blob");
-    const pdfUrl  = URL.createObjectURL(pdfBlob);
+    // Use data-URI (not blob URL) so there are zero cross-origin issues
+    // regardless of which browser / security mode the user has.
+    const pdfDataUri = pdf.output("datauristring");
+    const tripCode   = data.trip.trip_code;
+    const startDate  = data.trip.start_date ?? "";
 
     const viewerHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Trip Note — ${data.trip.trip_code}</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      height: 100%;
-      background: #1e1e2e;
-      font-family: Arial, Helvetica, sans-serif;
-      display: flex;
-      flex-direction: column;
-    }
-    /* ── Top toolbar ── */
-    .toolbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 20px;
-      background: #111827;
-      border-bottom: 1px solid #374151;
-      flex-shrink: 0;
-    }
-    .toolbar-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .toolbar-icon {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .toolbar-icon svg { color: #fff; }
-    .toolbar-title {
-      color: #f3f4f6;
-      font-size: 14px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-    .toolbar-subtitle {
-      color: #9ca3af;
-      font-size: 11px;
-      margin-top: 1px;
-    }
-    .toolbar-actions { display: flex; gap: 8px; }
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 7px 14px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      border: none;
-      transition: background 0.15s, opacity 0.15s;
-      text-decoration: none;
-    }
-    .btn:hover { opacity: 0.88; }
-    .btn-primary {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-    }
-    .btn-secondary {
-      background: #374151;
-      color: #f3f4f6;
-    }
-    /* ── PDF frame area ── */
-    .pdf-wrapper {
-      flex: 1;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    iframe {
-      flex: 1;
-      width: 100%;
-      border: none;
-    }
-    /* ── Branded footer ── */
-    .pdf-footer {
-      flex-shrink: 0;
-      background: #111827;
-      border-top: 1px solid #374151;
-      padding: 8px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    .pdf-footer-logo {
-      width: 18px;
-      height: 18px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      border-radius: 4px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .pdf-footer-logo svg { display: block; }
-    .pdf-footer-text {
-      font-size: 10px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: #6b7280;
-    }
-    .pdf-footer-text span {
-      color: #a78bfa;
-    }
-  </style>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Trip Note \u2014 ${tripCode}</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:#1e1e2e;font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column}
+.bar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;
+     background:#111827;border-bottom:1px solid #374151;flex-shrink:0}
+.bar-l{display:flex;align-items:center;gap:12px}
+.ico{width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+     border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.t1{color:#f3f4f6;font-size:14px;font-weight:600}
+.t2{color:#9ca3af;font-size:11px;margin-top:2px}
+.acts{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;
+     font-size:12px;font-weight:600;cursor:pointer;border:none;text-decoration:none}
+.btn:hover{opacity:.85}
+.pri{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
+.sec{background:#374151;color:#f3f4f6}
+.wrap{flex:1;overflow:hidden;display:flex;flex-direction:column}
+iframe{flex:1;width:100%;border:none}
+.foot{flex-shrink:0;background:#111827;border-top:1px solid #374151;
+      padding:8px 20px;display:flex;align-items:center;justify-content:center;gap:8px}
+.flogo{width:18px;height:18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+       border-radius:4px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.ftxt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:#6b7280}
+.ftxt span{color:#a78bfa}
+</style>
 </head>
 <body>
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <div class="toolbar-left">
-      <div class="toolbar-icon">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
-        </svg>
-      </div>
-      <div>
-        <div class="toolbar-title">Trip Note</div>
-        <div class="toolbar-subtitle">Trip #${data.trip.trip_code}${data.trip.start_date ? " &nbsp;·&nbsp; " + data.trip.start_date : ""}</div>
-      </div>
-    </div>
-    <div class="toolbar-actions">
-      <a id="dl-btn" href="${pdfUrl}" download="TripNote-${data.trip.trip_code}.pdf" class="btn btn-secondary">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-        </svg>
-        Download
-      </a>
-      <button onclick="window.frames[0].print ? window.frames[0].print() : window.print()" class="btn btn-primary">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
-        </svg>
-        Print
-      </button>
-    </div>
-  </div>
-
-  <!-- PDF viewer -->
-  <div class="pdf-wrapper">
-    <iframe src="${pdfUrl}" title="Trip Note PDF"></iframe>
-  </div>
-
-  <!-- Branded footer -->
-  <div class="pdf-footer">
-    <div class="pdf-footer-logo">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+<div class="bar">
+  <div class="bar-l">
+    <div class="ico">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
       </svg>
     </div>
-    <div class="pdf-footer-text">Powered by <span>Sparrow AI Solution</span></div>
+    <div>
+      <div class="t1">Trip Note</div>
+      <div class="t2">Trip #${tripCode}${startDate ? " &nbsp;&middot;&nbsp; " + startDate : ""}</div>
+    </div>
   </div>
-</body>
-</html>`;
+  <div class="acts">
+    <button class="btn sec" onclick="dl()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>Download
+    </button>
+    <button class="btn pri" onclick="document.getElementById('f').contentWindow.print()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
+      </svg>Print
+    </button>
+  </div>
+</div>
+<div class="wrap"><iframe id="f" src="${pdfDataUri}"></iframe></div>
+<div class="foot">
+  <div class="flogo">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  </div>
+  <div class="ftxt">Powered by <span>Sparrow AI Solution</span></div>
+</div>
+<script>
+var _d="${pdfDataUri}";
+function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-${tripCode}.pdf";a.click();}
+</script>
+</body></html>`;
 
-    // Open a blank window first (inherits opener origin → can access pdfUrl blob)
-    const tab = window.open("", "_blank");
-    if (!tab) {
-      alert("Pop-up blocked — please allow pop-ups for this site to open the Trip Note PDF.");
-      URL.revokeObjectURL(pdfUrl);
-      return;
-    }
-    tab.document.open("text/html", "replace");
+    tab.document.open();
     tab.document.write(viewerHtml);
     tab.document.close();
-    // Revoke PDF blob after 5 minutes to free memory
-    setTimeout(() => URL.revokeObjectURL(pdfUrl), 300_000);
+
+  } catch (err) {
+    tab.close();
+    throw err;
   } finally {
-    // Always clean up DOM
     document.head.removeChild(styleEl);
     document.body.removeChild(container);
   }
