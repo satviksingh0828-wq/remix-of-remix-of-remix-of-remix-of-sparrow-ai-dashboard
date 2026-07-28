@@ -89,12 +89,13 @@ export function TripAveragesPanel() {
       const distAmount = distRatio * data.otherNetPnL;
       const finalNet   = t.net_income + distAmount;
 
-      // Distribute finalNet across manifests by weight (or equally if no weight)
+      // Distribute finalNet + distAmount across manifests by weight
       const tripTotalWeight = t.manifests.reduce((s, m) => s + m.weight_kg, 0);
       const manifestRows = t.manifests.map(m => {
-        const mShare   = tripTotalWeight > 0 ? m.weight_kg / tripTotalWeight : (t.manifests.length > 0 ? 1 / t.manifests.length : 0);
-        const mNet     = mShare * finalNet;
-        return { ...m, mShare, mNet };
+        const mShare = tripTotalWeight > 0 ? m.weight_kg / tripTotalWeight : (t.manifests.length > 0 ? 1 / t.manifests.length : 0);
+        const mDist  = mShare * distAmount;   // manifest's portion of other P&L distribution
+        const mNet   = mShare * finalNet;     // manifest's final net (trip net share + mDist)
+        return { ...m, mShare, mDist, mNet };
       });
 
       return { ...t, base, distRatio, distAmount, finalNet, manifestRows };
@@ -153,7 +154,7 @@ export function TripAveragesPanel() {
        "Trip " + (method === "weight" ? "Weight (kg)" : "Quantity"),
        "Trip Share %", "Trip Distribution (₹)", "Trip Final Net (₹)",
        "Manifest No.", "From", "To", "Weight (kg)", "Quantity",
-       "Manifest Income (₹)", "Manifest Weight Share %", "Manifest Net (₹)"],
+       "Manifest Income (₹)", "Manifest Weight Share %", "Manifest Distribution (₹)", "Manifest Net (₹)"],
     ];
     for (const r of rows) {
       if (r.manifestRows.length === 0) {
@@ -165,7 +166,7 @@ export function TripAveragesPanel() {
           totalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
           parseFloat(r.distAmount.toFixed(2)),
           parseFloat(r.finalNet.toFixed(2)),
-          "—", "—", "—", "", "", "", "", "",
+          "—", "—", "—", "", "", "", "", "", "",
         ]);
       } else {
         for (const m of r.manifestRows) {
@@ -183,6 +184,7 @@ export function TripAveragesPanel() {
             m.quantity,
             parseFloat(m.manifest_income.toFixed(2)),
             parseFloat((m.mShare * 100).toFixed(2)),
+            parseFloat(m.mDist.toFixed(2)),
             parseFloat(m.mNet.toFixed(2)),
           ]);
         }
@@ -374,6 +376,7 @@ export function TripAveragesPanel() {
                                         <th className="py-1.5 pr-4 text-right">Qty</th>
                                         <th className="py-1.5 pr-4 text-right">Manifest Income</th>
                                         <th className="py-1.5 pr-4 text-right">Weight Share %</th>
+                                        <th className="py-1.5 pr-4 text-right">Distribution (₹)</th>
                                         <th className="py-1.5 text-right font-semibold text-foreground">Net</th>
                                       </tr>
                                     </thead>
@@ -388,6 +391,9 @@ export function TripAveragesPanel() {
                                           <td className="py-1.5 pr-4 text-right">{inr(m.manifest_income)}</td>
                                           <td className="py-1.5 pr-4 text-right text-muted-foreground">
                                             {(m.mShare * 100).toFixed(1)}%
+                                          </td>
+                                          <td className={`py-1.5 pr-4 text-right ${netColor(m.mDist)}`}>
+                                            {inr(m.mDist)}
                                           </td>
                                           <td className={`py-1.5 text-right font-semibold ${netColor(m.mNet)}`}>
                                             {inr(m.mNet)}
@@ -408,6 +414,9 @@ export function TripAveragesPanel() {
                                           {inr(row.manifestRows.reduce((s, m) => s + m.manifest_income, 0))}
                                         </td>
                                         <td className="py-1.5 pr-4 text-right">100%</td>
+                                        <td className={`py-1.5 pr-4 text-right ${netColor(row.distAmount)}`}>
+                                          {inr(row.distAmount)}
+                                        </td>
                                         <td className={`py-1.5 text-right font-semibold ${netColor(row.finalNet)}`}>
                                           {inr(row.finalNet)}
                                         </td>
