@@ -169,23 +169,16 @@ export function printTripNote(data: TripNoteData): void {
   const vehicleBlock = `
     <div class="details-col">
       <h4>Vehicle Details</h4>
-      ${dr("Registration No.", s(vehicle?.registration_number))}
-      ${dr("Internal Code", s(vehicle?.internal_code))}
-      ${dr("Nickname", s(vehicle?.nickname))}
       ${dr("Manufacturer", s(vehicle?.manufacturer))}
       ${dr("Model", s(vehicle?.model))}
-      ${dr("Year of Manufacture", s(vehicle?.year_of_manufacture))}
       ${dr("Fuel Type", s(vehicle?.fuel_type))}
       ${dr("Payload Capacity", s(vehicle?.payload_capacity_kg) ? s(vehicle?.payload_capacity_kg) + " kg" : "")}
-      ${dr("Purchase Date", s(vehicle?.purchase_date))}
-      ${dr("Purchase Cost", s(vehicle?.purchase_cost) ? "₹ " + Number(s(vehicle?.purchase_cost)).toLocaleString("en-IN") : "")}
     </div>`;
 
   // ── Own-vehicle: driver section ───────────────────────────────────────────
   const driverBlock = `
     <div class="details-col">
       <h4>Driver Details</h4>
-      ${dr("Driver Code", s(driver?.driver_code))}
       ${dr("Full Name", s(driver?.full_name))}
       ${dr("Father's / Guardian's Name", s(driver?.guardian_name))}
       ${dr("Date of Birth", s(driver?.date_of_birth))}
@@ -194,7 +187,6 @@ export function printTripNote(data: TripNoteData): void {
       ${dr("Mobile Number", s(driver?.mobile_number))}
       ${dr("Alternate Mobile", s(driver?.alternate_mobile))}
       ${dr("Licence Number", s(driver?.licence_number))}
-      ${dr("Licence Type", s(driver?.licence_type))}
       ${dr("Issuing Authority (RTO)", s(driver?.licence_authority))}
       ${dr("Licence Issue Date", s(driver?.licence_issue_date))}
       ${dr("Licence Expiry Date", s(driver?.licence_expiry_date))}

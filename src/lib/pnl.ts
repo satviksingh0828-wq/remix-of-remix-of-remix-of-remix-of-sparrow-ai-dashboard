@@ -22,6 +22,15 @@ export type PnLClosedTrip = {
   closed_at: string;
 };
 
+export type ManifestDetail = {
+  manifest_number: string;
+  from_location: string;
+  to_location: string;
+  weight_kg: number;
+  quantity: number;
+  manifest_income: number; // freight + loading + fixed from manifest_lines
+};
+
 export type TripAveragesRow = {
   id: string;
   trip_code: string;
@@ -33,6 +42,7 @@ export type TripAveragesRow = {
   total_weight: number;
   total_quantity: number;
   closed_at: string;
+  manifests: ManifestDetail[];
 };
 
 export type TripAveragesData = {
@@ -452,7 +462,7 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
     const start = `${year}-${m}-01`;
     const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
-    const [tripsRes, incomesRes, expendituresRes, contractsRes] = await Promise.all([
+    const [tripsRes, incomesRes, expendituresRes, contractsRes, locationsRes] = await Promise.all([
       db.from("closed_trips")
         .select("id,trip_code,branch_id,branch_name,total_income,total_expense,net_income,closed_at,snapshot")
         .gte("closed_at", start)
@@ -468,7 +478,45 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
         .lt("entry_date", end),
       db.from("contracts")
         .select("fixed_monthly_charge,fixed_yearly_charge"),
+      db.from("locations").select("id,location_name,pin_code"),
     ]);
+
+    // Build location id → name map
+    const locMap = new Map<string, string>();
+    for (const l of locationsRes.data ?? []) {
+      locMap.set(String(l.id), String(l.location_name ?? l.pin_code ?? ""));
+    }
+
+    function resolveLocation(id: unknown, pin: unknown): string {
+      if (id && locMap.has(String(id))) return locMap.get(String(id))!;
+      if (pin && String(pin).trim()) return String(pin);
+      return "—";
+    }
+
+    function extractManifests(snapshot: unknown): ManifestDetail[] {
+      try {
+        const s = snapshot as Record<string, unknown>;
+        const rawManifests = (s?.manifests as Record<string, unknown>[]) ?? [];
+        const manifestLines = (s?.manifest_lines as Record<string, unknown>[]) ?? [];
+
+        return rawManifests.map((m, i) => {
+          const line = manifestLines[i] as Record<string, unknown> | undefined;
+          const income = line
+            ? Number(line.freight ?? 0) + Number(line.loading ?? 0) + Number(line.fixed ?? 0)
+            : 0;
+          return {
+            manifest_number: String(m.manifest_number ?? ""),
+            from_location: resolveLocation(m.from_location_id, m.from_pin_code),
+            to_location: resolveLocation(m.to_location_id, m.to_pin_code),
+            weight_kg: Number(m.weight_kg ?? 0),
+            quantity: Number(m.quantity ?? 0),
+            manifest_income: income,
+          };
+        });
+      } catch {
+        return [];
+      }
+    }
 
     const trips: TripAveragesRow[] = (tripsRes.data ?? []).map((r: Record<string, unknown>) => {
       const { weight, quantity } = extractWeightQty(r.snapshot);
@@ -483,6 +531,7 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
         total_weight: weight,
         total_quantity: quantity,
         closed_at: r.closed_at as string,
+        manifests: extractManifests(r.snapshot),
       };
     });
 
