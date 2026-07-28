@@ -8,12 +8,13 @@
  */
 
 import { useEffect, useState } from "react";
-import { Archive, ArrowLeft, Loader2, RotateCcw } from "lucide-react";
+import { Archive, ArrowLeft, Download, FileSpreadsheet, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inr, num } from "@/lib/trip-calc";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { useSession } from "@/lib/session";
 
@@ -247,7 +248,14 @@ export function ClosedTripDetail({
 
         <div className="p-6">
           {tab === "manifest" && (
-            <ManifestView lines={snap.manifest_lines} manifests={snap.manifests} isAdmin={isAdmin} />
+            <ManifestView
+              lines={snap.manifest_lines}
+              manifests={snap.manifests}
+              isAdmin={isAdmin}
+              totals={snap.totals}
+              tripCode={record.trip_code}
+              startDate={record.start_date}
+            />
           )}
           {tab === "income" && (
             <LineView
@@ -297,74 +305,181 @@ function ManifestView({
   lines,
   manifests,
   isAdmin,
+  totals,
+  tripCode,
+  startDate,
 }: {
   lines: ManifestLine[];
   manifests: Record<string, unknown>[];
   isAdmin: boolean;
+  totals: Totals;
+  tripCode: string;
+  startDate: string | null;
 }) {
   // Build a quick id→manifest map so we can pull pin codes
   const byId = new Map(manifests.map((m) => [m.id as string, m]));
+
+  const grandTotal = lines.reduce((s, l) => s + l.total, 0);
+
+  // ── Weighted income / expense helpers ────────────────────────────────────
+  const totalWeight = lines.reduce((s, l) => {
+    const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+    return s + num(m.weight_kg);
+  }, 0);
+
+  function weightedIncome(manifestWeight: number): number {
+    if (totalWeight === 0) return 0;
+    return (totals.other_income / totalWeight) * manifestWeight;
+  }
+
+  function weightedExpense(manifestWeight: number): number {
+    if (totalWeight === 0) return 0;
+    return (totals.total_expense / totalWeight) * manifestWeight;
+  }
+
+  // ── Manifest CSV export (same columns as open trip) ──────────────────────
+  function exportManifestCsv() {
+    const columns = ["manifest_number", "from_pin_code", "to_pin_code", "weight_kg", "quantity"];
+    const rows = lines.map((l) => {
+      const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+      return {
+        manifest_number: String(m.manifest_number ?? ""),
+        from_pin_code: String(m.from_pin_code ?? ""),
+        to_pin_code: String(m.to_pin_code ?? ""),
+        weight_kg: String(m.weight_kg ?? ""),
+        quantity: String(m.quantity ?? ""),
+      };
+    });
+    const csv = toCsv(rows, columns);
+    downloadCsv(`manifests-${tripCode}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }
+
+  // ── Trip details export ───────────────────────────────────────────────────
+  function exportTripDetails() {
+    const basicCols = [
+      "trip_id", "start_date", "manifest_number",
+      "weight_kg", "qty",
+      "weighted_income", "weighted_expense",
+    ];
+    const adminCols = [
+      ...basicCols,
+      "freight", "loading", "gross", "net",
+    ];
+    const columns = isAdmin ? adminCols : basicCols;
+
+    const rows = lines.map((l) => {
+      const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+      const wt = num(m.weight_kg);
+      const wi = weightedIncome(wt);
+      const we = weightedExpense(wt);
+      const gross = l.freight + l.loading + l.fixed;
+      const net = gross + wi - we;
+      const base: Record<string, string> = {
+        trip_id: tripCode,
+        start_date: startDate ?? "",
+        manifest_number: String(m.manifest_number ?? ""),
+        weight_kg: String(m.weight_kg ?? ""),
+        qty: String(m.quantity ?? ""),
+        weighted_income: wi.toFixed(2),
+        weighted_expense: we.toFixed(2),
+      };
+      if (isAdmin) {
+        base.freight = l.freight.toFixed(2);
+        base.loading = l.loading.toFixed(2);
+        base.gross = gross.toFixed(2);
+        base.net = net.toFixed(2);
+      }
+      return base;
+    });
+
+    const csv = toCsv(rows, columns);
+    downloadCsv(`trip-details-${tripCode}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+  }
 
   if (lines.length === 0)
     return (
       <p className="text-sm text-muted-foreground">No manifests were recorded for this trip.</p>
     );
 
-  const grandTotal = lines.reduce((s, l) => s + l.total, 0);
-
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm" style={{ minWidth: isAdmin ? 700 : 480 }}>
-        <thead>
-          <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-            <th className="py-2 pr-3">Manifest</th>
-            <th className="py-2 pr-3">From</th>
-            <th className="py-2 pr-3">To</th>
-            <th className="py-2 pr-3 text-right">Weight</th>
-            <th className="py-2 pr-3 text-right">Qty</th>
-            {isAdmin ? (
-              <>
-                <th className="py-2 pr-3 text-right">Freight</th>
-                <th className="py-2 pr-3 text-right">Loading</th>
-                <th className="py-2 pr-3 text-right">Fixed</th>
-                <th className="py-2 text-right">Total</th>
-              </>
-            ) : null}
-          </tr>
-        </thead>
-        <tbody>
-          {lines.map((l, i) => {
-            const m = l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {};
-            return (
-              <tr key={i} className="border-b border-border/60">
-                <td className="py-2 pr-3 font-medium">
-                  {String(m.manifest_number ?? "—")}
-                </td>
-                <td className="py-2 pr-3">{String(m.from_pin_code || "—")}</td>
-                <td className="py-2 pr-3">{String(m.to_pin_code || "—")}</td>
-                <td className="py-2 pr-3 text-right">{String(m.weight_kg ?? "—")}</td>
-                <td className="py-2 pr-3 text-right">{String(m.quantity ?? "—")}</td>
-                {isAdmin ? (
-                  <>
-                    <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
-                    <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
-                    <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
-                    <td className="py-2 text-right font-semibold">{inr(l.total)}</td>
-                  </>
-                ) : null}
-              </tr>
-            );
-          })}
-          {isAdmin ? (
-            <tr>
-              <td colSpan={8} className="py-3 text-right font-semibold">
-                Total manifest income
-              </td>
-              <td className="py-3 text-right font-semibold">{inr(grandTotal)}</td>
+    <div className="space-y-4">
+      {/* Export buttons */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={exportManifestCsv}
+          disabled={lines.length === 0}
+        >
+          <Download className="size-4" />
+          Export manifests
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={exportTripDetails}
+          disabled={lines.length === 0}
+        >
+          <FileSpreadsheet className="size-4" />
+          Export trip details
+        </Button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" style={{ minWidth: isAdmin ? 700 : 480 }}>
+          <thead>
+            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <th className="py-2 pr-3">Manifest</th>
+              <th className="py-2 pr-3">From</th>
+              <th className="py-2 pr-3">To</th>
+              <th className="py-2 pr-3 text-right">Weight</th>
+              <th className="py-2 pr-3 text-right">Qty</th>
+              {isAdmin ? (
+                <>
+                  <th className="py-2 pr-3 text-right">Freight</th>
+                  <th className="py-2 pr-3 text-right">Loading</th>
+                  <th className="py-2 pr-3 text-right">Fixed</th>
+                  <th className="py-2 text-right">Total</th>
+                </>
+              ) : null}
             </tr>
-          ) : null}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {lines.map((l, i) => {
+              const m = l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {};
+              return (
+                <tr key={i} className="border-b border-border/60">
+                  <td className="py-2 pr-3 font-medium">
+                    {String(m.manifest_number ?? "—")}
+                  </td>
+                  <td className="py-2 pr-3">{String(m.from_pin_code || "—")}</td>
+                  <td className="py-2 pr-3">{String(m.to_pin_code || "—")}</td>
+                  <td className="py-2 pr-3 text-right">{String(m.weight_kg ?? "—")}</td>
+                  <td className="py-2 pr-3 text-right">{String(m.quantity ?? "—")}</td>
+                  {isAdmin ? (
+                    <>
+                      <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
+                      <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
+                      <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
+                      <td className="py-2 text-right font-semibold">{inr(l.total)}</td>
+                    </>
+                  ) : null}
+                </tr>
+              );
+            })}
+            {isAdmin ? (
+              <tr>
+                <td colSpan={8} className="py-3 text-right font-semibold">
+                  Total manifest income
+                </td>
+                <td className="py-3 text-right font-semibold">{inr(grandTotal)}</td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
