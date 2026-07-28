@@ -21,9 +21,13 @@ import { useSession } from "@/lib/session";
 const CONTRACT_COLUMNS = [
   "contract_name",
   "weight_ranges",
+  "weight_ranges_2",
   "quantity_ranges",
+  "quantity_ranges_2",
   "freight_basis",
   "loading_basis",
+  "freight_weight_set",
+  "loading_weight_set",
   "fixed_monthly_charge",
   "fixed_monthly_charge_note",
   "fixed_yearly_charge",

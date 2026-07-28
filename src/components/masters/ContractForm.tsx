@@ -19,9 +19,15 @@ export type ContractRow = {
   id?: string;
   contract_name: string;
   weight_ranges: Range[];
+  weight_ranges_2: Range[];
   quantity_ranges: Range[];
+  quantity_ranges_2: Range[];
   freight_basis: Basis;
   loading_basis: Basis;
+  freight_weight_set: number;
+  loading_weight_set: number;
+  freight_quantity_set: number;
+  loading_quantity_set: number;
   // Fixed recurring charges
   fixed_monthly_charge?: number | string;
   fixed_monthly_charge_note?: string;
@@ -53,9 +59,15 @@ export type ContractRow = {
 export const EMPTY_CONTRACT: ContractRow = {
   contract_name: "",
   weight_ranges: [{ from: "0", to: "100" }],
+  weight_ranges_2: [],
   quantity_ranges: [{ from: "0", to: "100" }],
+  quantity_ranges_2: [],
   freight_basis: "weight",
   loading_basis: "weight",
+  freight_weight_set: 1,
+  loading_weight_set: 1,
+  freight_quantity_set: 1,
+  loading_quantity_set: 1,
   fixed_monthly_charge: "",
   fixed_monthly_charge_note: "",
   fixed_yearly_charge: "",
@@ -229,7 +241,16 @@ export function ContractForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<ContractRow>(initial);
+  const [form, setForm] = useState<ContractRow>({
+    ...initial,
+    // Safe defaults for fields added after initial deployment
+    weight_ranges_2: initial.weight_ranges_2 ?? [],
+    quantity_ranges_2: initial.quantity_ranges_2 ?? [],
+    freight_weight_set: initial.freight_weight_set ?? 1,
+    loading_weight_set: initial.loading_weight_set ?? 1,
+    freight_quantity_set: initial.freight_quantity_set ?? 1,
+    loading_quantity_set: initial.loading_quantity_set ?? 1,
+  });
   const [saving, setSaving] = useState(false);
   const [showCompany, setShowCompany] = useState(!!initial.company_name);
 
@@ -279,21 +300,103 @@ export function ContractForm({
       </Section>
 
       <Section title="Weight ranges (kg)">
-        <RangeEditor
-          title="Define weight slabs in kg"
-          unit="kg"
-          ranges={form.weight_ranges}
-          onChange={(r) => patch({ weight_ranges: r })}
-        />
+        <div className="space-y-6">
+          <div>
+            <p className="mb-3 text-xs font-medium text-foreground">Weight Range 1</p>
+            <RangeEditor
+              title="Define weight slabs in kg"
+              unit="kg"
+              ranges={form.weight_ranges}
+              onChange={(r) => patch({ weight_ranges: r })}
+            />
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium text-foreground">Weight Range 2</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Optional second weight range set. Add slabs here if freight and loading need different weight tables.
+            </p>
+            {form.weight_ranges_2.length === 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => patch({ weight_ranges_2: [{ from: "0", to: "100", charge_type: "rate" }] })}
+              >
+                <Plus className="size-4" />
+                Add weight range 2
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <RangeEditor
+                  title="Define second weight slabs in kg"
+                  unit="kg"
+                  ranges={form.weight_ranges_2}
+                  onChange={(r) => patch({ weight_ranges_2: r })}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => patch({ weight_ranges_2: [], freight_weight_set: 1, loading_weight_set: 1 })}
+                >
+                  <Trash2 className="size-4" />
+                  Remove weight range 2
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </Section>
 
       <Section title="Quantity ranges">
-        <RangeEditor
-          title="Define quantity slabs"
-          unit="qty"
-          ranges={form.quantity_ranges}
-          onChange={(r) => patch({ quantity_ranges: r })}
-        />
+        <div className="space-y-6">
+          <div>
+            <p className="mb-3 text-xs font-medium text-foreground">Quantity Range 1</p>
+            <RangeEditor
+              title="Define quantity slabs"
+              unit="qty"
+              ranges={form.quantity_ranges}
+              onChange={(r) => patch({ quantity_ranges: r })}
+            />
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium text-foreground">Quantity Range 2</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Optional second quantity range set.
+            </p>
+            {form.quantity_ranges_2.length === 0 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => patch({ quantity_ranges_2: [{ from: "0", to: "100", charge_type: "rate" }] })}
+              >
+                <Plus className="size-4" />
+                Add quantity range 2
+              </Button>
+            ) : (
+              <div className="space-y-3">
+                <RangeEditor
+                  title="Define second quantity slabs"
+                  unit="qty"
+                  ranges={form.quantity_ranges_2}
+                  onChange={(r) => patch({ quantity_ranges_2: r })}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => patch({ quantity_ranges_2: [] })}
+                >
+                  <Trash2 className="size-4" />
+                  Remove quantity range 2
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </Section>
 
       {/* Fixed recurring charges — shown below quantity ranges */}
@@ -392,6 +495,87 @@ export function ContractForm({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Weight set selectors — only shown when weight range 2 exists and at least one charge uses weight */}
+          {form.weight_ranges_2.length > 0 && form.freight_basis === "weight" ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Freight uses which weight range?
+              </Label>
+              <Select
+                value={String(form.freight_weight_set ?? 1)}
+                onValueChange={(v) => patch({ freight_weight_set: Number(v) })}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Weight Range 1</SelectItem>
+                  <SelectItem value="2">Weight Range 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          {form.weight_ranges_2.length > 0 && form.loading_basis === "weight" ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Loading uses which weight range?
+              </Label>
+              <Select
+                value={String(form.loading_weight_set ?? 1)}
+                onValueChange={(v) => patch({ loading_weight_set: Number(v) })}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Weight Range 1</SelectItem>
+                  <SelectItem value="2">Weight Range 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          {form.quantity_ranges_2.length > 0 && form.freight_basis === "quantity" ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Freight uses which quantity range?
+              </Label>
+              <Select
+                value={String(form.freight_quantity_set ?? 1)}
+                onValueChange={(v) => patch({ freight_quantity_set: Number(v) })}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Quantity Range 1</SelectItem>
+                  <SelectItem value="2">Quantity Range 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+
+          {form.quantity_ranges_2.length > 0 && form.loading_basis === "quantity" ? (
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                Loading uses which quantity range?
+              </Label>
+              <Select
+                value={String(form.loading_quantity_set ?? 1)}
+                onValueChange={(v) => patch({ loading_quantity_set: Number(v) })}
+              >
+                <SelectTrigger className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">Quantity Range 1</SelectItem>
+                  <SelectItem value="2">Quantity Range 2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
         </div>
       </Section>
 

@@ -28,11 +28,40 @@ export function rangeKey(r: Range): string {
   return to ? `${from}-${to}` : `${from}+`;
 }
 
+export type ContractForRanges = {
+  weight_ranges: Range[];
+  weight_ranges_2?: Range[];
+  quantity_ranges: Range[];
+  quantity_ranges_2?: Range[];
+  freight_weight_set?: number;
+  loading_weight_set?: number;
+  freight_quantity_set?: number;
+  loading_quantity_set?: number;
+};
+
+/**
+ * Returns the correct range array for a given basis and charge kind.
+ * When freight and loading use "weight" or "quantity", each can independently
+ * target set 1 or set 2 (as stored on the contract).
+ */
 export function basisRanges(
-  contract: { weight_ranges: Range[]; quantity_ranges: Range[] },
+  contract: ContractForRanges,
   basis: Basis,
+  chargeKind?: "freight" | "loading",
 ): Range[] {
-  return basis === "weight" ? contract.weight_ranges : contract.quantity_ranges;
+  if (basis === "quantity") {
+    const setNum =
+      chargeKind === "loading"
+        ? (contract.loading_quantity_set ?? 1)
+        : (contract.freight_quantity_set ?? 1);
+    return setNum === 2 ? (contract.quantity_ranges_2 ?? contract.quantity_ranges) : contract.quantity_ranges;
+  }
+  // weight — choose set 1 or 2 based on chargeKind
+  const setNum =
+    chargeKind === "loading"
+      ? (contract.loading_weight_set ?? 1)
+      : (contract.freight_weight_set ?? 1);
+  return setNum === 2 ? (contract.weight_ranges_2 ?? contract.weight_ranges) : contract.weight_ranges;
 }
 
 export function basisUnit(basis: Basis): string {

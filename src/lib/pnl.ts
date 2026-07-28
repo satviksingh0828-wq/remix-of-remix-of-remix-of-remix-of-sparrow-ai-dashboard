@@ -231,7 +231,7 @@ async function fetchActiveTrips(db: any, start: string, end: string): Promise<Pn
       : Promise.resolve({ data: [] }),
     contractIds.length > 0
       ? db.from("contracts")
-          .select("id,freight_basis,loading_basis,weight_ranges,quantity_ranges")
+          .select("id,freight_basis,loading_basis,weight_ranges,weight_ranges_2,quantity_ranges,quantity_ranges_2,freight_weight_set,loading_weight_set")
           .in("id", contractIds)
       : Promise.resolve({ data: [] }),
     contractIds.length > 0

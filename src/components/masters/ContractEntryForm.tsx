@@ -90,9 +90,9 @@ export function ContractEntryForm({
   const [form, setForm] = useState<EntryRow>(initial);
   const [saving, setSaving] = useState(false);
 
-  const freightRanges = basisRanges(contract, contract.freight_basis);
+  const freightRanges = basisRanges(contract, contract.freight_basis, "freight");
   const freightUnit = basisUnit(contract.freight_basis);
-  const loadingRanges = basisRanges(contract, contract.loading_basis);
+  const loadingRanges = basisRanges(contract, contract.loading_basis, "loading");
   const loadingUnit = basisUnit(contract.loading_basis);
 
   const patch = (p: Partial<EntryRow>) => setForm((f) => ({ ...f, ...p }));

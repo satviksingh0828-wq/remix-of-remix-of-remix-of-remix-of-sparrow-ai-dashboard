@@ -4,9 +4,15 @@ export type ContractLite = {
   id: string;
   contract_name: string;
   weight_ranges: Range[];
+  weight_ranges_2?: Range[];
   quantity_ranges: Range[];
+  quantity_ranges_2?: Range[];
   freight_basis: Basis;
   loading_basis: Basis;
+  freight_weight_set?: number;
+  loading_weight_set?: number;
+  freight_quantity_set?: number;
+  loading_quantity_set?: number;
 };
 
 export type EntryLite = {
@@ -70,9 +76,9 @@ export function manifestCharges(
   m: ManifestLite,
 ): { freight: number; loading: number; fixed: number; matched: boolean } {
   if (!contract || !entry) return { freight: 0, loading: 0, fixed: 0, matched: false };
-  const pick = (basis: Basis, values: Record<string, string>) => {
+  const pick = (basis: Basis, values: Record<string, string>, chargeKind: "freight" | "loading") => {
     const value = basis === "weight" ? num(m.weight_kg) : num(m.quantity);
-    const r = matchRange(basisRanges(contract, basis), value);
+    const r = matchRange(basisRanges(contract, basis, chargeKind), value);
     if (!r) return 0;
     const rate = num(values?.[rangeKey(r)]);
     // "fixed" → flat charge for the slab, no multiplication.
@@ -80,8 +86,8 @@ export function manifestCharges(
     return r.charge_type === "fixed" ? rate : rate * value;
   };
   return {
-    freight: pick(contract.freight_basis, entry.freight_values ?? {}),
-    loading: pick(contract.loading_basis, entry.loading_values ?? {}),
+    freight: pick(contract.freight_basis, entry.freight_values ?? {}, "freight"),
+    loading: pick(contract.loading_basis, entry.loading_values ?? {}, "loading"),
     fixed: num(entry.per_manifest_amount),
     matched: true,
   };

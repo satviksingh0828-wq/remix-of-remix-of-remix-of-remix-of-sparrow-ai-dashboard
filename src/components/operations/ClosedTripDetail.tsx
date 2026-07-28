@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inr, num } from "@/lib/trip-calc";
 import { reopenTrip } from "@/lib/reopen-trip";
+import { useSession } from "@/lib/session";
 
 // ── Snapshot shape (mirrors what closeTrip() writes) ──────────────────────────
 
@@ -63,7 +64,7 @@ type FullClosedTrip = {
 
 // ── Tabs ─────────────────────────────────────────────────────────────────────
 
-const TABS = [
+const TABS_ALL = [
   { id: "manifest", label: "Manifest" },
   { id: "income", label: "Other Income" },
   { id: "expense", label: "Expenses" },
@@ -73,7 +74,18 @@ const TABS = [
   { id: "contract", label: "Contract" },
   { id: "summary", label: "Summary" },
 ] as const;
-type TabId = (typeof TABS)[number]["id"];
+
+const TABS_BASIC = [
+  { id: "manifest", label: "Manifest" },
+  { id: "income", label: "Other Income" },
+  { id: "expense", label: "Expenses" },
+  { id: "vehicle", label: "Vehicle" },
+  { id: "driver", label: "Driver" },
+  { id: "transporter", label: "Transporter" },
+  { id: "contract", label: "Contract" },
+] as const;
+
+type TabId = (typeof TABS_ALL)[number]["id"];
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -86,6 +98,10 @@ export function ClosedTripDetail({
   onBack: () => void;
   onReopened: () => void;
 }) {
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
+  const TABS = isAdmin ? TABS_ALL : TABS_BASIC;
+
   const [record, setRecord] = useState<FullClosedTrip | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<TabId>("manifest");
@@ -157,20 +173,22 @@ export function ClosedTripDetail({
             Closed
           </span>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="ml-auto"
-          disabled={reopening}
-          onClick={handleReopen}
-        >
-          {reopening ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <RotateCcw className="size-4" />
-          )}
-          Reopen trip
-        </Button>
+        {isAdmin ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto"
+            disabled={reopening}
+            onClick={handleReopen}
+          >
+            {reopening ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RotateCcw className="size-4" />
+            )}
+            Reopen trip
+          </Button>
+        ) : null}
       </div>
 
       {/* Trip header info */}
@@ -229,7 +247,7 @@ export function ClosedTripDetail({
 
         <div className="p-6">
           {tab === "manifest" && (
-            <ManifestView lines={snap.manifest_lines} manifests={snap.manifests} />
+            <ManifestView lines={snap.manifest_lines} manifests={snap.manifests} isAdmin={isAdmin} />
           )}
           {tab === "income" && (
             <LineView
@@ -278,9 +296,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 function ManifestView({
   lines,
   manifests,
+  isAdmin,
 }: {
   lines: ManifestLine[];
   manifests: Record<string, unknown>[];
+  isAdmin: boolean;
 }) {
   // Build a quick id→manifest map so we can pull pin codes
   const byId = new Map(manifests.map((m) => [m.id as string, m]));
@@ -294,7 +314,7 @@ function ManifestView({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[700px] text-sm">
+      <table className="w-full text-sm" style={{ minWidth: isAdmin ? 700 : 480 }}>
         <thead>
           <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
             <th className="py-2 pr-3">Manifest</th>
@@ -302,10 +322,14 @@ function ManifestView({
             <th className="py-2 pr-3">To</th>
             <th className="py-2 pr-3 text-right">Weight</th>
             <th className="py-2 pr-3 text-right">Qty</th>
-            <th className="py-2 pr-3 text-right">Freight</th>
-            <th className="py-2 pr-3 text-right">Loading</th>
-            <th className="py-2 pr-3 text-right">Fixed</th>
-            <th className="py-2 text-right">Total</th>
+            {isAdmin ? (
+              <>
+                <th className="py-2 pr-3 text-right">Freight</th>
+                <th className="py-2 pr-3 text-right">Loading</th>
+                <th className="py-2 pr-3 text-right">Fixed</th>
+                <th className="py-2 text-right">Total</th>
+              </>
+            ) : null}
           </tr>
         </thead>
         <tbody>
@@ -320,19 +344,25 @@ function ManifestView({
                 <td className="py-2 pr-3">{String(m.to_pin_code || "—")}</td>
                 <td className="py-2 pr-3 text-right">{String(m.weight_kg ?? "—")}</td>
                 <td className="py-2 pr-3 text-right">{String(m.quantity ?? "—")}</td>
-                <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
-                <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
-                <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
-                <td className="py-2 text-right font-semibold">{inr(l.total)}</td>
+                {isAdmin ? (
+                  <>
+                    <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
+                    <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
+                    <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
+                    <td className="py-2 text-right font-semibold">{inr(l.total)}</td>
+                  </>
+                ) : null}
               </tr>
             );
           })}
-          <tr>
-            <td colSpan={8} className="py-3 text-right font-semibold">
-              Total manifest income
-            </td>
-            <td className="py-3 text-right font-semibold">{inr(grandTotal)}</td>
-          </tr>
+          {isAdmin ? (
+            <tr>
+              <td colSpan={8} className="py-3 text-right font-semibold">
+                Total manifest income
+              </td>
+              <td className="py-3 text-right font-semibold">{inr(grandTotal)}</td>
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
