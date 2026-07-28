@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LocationPinPair } from "@/components/LocationPinPair";
-import { basisRanges, basisUnit, rangeKey, rangeLabel } from "@/lib/contract-ranges";
+import { basisRanges, basisUnit, rangeBoundsNote, rangeKey, rangeLabel } from "@/lib/contract-ranges";
 import type { ContractRow } from "./ContractForm";
 
 export type EntryRow = {
@@ -150,26 +150,39 @@ export function ContractEntryForm({
           Freight ({contract.freight_basis})
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          One amount per {contract.freight_basis} slab defined on the contract.
+          Enter the amount for each {contract.freight_basis} slab.{" "}
+          <span className="font-medium text-foreground">Rate ×</span> slabs are multiplied by
+          actual {contract.freight_basis};{" "}
+          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> slabs are
+          a flat charge regardless of {contract.freight_basis}.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
           {freightRanges.map((r) => {
             const key = rangeKey(r);
+            const isFixed = r.charge_type === "fixed";
             return (
-              <div key={`f-${key}`} className="space-y-1.5">
+              <div key={`f-${key}`} className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">
-                  {rangeLabel(r, freightUnit)}
+                  {rangeLabel(r, freightUnit)}{" "}
+                  <span className={`ml-1 rounded px-1 py-0.5 text-[10px] font-semibold ${
+                    isFixed
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {isFixed ? "Fixed ₹" : "Rate ×"}
+                  </span>
                 </Label>
+                <p className="text-[10px] text-muted-foreground/70">
+                  {rangeBoundsNote(r, freightUnit)}
+                </p>
                 <Input
                   type="number"
                   className="h-10"
+                  placeholder={isFixed ? "Flat charge (₹)" : `Rate per ${freightUnit}`}
                   value={form.freight_values[key] ?? ""}
                   onChange={(e) =>
                     patch({
-                      freight_values: {
-                        ...form.freight_values,
-                        [key]: e.target.value,
-                      },
+                      freight_values: { ...form.freight_values, [key]: e.target.value },
                     })
                   }
                 />
@@ -183,24 +196,39 @@ export function ContractEntryForm({
         <h3 className="text-sm font-semibold tracking-tight">
           Loading charges ({contract.loading_basis})
         </h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Rate ×</span> slabs are multiplied by
+          actual {contract.loading_basis};{" "}
+          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> slabs are
+          a flat charge.
+        </p>
         <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
           {loadingRanges.map((r) => {
             const key = rangeKey(r);
+            const isFixed = r.charge_type === "fixed";
             return (
-              <div key={`l-${key}`} className="space-y-1.5">
+              <div key={`l-${key}`} className="space-y-1">
                 <Label className="text-xs font-medium text-muted-foreground">
-                  {rangeLabel(r, loadingUnit)}
+                  {rangeLabel(r, loadingUnit)}{" "}
+                  <span className={`ml-1 rounded px-1 py-0.5 text-[10px] font-semibold ${
+                    isFixed
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                      : "bg-muted text-muted-foreground"
+                  }`}>
+                    {isFixed ? "Fixed ₹" : "Rate ×"}
+                  </span>
                 </Label>
+                <p className="text-[10px] text-muted-foreground/70">
+                  {rangeBoundsNote(r, loadingUnit)}
+                </p>
                 <Input
                   type="number"
                   className="h-10"
+                  placeholder={isFixed ? "Flat charge (₹)" : `Rate per ${loadingUnit}`}
                   value={form.loading_values[key] ?? ""}
                   onChange={(e) =>
                     patch({
-                      loading_values: {
-                        ...form.loading_values,
-                        [key]: e.target.value,
-                      },
+                      loading_values: { ...form.loading_values, [key]: e.target.value },
                     })
                   }
                 />

@@ -623,6 +623,7 @@ export function TripForm({
               lines={lines}
               total={manifestTotal}
               locations={locations}
+              startLocationId={trip.start_location_id ?? null}
               reload={(id) => loadChildren(id)}
               isAdmin={isAdmin}
             />
@@ -748,6 +749,7 @@ function ManifestTab({
   lines,
   total,
   locations,
+  startLocationId,
   reload,
   isAdmin,
 }: {
@@ -757,6 +759,8 @@ function ManifestTab({
   lines: Line[];
   total: number;
   locations: { id: string; location_name: string; pin_code: string | null }[];
+  /** Trip's start location — pre-filled as "From" on new manifests */
+  startLocationId: string | null;
   reload: (tripId: string) => void;
   isAdmin: boolean;
 }) {
@@ -803,7 +807,16 @@ function ManifestTab({
   async function openNew() {
     const id = await requireTripId();
     if (!id) return;
-    setEditing(emptyManifest(id));
+    // Pre-fill "From" with the trip's start location so the user doesn't have
+    // to re-enter it for every manifest on the same trip.
+    const startLoc = startLocationId
+      ? locations.find((l) => l.id === startLocationId)
+      : null;
+    setEditing({
+      ...emptyManifest(id),
+      from_location_id: startLocationId ?? null,
+      from_pin_code: startLoc?.pin_code ?? "",
+    });
   }
 
   async function save(e: React.FormEvent) {

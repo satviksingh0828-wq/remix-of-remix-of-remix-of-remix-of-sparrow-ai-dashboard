@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Basis, Range } from "@/lib/contract-ranges";
+import type { Basis, ChargeType, Range } from "@/lib/contract-ranges";
 import { logAction } from "@/lib/log-actions";
 
 export type ContractRow = {
@@ -139,45 +139,78 @@ function RangeEditor({
     next[i] = { ...next[i], ...patch };
     onChange(next);
   };
+  const toggleChargeType = (i: number, cur: ChargeType | undefined) => {
+    update(i, { charge_type: cur === "fixed" ? "rate" : "fixed" });
+  };
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">
-        {title}. Leave the last "To" blank to mean infinity (e.g. 500+).
+        {title}. Leave the last "To" blank to mean infinity (e.g. 500+).{" "}
+        <span className="font-medium text-foreground">Both From and To are inclusive</span>{" "}
+        — a manifest value exactly equal to either boundary falls inside this slab.
       </p>
-      {ranges.map((r, i) => (
-        <div key={i} className="flex items-center gap-2">
-          <Input
-            className="h-10"
-            placeholder="From"
-            value={r.from}
-            onChange={(e) => update(i, { from: e.target.value })}
-          />
-          <span className="text-muted-foreground">→</span>
-          <Input
-            className="h-10"
-            placeholder={`To (blank = ∞)`}
-            value={r.to}
-            onChange={(e) => update(i, { to: e.target.value })}
-          />
-          <span className="w-10 text-xs text-muted-foreground">{unit}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => onChange(ranges.filter((_, j) => j !== i))}
-            disabled={ranges.length <= 1}
-          >
-            <Trash2 className="size-4 text-destructive" />
-          </Button>
-        </div>
-      ))}
+      <div className="grid grid-cols-[auto_8px_auto_36px_auto_auto] items-center gap-x-2 gap-y-2 text-xs font-medium text-muted-foreground">
+        <span>From</span><span /><span>To</span><span>{unit}</span>
+        <span className="text-center">Charge type</span><span />
+      </div>
+      {ranges.map((r, i) => {
+        const ct: ChargeType = r.charge_type ?? "rate";
+        return (
+          <div key={i} className="grid grid-cols-[auto_8px_auto_36px_auto_auto] items-center gap-x-2">
+            <Input
+              className="h-10"
+              placeholder="From"
+              value={r.from}
+              onChange={(e) => update(i, { from: e.target.value })}
+            />
+            <span className="text-center text-muted-foreground">→</span>
+            <Input
+              className="h-10"
+              placeholder="To (blank = ∞)"
+              value={r.to}
+              onChange={(e) => update(i, { to: e.target.value })}
+            />
+            <span className="text-xs text-muted-foreground">{unit}</span>
+            {/* Rate / Fixed toggle */}
+            <button
+              type="button"
+              title={ct === "fixed"
+                ? "Fixed: flat charge for this slab — amount is NOT multiplied by units"
+                : "Rate: amount is multiplied by weight / quantity"}
+              onClick={() => toggleChargeType(i, r.charge_type)}
+              className={`h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors ${
+                ct === "fixed"
+                  ? "border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-300"
+                  : "border-border bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {ct === "fixed" ? "Fixed ₹" : "Rate ×"}
+            </button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onChange(ranges.filter((_, j) => j !== i))}
+              disabled={ranges.length <= 1}
+            >
+              <Trash2 className="size-4 text-destructive" />
+            </Button>
+          </div>
+        );
+      })}
+      <p className="text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">Rate ×</span> — charge is multiplied by the
+        actual weight / qty.{" "}
+        <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> — flat
+        charge for any value in this slab, no multiplication.
+      </p>
       <Button
         type="button"
         variant="outline"
         size="sm"
         onClick={() => {
           const last = ranges[ranges.length - 1];
-          onChange([...ranges, { from: last?.to || "", to: "" }]);
+          onChange([...ranges, { from: last?.to || "", to: "", charge_type: "rate" }]);
         }}
       >
         <Plus className="size-4" />

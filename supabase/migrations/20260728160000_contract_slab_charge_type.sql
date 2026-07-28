@@ -1,0 +1,23 @@
+-- Migration: contract slab charge_type (Rate vs Fixed)
+--
+-- The charge_type field ("rate" | "fixed") is stored INSIDE the existing
+-- weight_ranges / quantity_ranges JSONB columns on the contracts table as a
+-- property on each range object, e.g.:
+--   { "from": "0", "to": "100", "charge_type": "rate" }
+--   { "from": "100", "to": "",  "charge_type": "fixed" }
+--
+-- Because these columns are already JSONB with no schema constraint on the
+-- object shape, NO ALTER TABLE is required.  The application code reads the
+-- new field directly from the stored JSON.  Existing rows that have no
+-- charge_type property are treated as "rate" (the historic default) by the
+-- manifestCharges() calculation, so all existing contracts continue to work
+-- without any data migration.
+--
+-- ── Summary ──────────────────────────────────────────────────────────────────
+-- Schema changes required : NONE
+-- Data migration required  : NONE
+-- Existing data compatible : YES — old rows without charge_type default to
+--                            "rate" behaviour automatically.
+--
+-- This file is provided for documentation purposes only.  There is nothing to
+-- run in your Supabase SQL Editor for this feature.
