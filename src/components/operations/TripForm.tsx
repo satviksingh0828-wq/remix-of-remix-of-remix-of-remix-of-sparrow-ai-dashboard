@@ -450,8 +450,37 @@ export function TripForm({
           from_location: (fromLoc as Record<string, unknown>)?.location_name as string | null ?? null,
           to_location: (toLoc as Record<string, unknown>)?.location_name as string | null ?? null,
         },
-        vehicle: (vehicle as Record<string, unknown> | undefined) ?? null,
-        driver: (driver as Record<string, unknown> | undefined) ?? null,
+        vehicle: vehicle
+          ? {
+              registration_number: vehicle.registration_number,
+              internal_code: vehicle.internal_code,
+              nickname: vehicle.nickname,
+              manufacturer: vehicle.manufacturer,
+              model: vehicle.model,
+              year_of_manufacture: vehicle.year_of_manufacture,
+              fuel_type: vehicle.fuel_type,
+              payload_capacity_kg: vehicle.payload_capacity_kg,
+              purchase_date: vehicle.purchase_date,
+              purchase_cost: vehicle.purchase_cost,
+            }
+          : null,
+        driver: driver
+          ? {
+              driver_code: driver.driver_code,
+              full_name: driver.full_name,
+              guardian_name: driver.guardian_name,
+              date_of_birth: driver.date_of_birth,
+              gender: driver.gender,
+              blood_group: driver.blood_group,
+              mobile_number: driver.mobile_number,
+              alternate_mobile: driver.alternate_mobile,
+              licence_number: driver.licence_number,
+              licence_type: driver.licence_type,
+              licence_authority: driver.licence_authority,
+              licence_issue_date: driver.licence_issue_date,
+              licence_expiry_date: driver.licence_expiry_date,
+            }
+          : null,
         transporter: transporter
           ? {
               transporter_name: transporter.transporter_name,

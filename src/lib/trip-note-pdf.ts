@@ -1,7 +1,7 @@
 /**
- * Trip Note PDF generator.
- * Opens a new browser tab with print-ready HTML and triggers the print dialog.
- * No external library required — pure browser print.
+ * Trip Note generator.
+ * Builds an HTML page, wraps it in a Blob, and opens it in a real new
+ * browser tab (URL.createObjectURL) — no popup window, no print dialog.
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,35 @@ export type TripNoteManifest = {
   weight_kg?: string | null;
   from_location_name?: string | null;
   to_location_name?: string | null;
+};
+
+export type TripNoteVehicle = {
+  registration_number?: unknown;
+  internal_code?: unknown;
+  nickname?: unknown;
+  manufacturer?: unknown;
+  model?: unknown;
+  year_of_manufacture?: unknown;
+  fuel_type?: unknown;
+  payload_capacity_kg?: unknown;
+  purchase_date?: unknown;
+  purchase_cost?: unknown;
+};
+
+export type TripNoteDriver = {
+  driver_code?: unknown;
+  full_name?: unknown;
+  guardian_name?: unknown;
+  date_of_birth?: unknown;
+  gender?: unknown;
+  blood_group?: unknown;
+  mobile_number?: unknown;
+  alternate_mobile?: unknown;
+  licence_number?: unknown;
+  licence_type?: unknown;
+  licence_authority?: unknown;
+  licence_issue_date?: unknown;
+  licence_expiry_date?: unknown;
 };
 
 export type TripNoteData = {
@@ -34,9 +63,14 @@ export type TripNoteData = {
     from_location?: string | null;
     to_location?: string | null;
   };
-  vehicle?: { registration_number?: unknown; model?: unknown; manufacturer?: unknown } | null;
-  driver?: { full_name?: unknown; license_number?: unknown } | null;
-  transporter?: { transporter_name?: unknown; city?: unknown; pan_number?: unknown; gst_number?: unknown } | null;
+  vehicle?: TripNoteVehicle | null;
+  driver?: TripNoteDriver | null;
+  transporter?: {
+    transporter_name?: unknown;
+    city?: unknown;
+    pan_number?: unknown;
+    gst_number?: unknown;
+  } | null;
   third_party_vehicle_number?: string | null;
   manifests: TripNoteManifest[];
 };
@@ -73,13 +107,22 @@ export async function fetchCompany(): Promise<TripNoteData["company"] | null> {
   }
 }
 
-/** Build the full-page print HTML for a Trip Note and open the print dialog. */
+/** Helper — coerce unknown to a display string. */
+function s(v: unknown): string {
+  return v != null && String(v).trim() !== "" ? String(v) : "";
+}
+
+/** Render one detail row — always shown; value falls back to "—". */
+function dr(label: string, value: string): string {
+  const val = value.trim() !== "" ? value : "—";
+  return `<div class="detail-row"><span class="detail-label">${label}</span><span class="detail-value">${val}</span></div>`;
+}
+
+/** Build the full-page HTML for a Trip Note and open it in a real new browser tab. */
 export function printTripNote(data: TripNoteData): void {
   const { company, trip, vehicle, driver, transporter, manifests } = data;
 
-  const s = (v: unknown) => (v != null && String(v).trim() !== "" ? String(v) : "");
-
-  // ── Address block ─────────────────────────────────────────────────────────
+  // ── Address block ────────────────────────────────────────────────────────
   const addrParts = [
     s(company.address_line1),
     s(company.address_line2),
@@ -88,17 +131,23 @@ export function printTripNote(data: TripNoteData): void {
   ].filter(Boolean);
   const addressHtml = addrParts.join(",&nbsp; ");
 
-  // ── Trip summary ──────────────────────────────────────────────────────────
+  // ── Trip summary ─────────────────────────────────────────────────────────
   const fromLoc = s(trip.from_location) || (manifests[0] ? s(manifests[0].from_location_name) : "");
   const toLoc =
-    s(trip.to_location) || (manifests.length > 0 ? s(manifests[manifests.length - 1].to_location_name) : "");
-  const ownership = trip.ownership === "own" ? "Own Vehicle" : trip.ownership === "third_party" ? "Third Party" : s(trip.ownership);
+    s(trip.to_location) ||
+    (manifests.length > 0 ? s(manifests[manifests.length - 1].to_location_name) : "");
+  const ownership =
+    trip.ownership === "own"
+      ? "Own Vehicle"
+      : trip.ownership === "third_party"
+        ? "Third Party"
+        : s(trip.ownership);
 
-  // ── Manifest totals ───────────────────────────────────────────────────────
-  const totalPkgs = manifests.reduce((n, m) => n + (parseFloat(s(m.quantity) || "0")), 0);
-  const totalWeight = manifests.reduce((n, m) => n + (parseFloat(s(m.weight_kg) || "0")), 0);
+  // ── Manifest totals ──────────────────────────────────────────────────────
+  const totalPkgs = manifests.reduce((n, m) => n + parseFloat(s(m.quantity) || "0"), 0);
+  const totalWeight = manifests.reduce((n, m) => n + parseFloat(s(m.weight_kg) || "0"), 0);
 
-  // ── Manifest rows ─────────────────────────────────────────────────────────
+  // ── Manifest rows ────────────────────────────────────────────────────────
   const manifestRows = manifests
     .map(
       (m, i) => `
@@ -113,20 +162,54 @@ export function printTripNote(data: TripNoteData): void {
     )
     .join("");
 
-  // ── Logo URL (absolute so it works in a new tab) ──────────────────────────
+  // ── Logo URL (absolute so it works in a blob tab) ─────────────────────
   const logoUrl = `${window.location.origin}/garuda-logo.png`;
 
-  // ── Derived details ───────────────────────────────────────────────────────
-  const vehicleReg = s(vehicle?.registration_number);
-  const vehicleDesc = [s(vehicle?.manufacturer), s(vehicle?.model)].filter(Boolean).join(" ");
-  const driverName = s(driver?.full_name);
-  const driverLic = s(driver?.license_number);
-  const transporterName = s(transporter?.transporter_name);
-  const transporterCity = s(transporter?.city);
-  const transporterPan = s(transporter?.pan_number);
-  const transporterGstin = s(transporter?.gst_number);
-  const thirdPartyVehicle = s(data.third_party_vehicle_number);
+  // ── Own-vehicle: vehicle section ─────────────────────────────────────────
+  const vehicleBlock = `
+    <div class="details-col">
+      <h4>Vehicle Details</h4>
+      ${dr("Registration No.", s(vehicle?.registration_number))}
+      ${dr("Internal Code", s(vehicle?.internal_code))}
+      ${dr("Nickname", s(vehicle?.nickname))}
+      ${dr("Manufacturer", s(vehicle?.manufacturer))}
+      ${dr("Model", s(vehicle?.model))}
+      ${dr("Year of Manufacture", s(vehicle?.year_of_manufacture))}
+      ${dr("Fuel Type", s(vehicle?.fuel_type))}
+      ${dr("Payload Capacity", s(vehicle?.payload_capacity_kg) ? s(vehicle?.payload_capacity_kg) + " kg" : "")}
+      ${dr("Purchase Date", s(vehicle?.purchase_date))}
+      ${dr("Purchase Cost", s(vehicle?.purchase_cost) ? "₹ " + Number(s(vehicle?.purchase_cost)).toLocaleString("en-IN") : "")}
+    </div>`;
+
+  // ── Own-vehicle: driver section ───────────────────────────────────────────
+  const driverBlock = `
+    <div class="details-col">
+      <h4>Driver Details</h4>
+      ${dr("Driver Code", s(driver?.driver_code))}
+      ${dr("Full Name", s(driver?.full_name))}
+      ${dr("Father's / Guardian's Name", s(driver?.guardian_name))}
+      ${dr("Date of Birth", s(driver?.date_of_birth))}
+      ${dr("Gender", s(driver?.gender))}
+      ${dr("Blood Group", s(driver?.blood_group))}
+      ${dr("Mobile Number", s(driver?.mobile_number))}
+      ${dr("Alternate Mobile", s(driver?.alternate_mobile))}
+      ${dr("Licence Number", s(driver?.licence_number))}
+      ${dr("Licence Type", s(driver?.licence_type))}
+      ${dr("Issuing Authority (RTO)", s(driver?.licence_authority))}
+      ${dr("Licence Issue Date", s(driver?.licence_issue_date))}
+      ${dr("Licence Expiry Date", s(driver?.licence_expiry_date))}
+    </div>`;
+
+  // ── Third-party transporter section ──────────────────────────────────────
   const isOwn = trip.ownership === "own";
+  const transporterBlock = `
+    <div class="details-col">
+      <h4>Third-Party Transporter Details</h4>
+      ${dr("Transporter Name", s(transporter?.transporter_name))}
+      ${dr("PAN No.", s(transporter?.pan_number))}
+      ${dr("GSTIN", s(transporter?.gst_number))}
+      ${dr("Vehicle No.", s(data.third_party_vehicle_number))}
+    </div>`;
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -134,7 +217,7 @@ export function printTripNote(data: TripNoteData): void {
   <meta charset="utf-8" />
   <title>Trip Note — ${trip.trip_code}</title>
   <style>
-    @page { size: A4 portrait; margin: 12mm 14mm; }
+    @page { size: A4 portrait; margin: 12mm 14mm 18mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; color: #000; background: #fff; }
 
@@ -183,14 +266,17 @@ export function printTripNote(data: TripNoteData): void {
     .summary-table th { font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: #555; font-weight: 600; padding: 2px 6px; border: 1px solid #bbb; background: #f5f5f5; }
     .summary-table td { font-size: 10.5px; font-weight: 700; padding: 3px 6px; border: 1px solid #bbb; }
 
-    /* ── Two-column details ── */
+    /* ── Details columns ── */
     .details-wrap { display: flex; gap: 10px; margin-bottom: 8px; }
     .details-col { flex: 1; border: 1px solid #ccc; border-radius: 3px; padding: 7px 9px; }
     .details-col h4 { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; font-weight: 700; margin-bottom: 5px; border-bottom: 0.7px solid #ddd; padding-bottom: 3px; }
     .detail-row { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
     .detail-label { font-size: 9.5px; color: #555; flex-shrink: 0; }
     .detail-value { font-size: 10px; font-weight: 600; text-align: right; }
-    .detail-row.empty .detail-value { color: #bbb; }
+
+    /* ── Trip details box ── */
+    .trip-details-col { border: 1px solid #ccc; border-radius: 3px; padding: 7px 9px; margin-bottom: 8px; }
+    .trip-details-col h4 { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: #666; font-weight: 700; margin-bottom: 5px; border-bottom: 0.7px solid #ddd; padding-bottom: 3px; }
 
     /* ── Manifest table ── */
     .manifest-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
@@ -214,15 +300,23 @@ export function printTripNote(data: TripNoteData): void {
     .manifest-table tfoot td { border: 1px solid #bbb; padding: 4px 7px; }
     .tc { text-align: center; }
     .tr { text-align: right; }
-    .tl { text-align: left; }
 
-    /* ── Footer ── */
-    .footer { display: flex; justify-content: space-between; margin-top: 18px; font-size: 10px; }
-    .footer-box { text-align: center; }
-    .footer-sig { margin-top: 24px; border-top: 1px solid #000; padding-top: 3px; font-size: 9.5px; }
+    /* ── Signature footer ── */
+    .sig-footer { display: flex; justify-content: space-between; margin-top: 18px; font-size: 10px; }
+    .sig-box { text-align: center; }
+    .sig-line { margin-top: 24px; border-top: 1px solid #000; padding-top: 3px; font-size: 9.5px; }
 
-    /* ── Page footer ── */
-    .page-footer { margin-top: 20px; text-align: center; font-size: 8.5px; color: #888; letter-spacing: 0.04em; border-top: 0.5px solid #ccc; padding-top: 5px; }
+    /* ── Powered-by footer ── */
+    .page-footer {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 8.5px;
+      color: #999;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      border-top: 0.5px solid #ddd;
+      padding-top: 5px;
+    }
 
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -249,7 +343,7 @@ export function printTripNote(data: TripNoteData): void {
 
   <hr />
 
-  <!-- Summary bar: PAN | GSTIN | Trip No. | From | To -->
+  <!-- Summary bar -->
   <table class="summary-table">
     <thead>
       <tr>
@@ -273,41 +367,23 @@ export function printTripNote(data: TripNoteData): void {
     </tbody>
   </table>
 
-  <!-- Details columns -->
+  <!-- Trip details row -->
+  <div class="trip-details-col">
+    <h4>Trip Details</h4>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      ${dr("Trip Number", trip.trip_code)}
+      ${dr("Ownership", ownership)}
+      ${dr("Start Date", s(trip.start_date) + (trip.start_time ? " " + s(trip.start_time) : ""))}
+      ${dr("End Date", s(trip.end_date))}
+      ${dr("Total Manifests", String(manifests.length))}
+      ${dr("Total Weight", totalWeight > 0 ? totalWeight.toFixed(3) + " kg" : "")}
+      ${dr("Total Packages", totalPkgs > 0 ? String(totalPkgs) : "")}
+    </div>
+  </div>
+
+  <!-- Vehicle / Driver or Transporter columns -->
   <div class="details-wrap">
-
-    <!-- Left: vehicle / driver / transporter -->
-    <div class="details-col">
-      ${isOwn ? `<h4>Vehicle &amp; Driver Details</h4>
-      ${vehicleReg
-        ? `<div class="detail-row"><span class="detail-label">Vehicle Reg.</span><span class="detail-value">${vehicleReg}</span></div>${vehicleDesc ? `<div class="detail-row"><span class="detail-label">Make / Model</span><span class="detail-value">${vehicleDesc}</span></div>` : ""}`
-        : `<div class="detail-row empty"><span class="detail-label">Vehicle</span><span class="detail-value">—</span></div>`}
-      ${driverName
-        ? `<div class="detail-row"><span class="detail-label">Driver</span><span class="detail-value">${driverName}</span></div>${driverLic ? `<div class="detail-row"><span class="detail-label">Licence No.</span><span class="detail-value">${driverLic}</span></div>` : ""}`
-        : ""}
-      ${!vehicleReg && !driverName ? `<div class="detail-row empty"><span class="detail-label" style="color:#bbb">No vehicle / driver details recorded</span></div>` : ""}`
-      : `<h4>Third-Party Transporter Details</h4>
-      ${transporterName
-        ? `<div class="detail-row"><span class="detail-label">Transporter</span><span class="detail-value">${transporterName}</span></div>`
-        : `<div class="detail-row empty"><span class="detail-label">Transporter</span><span class="detail-value">—</span></div>`}
-      ${transporterPan ? `<div class="detail-row"><span class="detail-label">PAN No.</span><span class="detail-value">${transporterPan}</span></div>` : ""}
-      ${transporterGstin ? `<div class="detail-row"><span class="detail-label">GSTIN</span><span class="detail-value">${transporterGstin}</span></div>` : ""}
-      ${thirdPartyVehicle ? `<div class="detail-row"><span class="detail-label">Vehicle No.</span><span class="detail-value">${thirdPartyVehicle}</span></div>` : ""}
-      ${!transporterName && !thirdPartyVehicle ? `<div class="detail-row empty"><span class="detail-label" style="color:#bbb">No transporter details recorded</span></div>` : ""}`}
-    </div>
-
-    <!-- Right: trip details -->
-    <div class="details-col">
-      <h4>Trip Details</h4>
-      <div class="detail-row"><span class="detail-label">Trip Number</span><span class="detail-value">${trip.trip_code}</span></div>
-      <div class="detail-row"><span class="detail-label">Ownership</span><span class="detail-value">${ownership || "—"}</span></div>
-      <div class="detail-row"><span class="detail-label">Start Date</span><span class="detail-value">${s(trip.start_date) || "—"}${trip.start_time ? " " + s(trip.start_time) : ""}</span></div>
-      <div class="detail-row"><span class="detail-label">End Date</span><span class="detail-value">${s(trip.end_date) || "—"}</span></div>
-      <div class="detail-row"><span class="detail-label">Total Manifests</span><span class="detail-value">${manifests.length}</span></div>
-      <div class="detail-row"><span class="detail-label">Total Weight</span><span class="detail-value">${totalWeight > 0 ? totalWeight.toFixed(3) + " kg" : "—"}</span></div>
-      <div class="detail-row"><span class="detail-label">Total Packages</span><span class="detail-value">${totalPkgs > 0 ? totalPkgs : "—"}</span></div>
-    </div>
-
+    ${isOwn ? vehicleBlock + driverBlock : transporterBlock}
   </div>
 
   <!-- Manifest table -->
@@ -339,35 +415,25 @@ export function printTripNote(data: TripNoteData): void {
     }
   </table>
 
-  <!-- Footer signatures -->
-  <div class="footer">
-    <div class="footer-box">
-      <div class="footer-sig">Prepared By</div>
-    </div>
-    <div class="footer-box">
-      <div class="footer-sig">Authorised Signatory</div>
-    </div>
+  <!-- Signature footer -->
+  <div class="sig-footer">
+    <div class="sig-box"><div class="sig-line">Prepared By</div></div>
+    <div class="sig-box"><div class="sig-line">Authorised Signatory</div></div>
   </div>
 
-  <!-- Page footer -->
-  <div class="page-footer">POWERED BY SPARROW AI SOLUTIONS</div>
+  <!-- Powered-by footer -->
+  <div class="page-footer">Powered by Sparrow AI Solutions</div>
 
 </body>
 </html>`;
 
-  const w = window.open("", "_blank", "width=1100,height=750");
-  if (!w) {
-    alert("Pop-up blocked. Please allow pop-ups for this site to print the Trip Note.");
-    return;
+  // Open in a real new browser tab via Blob URL — not a popup, no print dialog
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const tab = window.open(url, "_blank");
+  if (!tab) {
+    alert("Pop-up blocked. Please allow pop-ups for this site to open the Trip Note.");
   }
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  // Small delay to let images load before triggering print
-  w.addEventListener("load", () => {
-    setTimeout(() => {
-      w.focus();
-      w.print();
-    }, 400);
-  });
+  // Revoke the object URL after a short delay so the tab can fully load it
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
