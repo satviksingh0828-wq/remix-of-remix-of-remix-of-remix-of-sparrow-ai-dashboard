@@ -58,7 +58,18 @@ export const serverSignIn = createServerFn({ method: "POST" })
       .eq("is_active", true)
       .maybeSingle();
 
-    if (error || !user || user.password !== data.password) return null;
+    if (error) {
+      console.error("[serverSignIn] Supabase query error:", error.message, error.code, error.details);
+      return null;
+    }
+    if (!user) {
+      console.warn("[serverSignIn] No active user found for username:", data.username.trim().toLowerCase());
+      return null;
+    }
+    if (user.password !== data.password) {
+      console.warn("[serverSignIn] Password mismatch for username:", data.username.trim().toLowerCase());
+      return null;
+    }
 
     // Fetch branch access
     const { data: branchData } = await supabaseAdmin
