@@ -9,6 +9,7 @@ export const THEMES = [
   { id: "amber", label: "Warm Amber", swatch: "#d38b1b", hint: "Bright and energetic" },
   { id: "rose", label: "Signal Rose", swatch: "#d94f5c", hint: "High visibility" },
   { id: "graphite", label: "Graphite", swatch: "#4a4f57", hint: "Neutral monochrome" },
+  { id: "garuda", label: "Garuda", swatch: "#8b1a2c", hint: "Crimson & gold" },
 ] as const;
 
 export type ThemeId = (typeof THEMES)[number]["id"];
