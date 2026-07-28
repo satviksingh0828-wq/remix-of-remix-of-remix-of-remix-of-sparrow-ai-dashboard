@@ -8,8 +8,9 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { createIdbPersister } from "../lib/query-persist";
+import { initSecurity } from "../lib/security";
 
 import appCss from "../styles.css?url";
 import { SessionProvider } from "../lib/session";
@@ -39,8 +40,8 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
   const router = useRouter();
+  void error; // suppress in production
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -79,6 +80,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "author", content: "Sparrow AI Solutions" },
+      // Prevent all search engine indexing — internal business tool
+      { name: "robots", content: "noindex, nofollow, noarchive, nosnippet, noimageindex" },
+      { name: "googlebot", content: "noindex, nofollow" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -113,9 +117,16 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Initializes client-side security hardening once on mount. */
+function SecurityInit() {
+  useEffect(() => {
+    initSecurity();
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  // Persister uses IndexedDB → client-only. Memoized so we don't rebuild it on every render.
   const persister = useMemo(
     () => (typeof window === "undefined" ? null : createIdbPersister()),
     [],
@@ -135,6 +146,7 @@ function RootComponent() {
     >
       <SessionProvider>
         <ThemeProvider>
+          <SecurityInit />
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
           <Toaster position="top-right" />

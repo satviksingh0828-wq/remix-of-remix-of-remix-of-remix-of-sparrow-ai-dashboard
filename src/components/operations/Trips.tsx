@@ -9,6 +9,7 @@ import { closeTrip } from "@/lib/close-trip";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { inr } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
+import { logAction } from "@/lib/log-actions";
 import { TripForm, emptyTrip, type TripRow } from "./TripForm";
 import { ClosedTripDetail } from "./ClosedTripDetail";
 
@@ -22,6 +23,8 @@ type ClosedTrip = {
   closed_at: string;
 };
 
+const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
+
 export function Trips() {
   const [trips, setTrips] = useState<TripRow[]>([]);
   const [closed, setClosed] = useState<ClosedTrip[]>([]);
@@ -32,6 +35,7 @@ export function Trips() {
   const [reopeningId, setReopeningId] = useState<string | null>(null);
 
   const { user } = useSession();
+  const isAdmin = user?.role === "admin";
   const isBasic = user?.role === "basic";
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
@@ -68,8 +72,63 @@ export function Trips() {
           return q;
         }),
       ]);
-      setTrips(live);
-      setClosed(archived);
+
+      // Auto-close trips older than 2 days
+      const now = Date.now();
+      const stale = live.filter((t) => {
+        if (!t.created_at) return false;
+        return now - new Date(t.created_at as string).getTime() > TWO_DAYS_MS;
+      });
+
+      if (stale.length > 0) {
+        // Auto-close stale trips silently
+        let autoClosed = 0;
+        for (const staleTrip of stale) {
+          try {
+            await closeTrip(staleTrip.id!);
+            logAction("auto_closed", "trip", {
+              entityId: staleTrip.id,
+              entityLabel: staleTrip.trip_code,
+              details: { reason: "auto-closed after 2 days" },
+            });
+            autoClosed++;
+          } catch {
+            // ignore — continue with remaining trips
+          }
+        }
+        if (autoClosed > 0) {
+          toast.info(`${autoClosed} trip${autoClosed > 1 ? "s" : ""} auto-closed (over 2 days old)`);
+        }
+
+        // Reload after auto-close
+        const [freshLive, freshArchived] = await Promise.all([
+          fetchAll<TripRow>(() => {
+            let q = supabase
+              .from("trips")
+              .select("*")
+              .order("created_at", { ascending: false });
+            if (allowedBranchIds !== null) {
+              q = q.in("branch_id", allowedBranchIds) as typeof q;
+            }
+            return q;
+          }),
+          fetchAll<ClosedTrip>(() => {
+            let q = supabase
+              .from("closed_trips")
+              .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
+              .order("closed_at", { ascending: false });
+            if (allowedBranchIds !== null) {
+              q = q.in("branch_id", allowedBranchIds) as typeof q;
+            }
+            return q;
+          }),
+        ]);
+        setTrips(freshLive);
+        setClosed(freshArchived);
+      } else {
+        setTrips(live);
+        setClosed(archived);
+      }
     } catch {
       toast.error("Could not load trips");
     }
@@ -81,23 +140,26 @@ export function Trips() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  async function remove(id: string) {
-    const { error } = await supabase.from("trips").delete().eq("id", id);
+  async function remove(trip: TripRow) {
+    if (!window.confirm("Delete this trip? This cannot be undone.")) return;
+    const { error } = await supabase.from("trips").delete().eq("id", trip.id!);
     if (error) return toast.error(error.message);
+    logAction("deleted", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
     toast.success("Trip removed");
     load();
   }
 
-  async function close(id: string) {
+  async function close(trip: TripRow) {
     if (
       !window.confirm(
         "Close this trip? A full snapshot is archived and the live trip is removed. This cannot be undone.",
       )
     )
       return;
-    setClosingId(id);
+    setClosingId(trip.id!);
     try {
-      await closeTrip(id);
+      await closeTrip(trip.id!);
+      logAction("closed", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
       toast.success("Trip closed and archived");
       load();
     } catch (err) {
@@ -107,16 +169,21 @@ export function Trips() {
     }
   }
 
-  async function reopen(id: string) {
+  async function reopen(c: ClosedTrip) {
+    if (!isAdmin) {
+      toast.error("Only admins can reopen trips.");
+      return;
+    }
     if (
       !window.confirm(
         "Reopen this trip? It moves back to live trips and current contract rates apply. You can close it again later.",
       )
     )
       return;
-    setReopeningId(id);
+    setReopeningId(c.id);
     try {
-      await reopenTrip(id);
+      const newId = await reopenTrip(c.id);
+      logAction("reopened", "trip", { entityId: newId, entityLabel: c.trip_code });
       toast.success("Trip reopened with current rates");
       load();
     } catch (err) {
@@ -193,7 +260,7 @@ export function Trips() {
                 <span className="block text-sm font-medium">{t.trip_code}</span>
                 <span className="block text-xs text-muted-foreground">
                   {[
-                    t.ownership === "own" ? "Own vehicle" : "Third party",
+                    t.ownership === "own" ? "Own vehicle" : "Rented (Third party)",
                     t.start_date,
                     t.start_time,
                   ]
@@ -204,7 +271,7 @@ export function Trips() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => t.id && remove(t.id)}
+                onClick={() => remove(t)}
                 aria-label="Delete trip"
               >
                 <Trash2 className="size-4" />
@@ -213,7 +280,7 @@ export function Trips() {
                 variant="outline"
                 size="sm"
                 disabled={closingId === t.id}
-                onClick={() => t.id && close(t.id)}
+                onClick={() => close(t)}
               >
                 <Lock className="size-4" />
                 Close
@@ -249,7 +316,10 @@ export function Trips() {
                       .join(" · ") || "—"}
                   </span>
                 </button>
-                <span className="text-sm font-semibold">{inr(Number(c.net_income ?? 0))}</span>
+                {/* Net income shown to admins only */}
+                {isAdmin ? (
+                  <span className="text-sm font-semibold">{inr(Number(c.net_income ?? 0))}</span>
+                ) : null}
                 <Button
                   variant="outline"
                   size="sm"
@@ -259,18 +329,19 @@ export function Trips() {
                   <Eye className="size-4" />
                   Details
                 </Button>
-                {!isBasic && (
+                {/* Admin-only: reopen trips */}
+                {isAdmin ? (
                   <Button
                     variant="ghost"
                     size="sm"
                     disabled={reopeningId === c.id}
-                    onClick={() => reopen(c.id)}
-                    title="Move back to live trips"
+                    onClick={() => reopen(c)}
+                    title="Move back to live trips (admin only)"
                   >
                     <RotateCcw className="size-4" />
                     Reopen
                   </Button>
-                )}
+                ) : null}
               </li>
             ))}
           </ul>

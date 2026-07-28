@@ -21,6 +21,7 @@ import {
   type AppUserPublic,
   type SaveUserInput,
 } from "@/lib/user-auth";
+import { logAction } from "@/lib/log-actions";
 
 type EditingUser = SaveUserInput;
 
@@ -82,15 +83,24 @@ export function UserList() {
     setSaving(false);
 
     if (result.error) return toast.error(result.error);
+
+    const isNew = !editing.id;
+    logAction(isNew ? "created" : "updated", "user", {
+      entityId: result.id,
+      entityLabel: editing.username,
+      details: { role: editing.role, is_active: editing.is_active },
+    });
+
     toast.success(editing.id ? "User updated" : "User created");
     setEditing(null);
     load();
   }
 
-  async function remove(id: string) {
+  async function remove(u: AppUserPublic) {
     if (!window.confirm("Delete this user? This cannot be undone.")) return;
-    const result = await serverDeleteUser({ data: id });
+    const result = await serverDeleteUser({ data: u.id });
     if (result.error) return toast.error(result.error);
+    logAction("deleted", "user", { entityId: u.id, entityLabel: u.username });
     toast.success("User removed");
     load();
   }
@@ -329,7 +339,7 @@ export function UserList() {
                 <Button variant="outline" size="sm" onClick={() => startEdit(u)}>
                   Edit
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => remove(u.id)}>
+                <Button variant="ghost" size="sm" onClick={() => remove(u)}>
                   <Trash2 className="size-4 text-destructive" />
                 </Button>
               </div>

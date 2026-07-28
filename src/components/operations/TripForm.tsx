@@ -31,8 +31,9 @@ import {
 } from "@/components/masters/configs";
 import { useLocations } from "@/lib/use-locations";
 import { useBranches } from "@/lib/use-branches";
+import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
-// monthlyContractEffect removed with monthly/yearly change fields
+import { logAction } from "@/lib/log-actions";
 import {
   findEntry,
   inr,
@@ -60,6 +61,7 @@ export type TripRow = {
   end_time: string;
   odometer_start: string;
   odometer_end: string;
+  created_at?: string;
 };
 
 export type ManifestRow = {
@@ -110,7 +112,8 @@ export function emptyTrip(): TripRow {
   };
 }
 
-const TABS = [
+// Tabs visible to all users
+const TABS_ALL = [
   { id: "manifest", label: "Manifest" },
   { id: "income", label: "Other Income" },
   { id: "expense", label: "Expenses" },
@@ -120,7 +123,18 @@ const TABS = [
   { id: "contract", label: "Contract" },
   { id: "summary", label: "Summary" },
 ] as const;
-type TabId = (typeof TABS)[number]["id"];
+
+// Tabs visible to basic users only (hide summary, hide income details)
+const TABS_BASIC = [
+  { id: "manifest", label: "Manifest" },
+  { id: "expense", label: "Expenses" },
+  { id: "vehicle", label: "Vehicle" },
+  { id: "driver", label: "Driver" },
+  { id: "transporter", label: "Transporter" },
+  { id: "contract", label: "Contract" },
+] as const;
+
+type TabId = (typeof TABS_ALL)[number]["id"];
 
 type AnyRow = Record<string, unknown> & { id: string };
 
@@ -133,6 +147,12 @@ export function TripForm({
   onBack: () => void;
   onSaved: () => void;
 }) {
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
+  const isBasic = user?.role === "basic";
+
+  const TABS = isBasic ? TABS_BASIC : TABS_ALL;
+
   const [trip, setTrip] = useState<TripRow>(initial);
   const [saving, setSaving] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -215,8 +235,11 @@ export function TripForm({
   const driver = drivers.find((d) => d.id === trip.driver_id);
   const transporter = transporters.find((t) => t.id === trip.transporter_id);
 
+  const isOwn = trip.ownership === "own";
+  const isRented = trip.ownership === "third_party";
+
   const distance =
-    trip.odometer_start && trip.odometer_end
+    isOwn && trip.odometer_start && trip.odometer_end
       ? num(trip.odometer_end) - num(trip.odometer_start)
       : null;
 
@@ -233,7 +256,7 @@ export function TripForm({
   const totalWeight = manifests.reduce((s, m) => s + num(m.weight_kg), 0);
   const payload = vehicle ? num(vehicle.payload_capacity_kg) : 0;
   const deadWeight =
-    trip.ownership === "own" && payload > 0 ? payload - totalWeight : null;
+    isOwn && payload > 0 ? payload - totalWeight : null;
 
   async function saveTrip(e?: React.FormEvent) {
     e?.preventDefault();
@@ -242,7 +265,8 @@ export function TripForm({
       return;
     }
     setSaving(true);
-    const { id, ...rest } = trip;
+    const { id, created_at, ...rest } = trip;
+    void created_at;
     const res = id
       ? await supabase.from("trips").update(rest as never).eq("id", id).select("id").single()
       : await supabase.from("trips").insert(rest as never).select("id").single();
@@ -250,6 +274,12 @@ export function TripForm({
     if (res.error) return toast.error(res.error.message);
     const newId = (res.data as { id: string }).id;
     if (!id) setTrip((t) => ({ ...t, id: newId }));
+    const isNew = !id;
+    logAction(isNew ? "created" : "updated", "trip", {
+      entityId: newId,
+      entityLabel: trip.trip_code,
+      details: { ownership: trip.ownership, branch_id: trip.branch_id },
+    });
     toast.success(id ? "Trip updated" : "Trip created");
     onSaved();
     return newId;
@@ -282,6 +312,7 @@ export function TripForm({
       const { error } = await supabase.from(table).insert(payloadRows as never);
       if (error) return toast.error(error.message);
     }
+    logAction("updated", "trip", { entityId: tripId, entityLabel: trip.trip_code, details: { section: table } });
     toast.success("Saved");
     loadChildren(tripId);
   }
@@ -297,6 +328,7 @@ export function TripForm({
     setClosing(true);
     try {
       await closeTrip(trip.id);
+      logAction("closed", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
       toast.success("Trip closed and archived");
       onSaved();
       onBack();
@@ -334,6 +366,11 @@ export function TripForm({
   }));
   const monthlyContractCharges = 0;
 
+  // Ensure selected tab exists in TABS (e.g. basic user was on "summary")
+  const activeTab = (TABS as readonly { id: string; label: string }[]).find((t) => t.id === tab)
+    ? tab
+    : "manifest";
+
   return (
     <div className="animate-fade-up space-y-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -365,7 +402,9 @@ export function TripForm({
             <Input className="h-10" value={trip.trip_code} readOnly />
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">Ownership</Label>
+            <Label className="text-xs font-medium text-muted-foreground">
+              Contract Ownership <span className="text-destructive">*</span>
+            </Label>
             <Select
               value={trip.ownership}
               onValueChange={(v) =>
@@ -373,7 +412,7 @@ export function TripForm({
                   ownership: v,
                   ...(v === "own"
                     ? { transporter_id: null }
-                    : { vehicle_id: null, driver_id: null }),
+                    : { vehicle_id: null, driver_id: null, odometer_start: "", odometer_end: "" }),
                 })
               }
             >
@@ -382,36 +421,40 @@ export function TripForm({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="own">Own vehicle</SelectItem>
-                <SelectItem value="third_party">Third party</SelectItem>
+                <SelectItem value="third_party">Rented (Third party)</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {trip.ownership === "own" ? (
+          {/* Own vehicle: vehicle + driver + odometer required */}
+          {isOwn ? (
             <>
               <EntityPicker
-                label="Vehicle"
+                label="Vehicle (required for own)"
                 value={trip.vehicle_id}
                 options={vehicleOpts}
                 onChange={(id) => patch({ vehicle_id: id })}
               />
               <EntityPicker
-                label="Driver"
+                label="Driver (required for own)"
                 value={trip.driver_id}
                 options={driverOpts}
                 onChange={(id) => patch({ driver_id: id })}
               />
             </>
-          ) : (
+          ) : null}
+
+          {/* Rented: transporter required; no vehicle/driver/odometer */}
+          {isRented ? (
             <EntityPicker
-              label="Transporter"
+              label="Transporter (required for rented)"
               value={trip.transporter_id}
               options={transporterOpts}
               onChange={(id) => patch({ transporter_id: id })}
               onAdd={() => setShowTransporterForm(true)}
               addLabel="Add new transporter"
             />
-          )}
+          ) : null}
 
           <EntityPicker
             label="Contract"
@@ -437,18 +480,21 @@ export function TripForm({
             onChange={(id) => patch({ end_location_id: id })}
           />
 
+          {/* Start date & time */}
           <Field
-            label="Start Date"
+            label={isOwn ? "Start Date (required)" : "Start Date"}
             type="date"
             value={trip.start_date}
             onChange={(v) => patch({ start_date: v })}
           />
           <Field
-            label="Start Time"
+            label={isOwn ? "Start Time (required)" : "Start Time"}
             type="time"
             value={trip.start_time}
             onChange={(v) => patch({ start_time: v })}
           />
+
+          {/* End date & time — for closing the trip */}
           <Field
             label="End Date"
             type="date"
@@ -461,36 +507,42 @@ export function TripForm({
             value={trip.end_time}
             onChange={(v) => patch({ end_time: v })}
           />
-          <Field
-            label="Odometer Start"
-            type="number"
-            value={trip.odometer_start}
-            onChange={(v) => patch({ odometer_start: v })}
-          />
-          <Field
-            label="Odometer End"
-            type="number"
-            value={trip.odometer_end}
-            onChange={(v) => patch({ odometer_end: v })}
-          />
-          <div className="rounded-xl bg-muted px-4 py-3 text-sm sm:col-span-2">
-            Distance travelled:{" "}
-            <span className="font-semibold">
-              {distance === null ? "—" : `${distance.toLocaleString("en-IN")} km`}
-            </span>
-          </div>
+
+          {/* Odometer — only shown & required for own vehicle */}
+          {isOwn ? (
+            <>
+              <Field
+                label="Odometer Start (required for own)"
+                type="number"
+                value={trip.odometer_start}
+                onChange={(v) => patch({ odometer_start: v })}
+              />
+              <Field
+                label="Odometer End"
+                type="number"
+                value={trip.odometer_end}
+                onChange={(v) => patch({ odometer_end: v })}
+              />
+              <div className="rounded-xl bg-muted px-4 py-3 text-sm sm:col-span-2">
+                Distance travelled:{" "}
+                <span className="font-semibold">
+                  {distance === null ? "—" : `${distance.toLocaleString("en-IN")} km`}
+                </span>
+              </div>
+            </>
+          ) : null}
         </div>
       </form>
 
       <div className="surface-card overflow-hidden">
         <div className="flex flex-wrap gap-1 border-b border-border p-2">
-          {TABS.map((t) => (
+          {(TABS as readonly { id: string; label: string }[]).map((t) => (
             <button
               key={t.id}
               type="button"
-              onClick={() => setTab(t.id)}
+              onClick={() => setTab(t.id as TabId)}
               className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                tab === t.id
+                activeTab === t.id
                   ? "bg-primary-soft font-medium text-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
@@ -500,7 +552,7 @@ export function TripForm({
           ))}
         </div>
         <div className="p-6">
-          {tab === "manifest" ? (
+          {activeTab === "manifest" ? (
             <ManifestTab
               tripId={trip.id ?? null}
               requireTripId={requireTripId}
@@ -509,9 +561,10 @@ export function TripForm({
               total={manifestTotal}
               locations={locations}
               reload={(id) => loadChildren(id)}
+              isAdmin={isAdmin}
             />
           ) : null}
-          {tab === "income" ? (
+          {activeTab === "income" && !isBasic ? (
             <LineTab
               title="Other income"
               nameLabel="Income name"
@@ -521,7 +574,7 @@ export function TripForm({
               onSave={() => saveLines("trip_other_income", incomes, "income_name")}
             />
           ) : null}
-          {tab === "expense" ? (
+          {activeTab === "expense" ? (
             <LineTab
               title="Expenses"
               nameLabel="Expense name"
@@ -531,27 +584,27 @@ export function TripForm({
               onSave={() => saveLines("trip_expenses", expenses, "expense_name")}
             />
           ) : null}
-          {tab === "vehicle" ? (
+          {activeTab === "vehicle" ? (
             <Details record={vehicle} sections={VEHICLE_CONFIG.sections} empty="No vehicle selected." />
           ) : null}
-          {tab === "driver" ? (
+          {activeTab === "driver" ? (
             <Details record={driver} sections={DRIVER_CONFIG.sections} empty="No driver selected." />
           ) : null}
-          {tab === "transporter" ? (
+          {activeTab === "transporter" ? (
             <Details
               record={transporter}
               sections={TRANSPORTER_CONFIG.sections}
               empty="No transporter selected."
             />
           ) : null}
-          {tab === "contract" ? (
+          {activeTab === "contract" ? (
             <ContractDetails
               contract={contract}
               entryCount={entries.length}
               monthlyCharges={monthlyContractCharges}
             />
           ) : null}
-          {tab === "summary" ? (
+          {activeTab === "summary" && isAdmin ? (
             <Summary
               manifestTotal={manifestTotal}
               otherIncomeTotal={otherIncomeTotal}
@@ -633,6 +686,7 @@ function ManifestTab({
   total,
   locations,
   reload,
+  isAdmin,
 }: {
   tripId: string | null;
   requireTripId: () => Promise<string | null>;
@@ -641,6 +695,7 @@ function ManifestTab({
   total: number;
   locations: { id: string; location_name: string; pin_code: string | null }[];
   reload: (tripId: string) => void;
+  isAdmin: boolean;
 }) {
   const [editing, setEditing] = useState<ManifestRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -762,7 +817,7 @@ function ManifestTab({
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full text-sm" style={{ minWidth: isAdmin ? 860 : 640 }}>
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2 pr-3">Manifest</th>
@@ -770,10 +825,15 @@ function ManifestTab({
                 <th className="py-2 pr-3">To</th>
                 <th className="py-2 pr-3 text-right">Weight</th>
                 <th className="py-2 pr-3 text-right">Qty</th>
-                <th className="py-2 pr-3 text-right">Freight</th>
-                <th className="py-2 pr-3 text-right">Loading</th>
-                <th className="py-2 pr-3 text-right">Fixed</th>
-                <th className="py-2 pr-3 text-right">Line total</th>
+                {/* Freight & Loading columns visible to admins only */}
+                {isAdmin ? (
+                  <>
+                    <th className="py-2 pr-3 text-right">Freight</th>
+                    <th className="py-2 pr-3 text-right">Loading</th>
+                    <th className="py-2 pr-3 text-right">Fixed</th>
+                    <th className="py-2 pr-3 text-right">Line total</th>
+                  </>
+                ) : null}
                 <th className="py-2" />
               </tr>
             </thead>
@@ -791,10 +851,14 @@ function ManifestTab({
                     </td>
                     <td className="py-2 pr-3 text-right">{l.m.weight_kg || "—"}</td>
                     <td className="py-2 pr-3 text-right">{l.m.quantity || "—"}</td>
-                    <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
-                    <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
-                    <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
-                    <td className="py-2 pr-3 text-right font-semibold">{inr(lineTotal)}</td>
+                    {isAdmin ? (
+                      <>
+                        <td className="py-2 pr-3 text-right">{inr(l.freight)}</td>
+                        <td className="py-2 pr-3 text-right">{inr(l.loading)}</td>
+                        <td className="py-2 pr-3 text-right">{inr(l.fixed)}</td>
+                        <td className="py-2 pr-3 text-right font-semibold">{inr(lineTotal)}</td>
+                      </>
+                    ) : null}
                     <td className="py-2 text-right">
                       <Button
                         type="button"
@@ -816,13 +880,15 @@ function ManifestTab({
                   </tr>
                 );
               })}
-              <tr>
-                <td colSpan={8} className="py-3 text-right font-semibold">
-                  Total manifest income
-                </td>
-                <td className="py-3 pr-3 text-right font-semibold">{inr(total)}</td>
-                <td />
-              </tr>
+              {isAdmin ? (
+                <tr>
+                  <td colSpan={8} className="py-3 text-right font-semibold">
+                    Total manifest income
+                  </td>
+                  <td className="py-3 pr-3 text-right font-semibold">{inr(total)}</td>
+                  <td />
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>

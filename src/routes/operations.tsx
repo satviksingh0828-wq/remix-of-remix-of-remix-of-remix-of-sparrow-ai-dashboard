@@ -5,6 +5,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Trips } from "@/components/operations/Trips";
 import { FinanceList } from "@/components/operations/FinanceList";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/operations")({
   head: () => ({
@@ -31,22 +32,33 @@ export const Route = createFileRoute("/operations")({
   ),
 });
 
-const TABS = [
-  { id: "trip", label: "Trip", desc: "Manifests, income & expenses", icon: RouteIcon },
-  { id: "income", label: "Income", desc: "Other income, branch-wise", icon: TrendingUp },
+const ALL_TABS = [
+  { id: "trip", label: "Trip", desc: "Manifests, income & expenses", icon: RouteIcon, adminOnly: false },
+  { id: "income", label: "Income", desc: "Other income, branch-wise", icon: TrendingUp, adminOnly: true },
   {
     id: "expenditure",
     label: "Expenditure",
     desc: "Other spend, branch-wise",
     icon: TrendingDown,
+    adminOnly: false,
   },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
+type TabId = (typeof ALL_TABS)[number]["id"];
 
 function OperationsPage() {
+  const { user } = useSession();
+  const isAdmin = user?.role === "admin";
+
+  // Filter tabs: basic users do not see the Income tab
+  const TABS = ALL_TABS.filter((t) => isAdmin || !t.adminOnly);
+
   const [tab, setTab] = useState<TabId>("trip");
-  const active = TABS.find((t) => t.id === tab)!;
+  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+
+  // If the currently selected tab is no longer visible (e.g. basic user lands on income),
+  // reset to trip
+  const safeTab = TABS.find((t) => t.id === tab) ? tab : "trip";
 
   return (
     <AppShell
@@ -68,7 +80,7 @@ function OperationsPage() {
           <ul className="space-y-1">
             {TABS.map((t) => {
               const Icon = t.icon;
-              const isActive = t.id === tab;
+              const isActive = t.id === safeTab;
               return (
                 <li key={t.id}>
                   <button
@@ -92,14 +104,14 @@ function OperationsPage() {
           </ul>
         </nav>
 
-        <div key={tab} className="animate-fade-in min-w-0">
+        <div key={safeTab} className="animate-fade-in min-w-0">
           <header className="mb-6">
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
-          {tab === "trip" ? <Trips /> : null}
-          {tab === "income" ? <FinanceList kind="income" /> : null}
-          {tab === "expenditure" ? <FinanceList kind="expenditure" /> : null}
+          {safeTab === "trip" ? <Trips /> : null}
+          {safeTab === "income" ? <FinanceList kind="income" /> : null}
+          {safeTab === "expenditure" ? <FinanceList kind="expenditure" /> : null}
         </div>
       </div>
     </AppShell>

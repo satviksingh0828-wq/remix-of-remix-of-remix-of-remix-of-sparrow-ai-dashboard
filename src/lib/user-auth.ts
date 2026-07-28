@@ -51,7 +51,8 @@ export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: { username: string; password: string }) => data)
   .handler(async ({ data }): Promise<SignInResult> => {
     // Dynamic import keeps supabaseAdmin out of the client bundle entirely
-    let supabaseAdmin: Awaited<ReturnType<typeof import("@/integrations/supabase/client.server")>>["supabaseAdmin"];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let supabaseAdmin: any;
     try {
       const mod = await import("@/integrations/supabase/client.server");
       supabaseAdmin = mod.supabaseAdmin;

@@ -2,9 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { serverSignIn } from "@/lib/user-auth";
 import type { SessionUser } from "@/lib/user-auth";
+import { secureSession } from "@/lib/storage";
+import { setLoggerUser } from "@/lib/log-actions";
 
 export type { SessionUser };
 
+// Session stored in sessionStorage (auto-cleared on window/tab close → auto logout)
 const KEY = "tms.session.v2";
 
 export type SignInOutcome =
@@ -26,10 +29,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      const raw = window.localStorage.getItem(KEY);
-      if (raw) setUser(JSON.parse(raw) as SessionUser);
+      // Read from encrypted sessionStorage (clears on window close = auto logout)
+      const raw = secureSession.getItem(KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as SessionUser;
+        setUser(parsed);
+        setLoggerUser(parsed);
+      }
     } catch {
       // ignore corrupt storage
+    }
+    // Clean up any legacy localStorage session keys
+    try {
+      localStorage.removeItem("tms.session.v2");
+      localStorage.removeItem("tms.session");
+    } catch {
+      // ignore
     }
     setReady(true);
   }, []);
@@ -38,20 +53,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       const result = await serverSignIn({ data: { username, password } });
       if (!result.ok) return result;
-      window.localStorage.setItem(KEY, JSON.stringify(result.user));
+      secureSession.setItem(KEY, JSON.stringify(result.user));
       setUser(result.user);
+      setLoggerUser(result.user);
       return { ok: true };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error("[signIn] server function threw:", msg);
       return { ok: false, reason: "server_error", message: `Unexpected error: ${msg}` };
     }
   }, []);
 
   const signOut = useCallback(() => {
-    window.localStorage.removeItem(KEY);
-    window.localStorage.removeItem("tms.session"); // clear legacy key
+    secureSession.removeItem(KEY);
+    // Clear any legacy keys
+    try {
+      localStorage.removeItem("tms.session.v2");
+      localStorage.removeItem("tms.session");
+    } catch {
+      // ignore
+    }
     setUser(null);
+    setLoggerUser(null);
   }, []);
 
   const value = useMemo(

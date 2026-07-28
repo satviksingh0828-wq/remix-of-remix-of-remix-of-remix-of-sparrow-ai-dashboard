@@ -1,2 +1,4 @@
 User-agent: *
-Allow: /
+Disallow: /
+
+# No search engine indexing — internal business tool
