@@ -33,11 +33,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (username: string, password: string): Promise<boolean> => {
     // Credentials are verified server-side via service-role Supabase client.
     // The password is never returned to the browser — only the SessionUser shape.
-    const sessionUser = await serverSignIn({ data: { username, password } });
-    if (!sessionUser) return false;
-    window.localStorage.setItem(KEY, JSON.stringify(sessionUser));
-    setUser(sessionUser);
-    return true;
+    try {
+      const sessionUser = await serverSignIn({ data: { username, password } });
+      if (!sessionUser) return false;
+      window.localStorage.setItem(KEY, JSON.stringify(sessionUser));
+      setUser(sessionUser);
+      return true;
+    } catch (err) {
+      console.error("[signIn] server function failed:", err);
+      return false;
+    }
   }, []);
 
   const signOut = useCallback(() => {

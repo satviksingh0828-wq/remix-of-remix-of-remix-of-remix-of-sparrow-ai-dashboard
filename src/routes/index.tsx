@@ -42,12 +42,18 @@ function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    await new Promise((r) => setTimeout(r, 650));
-    if (await signIn(id, password)) {
-      toast.success("Welcome back");
-      navigate({ to: "/home", replace: true });
-    } else {
-      setError("Invalid login ID or password.");
+    try {
+      await new Promise((r) => setTimeout(r, 650));
+      if (await signIn(id, password)) {
+        toast.success("Welcome back");
+        navigate({ to: "/home", replace: true });
+      } else {
+        setError("Invalid login ID or password.");
+      }
+    } catch (err) {
+      console.error("[login] unexpected error:", err);
+      setError("Something went wrong. Please try again.");
+    } finally {
       setBusy(false);
     }
   }
