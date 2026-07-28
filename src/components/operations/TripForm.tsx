@@ -43,7 +43,7 @@ import {
   type ContractLite,
   type EntryLite,
 } from "@/lib/trip-calc";
-import { fetchCompany, printTripNote } from "@/lib/trip-note-pdf";
+import { fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
 
 export type TripRow = {
   id?: string;
@@ -434,6 +434,7 @@ export function TripForm({
         toast.error("Company details not configured — add them in Settings first.");
         return;
       }
+      const locMap = await fetchLocationMap();
       const fromLoc = locations.find((l) => l.id === trip.start_location_id);
       const toLoc = locations.find((l) => l.id === trip.end_location_id);
       printTripNote({
@@ -454,8 +455,8 @@ export function TripForm({
           manifest_number: m.manifest_number,
           quantity: m.quantity,
           weight_kg: m.weight_kg,
-          from_pin_code: m.from_pin_code,
-          to_pin_code: m.to_pin_code,
+          from_location_name: locMap.get(m.from_location_id ?? "") || m.from_pin_code || null,
+          to_location_name: locMap.get(m.to_location_id ?? "") || m.to_pin_code || null,
         })),
       });
     } finally {

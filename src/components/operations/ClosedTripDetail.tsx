@@ -17,7 +17,7 @@ import { inr, num } from "@/lib/trip-calc";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { useSession } from "@/lib/session";
-import { fetchCompany, printTripNote } from "@/lib/trip-note-pdf";
+import { fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
 
 // ── Snapshot shape (mirrors what closeTrip() writes) ──────────────────────────
 
@@ -156,10 +156,13 @@ export function ClosedTripDetail({
         toast.error("Company details not configured — add them in Settings first.");
         return;
       }
+      const [locMap] = await Promise.all([fetchLocationMap()]);
       const snap = record.snapshot;
       const manifests = snap.manifests as Record<string, unknown>[];
       const firstM = manifests[0] ?? {};
       const lastM = manifests[manifests.length - 1] ?? {};
+      const firstName = locMap.get(firstM.from_location_id as string) || String(firstM.from_pin_code ?? "");
+      const lastName = locMap.get(lastM.to_location_id as string) || String(lastM.to_pin_code ?? "");
       printTripNote({
         company,
         trip: {
@@ -168,8 +171,8 @@ export function ClosedTripDetail({
           end_date: record.end_date,
           start_time: snap.trip.start_time as string | null,
           ownership: snap.trip.ownership as string | null,
-          from_location: (firstM.from_pin_code as string) ?? null,
-          to_location: (lastM.to_pin_code as string) ?? null,
+          from_location: firstName || null,
+          to_location: lastName || null,
         },
         vehicle: snap.vehicle,
         driver: snap.driver,
@@ -178,8 +181,8 @@ export function ClosedTripDetail({
           manifest_number: String(m.manifest_number ?? ""),
           quantity: m.quantity as string | null,
           weight_kg: m.weight_kg as string | null,
-          from_pin_code: m.from_pin_code as string | null,
-          to_pin_code: m.to_pin_code as string | null,
+          from_location_name: locMap.get(m.from_location_id as string) || String(m.from_pin_code ?? "") || null,
+          to_location_name: locMap.get(m.to_location_id as string) || String(m.to_pin_code ?? "") || null,
         })),
       });
     } finally {

@@ -10,8 +10,8 @@ export type TripNoteManifest = {
   manifest_number: string;
   quantity?: string | null;
   weight_kg?: string | null;
-  from_pin_code?: string | null;
-  to_pin_code?: string | null;
+  from_location_name?: string | null;
+  to_location_name?: string | null;
 };
 
 export type TripNoteData = {
@@ -39,6 +39,22 @@ export type TripNoteData = {
   transporter?: { transporter_name?: unknown; city?: unknown } | null;
   manifests: TripNoteManifest[];
 };
+
+/** Fetch all locations (id → location_name map). */
+export async function fetchLocationMap(): Promise<Map<string, string>> {
+  try {
+    const { data } = await supabase
+      .from("locations")
+      .select("id,location_name,pin_code");
+    const map = new Map<string, string>();
+    for (const l of data ?? []) {
+      map.set(l.id as string, (l.location_name || l.pin_code || "") as string);
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
 
 /** Fetch the company row from Supabase (first row). */
 export async function fetchCompany(): Promise<TripNoteData["company"] | null> {
@@ -72,9 +88,9 @@ export function printTripNote(data: TripNoteData): void {
   const addressHtml = addrParts.join(",&nbsp; ");
 
   // ── Trip summary ──────────────────────────────────────────────────────────
-  const fromLoc = s(trip.from_location) || (manifests[0] ? s(manifests[0].from_pin_code) : "");
+  const fromLoc = s(trip.from_location) || (manifests[0] ? s(manifests[0].from_location_name) : "");
   const toLoc =
-    s(trip.to_location) || (manifests.length > 0 ? s(manifests[manifests.length - 1].to_pin_code) : "");
+    s(trip.to_location) || (manifests.length > 0 ? s(manifests[manifests.length - 1].to_location_name) : "");
   const ownership = trip.ownership === "own" ? "Own Vehicle" : trip.ownership === "third_party" ? "Third Party" : s(trip.ownership);
 
   // ── Manifest totals ───────────────────────────────────────────────────────
@@ -88,10 +104,10 @@ export function printTripNote(data: TripNoteData): void {
       <tr>
         <td class="tc">${i + 1}</td>
         <td>${s(m.manifest_number) || "—"}</td>
-        <td class="tc">${s(m.quantity) || "—"}</td>
+        <td class="tc">${s(m.from_location_name) || "—"}</td>
+        <td class="tc">${s(m.to_location_name) || "—"}</td>
         <td class="tr">${s(m.weight_kg) || "—"}</td>
-        <td class="tc">${s(m.from_pin_code) || "—"}</td>
-        <td class="tc">${s(m.to_pin_code) || "—"}</td>
+        <td class="tc">${s(m.quantity) || "—"}</td>
       </tr>`,
     )
     .join("");
@@ -113,7 +129,7 @@ export function printTripNote(data: TripNoteData): void {
   <meta charset="utf-8" />
   <title>Trip Note — ${trip.trip_code}</title>
   <style>
-    @page { size: A4 landscape; margin: 10mm 14mm; }
+    @page { size: A4 portrait; margin: 12mm 14mm; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; color: #000; background: #fff; }
 
@@ -291,11 +307,11 @@ export function printTripNote(data: TripNoteData): void {
     <thead>
       <tr>
         <th class="tc" style="width:40px">S.No.</th>
-        <th>Manifest Number</th>
-        <th class="tc" style="width:60px">Pkgs</th>
+        <th>LR Number</th>
+        <th class="tc">From</th>
+        <th class="tc">To</th>
         <th class="tr" style="width:80px">Weight (kg)</th>
-        <th class="tc" style="width:90px">From</th>
-        <th class="tc" style="width:90px">To</th>
+        <th class="tc" style="width:60px">Pkgs</th>
       </tr>
     </thead>
     <tbody>
@@ -306,9 +322,9 @@ export function printTripNote(data: TripNoteData): void {
         ? `<tfoot>
         <tr>
           <td colspan="2" class="tr">Totals</td>
-          <td class="tc">${totalPkgs || "—"}</td>
-          <td class="tr">${totalWeight > 0 ? totalWeight.toFixed(3) : "—"}</td>
           <td colspan="2"></td>
+          <td class="tr">${totalWeight > 0 ? totalWeight.toFixed(3) : "—"}</td>
+          <td class="tc">${totalPkgs || "—"}</td>
         </tr>
       </tfoot>`
         : ""
