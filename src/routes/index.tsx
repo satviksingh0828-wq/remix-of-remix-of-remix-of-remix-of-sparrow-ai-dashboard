@@ -168,11 +168,7 @@ function LoginPage() {
         <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
         <div className="pointer-events-none absolute -bottom-32 -right-16 size-[26rem] rounded-full bg-white/10 blur-3xl" />
         <div className="relative animate-fade-up text-center text-primary-foreground">
-          <h1 className="text-4xl font-semibold uppercase leading-tight tracking-[0.14em] xl:text-5xl">
-            Sparrow AI
-            <br />
-            Solutions
-          </h1>
+          <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="mx-auto w-64 xl:w-72" />
           <div className="mx-auto my-7 h-px w-24 bg-white/40" />
           <p className="text-lg font-medium uppercase tracking-[0.42em] opacity-90">Project TMS</p>
           <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed opacity-80">
@@ -185,10 +181,7 @@ function LoginPage() {
       <section className="flex flex-col items-center justify-center bg-background px-6 py-14">
         <div className="w-full max-w-sm animate-fade-up">
           <div className="mb-9 lg:hidden">
-            <p className="text-xl font-semibold uppercase tracking-[0.12em]">Sparrow AI Solutions</p>
-            <p className="mt-1 text-xs uppercase tracking-[0.35em] text-muted-foreground">
-              Project TMS
-            </p>
+            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-12 w-auto" />
           </div>
 
           <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>

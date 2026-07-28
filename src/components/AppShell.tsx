@@ -21,13 +21,8 @@ export function AppShell({
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-screen-xl items-center gap-3 px-4 sm:px-6">
-          <Link to="/home" className="leading-tight shrink-0">
-            <span className="block text-sm font-semibold tracking-tight">
-              Sparrow AI Solutions
-            </span>
-            <span className="block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-              Project TMS
-            </span>
+          <Link to="/home" className="shrink-0">
+            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
           </Link>
           {breadcrumb && <div className="ml-2 hidden md:block shrink-0">{breadcrumb}</div>}
           {headerEnd && <div className="ml-2 hidden lg:block">{headerEnd}</div>}

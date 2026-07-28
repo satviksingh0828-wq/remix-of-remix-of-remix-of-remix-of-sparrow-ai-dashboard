@@ -82,7 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { name: "author", content: "Sparrow AI Solutions" },
+      { name: "author", content: "Garuda Logistics Solution" },
+      { property: "og:image", content: "/garuda-logo.png" },
       { name: "robots", content: "noindex, nofollow, noarchive, nosnippet, noimageindex" },
       { name: "googlebot", content: "noindex, nofollow" },
       { property: "og:type", content: "website" },
