@@ -97,10 +97,11 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
         if (allowedBranchIds !== null) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
-        // Basic users never see EMI or yearly-fixed expenditures (admin-only tabs)
+        // Basic users never see EMI, yearly-fixed, or payroll expenditures (admin-only tabs)
         if (isBasic && cfg.table === "expenditures") {
           q = (q as ReturnType<typeof supabase.from>).eq("is_emi", false) as typeof q;
           q = (q as ReturnType<typeof supabase.from>).eq("is_yearly_fixed", false) as typeof q;
+          q = (q as ReturnType<typeof supabase.from>).eq("is_payroll", false) as typeof q;
         }
         return q;
       });

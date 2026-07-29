@@ -3,6 +3,7 @@ import { useState } from "react";
 import { BarChart2, CalendarCheck, CalendarRange, ChevronRight, DollarSign, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingDown, TrendingUp, Users } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
+import { TabErrorBoundary } from "@/components/TabErrorBoundary";
 import { Trips } from "@/components/operations/Trips";
 import { FinanceList } from "@/components/operations/FinanceList";
 import { FixedIncomeList } from "@/components/operations/FixedIncomeList";
@@ -143,14 +144,14 @@ function OperationsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active?.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active?.desc}</p>
           </header>
-          {safeTab === "trip"            && <Trips />}
-          {safeTab === "income"          && <FinanceList kind="income" />}
-          {safeTab === "expenditure"     && <FinanceList kind="expenditure" />}
-          {safeTab === "driver-payroll"  && <DriverPayroll />}
-          {safeTab === "fixed-income"    && isAdmin && <FixedIncomeList />}
-          {safeTab === "trip-averages"   && isAdmin && <TripAveragesPanel />}
-          {safeTab === "emi-scheduler"   && isAdmin && <EmiScheduler />}
-          {safeTab === "yearly-expenses" && isAdmin && <YearlyExpenseScheduler />}
+          {safeTab === "trip"            && <TabErrorBoundary label="Trip"><Trips /></TabErrorBoundary>}
+          {safeTab === "income"          && <TabErrorBoundary label="Income"><FinanceList kind="income" /></TabErrorBoundary>}
+          {safeTab === "expenditure"     && <TabErrorBoundary label="Expenditure"><FinanceList kind="expenditure" /></TabErrorBoundary>}
+          {safeTab === "driver-payroll"  && <TabErrorBoundary label="Driver Payroll"><DriverPayroll /></TabErrorBoundary>}
+          {safeTab === "fixed-income"    && isAdmin && <TabErrorBoundary label="Fixed Income"><FixedIncomeList /></TabErrorBoundary>}
+          {safeTab === "trip-averages"   && isAdmin && <TabErrorBoundary label="Trip Averages"><TripAveragesPanel /></TabErrorBoundary>}
+          {safeTab === "emi-scheduler"   && isAdmin && <TabErrorBoundary label="EMI Scheduler"><EmiScheduler /></TabErrorBoundary>}
+          {safeTab === "yearly-expenses" && isAdmin && <TabErrorBoundary label="Yearly Expenses"><YearlyExpenseScheduler /></TabErrorBoundary>}
         </div>
       </div>
     </AppShell>

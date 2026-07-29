@@ -1586,6 +1586,7 @@ export type Database = {
           include_start_month: boolean
           note: string | null
           branch_id: string | null
+          vehicle_id: string | null
           status: string
           created_at: string
           updated_at: string
@@ -1600,6 +1601,7 @@ export type Database = {
           include_start_month?: boolean
           note?: string | null
           branch_id?: string | null
+          vehicle_id?: string | null
           status?: string
           created_at?: string
           updated_at?: string
@@ -1614,6 +1616,7 @@ export type Database = {
           include_start_month?: boolean
           note?: string | null
           branch_id?: string | null
+          vehicle_id?: string | null
           status?: string
           created_at?: string
           updated_at?: string
@@ -1624,6 +1627,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "yearly_fixed_expenses_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
             referencedColumns: ["id"]
           },
         ]

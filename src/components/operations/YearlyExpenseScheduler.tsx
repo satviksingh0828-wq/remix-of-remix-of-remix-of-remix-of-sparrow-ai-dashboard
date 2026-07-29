@@ -4,6 +4,7 @@
  * Features:
  * - User creates a named yearly fixed expense with a total amount + start date
  * - End date auto-sets to exactly 1 year after start date (editable)
+ * - Optional vehicle link — if vehicle has a branch, that branch is auto-filled
  * - User chooses whether to include the start month in the 12 installments
  * - System divides total into 12 equal monthly installments (last absorbs rounding)
  * - Each installment creates an unpaid expenditure (is_yearly_fixed=true)
@@ -14,6 +15,7 @@
 import { useEffect, useState } from "react";
 import {
   CalendarRange,
+  Car,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -42,6 +44,13 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type VehicleRow = {
+  id: string;
+  registration_number: string;
+  nickname: string | null;
+  branch_id: string | null;
+};
+
 type YearlyFixedRow = {
   id: string;
   expense_name: string;
@@ -52,7 +61,9 @@ type YearlyFixedRow = {
   include_start_month: boolean;
   note: string | null;
   branch_id: string | null;
+  vehicle_id: string | null;
   branch_label: string;
+  vehicle_label: string;
   status: string;
   created_at: string;
   installments: YearlyInstallmentRow[];
@@ -86,7 +97,7 @@ function addOneYear(dateStr: string): string {
   if (!dateStr) return "";
   const d = new Date(dateStr + "T00:00:00");
   d.setFullYear(d.getFullYear() + 1);
-  d.setDate(d.getDate() - 1); // last day of the month before, or same day -1
+  d.setDate(d.getDate() - 1);
   return d.toISOString().slice(0, 10);
 }
 
@@ -127,10 +138,16 @@ function fmtMonth(dateStr: string): string {
   return d.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
 }
 
+function vehicleLabel(v: VehicleRow | undefined): string {
+  if (!v) return "Unknown vehicle";
+  return v.nickname ? `${v.registration_number} · ${v.nickname}` : v.registration_number;
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function YearlyExpenseScheduler() {
   const branches = useBranches();
+  const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
 
   const [schedules, setSchedules] = useState<YearlyFixedRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,6 +163,7 @@ export function YearlyExpenseScheduler() {
   const [includeStart, setIncludeStart] = useState(true);
   const [note, setNote] = useState("");
   const [branchId, setBranchId] = useState<string>("");
+  const [vehicleId, setVehicleId] = useState<string>("");
 
   // ── Derived preview ───────────────────────────────────────────────────────
   const totalAmt = parseFloat(totalAmount) || 0;
@@ -157,17 +175,37 @@ export function YearlyExpenseScheduler() {
     if (val) setEndDate(addOneYear(val));
   }
 
+  // When vehicle changes, auto-fill its branch (if the branch isn't manually set)
+  function handleVehicleChange(vid: string) {
+    setVehicleId(vid);
+    if (vid) {
+      const v = vehicles.find((v) => v.id === vid);
+      if (v?.branch_id) {
+        setBranchId(v.branch_id);
+      }
+    }
+  }
+
   // ── Load ─────────────────────────────────────────────────────────────────
 
   async function load() {
     setLoading(true);
     try {
-      const schData = await fetchAll<Record<string, unknown>>(() =>
-        supabase
-          .from("yearly_fixed_expenses")
-          .select("*")
-          .order("created_at", { ascending: false }),
-      );
+      const [vData, schData] = await Promise.all([
+        fetchAll<VehicleRow>(() =>
+          supabase
+            .from("vehicles")
+            .select("id,registration_number,nickname,branch_id")
+            .order("registration_number"),
+        ),
+        fetchAll<Record<string, unknown>>(() =>
+          supabase
+            .from("yearly_fixed_expenses")
+            .select("*")
+            .order("created_at", { ascending: false }),
+        ),
+      ]);
+      setVehicles(vData);
 
       const scheduleIds = schData.map((s) => s.id as string);
       let instData: Record<string, unknown>[] = [];
@@ -183,6 +221,7 @@ export function YearlyExpenseScheduler() {
       }
 
       const branchMap = new Map(branches.map((b) => [b.id, b.branch_name]));
+      const vehicleMap = new Map(vData.map((v) => [v.id, v]));
 
       setSchedules(
         schData.map((s) => ({
@@ -195,7 +234,9 @@ export function YearlyExpenseScheduler() {
           include_start_month: Boolean(s.include_start_month),
           note: (s.note as string) ?? null,
           branch_id: (s.branch_id as string) ?? null,
+          vehicle_id: (s.vehicle_id as string) ?? null,
           branch_label: s.branch_id ? (branchMap.get(s.branch_id as string) ?? "Unknown branch") : "All branches",
+          vehicle_label: s.vehicle_id ? vehicleLabel(vehicleMap.get(s.vehicle_id as string)) : "",
           status: s.status as string,
           created_at: s.created_at as string,
           expanded: false,
@@ -213,8 +254,8 @@ export function YearlyExpenseScheduler() {
             })),
         })),
       );
-    } catch {
-      toast.error("Could not load yearly expense data");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not load yearly expense data");
     }
     setLoading(false);
   }
@@ -236,6 +277,13 @@ export function YearlyExpenseScheduler() {
     try {
       const monthlyAmt = Math.floor((totalAmt * 100) / 12) / 100;
 
+      // Resolve branch: from manual pick or from the selected vehicle
+      let resolvedBranchId: string | null = branchId || null;
+      if (!resolvedBranchId && vehicleId) {
+        const v = vehicles.find((v) => v.id === vehicleId);
+        resolvedBranchId = v?.branch_id ?? null;
+      }
+
       // Create the parent yearly_fixed_expenses record
       const { data: schData, error: schErr } = await supabase
         .from("yearly_fixed_expenses")
@@ -247,36 +295,34 @@ export function YearlyExpenseScheduler() {
           end_date: endDate || addOneYear(startDate),
           include_start_month: includeStart,
           note: note.trim() || null,
-          branch_id: branchId || null,
+          branch_id: resolvedBranchId,
+          vehicle_id: vehicleId || null,
           status: "active",
-        })
+        } as Parameters<ReturnType<typeof supabase.from>["insert"]>[0])
         .select("id")
         .single();
 
       if (schErr || !schData) throw schErr ?? new Error("Schedule insert failed");
 
-      const scheduleId = schData.id;
+      const scheduleId = (schData as { id: string }).id;
 
-      // Create 12 expenditure entries (unpaid, admin-only via is_yearly_fixed)
-      for (const inst of preview) {
-        const expName = `${expenseName.trim()} — ${fmtMonth(inst.due_date)} (${scheduleId.slice(0, 6)})`;
-        const { error: expErr } = await supabase
-          .from("expenditures")
-          .insert({
-            expenditure_name: expName,
-            amount: String(inst.amount),
-            entry_date: inst.due_date,
-            note: note.trim() || null,
-            branch_id: branchId || null,
-            is_paid: false,
-            is_emi: false,
-            is_yearly_fixed: true,
-            yearly_fixed_id: scheduleId,
-            yearly_fixed_inst_no: inst.installment_number,
-          });
+      // Bulk-insert 12 expenditure entries
+      const expenditureRows = preview.map((inst) => ({
+        expenditure_name: `${expenseName.trim()} — ${fmtMonth(inst.due_date)} (${scheduleId.slice(0, 6)})`,
+        amount: String(inst.amount),
+        entry_date: inst.due_date,
+        note: note.trim() || null,
+        branch_id: resolvedBranchId,
+        vehicle_id: vehicleId || null,
+        is_paid: false,
+        is_emi: false,
+        is_yearly_fixed: true,
+        yearly_fixed_id: scheduleId,
+        yearly_fixed_inst_no: inst.installment_number,
+      }));
 
-        if (expErr) throw expErr;
-      }
+      const { error: expErr } = await supabase.from("expenditures").insert(expenditureRows);
+      if (expErr) throw expErr;
 
       toast.success(`Yearly expense created — 12 monthly entries added`);
 
@@ -289,6 +335,7 @@ export function YearlyExpenseScheduler() {
       setIncludeStart(true);
       setNote("");
       setBranchId("");
+      setVehicleId("");
 
       await load();
     } catch (err) {
@@ -303,11 +350,12 @@ export function YearlyExpenseScheduler() {
     setMarkingPaid(inst.id);
     try {
       const today = new Date().toISOString().slice(0, 10);
-      await supabase
+      const { error } = await supabase
         .from("expenditures")
         .update({ is_paid: true, paid_date: today })
         .eq("id", inst.expenditure_id!);
 
+      if (error) throw error;
       toast.success(`Month ${inst.installment_number} marked as paid`);
       await load();
     } catch (err) {
@@ -385,15 +433,41 @@ export function YearlyExpenseScheduler() {
               )}
             </div>
 
+            {/* Vehicle (optional) */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-muted-foreground">
+                <Car className="size-3 inline mr-1 opacity-70" />
+                Vehicle (optional)
+              </Label>
+              <Select value={vehicleId || "__none"} onValueChange={(v) => handleVehicleChange(v === "__none" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="No vehicle" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">No vehicle</SelectItem>
+                  {vehicles.map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.registration_number}{v.nickname ? ` · ${v.nickname}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {vehicleId && vehicles.find(v => v.id === vehicleId)?.branch_id && (
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                  Branch auto-filled from vehicle
+                </p>
+              )}
+            </div>
+
             {/* Branch */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Branch (optional)</Label>
-              <Select value={branchId} onValueChange={setBranchId}>
+              <Select value={branchId || "__none"} onValueChange={(v) => setBranchId(v === "__none" ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="All branches" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All branches</SelectItem>
+                  <SelectItem value="__none">All branches</SelectItem>
                   {branches.map((b) => (
                     <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>
                   ))}
@@ -553,6 +627,12 @@ export function YearlyExpenseScheduler() {
                       <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         {sched.branch_label}
                       </span>
+                      {sched.vehicle_label && (
+                        <span className="rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 text-[10px] font-medium flex items-center gap-1">
+                          <Car className="size-2.5" />
+                          {sched.vehicle_label}
+                        </span>
+                      )}
                     </div>
                     <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                       <span>Total: <strong className="text-foreground">{inr(sched.total_amount)}</strong></span>
