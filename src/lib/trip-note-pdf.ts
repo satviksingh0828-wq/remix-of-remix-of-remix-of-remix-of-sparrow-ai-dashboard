@@ -483,6 +483,20 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
     tab.document.close();
   }
 
+  // ── Snapshot the app theme NOW (synchronous, before any await) ──────────────
+  // Maps data-theme → the same swatch hex used in THEMES array in theme.tsx.
+  const THEME_HEX: Record<string, string> = {
+    sky:      "#2f7ed8",
+    emerald:  "#12926f",
+    violet:   "#6d4bd8",
+    amber:    "#d38b1b",
+    rose:     "#d94f5c",
+    graphite: "#4a4f57",
+    garuda:   "#8b1a2c",
+  };
+  const themeId   = document.documentElement.getAttribute("data-theme") ?? "sky";
+  const themePrimary = THEME_HEX[themeId] ?? "#2f7ed8";
+
   // ── ALL ASYNC WORK HAPPENS AFTER THE WINDOW IS ALREADY OPEN ────────────────
   // Use a hidden <iframe> rather than a <div> appended to document.body.
   // This fully isolates the rendered HTML from the app's CSS (Tailwind v4 uses
