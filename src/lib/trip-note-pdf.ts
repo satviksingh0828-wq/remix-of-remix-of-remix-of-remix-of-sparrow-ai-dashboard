@@ -311,6 +311,8 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
   const vehicleBlock = `
     <div class="tn-details-col">
       <h4>Vehicle Details</h4>
+      ${dr("Registration No.", sv(vehicle?.registration_number))}
+      ${dr("Nickname / Internal Code", [sv(vehicle?.nickname), sv(vehicle?.internal_code)].filter(Boolean).join(" / "))}
       ${dr("Manufacturer", sv(vehicle?.manufacturer))}
       ${dr("Model", sv(vehicle?.model))}
       ${dr("Fuel Type", sv(vehicle?.fuel_type))}
