@@ -97,11 +97,11 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
         if (allowedBranchIds !== null) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
-        // Basic users never see EMI, yearly-fixed, or payroll expenditures (admin-only tabs)
+        // Basic users never see EMI or yearly-fixed (admin-only tabs).
+        // Payroll IS shown to basic users — it's a real expense they can pay.
         if (isBasic && cfg.table === "expenditures") {
           q = (q as ReturnType<typeof supabase.from>).eq("is_emi", false) as typeof q;
           q = (q as ReturnType<typeof supabase.from>).eq("is_yearly_fixed", false) as typeof q;
-          q = (q as ReturnType<typeof supabase.from>).eq("is_payroll", false) as typeof q;
         }
         return q;
       });
@@ -118,6 +118,8 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           transporter_id: (r.transporter_id as string) ?? null,
           settled: Boolean(r[cfg.statusCol]),
           settled_date: String(r[cfg.statusDateCol] ?? ""),
+          is_payroll: Boolean(r.is_payroll),
+          payroll_id: (r.payroll_id as string) ?? null,
         })),
       );
     } catch {
@@ -236,14 +238,24 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   }
 
   async function settle(row: FinanceRow) {
+    const paidDate = new Date().toISOString().slice(0, 10);
     const { error } = await supabase
       .from(cfg.table)
       .update({
         [cfg.statusCol]: true,
-        [cfg.statusDateCol]: new Date().toISOString().slice(0, 10),
+        [cfg.statusDateCol]: paidDate,
       } as never)
       .eq("id", row.id!);
     if (error) return toast.error(error.message);
+
+    // If this expenditure is linked to a payroll record, sync its paid status too
+    if (row.is_payroll && row.payroll_id) {
+      await supabase
+        .from("driver_payrolls")
+        .update({ is_paid: true, paid_date: paidDate })
+        .eq("id", row.payroll_id);
+    }
+
     logAction("settled", kind, {
       entityId: row.id ?? "",
       entityLabel: row.name,
@@ -402,10 +414,20 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                   nameOf(driverOpts, r.driver_id) ||
                   nameOf(transporterOpts, r.transporter_id) ||
                   "—";
+                // Payroll rows are read-only for basic users — only pay action allowed
+                const isPayrollRow = r.is_payroll === true;
+                const canEditDelete = isAdmin || !isPayrollRow;
                 return (
-                  <tr key={r.id} className="border-b border-border/60">
+                  <tr key={r.id} className={`border-b border-border/60 ${isPayrollRow ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}>
                     <td className="py-2 pr-3">{r.entry_date || "—"}</td>
-                    <td className="py-2 pr-3 font-medium">{r.name}</td>
+                    <td className="py-2 pr-3 font-medium">
+                      <span>{r.name}</span>
+                      {isPayrollRow && (
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                          Payroll
+                        </span>
+                      )}
+                    </td>
                     <td className="py-2 pr-3">{nameOf(branchOpts, r.branch_id) || "—"}</td>
                     <td className="py-2 pr-3">{linked}</td>
                     <td className="py-2 pr-3 text-right">{inr(num(r.amount))}</td>
@@ -427,9 +449,11 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                           {cfg.actionLabel}
                         </Button>
                       ) : null}
-                      <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
-                        Edit
-                      </Button>
+                      {canEditDelete && (
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+                          Edit
+                        </Button>
+                      )}
                       {/* Admin-only: per-row logs */}
                       {isAdmin && r.id ? (
                         <ItemLogsButton
@@ -438,9 +462,11 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                           entityLabel={r.name}
                         />
                       ) : null}
-                      <Button variant="ghost" size="sm" onClick={() => remove(r)}>
-                        <Trash2 className="size-4 text-destructive" />
-                      </Button>
+                      {canEditDelete && (
+                        <Button variant="ghost" size="sm" onClick={() => remove(r)}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      )}
                     </td>
                   </tr>
                 );
