@@ -446,8 +446,6 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
     <div class="tn-sig-box"><div class="tn-sig-line">Authorised Signatory</div></div>
   </div>
 
-  <div class="tn-page-footer">Powered by Sparrow AI Solutions</div>
-
 </div>`;
 }
 
@@ -586,9 +584,12 @@ html,body{height:100%;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;
 .btn:hover{opacity:.82}
 .pri{background:${themePrimary};color:#fff}
 .sec{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
-.wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:16px}
+.wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:16px 16px 0}
 iframe{flex:1;width:100%;border:none;border-radius:8px;
        box-shadow:0 2px 12px rgba(0,0,0,.10)}
+.foot{flex-shrink:0;padding:7px 20px;text-align:center;
+      font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+      color:#94a3b8;font-weight:600}
 </style>
 </head>
 <body>
@@ -611,6 +612,7 @@ iframe{flex:1;width:100%;border:none;border-radius:8px;
   </div>
 </div>
 <div class="wrap"><iframe id="f" src="${pdfDataUri}"></iframe></div>
+<div class="foot">Powered by Sparrow AI Solutions</div>
 <script>
 var _d="${pdfDataUri}";
 function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-${tripCode}.pdf";a.click();}

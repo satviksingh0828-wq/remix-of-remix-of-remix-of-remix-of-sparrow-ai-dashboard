@@ -635,6 +635,160 @@ export type Database = {
           },
         ]
       }
+      driver_advance_deductions: {
+        Row: {
+          id: string
+          advance_id: string
+          driver_id: string
+          payroll_id: string | null
+          month: string
+          deduction_amount: number
+          is_applied: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          advance_id: string
+          driver_id: string
+          payroll_id?: string | null
+          month: string
+          deduction_amount: number
+          is_applied?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          advance_id?: string
+          driver_id?: string
+          payroll_id?: string | null
+          month?: string
+          deduction_amount?: number
+          is_applied?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_advance_deductions_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "driver_advances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_advance_deductions_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driver_advances: {
+        Row: {
+          id: string
+          driver_id: string
+          branch_id: string | null
+          amount: number
+          remaining_balance: number
+          payment_date: string
+          monthly_deduction: number
+          note: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          driver_id: string
+          branch_id?: string | null
+          amount: number
+          remaining_balance: number
+          payment_date: string
+          monthly_deduction: number
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          driver_id?: string
+          branch_id?: string | null
+          amount?: number
+          remaining_balance?: number
+          payment_date?: string
+          monthly_deduction?: number
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_advances_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      driver_payrolls: {
+        Row: {
+          id: string
+          driver_id: string
+          branch_id: string | null
+          month: string
+          salary_amount: number
+          advance_deduction: number
+          net_amount: number
+          is_paid: boolean
+          paid_date: string | null
+          expenditure_id: string | null
+          note: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          driver_id: string
+          branch_id?: string | null
+          month: string
+          salary_amount: number
+          advance_deduction?: number
+          net_amount: number
+          is_paid?: boolean
+          paid_date?: string | null
+          expenditure_id?: string | null
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          driver_id?: string
+          branch_id?: string | null
+          month?: string
+          salary_amount?: number
+          advance_deduction?: number
+          net_amount?: number
+          is_paid?: boolean
+          paid_date?: string | null
+          expenditure_id?: string | null
+          note?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_payrolls_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emi_schedules: {
         Row: {
           id: string
@@ -779,6 +933,8 @@ export type Database = {
           is_emi: boolean
           emi_installment_id: string | null
           is_paid: boolean
+          is_payroll: boolean
+          payroll_id: string | null
           note: string | null
           paid_date: string | null
           transporter_id: string | null
@@ -796,6 +952,8 @@ export type Database = {
           is_emi?: boolean
           emi_installment_id?: string | null
           is_paid?: boolean
+          is_payroll?: boolean
+          payroll_id?: string | null
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null
@@ -813,6 +971,8 @@ export type Database = {
           is_emi?: boolean
           emi_installment_id?: string | null
           is_paid?: boolean
+          is_payroll?: boolean
+          payroll_id?: string | null
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null

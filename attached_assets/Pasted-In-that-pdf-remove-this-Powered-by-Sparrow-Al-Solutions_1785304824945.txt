@@ -1,0 +1,36 @@
+In that pdf remove this Powered by Sparrow Al Solutions add it to pdf veiewer footer just ok and , then in operations add on more tab driver payroll , it allows user both basic user[only of theire allowed branch data see and make ] and admin to select a driver and create it payroll its salary auto fench plus option to change too and payroll genrate as unpaid and also same way as emi gets adddd to expenses tab[that month expenses ] and can be paid from both expwnses tab and this new taba dn it also have option pay advance , keep tecord of any advance payment and show its balance to user when he genrate payroll so he can amnualyy deduct amount from thay payroll if want ok .can deduct anvace full froma si gle payroll or in part from mutiple payroll , while guvig advace user automaticy make a schedule how much dufuction in upcoming payrolls .onth wise so it automatic while if user ca he deduction in ang future payroll , payroll after it auro update ok , fist tell me what you understood then when i say ok make jt
+
+VE
+vevifir363
+vevifir363
+23 minutes ago
+Implementing driver payroll and PDF updates
+
+Implementing driver payroll and PDF updates
+Here's what I understood — confirm before I build:
+
+1. PDF tweak (small) Remove "Powered by Sparrow AI Solutions" from the PDF page itself. Add it back only in the viewer tab's footer bar.
+
+2. New "Driver Payroll" tab in Operations
+
+Core flow:
+
+Both admin and basic users can access it (basic users see only their allowed branches)
+Select a driver → salary auto-fetched from the driver record, editable before saving
+Payroll record is created as Unpaid
+When created, it auto-adds to that month's Expenses tab (same way EMI does)
+Can be marked as paid from either the Expenses tab or the Payroll tab
+Advance payments:
+
+User can record an advance payment to a driver at any time
+Advances are tracked with a running balance per driver
+When generating a new payroll, the driver's outstanding advance balance is shown
+User can choose to deduct from that payroll — full or partial
+When giving an advance, the system auto-generates a deduction schedule spread across upcoming payrolls (monthly)
+User can manually override the deduction amount on any future payroll
+When a future payroll's deduction is changed, all subsequent payrolls in that advance's schedule auto-recalculate to spread the remaining balance
+Is that right? Say ok and I'll start building.
+
+
+Worked for 16 seconds
+Ok make it and ithos as per amount deduction each month genreaged ok as user taht. When giving an advance, the system auto-generates a deduction schedule spread across upcoming payrolls (monthly) and get me sql for suprabse datbse sire changes ok
