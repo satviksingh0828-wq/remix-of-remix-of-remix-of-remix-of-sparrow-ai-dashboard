@@ -226,10 +226,10 @@ const TRIP_NOTE_CSS = `
 
 /* Manifest table */
 .tn-manifest-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-.tn-manifest-table thead tr { background: #1a1a1a; color: #fff; }
+.tn-manifest-table thead tr { background: #4f46e5; color: #fff; }
 .tn-manifest-table th {
   padding: 5px 7px; font-size: 9px; text-transform: uppercase;
-  letter-spacing: 0.07em; font-weight: 700; border: 1px solid #333;
+  letter-spacing: 0.07em; font-weight: 700; border: 1px solid #4338ca;
 }
 .tn-manifest-table td {
   padding: 4px 7px; border: 1px solid #ccc; font-size: 10px; vertical-align: middle;
@@ -484,22 +484,34 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
   }
 
   // ── ALL ASYNC WORK HAPPENS AFTER THE WINDOW IS ALREADY OPEN ────────────────
-  const styleEl = document.createElement("style");
-  styleEl.setAttribute("data-tn", "1");
-  styleEl.textContent = TRIP_NOTE_CSS;
-  document.head.appendChild(styleEl);
-
-  const container = document.createElement("div");
-  // z-index must be positive so html2canvas can actually see the element
-  container.style.cssText =
-    "position:fixed;left:-9999px;top:0;width:770px;background:#fff;z-index:99999;pointer-events:none;";
-  document.body.appendChild(container);
+  // Use a hidden <iframe> rather than a <div> appended to document.body.
+  // This fully isolates the rendered HTML from the app's CSS (Tailwind v4 uses
+  // oklch() color values that html2canvas cannot parse; inside the iframe only
+  // TRIP_NOTE_CSS is present, which uses plain hex/rgb only).
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText =
+    "position:fixed;left:-9999px;top:0;width:770px;height:2400px;border:none;visibility:hidden;";
+  document.body.appendChild(iframe);
 
   try {
     const logoDataUri = await toDataUri(
       `${window.location.origin}/garuda-logo.png`,
     );
-    container.innerHTML = buildBodyHtml(data, logoDataUri);
+
+    // Write a standalone HTML document into the iframe — no app stylesheets.
+    const iframeDoc = iframe.contentDocument!;
+    iframeDoc.open();
+    iframeDoc.write(
+      `<!DOCTYPE html><html><head><meta charset="UTF-8">` +
+      `<style>${TRIP_NOTE_CSS}</style></head>` +
+      `<body style="margin:0;background:#fff;">` +
+      buildBodyHtml(data, logoDataUri) +
+      `</body></html>`,
+    );
+    iframeDoc.close();
+
+    // Give the iframe a moment to finish layout (images, fonts).
+    await new Promise<void>((r) => setTimeout(r, 250));
 
     const [html2canvasModule, { jsPDF }] = await Promise.all([
       import("html2canvas"),
@@ -507,14 +519,13 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
     ]);
     const html2canvas = html2canvasModule.default;
 
-    const root = container.querySelector(".tn-root") as HTMLElement;
+    const root = iframeDoc.querySelector(".tn-root") as HTMLElement;
     const canvas = await html2canvas(root, {
       scale: 2,
       useCORS: true,
       allowTaint: true,
       backgroundColor: "#ffffff",
       logging: false,
-      // windowWidth prevents layout collapse on narrow viewports
       windowWidth: 900,
     });
 
@@ -538,6 +549,7 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
     const tripCode   = data.trip.trip_code;
     const startDate  = data.trip.start_date ?? "";
 
+    // ── Light-themed viewer page ──────────────────────────────────────────
     const viewerHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -546,28 +558,30 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
 <title>Trip Note \u2014 ${tripCode}</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#1e1e2e;font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column}
+html,body{height:100%;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;display:flex;flex-direction:column}
 .bar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;
-     background:#111827;border-bottom:1px solid #374151;flex-shrink:0}
+     background:#ffffff;border-bottom:1px solid #e2e8f0;flex-shrink:0;
+     box-shadow:0 1px 3px rgba(0,0,0,.06)}
 .bar-l{display:flex;align-items:center;gap:12px}
 .ico{width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
      border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.t1{color:#f3f4f6;font-size:14px;font-weight:600}
-.t2{color:#9ca3af;font-size:11px;margin-top:2px}
+.t1{color:#0f172a;font-size:14px;font-weight:600}
+.t2{color:#64748b;font-size:11px;margin-top:2px}
 .acts{display:flex;gap:8px}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;
-     font-size:12px;font-weight:600;cursor:pointer;border:none;text-decoration:none}
-.btn:hover{opacity:.85}
+     font-size:12px;font-weight:600;cursor:pointer;border:none;text-decoration:none;transition:opacity .15s}
+.btn:hover{opacity:.82}
 .pri{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
-.sec{background:#374151;color:#f3f4f6}
-.wrap{flex:1;overflow:hidden;display:flex;flex-direction:column}
-iframe{flex:1;width:100%;border:none}
-.foot{flex-shrink:0;background:#111827;border-top:1px solid #374151;
+.sec{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
+.wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:16px;gap:0}
+iframe{flex:1;width:100%;border:none;border-radius:8px;
+       box-shadow:0 2px 12px rgba(0,0,0,.10)}
+.foot{flex-shrink:0;background:#ffffff;border-top:1px solid #e2e8f0;
       padding:8px 20px;display:flex;align-items:center;justify-content:center;gap:8px}
 .flogo{width:18px;height:18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
        border-radius:4px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-.ftxt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:#6b7280}
-.ftxt span{color:#a78bfa}
+.ftxt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:#94a3b8}
+.ftxt span{color:#6366f1}
 </style>
 </head>
 <body>
@@ -622,9 +636,8 @@ function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-$
     }
 
   } catch (err) {
-    // PDF generation failed.  Show a friendly error page in the tab (if it
-    // opened) so the user isn't left staring at a blank loading screen, and
-    // also attempt a direct download as a last-resort fallback.
+    // PDF generation failed. Show a friendly light-theme error page in the
+    // tab so the user isn't left staring at a blank loading screen.
     const errMsg = err instanceof Error ? err.message : String(err);
     if (tab && !tab.closed) {
       tab.document.open();
@@ -632,21 +645,21 @@ function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-$
 <title>PDF Error</title>
 <style>
   body{margin:0;display:flex;align-items:center;justify-content:center;
-       min-height:100vh;background:#111827;font-family:Arial,sans-serif;
+       min-height:100vh;background:#f8fafc;font-family:Arial,sans-serif;
        flex-direction:column;gap:14px;padding:24px;text-align:center}
-  .ico{width:52px;height:52px;background:#7f1d1d;border-radius:50%;
+  .ico{width:52px;height:52px;background:#fee2e2;border-radius:50%;
        display:flex;align-items:center;justify-content:center;margin:0 auto}
-  h2{color:#f3f4f6;font-size:17px;margin:0}
-  p{color:#9ca3af;font-size:13px;margin:0;max-width:420px}
-  code{display:block;margin-top:10px;color:#f87171;font-size:11px;
-       background:#1f2937;border-radius:6px;padding:8px 12px;
-       word-break:break-all;text-align:left}
-  button{margin-top:8px;padding:8px 20px;background:#4f46e5;color:#fff;
+  h2{color:#0f172a;font-size:17px;margin:0}
+  p{color:#64748b;font-size:13px;margin:0;max-width:420px}
+  code{display:block;margin-top:10px;color:#dc2626;font-size:11px;
+       background:#fef2f2;border:1px solid #fecaca;border-radius:6px;
+       padding:8px 12px;word-break:break-all;text-align:left}
+  button{margin-top:8px;padding:8px 20px;background:#6366f1;color:#fff;
          border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
   button:hover{opacity:.85}
 </style></head><body>
 <div class="ico">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fca5a5"
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626"
        stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
     <line x1="12" y1="16" x2="12.01" y2="16"/>
@@ -663,7 +676,7 @@ function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-$
     }
     throw err;
   } finally {
-    document.head.removeChild(styleEl);
-    document.body.removeChild(container);
+    // Always remove the hidden iframe regardless of success or failure.
+    if (iframe.parentNode) document.body.removeChild(iframe);
   }
 }
