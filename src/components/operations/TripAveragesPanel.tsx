@@ -229,10 +229,10 @@ export function TripAveragesPanel() {
 
         {/* Day filter — appears once data is loaded */}
         {data && (
-          <Select value={day} onValueChange={setDay}>
+          <Select value={day === "" ? "all" : day} onValueChange={v => setDay(v === "all" ? "" : v)}>
             <SelectTrigger className="h-9 w-32"><SelectValue placeholder="All Days" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Days</SelectItem>
+              <SelectItem value="all">All Days</SelectItem>
               {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
                 <SelectItem key={d} value={String(d)}>Day {d}</SelectItem>
               ))}
