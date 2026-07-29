@@ -41,7 +41,7 @@ function LiveClock({ dark = false }: { dark?: boolean }) {
   const time = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
   return (
     <div
-      className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full px-5 py-2 text-xs font-medium tracking-wide shadow-lg backdrop-blur-md"
+      className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full px-6 py-2.5 text-sm font-medium tracking-wide shadow-lg backdrop-blur-md"
       style={
         dark
           ? { background: "rgba(0,0,0,0.45)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)" }
