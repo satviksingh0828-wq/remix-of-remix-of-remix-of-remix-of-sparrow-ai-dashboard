@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, ChevronsUpDown, Plus, Search, Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, Plus, Search, Loader2, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { lookupIndiaPin } from "@/lib/india-post";
 
 export type LocationOption = {
   id: string;
@@ -65,6 +66,8 @@ export function LocationPicker({
   const [showDialog, setShowDialog] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_LOC });
   const [saving, setSaving] = useState(false);
+  const [pinLooking, setPinLooking] = useState(false);
+  const [pinLooked, setPinLooked] = useState(false); // whether we already looked up the current pin
 
   async function load() {
     const { data } = await supabase
@@ -79,6 +82,34 @@ export function LocationPicker({
   }, []);
 
   const selected = locations.find((l) => l.id === value);
+
+  // Auto-lookup when PIN changes to 6 digits in the dialog
+  async function handleDialogPinChange(pin: string) {
+    setForm((f) => ({ ...f, pin_code: pin }));
+    setPinLooked(false);
+    if (pin.length === 6 && /^\d{6}$/.test(pin)) {
+      setPinLooking(true);
+      const result = await lookupIndiaPin(pin);
+      setPinLooking(false);
+      setPinLooked(true);
+      if (result) {
+        setForm((f) => ({
+          ...f,
+          pin_code: pin,
+          city: f.city || result.district,
+          district: result.district,
+          state: f.state || result.state,
+          country: f.country || result.country,
+          // suggest location name from first post office if blank
+          location_name: f.location_name || result.district,
+          location_type: f.location_type || "Domestic",
+        }));
+        toast.success(`PIN ${pin} — ${result.district}, ${result.state}`);
+      } else {
+        toast.error(`PIN ${pin} not found in Indian Post database.`);
+      }
+    }
+  }
 
   async function saveNew(e: React.FormEvent) {
     e.preventDefault();
@@ -100,6 +131,14 @@ export function LocationPicker({
     if (onPinCode && loc.pin_code) onPinCode(loc.pin_code);
     setShowDialog(false);
     setForm({ ...EMPTY_LOC });
+    setPinLooked(false);
+  }
+
+  function openDialog() {
+    setForm({ ...EMPTY_LOC });
+    setPinLooked(false);
+    setOpen(false);
+    setShowDialog(true);
   }
 
   return (
@@ -133,10 +172,7 @@ export function LocationPicker({
                 <CommandGroup>
                   <CommandItem
                     value="__add_new__"
-                    onSelect={() => {
-                      setOpen(false);
-                      setShowDialog(true);
-                    }}
+                    onSelect={openDialog}
                   >
                     <Plus className="size-4" />
                     <span>Add new location</span>
@@ -167,60 +203,86 @@ export function LocationPicker({
         </Popover>
       </div>
 
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showDialog} onOpenChange={(o) => { setShowDialog(o); if (!o) { setForm({ ...EMPTY_LOC }); setPinLooked(false); } }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Add new location</DialogTitle>
           </DialogHeader>
-          <form onSubmit={saveNew} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <FieldInput
-              label="Location Name"
-              required
-              full
-              value={form.location_name}
-              onChange={(v) => setForm({ ...form, location_name: v })}
-            />
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Type</Label>
-              <Select
-                value={form.location_type || undefined}
-                onValueChange={(v) => setForm({ ...form, location_type: v })}
-              >
-                <SelectTrigger className="h-10">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Domestic">Domestic</SelectItem>
-                  <SelectItem value="International">International</SelectItem>
-                </SelectContent>
-              </Select>
+          <form onSubmit={saveNew} className="space-y-4">
+
+            {/* PIN code first — triggers auto-fill */}
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="size-3.5 text-primary" />
+                Enter PIN code to auto-fill location details
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  className="h-10 font-mono"
+                  maxLength={6}
+                  placeholder="6-digit PIN code"
+                  value={form.pin_code}
+                  onChange={(e) => handleDialogPinChange(e.target.value.replace(/\D/g, ""))}
+                />
+                {pinLooking && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Looking up…
+                  </div>
+                )}
+                {pinLooked && !pinLooking && form.state && (
+                  <span className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400">
+                    <Check className="size-3.5" /> Filled
+                  </span>
+                )}
+              </div>
             </div>
-            <FieldInput
-              label="City"
-              value={form.city}
-              onChange={(v) => setForm({ ...form, city: v })}
-            />
-            <FieldInput
-              label="District"
-              value={form.district}
-              onChange={(v) => setForm({ ...form, district: v })}
-            />
-            <FieldInput
-              label="State"
-              value={form.state}
-              onChange={(v) => setForm({ ...form, state: v })}
-            />
-            <FieldInput
-              label="Country"
-              value={form.country}
-              onChange={(v) => setForm({ ...form, country: v })}
-            />
-            <FieldInput
-              label="PIN Code"
-              value={form.pin_code}
-              onChange={(v) => setForm({ ...form, pin_code: v })}
-            />
-            <DialogFooter className="sm:col-span-2">
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <FieldInput
+                label="Location Name"
+                required
+                full
+                value={form.location_name}
+                onChange={(v) => setForm({ ...form, location_name: v })}
+              />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Type</Label>
+                <Select
+                  value={form.location_type || undefined}
+                  onValueChange={(v) => setForm({ ...form, location_type: v })}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Domestic">Domestic</SelectItem>
+                    <SelectItem value="International">International</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <FieldInput
+                label="City"
+                value={form.city}
+                onChange={(v) => setForm({ ...form, city: v })}
+              />
+              <FieldInput
+                label="District"
+                value={form.district}
+                onChange={(v) => setForm({ ...form, district: v })}
+              />
+              <FieldInput
+                label="State"
+                value={form.state}
+                onChange={(v) => setForm({ ...form, state: v })}
+              />
+              <FieldInput
+                label="Country"
+                value={form.country}
+                onChange={(v) => setForm({ ...form, country: v })}
+              />
+            </div>
+
+            <DialogFooter>
               <Button
                 type="button"
                 variant="outline"

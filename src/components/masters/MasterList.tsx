@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Plus, Save, Trash2, type LucideIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Loader2, MapPin, Plus, Save, Trash2, type LucideIcon } from "lucide-react";
+import { lookupIndiaPin } from "@/lib/india-post";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,8 @@ export function MasterList({
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
+  const [pinLooking, setPinLooking] = useState(false);
+  const pinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const branches = useBranches();
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
@@ -225,6 +228,60 @@ export function MasterList({
                     </div>
                   );
                 }
+                // PIN code field on locations table — auto-fill city/district/state/country
+                if (f.key === "pin_code" && config.table === "locations") {
+                  return (
+                    <div key={f.key} className={`space-y-1.5 ${f.full ? "sm:col-span-2" : ""}`}>
+                      <Label className="text-xs font-medium text-muted-foreground">
+                        {f.label}
+                        {f.required ? <span className="text-destructive"> *</span> : null}
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type="text"
+                          value={val}
+                          maxLength={6}
+                          required={f.required}
+                          className="h-10"
+                          placeholder="6-digit PIN — auto-fills city/state"
+                          onChange={(e) => {
+                            const pin = e.target.value.replace(/\D/g, "").slice(0, 6);
+                            set(f.key)(pin);
+                            if (pinDebounceRef.current) clearTimeout(pinDebounceRef.current);
+                            if (/^\d{6}$/.test(pin)) {
+                              pinDebounceRef.current = setTimeout(async () => {
+                                setPinLooking(true);
+                                const result = await lookupIndiaPin(pin);
+                                setPinLooking(false);
+                                if (result) {
+                                  setEditing((prev) => prev ? {
+                                    ...prev,
+                                    pin_code: pin,
+                                    city: (prev.city as string) || result.district,
+                                    district: result.district,
+                                    state: (prev.state as string) || result.state,
+                                    country: (prev.country as string) || result.country,
+                                  } : prev);
+                                }
+                              }, 400);
+                            }
+                          }}
+                        />
+                        {pinLooking && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <Loader2 className="size-3.5 animate-spin" />
+                          </div>
+                        )}
+                        {!pinLooking && val.length === 6 && (editing?.state as string) && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="size-3.5 text-primary" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div key={f.key} className={`space-y-1.5 ${f.full ? "sm:col-span-2" : ""}`}>
                     <Label className="text-xs font-medium text-muted-foreground">
