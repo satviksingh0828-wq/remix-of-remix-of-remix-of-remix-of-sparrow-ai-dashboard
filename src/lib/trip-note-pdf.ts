@@ -135,7 +135,20 @@ async function toDataUri(url: string): Promise<string> {
 
 // ── CSS ───────────────────────────────────────────────────────────────────────
 
-const TRIP_NOTE_CSS = `
+/** Build the PDF stylesheet with the active theme's primary colour injected. */
+function buildTripNoteCSS(primaryHex: string): string {
+  // Derive a slightly-darker border colour for the manifest table header.
+  // Simple approach: lower hex lightness by blending toward black at 15 %.
+  function darken(hex: string, amount = 0.18): string {
+    const n = parseInt(hex.replace("#", ""), 16);
+    const r = Math.max(0, Math.round(((n >> 16) & 0xff) * (1 - amount)));
+    const g = Math.max(0, Math.round(((n >>  8) & 0xff) * (1 - amount)));
+    const b = Math.max(0, Math.round((n & 0xff)         * (1 - amount)));
+    return `#${r.toString(16).padStart(2,"0")}${g.toString(16).padStart(2,"0")}${b.toString(16).padStart(2,"0")}`;
+  }
+  const primaryBorder = darken(primaryHex);
+
+  return `
 .tn-root {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 10.5px;
@@ -226,10 +239,10 @@ const TRIP_NOTE_CSS = `
 
 /* Manifest table */
 .tn-manifest-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
-.tn-manifest-table thead tr { background: #4f46e5; color: #fff; }
+.tn-manifest-table thead tr { background: ${primaryHex}; color: #fff; }
 .tn-manifest-table th {
   padding: 5px 7px; font-size: 9px; text-transform: uppercase;
-  letter-spacing: 0.07em; font-weight: 700; border: 1px solid #4338ca;
+  letter-spacing: 0.07em; font-weight: 700; border: 1px solid ${primaryBorder};
 }
 .tn-manifest-table td {
   padding: 4px 7px; border: 1px solid #ccc; font-size: 10px; vertical-align: middle;
@@ -246,19 +259,8 @@ const TRIP_NOTE_CSS = `
 }
 .tn-sig-box { text-align: center; }
 .tn-sig-line { margin-top: 28px; border-top: 1px solid #000; padding-top: 3px; font-size: 9.5px; }
-
-/* Powered-by footer */
-.tn-page-footer {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 8.5px;
-  color: #aaa;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  border-top: 0.5px solid #ddd;
-  padding-top: 6px;
-}
 `;
+}
 
 // ── HTML builder ──────────────────────────────────────────────────────────────
 
@@ -460,7 +462,21 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
  * the user-gesture context and silently block the popup.
  */
 export async function printTripNote(data: TripNoteData): Promise<void> {
-  // ── OPEN WINDOW FIRST — must be synchronous inside the click handler ────────
+  // ── Snapshot the app theme FIRST (synchronous, before any await or open) ────
+  // Maps data-theme → the same swatch hex used in THEMES array in theme.tsx.
+  const THEME_HEX: Record<string, string> = {
+    sky:      "#2f7ed8",
+    emerald:  "#12926f",
+    violet:   "#6d4bd8",
+    amber:    "#d38b1b",
+    rose:     "#d94f5c",
+    graphite: "#4a4f57",
+    garuda:   "#8b1a2c",
+  };
+  const themeId      = document.documentElement.getAttribute("data-theme") ?? "sky";
+  const themePrimary = THEME_HEX[themeId] ?? "#2f7ed8";
+
+  // ── OPEN WINDOW — must be synchronous inside the click handler ──────────────
   // If the pop-up is blocked (tab === null) we continue anyway and fall back to
   // a direct browser download at the end.
   const tab = window.open("", "_blank");
@@ -472,30 +488,16 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
 <title>Generating…</title>
 <style>
   body{margin:0;display:flex;align-items:center;justify-content:center;
-       min-height:100vh;background:#111827;font-family:Arial,sans-serif;flex-direction:column;gap:16px}
-  .ring{width:44px;height:44px;border:3px solid #374151;border-top-color:#8b5cf6;
+       min-height:100vh;background:#f8fafc;font-family:Arial,sans-serif;flex-direction:column;gap:16px}
+  .ring{width:44px;height:44px;border:3px solid #e2e8f0;border-top-color:${themePrimary};
         border-radius:50%;animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
-  p{color:#9ca3af;font-size:13px;letter-spacing:.05em;margin:0}
+  p{color:#64748b;font-size:13px;letter-spacing:.05em;margin:0}
 </style></head><body>
 <div class="ring"></div><p>Generating Trip Note PDF…</p>
 </body></html>`);
     tab.document.close();
   }
-
-  // ── Snapshot the app theme NOW (synchronous, before any await) ──────────────
-  // Maps data-theme → the same swatch hex used in THEMES array in theme.tsx.
-  const THEME_HEX: Record<string, string> = {
-    sky:      "#2f7ed8",
-    emerald:  "#12926f",
-    violet:   "#6d4bd8",
-    amber:    "#d38b1b",
-    rose:     "#d94f5c",
-    graphite: "#4a4f57",
-    garuda:   "#8b1a2c",
-  };
-  const themeId   = document.documentElement.getAttribute("data-theme") ?? "sky";
-  const themePrimary = THEME_HEX[themeId] ?? "#2f7ed8";
 
   // ── ALL ASYNC WORK HAPPENS AFTER THE WINDOW IS ALREADY OPEN ────────────────
   // Use a hidden <iframe> rather than a <div> appended to document.body.
@@ -517,7 +519,7 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
     iframeDoc.open();
     iframeDoc.write(
       `<!DOCTYPE html><html><head><meta charset="UTF-8">` +
-      `<style>${TRIP_NOTE_CSS}</style></head>` +
+      `<style>${buildTripNoteCSS(themePrimary)}</style></head>` +
       `<body style="margin:0;background:#fff;">` +
       buildBodyHtml(data, logoDataUri) +
       `</body></html>`,
@@ -563,7 +565,7 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
     const tripCode   = data.trip.trip_code;
     const startDate  = data.trip.start_date ?? "";
 
-    // ── Light-themed viewer page ──────────────────────────────────────────
+    // ── Minimal theme-matched viewer page ────────────────────────────────
     const viewerHtml = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -576,40 +578,24 @@ html,body{height:100%;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;
 .bar{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;
      background:#ffffff;border-bottom:1px solid #e2e8f0;flex-shrink:0;
      box-shadow:0 1px 3px rgba(0,0,0,.06)}
-.bar-l{display:flex;align-items:center;gap:12px}
-.ico{width:32px;height:32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
-     border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .t1{color:#0f172a;font-size:14px;font-weight:600}
 .t2{color:#64748b;font-size:11px;margin-top:2px}
 .acts{display:flex;gap:8px}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:6px;
      font-size:12px;font-weight:600;cursor:pointer;border:none;text-decoration:none;transition:opacity .15s}
 .btn:hover{opacity:.82}
-.pri{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff}
+.pri{background:${themePrimary};color:#fff}
 .sec{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}
-.wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:16px;gap:0}
+.wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;padding:16px}
 iframe{flex:1;width:100%;border:none;border-radius:8px;
        box-shadow:0 2px 12px rgba(0,0,0,.10)}
-.foot{flex-shrink:0;background:#ffffff;border-top:1px solid #e2e8f0;
-      padding:8px 20px;display:flex;align-items:center;justify-content:center;gap:8px}
-.flogo{width:18px;height:18px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
-       border-radius:4px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
-.ftxt{font-size:10px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:#94a3b8}
-.ftxt span{color:#6366f1}
 </style>
 </head>
 <body>
 <div class="bar">
-  <div class="bar-l">
-    <div class="ico">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-      </svg>
-    </div>
-    <div>
-      <div class="t1">Trip Note</div>
-      <div class="t2">Trip #${tripCode}${startDate ? " &nbsp;&middot;&nbsp; " + startDate : ""}</div>
-    </div>
+  <div>
+    <div class="t1">Trip Note</div>
+    <div class="t2">Trip #${tripCode}${startDate ? " &nbsp;&middot;&nbsp; " + startDate : ""}</div>
   </div>
   <div class="acts">
     <button class="btn sec" onclick="dl()">
@@ -625,14 +611,6 @@ iframe{flex:1;width:100%;border:none;border-radius:8px;
   </div>
 </div>
 <div class="wrap"><iframe id="f" src="${pdfDataUri}"></iframe></div>
-<div class="foot">
-  <div class="flogo">
-    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-    </svg>
-  </div>
-  <div class="ftxt">Powered by <span>Sparrow AI Solution</span></div>
-</div>
 <script>
 var _d="${pdfDataUri}";
 function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-${tripCode}.pdf";a.click();}
