@@ -461,17 +461,14 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
  */
 export async function printTripNote(data: TripNoteData): Promise<void> {
   // ── OPEN WINDOW FIRST — must be synchronous inside the click handler ────────
+  // If the pop-up is blocked (tab === null) we continue anyway and fall back to
+  // a direct browser download at the end.
   const tab = window.open("", "_blank");
-  if (!tab) {
-    alert(
-      "Pop-up blocked. Please allow pop-ups for this site, then try again.",
-    );
-    return;
-  }
 
-  // Show a loading screen immediately so the user sees something in the tab.
-  tab.document.open();
-  tab.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  if (tab) {
+    // Show a loading screen immediately so the user sees something in the tab.
+    tab.document.open();
+    tab.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
 <title>Generating…</title>
 <style>
   body{margin:0;display:flex;align-items:center;justify-content:center;
@@ -483,7 +480,8 @@ export async function printTripNote(data: TripNoteData): Promise<void> {
 </style></head><body>
 <div class="ring"></div><p>Generating Trip Note PDF…</p>
 </body></html>`);
-  tab.document.close();
+    tab.document.close();
+  }
 
   // ── ALL ASYNC WORK HAPPENS AFTER THE WINDOW IS ALREADY OPEN ────────────────
   const styleEl = document.createElement("style");
@@ -613,12 +611,56 @@ function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-$
 </script>
 </body></html>`;
 
-    tab.document.open();
-    tab.document.write(viewerHtml);
-    tab.document.close();
+    if (tab && !tab.closed) {
+      // Success — show interactive viewer in the tab.
+      tab.document.open();
+      tab.document.write(viewerHtml);
+      tab.document.close();
+    } else {
+      // Tab was blocked by the browser — fall back to a direct download.
+      pdf.save(`TripNote-${tripCode}.pdf`);
+    }
 
   } catch (err) {
-    tab.close();
+    // PDF generation failed.  Show a friendly error page in the tab (if it
+    // opened) so the user isn't left staring at a blank loading screen, and
+    // also attempt a direct download as a last-resort fallback.
+    const errMsg = err instanceof Error ? err.message : String(err);
+    if (tab && !tab.closed) {
+      tab.document.open();
+      tab.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>PDF Error</title>
+<style>
+  body{margin:0;display:flex;align-items:center;justify-content:center;
+       min-height:100vh;background:#111827;font-family:Arial,sans-serif;
+       flex-direction:column;gap:14px;padding:24px;text-align:center}
+  .ico{width:52px;height:52px;background:#7f1d1d;border-radius:50%;
+       display:flex;align-items:center;justify-content:center;margin:0 auto}
+  h2{color:#f3f4f6;font-size:17px;margin:0}
+  p{color:#9ca3af;font-size:13px;margin:0;max-width:420px}
+  code{display:block;margin-top:10px;color:#f87171;font-size:11px;
+       background:#1f2937;border-radius:6px;padding:8px 12px;
+       word-break:break-all;text-align:left}
+  button{margin-top:8px;padding:8px 20px;background:#4f46e5;color:#fff;
+         border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+  button:hover{opacity:.85}
+</style></head><body>
+<div class="ico">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fca5a5"
+       stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+    <line x1="12" y1="16" x2="12.01" y2="16"/>
+  </svg>
+</div>
+<h2>Could not generate PDF</h2>
+<p>An error occurred while building the trip note.
+   Please close this tab and try again.
+   <code>${errMsg}</code>
+</p>
+<button onclick="window.close()">Close tab</button>
+</body></html>`);
+      tab.document.close();
+    }
     throw err;
   } finally {
     document.head.removeChild(styleEl);
