@@ -71,6 +71,8 @@ function LoginPage() {
   const navigate                = useNavigate();
   const { loginUi }             = useTheme();
 
+  const [tmsExpanded, setTmsExpanded] = useState(false);
+
   const [id, setId]             = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
@@ -197,17 +199,27 @@ function LoginPage() {
             className="h-full w-full object-cover"
           />
           {/* Logo overlaid top-left on the banner image */}
-          <div className="absolute left-6 top-6 flex flex-col items-start gap-3">
+          <div className="absolute left-6 top-6 flex flex-col items-center gap-2">
             {/* Logo card */}
             <div className="rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm shadow-md">
               <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-14 w-auto" />
             </div>
-            {/* TMS stacked below */}
-            <div className="leading-none">
-              <p className="text-4xl font-black text-white drop-shadow-lg">T</p>
-              <p className="text-4xl font-black text-white drop-shadow-lg">M</p>
-              <p className="text-4xl font-black text-white drop-shadow-lg">S</p>
-            </div>
+            {/* TMS — single row by default, click to expand to 3 lines */}
+            <button
+              type="button"
+              onClick={() => setTmsExpanded(v => !v)}
+              className="rounded-lg bg-white/85 px-4 py-1.5 backdrop-blur-sm shadow cursor-pointer select-none"
+            >
+              {tmsExpanded ? (
+                <div className="flex flex-col items-center leading-tight">
+                  <span className="text-2xl font-black text-black">T</span>
+                  <span className="text-2xl font-black text-black">M</span>
+                  <span className="text-2xl font-black text-black">S</span>
+                </div>
+              ) : (
+                <span className="text-2xl font-black text-black tracking-widest">T  M  S</span>
+              )}
+            </button>
           </div>
           <LiveClock dark />
         </aside>
