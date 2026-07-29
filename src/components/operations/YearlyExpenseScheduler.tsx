@@ -182,7 +182,7 @@ export function YearlyExpenseScheduler() {
         );
       }
 
-      const branchMap = new Map(branches.map((b) => [b.id, b.name]));
+      const branchMap = new Map(branches.map((b) => [b.id, b.branch_name]));
 
       setSchedules(
         schData.map((s) => ({
@@ -395,7 +395,7 @@ export function YearlyExpenseScheduler() {
                 <SelectContent>
                   <SelectItem value="">All branches</SelectItem>
                   {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                    <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

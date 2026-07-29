@@ -413,6 +413,10 @@ export type Database = {
           msme_udyam: string | null
           pan: string | null
           pin_code: string | null
+          fixed_monthly_charge: number
+          fixed_monthly_charge_note: string
+          fixed_yearly_charge: number
+          fixed_yearly_charge_note: string
           quantity_ranges: Json
           state: string | null
           tan: string | null
@@ -432,6 +436,10 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          fixed_monthly_charge?: number
+          fixed_monthly_charge_note?: string
+          fixed_yearly_charge?: number
+          fixed_yearly_charge_note?: string
           freight_basis?: string
           gstin?: string | null
           id?: string
@@ -462,6 +470,10 @@ export type Database = {
           country?: string | null
           created_at?: string
           email?: string | null
+          fixed_monthly_charge?: number
+          fixed_monthly_charge_note?: string
+          fixed_yearly_charge?: number
+          fixed_yearly_charge_note?: string
           freight_basis?: string
           gstin?: string | null
           id?: string
@@ -935,6 +947,9 @@ export type Database = {
           is_paid: boolean
           is_payroll: boolean
           payroll_id: string | null
+          is_yearly_fixed: boolean
+          yearly_fixed_id: string | null
+          yearly_fixed_inst_no: number | null
           note: string | null
           paid_date: string | null
           transporter_id: string | null
@@ -954,6 +969,9 @@ export type Database = {
           is_paid?: boolean
           is_payroll?: boolean
           payroll_id?: string | null
+          is_yearly_fixed?: boolean
+          yearly_fixed_id?: string | null
+          yearly_fixed_inst_no?: number | null
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null
@@ -973,6 +991,9 @@ export type Database = {
           is_paid?: boolean
           is_payroll?: boolean
           payroll_id?: string | null
+          is_yearly_fixed?: boolean
+          yearly_fixed_id?: string | null
+          yearly_fixed_inst_no?: number | null
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null
@@ -1390,6 +1411,7 @@ export type Database = {
           odometer_end: string | null
           odometer_start: string | null
           ownership: string
+          reopened_at: string | null
           start_date: string | null
           start_location_id: string | null
           start_time: string | null
@@ -1411,6 +1433,7 @@ export type Database = {
           odometer_end?: string | null
           odometer_start?: string | null
           ownership?: string
+          reopened_at?: string | null
           start_date?: string | null
           start_location_id?: string | null
           start_time?: string | null
@@ -1432,6 +1455,7 @@ export type Database = {
           odometer_end?: string | null
           odometer_start?: string | null
           ownership?: string
+          reopened_at?: string | null
           start_date?: string | null
           start_location_id?: string | null
           start_time?: string | null
@@ -1544,6 +1568,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "vehicles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      yearly_fixed_expenses: {
+        Row: {
+          id: string
+          expense_name: string
+          total_amount: number
+          monthly_amount: number
+          start_date: string
+          end_date: string
+          include_start_month: boolean
+          note: string | null
+          branch_id: string | null
+          status: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          expense_name: string
+          total_amount: number
+          monthly_amount: number
+          start_date: string
+          end_date: string
+          include_start_month?: boolean
+          note?: string | null
+          branch_id?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          expense_name?: string
+          total_amount?: number
+          monthly_amount?: number
+          start_date?: string
+          end_date?: string
+          include_start_month?: boolean
+          note?: string | null
+          branch_id?: string | null
+          status?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "yearly_fixed_expenses_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
