@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { LocationPinPair } from "@/components/LocationPinPair";
 import { basisRanges, basisUnit, rangeBoundsNote, rangeKey, rangeLabel } from "@/lib/contract-ranges";
+import type { ChargeType } from "@/lib/contract-ranges";
 import type { ContractRow } from "./ContractForm";
 
 export type EntryRow = {
@@ -19,6 +20,10 @@ export type EntryRow = {
   to_pin_code: string;
   freight_values: Record<string, string>;
   loading_values: Record<string, string>;
+  /** Per-slab charge type overrides for freight (route-wise). Missing keys fall back to contract range charge_type. */
+  freight_charge_types: Record<string, string>;
+  /** Per-slab charge type overrides for loading (route-wise). Missing keys fall back to contract range charge_type. */
+  loading_charge_types: Record<string, string>;
   per_manifest_amount: string;
   per_manifest_note: string;
 };
@@ -32,6 +37,8 @@ export function emptyEntry(contract_id: string): EntryRow {
     to_pin_code: "",
     freight_values: {},
     loading_values: {},
+    freight_charge_types: {},
+    loading_charge_types: {},
     per_manifest_amount: "",
     per_manifest_note: "",
   };
@@ -76,6 +83,76 @@ function AmountNote({
   );
 }
 
+/** Renders one slab row: label, Rate×/Fixed₹ toggle, amount input */
+function SlabInput({
+  label,
+  boundsNote,
+  unit,
+  contractChargeType,
+  entryChargeType,
+  value,
+  onChargeType,
+  onValue,
+}: {
+  label: string;
+  boundsNote: string;
+  unit: string;
+  contractChargeType: ChargeType;
+  entryChargeType: ChargeType | undefined;
+  value: string;
+  onChargeType: (ct: ChargeType) => void;
+  onValue: (v: string) => void;
+}) {
+  // Entry override takes priority; fall back to contract default
+  const effective: ChargeType = entryChargeType ?? contractChargeType;
+  const isFixed = effective === "fixed";
+  const isOverridden = entryChargeType !== undefined && entryChargeType !== contractChargeType;
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-2 flex-wrap">
+        <Label className="text-xs font-medium text-muted-foreground">
+          {label}
+        </Label>
+        <button
+          type="button"
+          title={
+            isFixed
+              ? "Fixed ₹: flat charge for this slab — amount is NOT multiplied by units. Click to switch to Rate ×."
+              : "Rate ×: amount is multiplied by weight / quantity. Click to switch to Fixed ₹."
+          }
+          onClick={() => onChargeType(isFixed ? "rate" : "fixed")}
+          className={`h-6 rounded px-2 text-[10px] font-semibold transition-colors border ${
+            isFixed
+              ? "border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-300"
+              : "border-border bg-muted text-muted-foreground hover:text-foreground"
+          } ${isOverridden ? "ring-1 ring-blue-400" : ""}`}
+        >
+          {isFixed ? "Fixed ₹" : "Rate ×"}
+          {isOverridden ? " (custom)" : ""}
+        </button>
+        {isOverridden && (
+          <button
+            type="button"
+            className="text-[10px] text-muted-foreground underline hover:text-foreground"
+            onClick={() => onChargeType(contractChargeType)}
+          >
+            reset to contract default
+          </button>
+        )}
+      </div>
+      <p className="text-[10px] text-muted-foreground/70">{boundsNote}</p>
+      <Input
+        type="number"
+        className="h-10"
+        placeholder={isFixed ? "Flat charge (₹)" : `Rate per ${unit}`}
+        value={value}
+        onChange={(e) => onValue(e.target.value)}
+      />
+    </div>
+  );
+}
+
 export function ContractEntryForm({
   contract,
   initial,
@@ -87,7 +164,11 @@ export function ContractEntryForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<EntryRow>(initial);
+  const [form, setForm] = useState<EntryRow>({
+    ...initial,
+    freight_charge_types: initial.freight_charge_types ?? {},
+    loading_charge_types: initial.loading_charge_types ?? {},
+  });
   const [saving, setSaving] = useState(false);
 
   const freightRanges = basisRanges(contract, contract.freight_basis, "freight");
@@ -150,43 +231,40 @@ export function ContractEntryForm({
           Freight ({contract.freight_basis})
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Enter the amount for each {contract.freight_basis} slab.{" "}
-          <span className="font-medium text-foreground">Rate ×</span> slabs are multiplied by
-          actual {contract.freight_basis};{" "}
-          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> slabs are
-          a flat charge regardless of {contract.freight_basis}.
+          Each slab can independently be{" "}
+          <span className="font-medium text-foreground">Rate ×</span> (multiplied by actual{" "}
+          {contract.freight_basis}) or{" "}
+          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> (flat
+          charge). The default comes from the contract; you can override it per route here.
+          Overridden slabs show a blue ring and a reset link.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
           {freightRanges.map((r) => {
             const key = rangeKey(r);
-            const isFixed = r.charge_type === "fixed";
+            const contractCt: ChargeType = r.charge_type ?? "rate";
+            const entryCt = form.freight_charge_types[key] as ChargeType | undefined;
             return (
-              <div key={`f-${key}`} className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  {rangeLabel(r, freightUnit)}{" "}
-                  <span className={`ml-1 rounded px-1 py-0.5 text-[10px] font-semibold ${
-                    isFixed
-                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {isFixed ? "Fixed ₹" : "Rate ×"}
-                  </span>
-                </Label>
-                <p className="text-[10px] text-muted-foreground/70">
-                  {rangeBoundsNote(r, freightUnit)}
-                </p>
-                <Input
-                  type="number"
-                  className="h-10"
-                  placeholder={isFixed ? "Flat charge (₹)" : `Rate per ${freightUnit}`}
-                  value={form.freight_values[key] ?? ""}
-                  onChange={(e) =>
-                    patch({
-                      freight_values: { ...form.freight_values, [key]: e.target.value },
-                    })
+              <SlabInput
+                key={`f-${key}`}
+                label={rangeLabel(r, freightUnit)}
+                boundsNote={rangeBoundsNote(r, freightUnit)}
+                unit={freightUnit}
+                contractChargeType={contractCt}
+                entryChargeType={entryCt}
+                value={form.freight_values[key] ?? ""}
+                onChargeType={(ct) => {
+                  const next = { ...form.freight_charge_types };
+                  if (ct === contractCt) {
+                    delete next[key]; // back to contract default — remove override
+                  } else {
+                    next[key] = ct;
                   }
-                />
-              </div>
+                  patch({ freight_charge_types: next });
+                }}
+                onValue={(v) =>
+                  patch({ freight_values: { ...form.freight_values, [key]: v } })
+                }
+              />
             );
           })}
         </div>
@@ -197,42 +275,38 @@ export function ContractEntryForm({
           Loading charges ({contract.loading_basis})
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Rate ×</span> slabs are multiplied by
-          actual {contract.loading_basis};{" "}
-          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> slabs are
-          a flat charge.
+          Each slab can independently be{" "}
+          <span className="font-medium text-foreground">Rate ×</span> or{" "}
+          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span>. Default
+          from contract; override per route here.
         </p>
         <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
           {loadingRanges.map((r) => {
             const key = rangeKey(r);
-            const isFixed = r.charge_type === "fixed";
+            const contractCt: ChargeType = r.charge_type ?? "rate";
+            const entryCt = form.loading_charge_types[key] as ChargeType | undefined;
             return (
-              <div key={`l-${key}`} className="space-y-1">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  {rangeLabel(r, loadingUnit)}{" "}
-                  <span className={`ml-1 rounded px-1 py-0.5 text-[10px] font-semibold ${
-                    isFixed
-                      ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {isFixed ? "Fixed ₹" : "Rate ×"}
-                  </span>
-                </Label>
-                <p className="text-[10px] text-muted-foreground/70">
-                  {rangeBoundsNote(r, loadingUnit)}
-                </p>
-                <Input
-                  type="number"
-                  className="h-10"
-                  placeholder={isFixed ? "Flat charge (₹)" : `Rate per ${loadingUnit}`}
-                  value={form.loading_values[key] ?? ""}
-                  onChange={(e) =>
-                    patch({
-                      loading_values: { ...form.loading_values, [key]: e.target.value },
-                    })
+              <SlabInput
+                key={`l-${key}`}
+                label={rangeLabel(r, loadingUnit)}
+                boundsNote={rangeBoundsNote(r, loadingUnit)}
+                unit={loadingUnit}
+                contractChargeType={contractCt}
+                entryChargeType={entryCt}
+                value={form.loading_values[key] ?? ""}
+                onChargeType={(ct) => {
+                  const next = { ...form.loading_charge_types };
+                  if (ct === contractCt) {
+                    delete next[key];
+                  } else {
+                    next[key] = ct;
                   }
-                />
-              </div>
+                  patch({ loading_charge_types: next });
+                }}
+                onValue={(v) =>
+                  patch({ loading_values: { ...form.loading_values, [key]: v } })
+                }
+              />
             );
           })}
         </div>

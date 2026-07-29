@@ -318,10 +318,12 @@ export type Database = {
         Row: {
           contract_id: string
           created_at: string
+          freight_charge_types: Json
           freight_values: Json
           from_location_id: string | null
           from_pin_code: string | null
           id: string
+          loading_charge_types: Json
           loading_values: Json
           monthly_change_amount: string | null
           monthly_change_note: string | null
@@ -336,10 +338,12 @@ export type Database = {
         Insert: {
           contract_id: string
           created_at?: string
+          freight_charge_types?: Json
           freight_values?: Json
           from_location_id?: string | null
           from_pin_code?: string | null
           id?: string
+          loading_charge_types?: Json
           loading_values?: Json
           monthly_change_amount?: string | null
           monthly_change_note?: string | null
@@ -354,10 +358,12 @@ export type Database = {
         Update: {
           contract_id?: string
           created_at?: string
+          freight_charge_types?: Json
           freight_values?: Json
           from_location_id?: string | null
           from_pin_code?: string | null
           id?: string
+          loading_charge_types?: Json
           loading_values?: Json
           monthly_change_amount?: string | null
           monthly_change_note?: string | null

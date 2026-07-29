@@ -308,14 +308,19 @@ function EntriesView({
 
   const entryColumns = useMemo(() => {
     const freightCols = freightRanges.map((r) => `freight_${rangeKey(r)}`);
+    // charge-type columns: one per freight slab, e.g. freight_ct_0-100 → "rate" or "fixed"
+    const freightCtCols = freightRanges.map((r) => `freight_ct_${rangeKey(r)}`);
     const loadingCols = loadingRanges.map((r) => `loading_${rangeKey(r)}`);
+    const loadingCtCols = loadingRanges.map((r) => `loading_ct_${rangeKey(r)}`);
     return [
       "from_location",
       "from_pin_code",
       "to_location",
       "to_pin_code",
       ...freightCols,
+      ...freightCtCols,
       ...loadingCols,
+      ...loadingCtCols,
       "per_manifest_amount",
       "per_manifest_note",
     ];
@@ -395,16 +400,23 @@ function EntriesView({
 
     const payload = rows.map((r) => {
       const freight_values: Record<string, string> = {};
+      const freight_charge_types: Record<string, string> = {};
       freightRanges.forEach((rg) => {
         const k = rangeKey(rg);
         const v = r[`freight_${k}`];
         if (v !== undefined && v !== "") freight_values[k] = v;
+        // Import per-slab charge type: column freight_ct_<key> → "rate" | "fixed"
+        const ct = (r[`freight_ct_${k}`] ?? "").trim().toLowerCase();
+        if (ct === "rate" || ct === "fixed") freight_charge_types[k] = ct;
       });
       const loading_values: Record<string, string> = {};
+      const loading_charge_types: Record<string, string> = {};
       loadingRanges.forEach((rg) => {
         const k = rangeKey(rg);
         const v = r[`loading_${k}`];
         if (v !== undefined && v !== "") loading_values[k] = v;
+        const ct = (r[`loading_ct_${k}`] ?? "").trim().toLowerCase();
+        if (ct === "rate" || ct === "fixed") loading_charge_types[k] = ct;
       });
       const from = resolve(r.from_location ?? "", r.from_pin_code ?? "");
       const to = resolve(r.to_location ?? "", r.to_pin_code ?? "");
@@ -415,7 +427,9 @@ function EntriesView({
         from_pin_code: from.pin,
         to_pin_code: to.pin,
         freight_values,
+        freight_charge_types,
         loading_values,
+        loading_charge_types,
         per_manifest_amount: r.per_manifest_amount ?? "",
         per_manifest_note: r.per_manifest_note ?? "",
       };
@@ -433,6 +447,8 @@ function EntriesView({
   }
 
   const exportRows = entries.map((e) => {
+    const fct = (e as EntryRow).freight_charge_types ?? {};
+    const lct = (e as EntryRow).loading_charge_types ?? {};
     const row: Record<string, unknown> = {
       from_location: e.from_location_id ? locNames[e.from_location_id] ?? "" : "",
       from_pin_code: e.from_pin_code,
@@ -444,10 +460,13 @@ function EntriesView({
     freightRanges.forEach((r) => {
       const k = rangeKey(r);
       row[`freight_${k}`] = (e.freight_values ?? {})[k] ?? "";
+      // Export the effective charge type for this slab: entry override or contract default
+      row[`freight_ct_${k}`] = fct[k] ?? r.charge_type ?? "rate";
     });
     loadingRanges.forEach((r) => {
       const k = rangeKey(r);
       row[`loading_${k}`] = (e.loading_values ?? {})[k] ?? "";
+      row[`loading_ct_${k}`] = lct[k] ?? r.charge_type ?? "rate";
     });
     return row;
   });

@@ -1,4 +1,4 @@
-import { basisRanges, rangeKey, type Basis, type Range } from "./contract-ranges";
+import { basisRanges, rangeKey, type Basis, type ChargeType, type Range } from "./contract-ranges";
 
 export type ContractLite = {
   id: string;
@@ -24,6 +24,10 @@ export type EntryLite = {
   to_pin_code: string | null;
   freight_values: Record<string, string>;
   loading_values: Record<string, string>;
+  /** Per-slab charge type overrides for freight. Missing keys fall back to contract range charge_type. */
+  freight_charge_types?: Record<string, string>;
+  /** Per-slab charge type overrides for loading. Missing keys fall back to contract range charge_type. */
+  loading_charge_types?: Record<string, string>;
   per_manifest_amount: string | null;
 };
 
@@ -76,18 +80,41 @@ export function manifestCharges(
   m: ManifestLite,
 ): { freight: number; loading: number; fixed: number; matched: boolean } {
   if (!contract || !entry) return { freight: 0, loading: 0, fixed: 0, matched: false };
-  const pick = (basis: Basis, values: Record<string, string>, chargeKind: "freight" | "loading") => {
+  const pick = (
+    basis: Basis,
+    values: Record<string, string>,
+    chargeKind: "freight" | "loading",
+    entryChargeTypes?: Record<string, string>,
+  ) => {
     const value = basis === "weight" ? num(m.weight_kg) : num(m.quantity);
     const r = matchRange(basisRanges(contract, basis, chargeKind), value);
     if (!r) return 0;
-    const rate = num(values?.[rangeKey(r)]);
+    const key = rangeKey(r);
+    const rate = num(values?.[key]);
+    // Entry-level charge_type takes priority over contract-level range charge_type.
+    // Both fall back to "rate" (historic default) when absent.
+    const entryOverride = entryChargeTypes?.[key];
+    const effectiveCt: ChargeType =
+      (entryOverride === "fixed" || entryOverride === "rate"
+        ? entryOverride
+        : r.charge_type) ?? "rate";
     // "fixed" → flat charge for the slab, no multiplication.
-    // "rate" (default) → rate × units (weight or qty).
-    return r.charge_type === "fixed" ? rate : rate * value;
+    // "rate" → rate × units (weight or qty).
+    return effectiveCt === "fixed" ? rate : rate * value;
   };
   return {
-    freight: pick(contract.freight_basis, entry.freight_values ?? {}, "freight"),
-    loading: pick(contract.loading_basis, entry.loading_values ?? {}, "loading"),
+    freight: pick(
+      contract.freight_basis,
+      entry.freight_values ?? {},
+      "freight",
+      entry.freight_charge_types ?? {},
+    ),
+    loading: pick(
+      contract.loading_basis,
+      entry.loading_values ?? {},
+      "loading",
+      entry.loading_charge_types ?? {},
+    ),
     fixed: num(entry.per_manifest_amount),
     matched: true,
   };
