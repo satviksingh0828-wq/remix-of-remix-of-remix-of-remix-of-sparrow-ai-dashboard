@@ -208,6 +208,25 @@ function mapContract(c: Record<string, unknown>): PnLContractRow {
   };
 }
 
+// ── Server-side paginated fetch (mirrors client fetchAll for admin client) ────
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function fetchAllAdmin<T>(buildQuery: () => any, pageSize = 1000): Promise<T[]> {
+  const out: T[] = [];
+  let from = 0;
+  const HARD_CAP = 500_000;
+  while (from < HARD_CAP) {
+    const to = from + pageSize - 1;
+    const res = await buildQuery().range(from, to);
+    if (res.error) throw new Error(res.error.message);
+    const batch: T[] = res.data ?? [];
+    out.push(...batch);
+    if (batch.length < pageSize) break;
+    from += pageSize;
+  }
+  return out;
+}
+
 // ── Active-trip helper ─────────────────────────────────────────────────────────
 
 /**
@@ -327,23 +346,28 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
     const start = `${y}-01-01`;
     const end = `${y + 1}-01-01`;
 
-    const [tripsRes, activeTrips, incomesRes, expendituresRes, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
+    const [closedTripsRows, activeTrips, incomesRows, expendituresRows, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
       await Promise.all([
-        // select snapshot so mapTrip can extract vehicle/driver/transporter for
-        // older rows that don't yet have those as top-level columns
-        db.from("closed_trips")
-          .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
-          .gte("closed_at", start)
-          .lt("closed_at", end),
+        // fetchAllAdmin so >1000 trips/year are never silently truncated
+        fetchAllAdmin<Record<string, unknown>>(() =>
+          db.from("closed_trips")
+            .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
+            .gte("closed_at", start)
+            .lt("closed_at", end)
+        ),
         fetchActiveTrips(db, start, end),
-        db.from("incomes")
-          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-          .gte("entry_date", start)
-          .lt("entry_date", end),
-        db.from("expenditures")
-          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-          .gte("entry_date", start)
-          .lt("entry_date", end),
+        fetchAllAdmin<Record<string, unknown>>(() =>
+          db.from("incomes")
+            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+            .gte("entry_date", start)
+            .lt("entry_date", end)
+        ),
+        fetchAllAdmin<Record<string, unknown>>(() =>
+          db.from("expenditures")
+            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+            .gte("entry_date", start)
+            .lt("entry_date", end)
+        ),
         db.from("contracts")
           .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note"),
         db.from("branches").select("id,branch_name"),
@@ -353,9 +377,9 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
       ]);
 
     return {
-      closedTrips: [...(tripsRes.data ?? []).map(mapTrip), ...activeTrips],
-      incomes: (incomesRes.data ?? []).map(mapIncome),
-      expenditures: (expendituresRes.data ?? []).map(mapExpenditure),
+      closedTrips: [...closedTripsRows.map(mapTrip), ...activeTrips],
+      incomes: incomesRows.map(mapIncome),
+      expenditures: expendituresRows.map(mapExpenditure),
       contracts: (contractsRes.data ?? []).map(mapContract),
       branches: (branchesRes.data ?? []).map((b: Record<string, unknown>) => ({ id: b.id as string, branch_name: String(b.branch_name ?? "") })),
       vehicles: (vehiclesRes.data ?? []).map((v: Record<string, unknown>) => ({
@@ -398,21 +422,27 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
 
     const months = month !== undefined ? 1 : 12;
 
-    const [tripsRes, activeTrips, incomesRes, expendituresRes, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
+    const [closedTripsRows, activeTrips, incomesRows, expendituresRows, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
       await Promise.all([
-        db.from("closed_trips")
-          .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
-          .gte("closed_at", start)
-          .lt("closed_at", end),
+        fetchAllAdmin<Record<string, unknown>>(() =>
+          db.from("closed_trips")
+            .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
+            .gte("closed_at", start)
+            .lt("closed_at", end)
+        ),
         fetchActiveTrips(db, start, end),
-        db.from("incomes")
-          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-          .gte("entry_date", start)
-          .lt("entry_date", end),
-        db.from("expenditures")
-          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-          .gte("entry_date", start)
-          .lt("entry_date", end),
+        fetchAllAdmin<Record<string, unknown>>(() =>
+          db.from("incomes")
+            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+            .gte("entry_date", start)
+            .lt("entry_date", end)
+        ),
+        fetchAllAdmin<Record<string, unknown>>(() =>
+          db.from("expenditures")
+            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+            .gte("entry_date", start)
+            .lt("entry_date", end)
+        ),
         db.from("contracts")
           .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note"),
         db.from("branches").select("id,branch_name"),
@@ -422,9 +452,9 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
       ]);
 
     return {
-      closedTrips: [...(tripsRes.data ?? []).map(mapTrip), ...activeTrips],
-      incomes: (incomesRes.data ?? []).map(mapIncome),
-      expenditures: (expendituresRes.data ?? []).map(mapExpenditure),
+      closedTrips: [...closedTripsRows.map(mapTrip), ...activeTrips],
+      incomes: incomesRows.map(mapIncome),
+      expenditures: expendituresRows.map(mapExpenditure),
       contracts: (contractsRes.data ?? []).map((c: Record<string, unknown>) => ({
         ...mapContract(c),
         // Normalize to per-month equivalent for the period
@@ -462,20 +492,26 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
     const start = `${year}-${m}-01`;
     const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
 
-    const [tripsRes, incomesRes, expendituresRes, contractsRes, locationsRes] = await Promise.all([
-      db.from("closed_trips")
-        .select("id,trip_code,branch_id,branch_name,total_income,total_expense,net_income,closed_at,snapshot")
-        .gte("closed_at", start)
-        .lt("closed_at", end)
-        .order("closed_at"),
-      db.from("incomes")
-        .select("amount,entry_date")
-        .gte("entry_date", start)
-        .lt("entry_date", end),
-      db.from("expenditures")
-        .select("amount,entry_date")
-        .gte("entry_date", start)
-        .lt("entry_date", end),
+    const [tripsRows, incomesRows, expendituresRows, contractsRes, locationsRes] = await Promise.all([
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db.from("closed_trips")
+          .select("id,trip_code,branch_id,branch_name,total_income,total_expense,net_income,closed_at,snapshot")
+          .gte("closed_at", start)
+          .lt("closed_at", end)
+          .order("closed_at")
+      ),
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db.from("incomes")
+          .select("amount,entry_date")
+          .gte("entry_date", start)
+          .lt("entry_date", end)
+      ),
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db.from("expenditures")
+          .select("amount,entry_date")
+          .gte("entry_date", start)
+          .lt("entry_date", end)
+      ),
       db.from("contracts")
         .select("fixed_monthly_charge,fixed_yearly_charge"),
       db.from("locations").select("id,location_name,pin_code"),
@@ -518,7 +554,7 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
       }
     }
 
-    const trips: TripAveragesRow[] = (tripsRes.data ?? []).map((r: Record<string, unknown>) => {
+    const trips: TripAveragesRow[] = tripsRows.map((r: Record<string, unknown>) => {
       const { weight, quantity } = extractWeightQty(r.snapshot);
       return {
         id: r.id as string,
@@ -535,8 +571,8 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
       };
     });
 
-    const otherIncome = (incomesRes.data ?? []).reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
-    const totalExpenditure = (expendituresRes.data ?? []).reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
+    const otherIncome = incomesRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
+    const totalExpenditure = expendituresRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
     const fixedIncome = (contractsRes.data ?? []).reduce((s: number, c: Record<string, unknown>) => {
       return s + Number(c.fixed_monthly_charge ?? 0) + Number(c.fixed_yearly_charge ?? 0) / 12;
     }, 0);

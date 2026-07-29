@@ -16,6 +16,7 @@ import {
   clearRateLimit,
 } from "@/lib/login-rate-limit";
 import { logAction } from "@/lib/log-actions";
+import { useTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -42,6 +43,7 @@ function LoginPage() {
   const { signIn, user, ready } = useSession();
   const { credentialId }        = usePasskeyContext();
   const navigate                = useNavigate();
+  const { loginUi }             = useTheme();
 
   const [id, setId]             = useState("");
   const [password, setPassword] = useState("");
@@ -160,24 +162,34 @@ function LoginPage() {
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
-      {/* Banner */}
-      <aside
-        className="relative hidden items-center justify-center overflow-hidden px-12 lg:flex"
-        style={{ backgroundImage: "var(--gradient-brand)" }}
-      >
-        <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 -right-16 size-[26rem] rounded-full bg-white/10 blur-3xl" />
-        <div className="relative animate-fade-up text-center text-primary-foreground">
-          <div className="mx-auto w-64 xl:w-72 rounded-2xl bg-white p-3">
-            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="w-full" />
+      {/* Banner — switches between plain gradient and image based on Settings */}
+      {loginUi === "image" ? (
+        <aside className="relative hidden overflow-hidden lg:block">
+          <img
+            src="/garuda-banner.jpeg"
+            alt="Garuda Logistics Solution"
+            className="h-full w-full object-cover"
+          />
+        </aside>
+      ) : (
+        <aside
+          className="relative hidden items-center justify-center overflow-hidden px-12 lg:flex"
+          style={{ backgroundImage: "var(--gradient-brand)" }}
+        >
+          <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-32 -right-16 size-[26rem] rounded-full bg-white/10 blur-3xl" />
+          <div className="relative animate-fade-up text-center text-primary-foreground">
+            <div className="mx-auto w-64 xl:w-72 rounded-2xl bg-white p-3">
+              <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="w-full" />
+            </div>
+            <div className="mx-auto my-7 h-px w-24 bg-white/40" />
+            <p className="text-lg font-medium uppercase tracking-[0.42em] opacity-90">Project TMS</p>
+            <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed opacity-80">
+              Transport management, masters and operations — unified in one clean workspace.
+            </p>
           </div>
-          <div className="mx-auto my-7 h-px w-24 bg-white/40" />
-          <p className="text-lg font-medium uppercase tracking-[0.42em] opacity-90">Project TMS</p>
-          <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed opacity-80">
-            Transport management, masters and operations — unified in one clean workspace.
-          </p>
-        </div>
-      </aside>
+        </aside>
+      )}
 
       {/* Login */}
       <section className="flex flex-col items-center justify-center bg-background px-6 py-14">

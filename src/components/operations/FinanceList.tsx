@@ -75,7 +75,8 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   const [drivers, setDrivers] = useState<AnyRow[]>([]);
   const [transporters, setTransporters] = useState<AnyRow[]>([]);
 
-  const [year, setYear] = useState("all");
+  const currentYear = new Date().getFullYear();
+  const [year, setYear] = useState(String(currentYear));
   const [month, setMonth] = useState("all");
   const [status, setStatus] = useState<"all" | "done" | "pending">("all");
 
@@ -94,6 +95,25 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           .from(cfg.table)
           .select("*")
           .order("entry_date", { ascending: false });
+
+        // ── Push date filter to Supabase (avoids loading 50k+ rows client-side) ──
+        if (year !== "all") {
+          if (month !== "all") {
+            const nextMonthNum = Number(month) + 1;
+            const nextMonthStart =
+              nextMonthNum > 12
+                ? `${Number(year) + 1}-01-01`
+                : `${year}-${String(nextMonthNum).padStart(2, "0")}-01`;
+            q = q
+              .gte("entry_date", `${year}-${month}-01`)
+              .lt("entry_date", nextMonthStart) as typeof q;
+          } else {
+            q = q
+              .gte("entry_date", `${year}-01-01`)
+              .lt("entry_date", `${Number(year) + 1}-01-01`) as typeof q;
+          }
+        }
+
         if (allowedBranchIds !== null) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
@@ -129,23 +149,24 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   }
 
   async function loadMasters() {
+    // Only fetch columns needed for dropdowns — id + display name
     const [v, d, t] = await Promise.all([
       fetchAll<AnyRow>(() => {
-        let q = supabase.from("vehicles").select("*").order("registration_number");
+        let q = supabase.from("vehicles").select("id,registration_number,nickname,branch_id").order("registration_number");
         if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
         return q;
       }),
       fetchAll<AnyRow>(() => {
-        let q = supabase.from("drivers").select("*").order("full_name");
+        let q = supabase.from("drivers").select("id,full_name,branch_id").order("full_name");
         if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
         return q;
       }),
       fetchAll<AnyRow>(() => {
-        let q = supabase.from("transporters").select("*").order("transporter_name");
+        let q = supabase.from("transporters").select("id,transporter_name").order("transporter_name");
         if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
@@ -159,6 +180,10 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kind, user?.id, year, month]);
+
+  useEffect(() => {
     loadMasters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind, user?.id]);
@@ -184,11 +209,11 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   const nameOf = (opts: PickerOption[], id: string | null) =>
     (id ? opts.find((o) => o.id === id)?.label : "") ?? "";
 
+  // Static year range — no need to derive from loaded rows (which are now date-filtered)
   const years = useMemo(() => {
-    const set = new Set(rows.map((r) => yearOf(r.entry_date)).filter(Boolean));
-    set.add(String(new Date().getFullYear()));
-    return Array.from(set).sort().reverse();
-  }, [rows]);
+    const yr = new Date().getFullYear();
+    return Array.from({ length: yr - 2019 }, (_, i) => String(yr - i));
+  }, []);
 
   const filtered = rows.filter((r) => {
     if (year !== "all" && yearOf(r.entry_date) !== year) return false;

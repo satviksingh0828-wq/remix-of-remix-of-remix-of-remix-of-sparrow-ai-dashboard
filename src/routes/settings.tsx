@@ -140,7 +140,7 @@ function SettingsPage() {
 }
 
 function ThemePanel() {
-  const { theme, setTheme, saving } = useTheme();
+  const { theme, setTheme, saving, loginUi, setLoginUi } = useTheme();
 
   return (
     <div className="animate-fade-up space-y-5">
@@ -178,6 +178,77 @@ function ThemePanel() {
               </button>
             );
           })}
+        </div>
+      </section>
+
+      {/* ── Login page style ─────────────────────────────────────── */}
+      <section className="surface-card p-6">
+        <h3 className="text-sm font-semibold tracking-tight">Login page style</h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Choose how the left panel of the sign-in screen looks. Saved to the cloud and applies to
+          all users.
+        </p>
+        <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* Plain UI */}
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setLoginUi("plain")}
+            className={`relative flex flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 hover:-translate-y-0.5 ${
+              loginUi === "plain"
+                ? "border-primary bg-primary-soft"
+                : "border-border bg-card hover:border-primary/40"
+            }`}
+          >
+            {/* Mini preview */}
+            <div
+              className="flex h-28 w-full items-center justify-center"
+              style={{ backgroundImage: "var(--gradient-brand)" }}
+            >
+              <div className="rounded-xl bg-white/20 px-5 py-2 text-[11px] font-semibold uppercase tracking-widest text-white">
+                Project TMS
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-4">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">Plain UI</span>
+                <span className="block text-xs text-muted-foreground">Gradient with logo (default)</span>
+              </span>
+              {loginUi === "plain" ? (
+                <Check className="size-4 shrink-0 text-primary" />
+              ) : null}
+            </div>
+          </button>
+
+          {/* Image UI */}
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => setLoginUi("image")}
+            className={`relative flex flex-col overflow-hidden rounded-xl border text-left transition-all duration-200 hover:-translate-y-0.5 ${
+              loginUi === "image"
+                ? "border-primary bg-primary-soft"
+                : "border-border bg-card hover:border-primary/40"
+            }`}
+          >
+            {/* Mini preview */}
+            <div className="h-28 w-full overflow-hidden">
+              <img
+                src="/garuda-banner.jpeg"
+                alt="Garuda banner preview"
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="flex items-center justify-between p-4">
+              <span className="min-w-0">
+                <span className="block text-sm font-medium">Image UI</span>
+                <span className="block text-xs text-muted-foreground">Garuda banner as background</span>
+              </span>
+              {loginUi === "image" ? (
+                <Check className="size-4 shrink-0 text-primary" />
+              ) : null}
+            </div>
+          </button>
         </div>
       </section>
 

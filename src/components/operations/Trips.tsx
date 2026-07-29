@@ -112,6 +112,9 @@ export function Trips() {
   const isBasic = user?.role === "basic";
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
+  // Closed trips: show last 90 days by default; admin can expand to all-time
+  const [showAllClosed, setShowAllClosed] = useState(false);
+
   async function load() {
     setLoading(true);
     try {
@@ -122,6 +125,11 @@ export function Trips() {
         setLoading(false);
         return;
       }
+
+      // Default: closed_trips last 90 days only (prevents loading 50k archived rows on startup)
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .slice(0, 10);
 
       const [live, archived] = await Promise.all([
         fetchAll<TripRow>(() => {
@@ -139,6 +147,9 @@ export function Trips() {
             .from("closed_trips")
             .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
             .order("closed_at", { ascending: false });
+          if (!showAllClosed) {
+            q = q.gte("closed_at", ninetyDaysAgo) as typeof q;
+          }
           if (allowedBranchIds !== null) {
             q = q.in("branch_id", allowedBranchIds) as typeof q;
           }
@@ -177,7 +188,7 @@ export function Trips() {
           toast.info(`${autoClosed} trip${autoClosed > 1 ? "s" : ""} auto-closed`);
         }
 
-        // Reload after auto-close
+        // Reload after auto-close (same date window as initial load)
         const [freshLive, freshArchived] = await Promise.all([
           fetchAll<TripRow>(() => {
             let q = supabase
@@ -194,6 +205,9 @@ export function Trips() {
               .from("closed_trips")
               .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
               .order("closed_at", { ascending: false });
+            if (!showAllClosed) {
+              q = q.gte("closed_at", ninetyDaysAgo) as typeof q;
+            }
             if (allowedBranchIds !== null) {
               q = q.in("branch_id", allowedBranchIds) as typeof q;
             }
@@ -215,7 +229,7 @@ export function Trips() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, showAllClosed]);
 
   async function remove(trip: TripRow) {
     if (!window.confirm("Delete this trip? This cannot be undone.")) return;
@@ -394,6 +408,9 @@ export function Trips() {
           <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
             <Archive className="size-4 text-muted-foreground" />
             Closed trips
+            {!showAllClosed && (
+              <span className="text-xs font-normal text-muted-foreground">(last 90 days)</span>
+            )}
           </h3>
           <p className="text-xs text-muted-foreground">
             Archived snapshots. Later changes to masters, contracts or rates never affect
@@ -444,6 +461,16 @@ export function Trips() {
               </li>
             ))}
           </ul>
+          {/* Load older closed trips if viewing only last 90 days */}
+          {!showAllClosed && (
+            <button
+              type="button"
+              className="mt-2 w-full rounded-xl border border-dashed border-border py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              onClick={() => setShowAllClosed(true)}
+            >
+              Load all archived trips
+            </button>
+          )}
         </section>
       ) : null}
     </div>
