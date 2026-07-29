@@ -152,13 +152,14 @@ function buildTripNoteCSS(primaryHex: string): string {
 .tn-root {
   font-family: Arial, Helvetica, sans-serif;
   font-size: 10.5px;
+  line-height: 1.35;
   color: #000;
   background: #fff;
   width: 770px;
   padding: 24px 32px 24px;
   box-sizing: border-box;
 }
-.tn-root * { box-sizing: border-box; margin: 0; padding: 0; }
+.tn-root * { box-sizing: border-box; margin: 0; padding: 0; line-height: inherit; }
 
 /* Title */
 .tn-title {
@@ -232,10 +233,10 @@ function buildTripNoteCSS(primaryHex: string): string {
   border-bottom: 0.7px solid #ddd; padding-bottom: 3px;
 }
 .tn-detail-row {
-  display: flex; justify-content: space-between; gap: 8px; margin-bottom: 3px;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 3px;
 }
-.tn-detail-label { font-size: 9.5px; color: #555; flex-shrink: 0; }
-.tn-detail-value { font-size: 10px; font-weight: 600; text-align: right; }
+.tn-detail-label { font-size: 9.5px; color: #555; flex-shrink: 0; line-height: 1.35; }
+.tn-detail-value { font-size: 10px; font-weight: 600; text-align: right; line-height: 1.35; }
 
 /* Manifest table */
 .tn-manifest-table { width: 100%; border-collapse: collapse; margin-top: 4px; }

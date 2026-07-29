@@ -10,16 +10,16 @@ import { THEMES, useTheme, type ThemeId } from "@/lib/theme";
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Project TMS | Sparrow AI Solutions" },
+      { title: "Settings — Garuda Logistics Solutions | Sparrow AI Solutions" },
       {
         name: "description",
         content:
-          "Manage company profile, branches, departments and application appearance for Project TMS.",
+          "Manage company profile, branches, departments and application appearance for Garuda Logistics Solutions.",
       },
-      { property: "og:title", content: "Settings — Project TMS" },
+      { property: "og:title", content: "Settings — Garuda Logistics Solutions" },
       {
         property: "og:description",
-        content: "Company profile, branches, departments and theme settings for Project TMS.",
+        content: "Company profile, branches, departments and theme settings for Garuda Logistics Solutions.",
       },
     ],
   }),
@@ -206,7 +206,7 @@ function ThemePanel() {
               style={{ backgroundImage: "var(--gradient-brand)" }}
             >
               <div className="rounded-xl bg-white/20 px-5 py-2 text-[11px] font-semibold uppercase tracking-widest text-white">
-                Project TMS
+                Garuda Logistics Solutions
               </div>
             </div>
             <div className="flex items-center justify-between p-4">

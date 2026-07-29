@@ -56,29 +56,41 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.setAttribute("data-theme", t);
   }, []);
 
+  // Shared fetch helper — called on mount and on page-visibility regain.
+  const fetchSettings = useCallback(async () => {
+    try {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("theme, login_ui")
+        .limit(1)
+        .maybeSingle();
+      const next = (data?.theme as ThemeId) ?? "sky";
+      setThemeState(next);
+      apply(next);
+      setLoginUiState((data?.login_ui as LoginUi) ?? "plain");
+    } catch {
+      // Supabase not configured yet — keep defaults.
+    }
+  }, [apply]);
+
   useEffect(() => {
     let active = true;
-    (async () => {
-      try {
-        const { data } = await supabase
-          .from("app_settings")
-          .select("theme, login_ui")
-          .limit(1)
-          .maybeSingle();
-        if (!active) return;
-        const next = (data?.theme as ThemeId) ?? "sky";
-        setThemeState(next);
-        apply(next);
-        setLoginUiState((data?.login_ui as LoginUi) ?? "plain");
-      } catch {
-        // Supabase not configured yet — keep defaults.
-      }
-    })();
     apply("sky");
+    (async () => {
+      if (!active) return;
+      await fetchSettings();
+    })();
+    // Re-fetch whenever the user switches back to this tab (covers cross-device
+    // changes that may have happened while the tab was in the background).
+    function onVisible() {
+      if (document.visibilityState === "visible") fetchSettings();
+    }
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       active = false;
+      document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [apply]);
+  }, [apply, fetchSettings]);
 
   // Real-time sync: when admin saves a theme on any device, all open sessions update instantly.
   useEffect(() => {
@@ -105,35 +117,43 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
   }, [apply]);
 
+  // Shared save helper — upserts a partial settings object.
+  // Gets the existing row id first so we always UPDATE the same row, never
+  // accumulate duplicate rows that would cause the wrong row to load later.
+  const saveSettings = useCallback(async (patch: Record<string, unknown>) => {
+    const { data } = await supabase.from("app_settings").select("id").limit(1).maybeSingle();
+    if (data?.id) {
+      await supabase.from("app_settings").update(patch).eq("id", data.id as string);
+    } else {
+      await supabase.from("app_settings").insert(patch);
+    }
+  }, []);
+
   const setTheme = useCallback(
     async (t: ThemeId) => {
       setThemeState(t);
       apply(t);
       setSaving(true);
       try {
-        const { data } = await supabase.from("app_settings").select("id").limit(1).maybeSingle();
-        if (data?.id) await supabase.from("app_settings").update({ theme: t }).eq("id", data.id);
-        else await supabase.from("app_settings").insert({ theme: t });
+        await saveSettings({ theme: t });
       } catch {
         // Supabase not configured yet — theme applied locally only.
       }
       setSaving(false);
     },
-    [apply],
+    [apply, saveSettings],
   );
 
   const setLoginUi = useCallback(async (v: LoginUi) => {
     setLoginUiState(v);
     setSaving(true);
     try {
-      const { data } = await supabase.from("app_settings").select("id").limit(1).maybeSingle();
-      if (data?.id) await supabase.from("app_settings").update({ login_ui: v }).eq("id", data.id);
-      else await supabase.from("app_settings").insert({ login_ui: v });
+      await saveSettings({ login_ui: v });
     } catch {
       // Supabase not configured — applied locally only.
     }
     setSaving(false);
-  }, []);
+  }, [saveSettings]);
 
   const value = useMemo(
     () => ({ theme, setTheme, saving, loginUi, setLoginUi }),

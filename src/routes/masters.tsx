@@ -16,16 +16,16 @@ import {
 export const Route = createFileRoute("/masters")({
   head: () => ({
     meta: [
-      { title: "Masters — Project TMS | Sparrow AI Solutions" },
+      { title: "Masters — Garuda Logistics Solutions | Sparrow AI Solutions" },
       {
         name: "description",
         content:
-          "Manage vehicles, drivers, transporters and locations for Project TMS with Excel-friendly import and export.",
+          "Manage vehicles, drivers, transporters and locations for Garuda Logistics Solutions with Excel-friendly import and export.",
       },
-      { property: "og:title", content: "Masters — Project TMS" },
+      { property: "og:title", content: "Masters — Garuda Logistics Solutions" },
       {
         property: "og:description",
-        content: "Vehicles, drivers, transporters and locations for Project TMS.",
+        content: "Vehicles, drivers, transporters and locations for Garuda Logistics Solutions.",
       },
     ],
   }),

@@ -18,13 +18,13 @@ import { useSession } from "@/lib/session";
 export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
-      { title: "Workspace — Project TMS | Sparrow AI Solutions" },
+      { title: "Workspace — Garuda Logistics Solutions | Sparrow AI Solutions" },
       {
         name: "description",
         content:
-          "Project TMS workspace: operations, masters, dashboard, reports, users and settings modules.",
+          "Garuda Logistics Solutions workspace: operations, masters, dashboard, reports, users and settings modules.",
       },
-      { property: "og:title", content: "Workspace — Project TMS" },
+      { property: "og:title", content: "Workspace — Garuda Logistics Solutions" },
       {
         property: "og:description",
         content: "Operations, masters, dashboard, reports, users and settings in one workspace.",
@@ -114,11 +114,11 @@ function HomePage() {
     <AppShell>
       <div className="animate-fade-up">
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">Workspace</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Choose a module</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Garuda Logistics Solutions</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
           {role === "admin"
-            ? "Six modules power Project TMS. Settings, Operations and Masters are live today."
-            : "Operations and Masters are available for your account."}
+            ? "Select a module"
+            : "Select a module"}
         </p>
       </div>
 

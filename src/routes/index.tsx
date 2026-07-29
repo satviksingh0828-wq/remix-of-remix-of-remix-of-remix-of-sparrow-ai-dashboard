@@ -21,8 +21,8 @@ import { useTheme } from "@/lib/theme";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sign in — Project TMS | Sparrow AI Solutions" },
-      { name: "description", content: "Secure operator sign-in for Project TMS." },
+      { title: "Sign in — Garuda Logistics Solutions | Sparrow AI Solutions" },
+      { name: "description", content: "Secure operator sign-in for Garuda Logistics Solutions." },
       { name: "robots", content: "noindex, nofollow, noarchive" },
     ],
   }),
@@ -183,7 +183,7 @@ function LoginPage() {
               <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="w-full" />
             </div>
             <div className="mx-auto my-7 h-px w-24 bg-white/40" />
-            <p className="text-lg font-medium uppercase tracking-[0.42em] opacity-90">Project TMS</p>
+            <p className="text-lg font-medium uppercase tracking-[0.42em] opacity-90">Garuda Logistics Solutions</p>
             <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed opacity-80">
               Transport management, masters and operations — unified in one clean workspace.
             </p>

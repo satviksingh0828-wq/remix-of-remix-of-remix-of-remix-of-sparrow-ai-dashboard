@@ -53,7 +53,7 @@ export const serverStartRegistration = createServerFn({ method: "POST" })
     const rpID = originToRpId(data.origin);
 
     const options = await generateRegistrationOptions({
-      rpName: "Project TMS",
+      rpName: "Garuda Logistics Solutions",
       rpID,
       userName: data.name,
       timeout: 120000,

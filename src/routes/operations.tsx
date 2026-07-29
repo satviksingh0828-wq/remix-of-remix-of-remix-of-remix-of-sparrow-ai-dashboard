@@ -16,13 +16,13 @@ import { useSession } from "@/lib/session";
 export const Route = createFileRoute("/operations")({
   head: () => ({
     meta: [
-      { title: "Operations — Project TMS | Sparrow AI Solutions" },
+      { title: "Operations — Garuda Logistics Solutions | Sparrow AI Solutions" },
       {
         name: "description",
         content: "Plan and record trips with manifests, contract-based freight, other income, expenses and a profit summary.",
       },
-      { property: "og:title", content: "Operations — Project TMS" },
-      { property: "og:description", content: "Trips, manifests, income and expenses for Project TMS." },
+      { property: "og:title", content: "Operations — Garuda Logistics Solutions" },
+      { property: "og:description", content: "Trips, manifests, income and expenses for Garuda Logistics Solutions." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
