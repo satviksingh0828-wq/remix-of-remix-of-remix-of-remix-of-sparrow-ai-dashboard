@@ -19,8 +19,14 @@ export const THEMES = [
   { id: "arctic",    label: "Arctic",          swatch: "#2a8fa8", hint: "Icy teal & frost",          dark: false },
   { id: "terra",     label: "Terra",           swatch: "#b05a30", hint: "Earthy terracotta",         dark: false },
   /* ── Textured surface themes ── */
-  { id: "vintage",   label: "Vintage Press",   swatch: "#7a4520", hint: "Sepia newspaper",           dark: false },
-  { id: "paper",     label: "Paper",           swatch: "#3a4a8a", hint: "Clean parchment",           dark: false },
+  { id: "vintage",     label: "Vintage Press",  swatch: "#7a4520", hint: "Sepia newspaper",           dark: false },
+  { id: "paper",       label: "Paper",          swatch: "#3a4a8a", hint: "Clean parchment",           dark: false },
+  { id: "kraft",       label: "Kraft",          swatch: "#8B5E3C", hint: "Cardboard kraft paper",     dark: false },
+  { id: "blueprint",   label: "Blueprint",      swatch: "#1A3F6F", hint: "Engineering draft paper",   dark: false },
+  { id: "linen",       label: "Linen",          swatch: "#7A3B2E", hint: "Natural linen & cream",     dark: false },
+  { id: "chalkboard",  label: "Chalkboard",     swatch: "#2D5A3D", hint: "Warm white, forest green",  dark: false },
+  { id: "vellum",      label: "Vellum",         swatch: "#4A4A5A", hint: "Tracing paper & graphite",  dark: false },
+  { id: "cork",        label: "Cork",           swatch: "#1A6B6B", hint: "Cork board tan & teal",     dark: false },
   /* ── Dark themes ── */
   { id: "neon",      label: "Neon Brutalism",  swatch: "#39ff7a", hint: "Dark + neon green, no radius", dark: true },
   { id: "midnight",  label: "Midnight",        swatch: "#4a7fd8", hint: "Deep midnight blue",        dark: true },
