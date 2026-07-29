@@ -5,6 +5,8 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { MasterList } from "@/components/masters/MasterList";
 import { Contracts } from "@/components/masters/Contracts";
+import { VehicleInsuranceSection } from "@/components/masters/VehicleInsuranceSection";
+import { VehicleRoadTaxSection } from "@/components/masters/VehicleRoadTaxSection";
 import { useSession } from "@/lib/session";
 import {
   DRIVER_CONFIG,
@@ -144,7 +146,25 @@ function MastersPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active?.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active?.desc}</p>
           </header>
-          {safeTab === "vehicle"     ? <MasterList config={VEHICLE_CONFIG} />     : null}
+          {safeTab === "vehicle" ? (
+            <MasterList
+              config={VEHICLE_CONFIG}
+              renderExtraEditSections={isAdmin ? (id, row) => (
+                <>
+                  <VehicleInsuranceSection
+                    vehicleId={id}
+                    branchId={(row.branch_id as string | null) ?? null}
+                    registrationNumber={String(row.registration_number ?? "")}
+                  />
+                  <VehicleRoadTaxSection
+                    vehicleId={id}
+                    branchId={(row.branch_id as string | null) ?? null}
+                    registrationNumber={String(row.registration_number ?? "")}
+                  />
+                </>
+              ) : undefined}
+            />
+          ) : null}
           {safeTab === "driver"      ? <MasterList config={DRIVER_CONFIG} />      : null}
           {safeTab === "transporter" ? <MasterList config={TRANSPORTER_CONFIG} /> : null}
           {safeTab === "location"    ? <MasterList config={LOCATION_CONFIG} />    : null}

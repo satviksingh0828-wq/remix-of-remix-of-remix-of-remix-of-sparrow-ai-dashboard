@@ -28,6 +28,8 @@ export type TripNoteVehicle = {
   payload_capacity_kg?: unknown;
   purchase_date?: unknown;
   purchase_cost?: unknown;
+  /** Insurance policy number active for the trip's start month, if any */
+  insurance_number?: string | null;
 };
 
 export type TripNoteDriver = {
@@ -356,6 +358,7 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
       ${dr("Model", sv(vehicle?.model))}
       ${dr("Fuel Type", sv(vehicle?.fuel_type))}
       ${dr("Payload Capacity", sv(vehicle?.payload_capacity_kg) ? sv(vehicle?.payload_capacity_kg) + " kg" : "")}
+      ${vehicle?.insurance_number ? dr("Insurance No.", sv(vehicle.insurance_number)) : ""}
     </div>`;
 
   // Driver block (own)

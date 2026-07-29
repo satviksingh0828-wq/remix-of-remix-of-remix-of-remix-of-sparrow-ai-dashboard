@@ -414,6 +414,25 @@ export function TripForm({
   async function handleTripNote() {
     setGeneratingPdf(true);
     try {
+      // Resolve insurance number for the trip's start-date month (own vehicles only)
+      let insuranceNumber: string | null = null;
+      if (vehicle && trip.ownership === "own" && trip.start_date) {
+        try {
+          const { serverFetchInsuranceForMonth } = await import("@/lib/vehicle-coverage");
+          const startD = new Date(trip.start_date);
+          insuranceNumber = await serverFetchInsuranceForMonth({
+            data: {
+              userId: user?.id ?? "",
+              vehicleId: vehicle.id as string,
+              month: startD.getMonth() + 1,
+              year: startD.getFullYear(),
+            },
+          });
+        } catch {
+          // Non-critical — proceed without insurance number
+        }
+      }
+
       const [company, branch, locMap] = await Promise.all([
         fetchCompany(),
         fetchBranch(trip.branch_id),
@@ -449,6 +468,7 @@ export function TripForm({
               payload_capacity_kg: vehicle.payload_capacity_kg,
               purchase_date: vehicle.purchase_date,
               purchase_cost: vehicle.purchase_cost,
+              insurance_number: insuranceNumber,
             }
           : null,
         driver: driver

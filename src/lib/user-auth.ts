@@ -21,6 +21,13 @@ export type SessionUser = {
   role: "admin" | "basic";
   /** IDs of branches this user may access. Admin ignores this; basic users are filtered to these. */
   branchIds: string[];
+  /**
+   * HMAC-signed server session token used to authorize admin server functions.
+   * Format: `{userId}:{role}:{expiresMs}:{hmacHex}`
+   * Signed with SESSION_SECRET at login; verified server-side — never trust
+   * a caller-supplied userId alone.
+   */
+  sessionToken?: string;
 };
 
 export type AppUserPublic = {
@@ -133,6 +140,26 @@ export const serverSignIn = createServerFn({ method: "POST" })
       .select("branch_id")
       .eq("user_id", user.id);
 
+    // ── 6. Generate HMAC-signed session token ─────────────────────────────────
+    // Token = "userId:role:expiresMs:hmac" signed with SESSION_SECRET.
+    // Server functions verify this token independently — we never trust a
+    // client-supplied userId alone.
+    let sessionToken: string | undefined;
+    try {
+      const { createHmac } = await import("crypto");
+      const secret = process.env.SESSION_SECRET ?? "dev-fallback-secret";
+      const uid    = user.id as string;
+      const role   = user.role as string;
+      const expires = Date.now() + 12 * 60 * 60 * 1000; // 12 hours
+      const sig = createHmac("sha256", secret)
+        .update(`${uid}:${role}:${expires}`)
+        .digest("hex");
+      sessionToken = `${uid}:${role}:${expires}:${sig}`;
+    } catch {
+      // If token generation fails (e.g. crypto unavailable), continue without it.
+      // Admin server functions will reject the empty token.
+    }
+
     return {
       ok: true,
       user: {
@@ -143,6 +170,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
         branchIds: ((branchData ?? []) as { branch_id: string }[]).map(
           (r) => r.branch_id,
         ),
+        sessionToken,
       },
     };
   });

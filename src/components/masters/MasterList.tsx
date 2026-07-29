@@ -45,7 +45,13 @@ export type MasterConfig = {
 
 type Row = Record<string, unknown> & { id?: string; branch_id?: string | null };
 
-export function MasterList({ config }: { config: MasterConfig }) {
+export function MasterList({
+  config,
+  renderExtraEditSections,
+}: {
+  config: MasterConfig;
+  renderExtraEditSections?: (id: string, row: Row) => React.ReactNode;
+}) {
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -238,6 +244,10 @@ export function MasterList({ config }: { config: MasterConfig }) {
             </div>
           </section>
         ))}
+
+        {editing.id && renderExtraEditSections
+          ? renderExtraEditSections(editing.id, editing)
+          : null}
 
         {config.hasBranch ? (
           <section className="surface-card p-6">

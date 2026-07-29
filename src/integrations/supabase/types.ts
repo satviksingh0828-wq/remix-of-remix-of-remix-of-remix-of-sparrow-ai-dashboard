@@ -953,6 +953,10 @@ export type Database = {
           is_yearly_fixed: boolean
           yearly_fixed_id: string | null
           yearly_fixed_inst_no: number | null
+          is_insurance: boolean
+          insurance_id: string | null
+          is_road_tax: boolean
+          road_tax_id: string | null
           note: string | null
           paid_date: string | null
           transporter_id: string | null
@@ -975,6 +979,10 @@ export type Database = {
           is_yearly_fixed?: boolean
           yearly_fixed_id?: string | null
           yearly_fixed_inst_no?: number | null
+          is_insurance?: boolean
+          insurance_id?: string | null
+          is_road_tax?: boolean
+          road_tax_id?: string | null
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null
@@ -997,6 +1005,10 @@ export type Database = {
           is_yearly_fixed?: boolean
           yearly_fixed_id?: string | null
           yearly_fixed_inst_no?: number | null
+          is_insurance?: boolean
+          insurance_id?: string | null
+          is_road_tax?: boolean
+          road_tax_id?: string | null
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null
@@ -1027,6 +1039,88 @@ export type Database = {
           },
           {
             foreignKeyName: "expenditures_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_insurance: {
+        Row: {
+          id: string
+          vehicle_id: string
+          start_month: number
+          start_year: number
+          end_month: number
+          end_year: number
+          total_amount: number
+          insurance_number: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          vehicle_id: string
+          start_month: number
+          start_year: number
+          end_month: number
+          end_year: number
+          total_amount: number
+          insurance_number: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          vehicle_id?: string
+          start_month?: number
+          start_year?: number
+          end_month?: number
+          end_year?: number
+          total_amount?: number
+          insurance_number?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_insurance_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_road_tax: {
+        Row: {
+          id: string
+          vehicle_id: string
+          month: number
+          year: number
+          total_amount: number
+          state: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          vehicle_id: string
+          month: number
+          year: number
+          total_amount: number
+          state: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          vehicle_id?: string
+          month?: number
+          year?: number
+          total_amount?: number
+          state?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_road_tax_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
