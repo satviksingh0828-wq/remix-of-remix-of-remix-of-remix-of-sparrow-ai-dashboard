@@ -197,8 +197,13 @@ function LoginPage() {
             className="h-full w-full object-cover"
           />
           {/* Logo overlaid top-left on the banner image */}
-          <div className="absolute left-6 top-6 rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm shadow-md">
+          <div className="absolute left-6 top-6 rounded-xl bg-white/85 px-4 py-3 backdrop-blur-sm shadow-md">
             <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-14 w-auto" />
+            <div className="mt-2 leading-tight">
+              <p className="text-xs font-bold tracking-widest text-gray-800 uppercase">Transport</p>
+              <p className="text-xs font-bold tracking-widest text-gray-800 uppercase">Management</p>
+              <p className="text-xs font-bold tracking-widest text-gray-800 uppercase">Solutions</p>
+            </div>
           </div>
           <LiveClock dark />
         </aside>
