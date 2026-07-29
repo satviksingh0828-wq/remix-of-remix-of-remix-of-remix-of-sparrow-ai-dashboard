@@ -29,6 +29,32 @@ export const Route = createFileRoute("/")({
   component: LoginPage,
 });
 
+// ── Live clock bar ─────────────────────────────────────────────────────────
+
+function LiveClock({ dark = false }: { dark?: boolean }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const date = now.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  const time = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+  return (
+    <div
+      className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 rounded-full px-5 py-2 text-xs font-medium tracking-wide shadow-lg backdrop-blur-md"
+      style={
+        dark
+          ? { background: "rgba(0,0,0,0.45)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)" }
+          : { background: "rgba(255,255,255,0.22)", color: "#fff", border: "1px solid rgba(255,255,255,0.30)" }
+      }
+    >
+      <span>📅 {date}</span>
+      <span style={{ opacity: 0.45 }}>|</span>
+      <span>🕐 {time}</span>
+    </div>
+  );
+}
+
 // ── Math CAPTCHA helpers ────────────────────────────────────────────────────
 
 function makeMathChallenge() {
@@ -170,6 +196,7 @@ function LoginPage() {
             alt="Garuda Logistics Solution"
             className="h-full w-full object-cover"
           />
+          <LiveClock dark />
         </aside>
       ) : (
         <aside
@@ -188,6 +215,7 @@ function LoginPage() {
               Transport management, masters and operations — unified in one clean workspace.
             </p>
           </div>
+          <LiveClock />
         </aside>
       )}
 
