@@ -77,7 +77,7 @@ export function Contracts() {
       );
       setContracts(rows);
     } catch {
-      toast.error("Could not load contracts");
+      toast.error("Could not load sources");
     }
     setLoading(false);
   }
@@ -86,11 +86,11 @@ export function Contracts() {
   }, []);
 
   async function removeContract(c: ContractRow) {
-    if (!window.confirm(`Delete contract "${c.contract_name}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete source "${c.contract_name}"? This cannot be undone.`)) return;
     const { error } = await supabase.from("contracts").delete().eq("id", c.id!);
     if (error) return toast.error(error.message);
     logAction("deleted", "contract", { entityId: c.id ?? "", entityLabel: c.contract_name });
-    toast.success("Contract removed");
+    toast.success("Source removed");
     load();
   }
 
@@ -180,9 +180,9 @@ export function Contracts() {
     <div className="animate-fade-up space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Contracts</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Sources</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Freight contracts with weight or quantity slabs. Open a contract to add
+            Freight sources with weight or quantity slabs. Open a source to add
             route-wise entries.
           </p>
         </div>
@@ -196,7 +196,7 @@ export function Contracts() {
           />
           <Button onClick={() => setView({ kind: "new-contract" })}>
             <Plus className="size-4" />
-            New contract
+            New source
           </Button>
         </div>
       </div>
@@ -212,13 +212,13 @@ export function Contracts() {
           <span className="flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
             <FileText className="size-6" />
           </span>
-          <p className="mt-4 text-sm font-medium">No contracts yet</p>
+          <p className="mt-4 text-sm font-medium">No sources yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Create your first contract to define weight and quantity slabs.
+            Create your first source to define weight and quantity slabs.
           </p>
           <Button className="mt-5" onClick={() => setView({ kind: "new-contract" })}>
             <Plus className="size-4" />
-            New contract
+            New source
           </Button>
         </div>
       ) : (
@@ -477,7 +477,7 @@ function EntriesView({
         <div className="flex items-center gap-3">
           <Button type="button" variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft className="size-4" />
-            Contracts
+            Sources
           </Button>
           <div>
             <h2 className="text-lg font-semibold tracking-tight">

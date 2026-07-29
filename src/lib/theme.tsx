@@ -80,6 +80,31 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
   }, [apply]);
 
+  // Real-time sync: when admin saves a theme on any device, all open sessions update instantly.
+  useEffect(() => {
+    const channel = supabase
+      .channel("theme_sync")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "app_settings" },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          if (row.theme) {
+            const next = row.theme as ThemeId;
+            setThemeState(next);
+            apply(next);
+          }
+          if (row.login_ui) {
+            setLoginUiState(row.login_ui as LoginUi);
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [apply]);
+
   const setTheme = useCallback(
     async (t: ThemeId) => {
       setThemeState(t);

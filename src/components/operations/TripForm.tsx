@@ -71,6 +71,7 @@ export type ManifestRow = {
   id?: string;
   trip_id: string;
   manifest_number: string;
+  source_id: string | null;
   from_location_id: string | null;
   from_pin_code: string;
   to_location_id: string | null;
@@ -124,7 +125,6 @@ const TABS_ALL = [
   { id: "vehicle", label: "Vehicle" },
   { id: "driver", label: "Driver" },
   { id: "transporter", label: "Transporter" },
-  { id: "contract", label: "Contract" },
   { id: "summary", label: "Summary" },
 ] as const;
 
@@ -136,7 +136,6 @@ const TABS_BASIC = [
   { id: "vehicle", label: "Vehicle" },
   { id: "driver", label: "Driver" },
   { id: "transporter", label: "Transporter" },
-  { id: "contract", label: "Contract" },
 ] as const;
 
 type TabId = (typeof TABS_ALL)[number]["id"];
@@ -169,7 +168,7 @@ export function TripForm({
   const [drivers, setDrivers] = useState<AnyRow[]>([]);
   const [transporters, setTransporters] = useState<AnyRow[]>([]);
   const [contracts, setContracts] = useState<AnyRow[]>([]);
-  const [entries, setEntries] = useState<EntryLite[]>([]);
+  const [allEntries, setAllEntries] = useState<EntryLite[]>([]);
   const [showTransporterForm, setShowTransporterForm] = useState(false);
 
   const [manifests, setManifests] = useState<ManifestRow[]>([]);
@@ -183,31 +182,22 @@ export function TripForm({
   const patch = (p: Partial<TripRow>) => setTrip((t) => ({ ...t, ...p }));
 
   async function loadMasters() {
-    const [v, d, t, c] = await Promise.all([
+    const [v, d, t, c, e] = await Promise.all([
       supabase.from("vehicles").select("*").order("registration_number"),
       supabase.from("drivers").select("*").order("full_name"),
       supabase.from("transporters").select("*").order("transporter_name"),
       supabase.from("contracts").select("*").order("contract_name"),
+      supabase.from("contract_entries").select("*"),
     ]);
     setVehicles((v.data as AnyRow[]) ?? []);
     setDrivers((d.data as AnyRow[]) ?? []);
     setTransporters((t.data as AnyRow[]) ?? []);
     setContracts((c.data as AnyRow[]) ?? []);
+    setAllEntries((e.data as unknown as EntryLite[]) ?? []);
   }
   useEffect(() => {
     loadMasters();
   }, []);
-
-  useEffect(() => {
-    (async () => {
-      if (!trip.contract_id) return setEntries([]);
-      const { data } = await supabase
-        .from("contract_entries")
-        .select("*")
-        .eq("contract_id", trip.contract_id);
-      setEntries((data as unknown as EntryLite[]) ?? []);
-    })();
-  }, [trip.contract_id]);
 
   async function loadChildren(tripId: string) {
     const [m, i, e] = await Promise.all([
@@ -235,9 +225,6 @@ export function TripForm({
     if (initial.id) loadChildren(initial.id);
   }, [initial.id]);
 
-  const contract = contracts.find((c) => c.id === trip.contract_id) as
-    | (AnyRow & ContractLite)
-    | undefined;
   const vehicle = vehicles.find((v) => v.id === trip.vehicle_id);
   const driver = drivers.find((d) => d.id === trip.driver_id);
   const transporter = transporters.find((t) => t.id === trip.transporter_id);
@@ -250,10 +237,14 @@ export function TripForm({
       ? num(trip.odometer_end) - num(trip.odometer_start)
       : null;
 
-  const lines = manifests.map((m) => ({
-    m,
-    ...manifestCharges(contract, findEntry(entries, m), m),
-  }));
+  const lines = manifests.map((m) => {
+    const mContract = contracts.find((c) => c.id === m.source_id) as (AnyRow & ContractLite) | undefined;
+    const mEntries = allEntries.filter((e) => e.contract_id === m.source_id);
+    return {
+      m,
+      ...manifestCharges(mContract, findEntry(mEntries, m), m),
+    };
+  });
   const manifestTotal = lines.reduce(
     (s, l) => s + l.freight + l.loading + l.fixed,
     0,
@@ -409,12 +400,6 @@ export function TripForm({
     label: String(t.transporter_name ?? ""),
     sub: String(t.city ?? "") || undefined,
   }));
-  const contractOpts: PickerOption[] = contracts.map((c) => ({
-    id: c.id,
-    label: String(c.contract_name ?? ""),
-    sub: String(c.company_name ?? "") || undefined,
-  }));
-
   // Branch options: basic users only see their allowed branches
   const branchOpts: PickerOption[] = (
     allowedBranchIds !== null
@@ -425,8 +410,6 @@ export function TripForm({
     label: b.branch_name,
     sub: b.branch_type ?? undefined,
   }));
-
-  const monthlyContractCharges = 0;
 
   async function handleTripNote() {
     setGeneratingPdf(true);
@@ -617,12 +600,6 @@ export function TripForm({
           ) : null}
 
           <EntityPicker
-            label="Contract"
-            value={trip.contract_id}
-            options={contractOpts}
-            onChange={(id) => patch({ contract_id: id })}
-          />
-          <EntityPicker
             label="Branch (required)"
             value={trip.branch_id}
             options={branchOpts}
@@ -726,6 +703,7 @@ export function TripForm({
               otherIncomeTotal={otherIncomeTotal}
               expenseTotal={expenseTotal}
               totalWeight={totalWeight}
+              contracts={contracts}
             />
           ) : null}
           {activeTab === "income" ? (
@@ -759,13 +737,6 @@ export function TripForm({
               record={transporter}
               sections={TRANSPORTER_CONFIG.sections}
               empty="No transporter selected."
-            />
-          ) : null}
-          {activeTab === "contract" ? (
-            <ContractDetails
-              contract={contract}
-              entryCount={entries.length}
-              monthlyCharges={monthlyContractCharges}
             />
           ) : null}
           {activeTab === "summary" && isAdmin ? (
@@ -833,6 +804,7 @@ function emptyManifest(tripId: string): ManifestRow {
   return {
     trip_id: tripId,
     manifest_number: "",
+    source_id: null,
     from_location_id: null,
     from_pin_code: "",
     to_location_id: null,
@@ -855,6 +827,7 @@ function ManifestTab({
   otherIncomeTotal,
   expenseTotal,
   totalWeight,
+  contracts,
 }: {
   tripId: string | null;
   requireTripId: () => Promise<string | null>;
@@ -869,12 +842,14 @@ function ManifestTab({
   otherIncomeTotal: number;
   expenseTotal: number;
   totalWeight: number;
+  contracts: AnyRow[];
 }) {
   const [editing, setEditing] = useState<ManifestRow | null>(null);
   const [saving, setSaving] = useState(false);
 
   const csvColumns = [
-    "manifest_number",
+    "Cnmt No.",
+    "source",
     "from_location",
     "from_pin_code",
     "to_location",
@@ -899,9 +874,18 @@ function ManifestTab({
       ),
     [locations],
   );
+  const sourceNameById = useMemo(
+    () => new Map(contracts.map((c) => [c.id as string, String(c.contract_name ?? "")])),
+    [contracts],
+  );
+  const sourceIdByName = useMemo(
+    () => new Map(contracts.map((c) => [String(c.contract_name ?? "").toLowerCase(), c.id as string])),
+    [contracts],
+  );
 
   const csvRows = manifests.map((m) => ({
-    manifest_number: m.manifest_number,
+    "Cnmt No.": m.manifest_number,
+    source: m.source_id ? (sourceNameById.get(m.source_id) ?? "") : "",
     from_location: nameById.get(m.from_location_id ?? "") ?? "",
     from_pin_code: m.from_pin_code,
     to_location: nameById.get(m.to_location_id ?? "") ?? "",
@@ -951,7 +935,8 @@ function ManifestTab({
     if (!id) return { inserted: 0, failed: rows.length };
     const payload = rows.map((r) => ({
       trip_id: id,
-      manifest_number: r.manifest_number ?? "",
+      manifest_number: r["Cnmt No."] ?? r.manifest_number ?? "",
+      source_id: r.source ? (sourceIdByName.get(r.source.toLowerCase()) ?? null) : null,
       from_location_id:
         idByName.get((r.from_location ?? "").toLowerCase()) ??
         idByPin.get((r.from_pin_code ?? "").trim()) ??
@@ -995,14 +980,15 @@ function ManifestTab({
       {manifests.length === 0 ? (
         <p className="rounded-xl bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
           No manifests yet. Freight, loading and fixed charges are calculated from the
-          selected contract once you add manifest lines.
+          source selected on each manifest line.
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ minWidth: isAdmin ? 1100 : 800 }}>
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="py-2 pr-3">Manifest</th>
+                <th className="py-2 pr-3">Cnmt No.</th>
+                <th className="py-2 pr-3">Source</th>
                 <th className="py-2 pr-3">From</th>
                 <th className="py-2 pr-3">To</th>
                 <th className="py-2 pr-3 text-right">Weight</th>
@@ -1030,6 +1016,9 @@ function ManifestTab({
                 return (
                   <tr key={l.m.id} className="border-b border-border/60">
                     <td className="py-2 pr-3 font-medium">{l.m.manifest_number || "—"}</td>
+                    <td className="py-2 pr-3 text-muted-foreground">
+                      {l.m.source_id ? (sourceNameById.get(l.m.source_id) ?? "—") : "—"}
+                    </td>
                     <td className="py-2 pr-3">
                       {nameById.get(l.m.from_location_id ?? "") ?? (l.m.from_pin_code || "—")}
                     </td>
@@ -1070,7 +1059,7 @@ function ManifestTab({
                 );
               })}
               <tr>
-                <td colSpan={5} className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <td colSpan={6} className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Totals
                 </td>
                 <td className="py-3 pr-3 text-right font-semibold">{inr(otherIncomeTotal)}</td>
@@ -1099,7 +1088,7 @@ function ManifestTab({
             <form onSubmit={save} className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
                 <Label className="text-xs font-medium text-muted-foreground">
-                  Manifest Number
+                  Cnmt No.
                 </Label>
                 <Input
                   className="h-10"
@@ -1108,6 +1097,24 @@ function ManifestTab({
                     setEditing({ ...editing, manifest_number: e.target.value })
                   }
                 />
+              </div>
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs font-medium text-muted-foreground">Source</Label>
+                <Select
+                  value={editing.source_id ?? ""}
+                  onValueChange={(v) => setEditing({ ...editing, source_id: v || null })}
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select source (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contracts.map((c) => (
+                      <SelectItem key={c.id as string} value={c.id as string}>
+                        {String(c.contract_name ?? "")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <LocationPinPair
                 label="From"

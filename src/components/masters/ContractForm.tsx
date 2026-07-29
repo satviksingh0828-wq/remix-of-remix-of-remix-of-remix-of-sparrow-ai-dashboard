@@ -269,7 +269,7 @@ export function ContractForm({
       entityId: id ?? "",
       entityLabel: form.contract_name,
     });
-    toast.success(id ? "Contract updated" : "Contract created");
+    toast.success(id ? "Source updated" : "Source created");
     onSaved();
   }
 
@@ -280,17 +280,17 @@ export function ContractForm({
       <div className="flex items-center gap-3">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           <ArrowLeft className="size-4" />
-          Back to contracts
+          Back to sources
         </Button>
         <h2 className="text-lg font-semibold tracking-tight">
-          {form.id ? "Edit contract" : "New contract"}
+          {form.id ? "Edit source" : "New source"}
         </h2>
       </div>
 
-      <Section title="Contract">
+      <Section title="Source">
         <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
           <TextField
-            label="Contract Name"
+            label="Source Name"
             required
             full
             value={form.contract_name}
@@ -714,7 +714,7 @@ export function ContractForm({
         </Button>
         <Button type="submit" disabled={saving}>
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {saving ? "Saving…" : "Save contract"}
+          {saving ? "Saving…" : "Save source"}
         </Button>
       </div>
     </form>

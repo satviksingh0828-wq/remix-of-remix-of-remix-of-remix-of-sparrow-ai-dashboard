@@ -39,28 +39,43 @@ export async function closeTrip(tripId: string) {
     return (data as Record<string, unknown>) ?? null;
   };
 
-  const [vehicle, driver, transporter, branch, contract] = await Promise.all([
+  const [vehicle, driver, transporter, branch] = await Promise.all([
     one("vehicles", t.vehicle_id),
     one("drivers", t.driver_id),
     one("transporters", t.transporter_id),
     one("branches", t.branch_id),
-    one("contracts", t.contract_id),
   ]);
 
-  let entries: EntryLite[] = [];
-  if (t.contract_id) {
-    const { data } = await supabase
-      .from("contract_entries")
-      .select("*")
-      .eq("contract_id", t.contract_id as string);
-    entries = (data as unknown as EntryLite[]) ?? [];
-  }
+  // Collect unique source_ids from manifests (per-manifest source model)
+  const sourceIds = Array.from(
+    new Set(
+      manifests
+        .map((m) => (m as Record<string, unknown>).source_id as string | null)
+        .filter(Boolean),
+    ),
+  ) as string[];
 
-  const contractLite = contract as unknown as ContractLite | null;
+  // Load all referenced sources (contracts) and their entries in parallel
+  const [sourcesData, entriesData] = await Promise.all([
+    sourceIds.length > 0
+      ? supabase.from("contracts").select("*").in("id", sourceIds)
+      : Promise.resolve({ data: [] }),
+    sourceIds.length > 0
+      ? supabase.from("contract_entries").select("*").in("contract_id", sourceIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const sourcesMap = new Map<string, ContractLite>(
+    ((sourcesData.data ?? []) as unknown as ContractLite[]).map((s) => [s.id, s]),
+  );
+  const allEntries = (entriesData.data ?? []) as unknown as EntryLite[];
+
   const manifestLines = manifests.map((m) => {
+    const mSourceId = (m as Record<string, unknown>).source_id as string | null;
+    const mContract = mSourceId ? sourcesMap.get(mSourceId) : undefined;
+    const mEntries = mSourceId ? allEntries.filter((e) => e.contract_id === mSourceId) : [];
     const charges = manifestCharges(
-      contractLite ?? undefined,
-      findEntry(entries, m as never),
+      mContract,
+      findEntry(mEntries, m as never),
       m as never,
     );
     return { manifest: m, ...charges, total: charges.freight + charges.loading + charges.fixed };
@@ -90,8 +105,8 @@ export async function closeTrip(tripId: string) {
       manifest_lines: manifestLines,
       other_income: otherIncome,
       expenses,
-      contract,
-      contract_entries: entries,
+      sources: Object.fromEntries(sourcesMap),
+      source_entries: allEntries,
       vehicle,
       driver,
       transporter,

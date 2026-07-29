@@ -41,7 +41,7 @@ const ALL_TABS = [
   { id: "driver",      label: "Driver",     desc: "Staff & licences",        icon: User,      adminOnly: false },
   { id: "transporter", label: "Transporter",desc: "Owners & brokers",        icon: Building2, adminOnly: false },
   { id: "location",    label: "Locations",  desc: "Pickup & drop points",    icon: MapPin,    adminOnly: true  },
-  { id: "contract",    label: "Contracts",  desc: "Rates & slabs",           icon: FileText,  adminOnly: true  },
+  { id: "contract",    label: "Sources",    desc: "Rates & slabs",           icon: FileText,  adminOnly: true  },
 ] as const;
 
 type TabId = (typeof ALL_TABS)[number]["id"];
