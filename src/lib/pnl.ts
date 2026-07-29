@@ -265,7 +265,7 @@ async function fetchActiveTrips(db: any, start: string, end: string): Promise<Pn
       : Promise.resolve({ data: [] }),
     contractIds.length > 0
       ? db.from("contract_entries")
-          .select("contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_values,loading_values,per_manifest_amount")
+          .select("contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_values,loading_values,freight_charge_types,loading_charge_types,per_manifest_amount")
           .in("contract_id", contractIds)
       : Promise.resolve({ data: [] }),
   ]);
