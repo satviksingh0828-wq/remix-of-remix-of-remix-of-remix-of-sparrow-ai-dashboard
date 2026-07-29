@@ -230,15 +230,17 @@ function buildTripNoteCSS(primaryHex: string): string {
 
 /* Summary bar */
 .tn-summary-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+.tn-summary-table { table-layout: fixed; }
 .tn-summary-table th {
   font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
   color: #555; font-weight: 600; padding: 3px 6px;
   border: 1px solid #bbb; background: #f5f5f5;
-  vertical-align: middle; line-height: 1.35;
+  vertical-align: top; line-height: 1.4; word-break: break-word;
 }
 .tn-summary-table td {
-  font-size: 10.5px; font-weight: 700; padding: 4px 6px;
-  border: 1px solid #bbb; vertical-align: middle; line-height: 1.35;
+  font-size: 10px; font-weight: 700; padding: 4px 6px;
+  border: 1px solid #bbb; vertical-align: top; line-height: 1.4;
+  word-break: break-word; overflow-wrap: break-word;
 }
 
 /* Trip details box */
@@ -264,10 +266,10 @@ function buildTripNoteCSS(primaryHex: string): string {
   border-bottom: 0.7px solid #ddd; padding-bottom: 3px;
 }
 .tn-detail-row {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 3px;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 3px;
 }
-.tn-detail-label { font-size: 9.5px; color: #555; flex-shrink: 0; line-height: 1.35; }
-.tn-detail-value { font-size: 10px; font-weight: 600; text-align: right; line-height: 1.35; }
+.tn-detail-label { font-size: 9.5px; color: #555; flex-shrink: 0; white-space: nowrap; line-height: 1.4; padding-top: 1px; }
+.tn-detail-value { font-size: 10px; font-weight: 600; text-align: right; line-height: 1.4; word-break: break-word; overflow-wrap: break-word; min-width: 0; }
 
 /* Manifest table */
 .tn-manifest-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
