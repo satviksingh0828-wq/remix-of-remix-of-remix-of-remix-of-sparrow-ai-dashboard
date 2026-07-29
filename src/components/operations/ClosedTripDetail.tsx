@@ -43,8 +43,12 @@ type Snapshot = {
   manifest_lines: ManifestLine[];
   other_income: Record<string, unknown>[];
   expenses: Record<string, unknown>[];
-  contract: Record<string, unknown> | null;
-  contract_entries: unknown[];
+  // New per-manifest source shape (written by current closeTrip)
+  sources?: Record<string, Record<string, unknown>>;
+  source_entries?: unknown[];
+  // Legacy single-contract shape (backward compat for old archived trips)
+  contract?: Record<string, unknown> | null;
+  contract_entries?: unknown[];
   vehicle: Record<string, unknown> | null;
   driver: Record<string, unknown> | null;
   transporter: Record<string, unknown> | null;
@@ -73,7 +77,7 @@ const TABS_ALL = [
   { id: "vehicle", label: "Vehicle" },
   { id: "driver", label: "Driver" },
   { id: "transporter", label: "Transporter" },
-  { id: "contract", label: "Contract" },
+  { id: "sources", label: "Sources" },
   { id: "summary", label: "Summary" },
 ] as const;
 
@@ -84,7 +88,7 @@ const TABS_BASIC = [
   { id: "vehicle", label: "Vehicle" },
   { id: "driver", label: "Driver" },
   { id: "transporter", label: "Transporter" },
-  { id: "contract", label: "Contract" },
+  { id: "sources", label: "Sources" },
 ] as const;
 
 type TabId = (typeof TABS_ALL)[number]["id"];
@@ -337,7 +341,7 @@ export function ClosedTripDetail({
           {tab === "transporter" && (
             <MasterView record={snap.transporter} label="transporter" fields={TRANSPORTER_FIELDS} />
           )}
-          {tab === "contract" && <ContractView contract={snap.contract} />}
+          {tab === "sources" && <SourcesView sources={snap.sources} contract={snap.contract} />}
           {tab === "summary" && <SummaryView totals={snap.totals} manifests={snap.manifests} />}
         </div>
       </div>
@@ -658,33 +662,80 @@ function MasterView({
   );
 }
 
-function ContractView({ contract }: { contract: Record<string, unknown> | null }) {
-  if (!contract)
-    return <p className="text-sm text-muted-foreground">No contract was linked to this trip.</p>;
+/**
+ * SourcesView — handles both snapshot shapes:
+ *   New shape: snap.sources = { [id]: contractRow, ... }
+ *   Old shape: snap.contract = contractRow (backward compat for pre-migration archives)
+ */
+function SourcesView({
+  sources,
+  contract,
+}: {
+  sources?: Record<string, Record<string, unknown>>;
+  contract?: Record<string, unknown> | null;
+}) {
+  // New shape: per-manifest sources map
+  if (sources && Object.keys(sources).length > 0) {
+    const entries = Object.values(sources);
+    return (
+      <div className="space-y-4">
+        {entries.map((src, i) => {
+          const name = String(src.contract_name ?? src.source_name ?? "—");
+          const rows = (
+            [
+              ["Source name", name],
+              ["Company", String(src.company_name ?? "")],
+              ["GSTIN", String(src.gstin ?? "")],
+              ["Freight basis", String(src.freight_basis ?? "")],
+              ["Loading basis", String(src.loading_basis ?? "")],
+            ] as [string, string][]
+          ).filter(([, v]) => v.trim() !== "");
+          return (
+            <div key={i} className="rounded-xl border border-border p-4">
+              <p className="mb-3 text-sm font-semibold">{name}</p>
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+                {rows.map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4 text-sm">
+                    <dt className="text-muted-foreground">{k}</dt>
+                    <dd className="text-right font-medium">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
-  const rows = (
-    [
-      ["Contract name", String(contract.contract_name ?? "")],
-      ["Company", String(contract.company_name ?? "")],
-      ["GSTIN", String(contract.gstin ?? "")],
-      ["Freight basis", String(contract.freight_basis ?? "")],
-      ["Loading basis", String(contract.loading_basis ?? "")],
-    ] as [string, string][]
-  ).filter(([, v]) => v.trim() !== "");
+  // Old shape: single contract (backward compat)
+  if (contract) {
+    const rows = (
+      [
+        ["Source name", String(contract.contract_name ?? contract.source_name ?? "")],
+        ["Company", String(contract.company_name ?? "")],
+        ["GSTIN", String(contract.gstin ?? "")],
+        ["Freight basis", String(contract.freight_basis ?? "")],
+        ["Loading basis", String(contract.loading_basis ?? "")],
+      ] as [string, string][]
+    ).filter(([, v]) => v.trim() !== "");
 
-  if (rows.length === 0)
-    return <p className="text-sm text-muted-foreground">No contract details recorded.</p>;
+    if (rows.length === 0)
+      return <p className="text-sm text-muted-foreground">No source details recorded.</p>;
 
-  return (
-    <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-      {rows.map(([k, v]) => (
-        <div key={k} className="flex justify-between gap-4 text-sm">
-          <dt className="text-muted-foreground">{k}</dt>
-          <dd className="text-right font-medium">{v}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+    return (
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4 text-sm">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="text-right font-medium">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+
+  return <p className="text-sm text-muted-foreground">No source was linked to this trip.</p>;
 }
 
 function SummaryView({
