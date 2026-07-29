@@ -87,8 +87,7 @@ export function VehicleInsuranceSection({ vehicleId, branchId, registrationNumbe
   const count    = monthCount();
   const monthly  = count > 0 && form.totalAmount ? Number(form.totalAmount) / count : 0;
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSave() {
     if (!form.startMonth || !form.startYear) return toast.error("Select start month and year.");
     if (!form.endMonth || !form.endYear) return toast.error("Select end month and year.");
     if (count < 1) return toast.error("End month/year must not be before start month/year.");
@@ -162,7 +161,7 @@ export function VehicleInsuranceSection({ vehicleId, branchId, registrationNumbe
 
       {/* Add form */}
       {showForm && (
-        <form onSubmit={handleSave} className="mt-5 space-y-4 rounded-xl border border-border bg-muted/30 p-4">
+        <div className="mt-5 space-y-4 rounded-xl border border-border bg-muted/30 p-4">
           <p className="text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Note:</span> Start and end months are included.
             The total amount will be divided equally across all months.
@@ -244,7 +243,7 @@ export function VehicleInsuranceSection({ vehicleId, branchId, registrationNumbe
           )}
 
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={saving}>
+            <Button type="button" size="sm" disabled={saving} onClick={handleSave}>
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
               {saving ? "Saving…" : "Save Insurance"}
             </Button>
@@ -252,7 +251,7 @@ export function VehicleInsuranceSection({ vehicleId, branchId, registrationNumbe
               Cancel
             </Button>
           </div>
-        </form>
+        </div>
       )}
 
       {/* Entries list */}

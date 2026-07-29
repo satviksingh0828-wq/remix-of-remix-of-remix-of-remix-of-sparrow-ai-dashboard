@@ -72,8 +72,7 @@ export function VehicleRoadTaxSection({ vehicleId, branchId, registrationNumber 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vehicleId]);
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSave() {
     if (!form.month) return toast.error("Select a month.");
     if (!form.year) return toast.error("Select a year.");
     if (!form.totalAmount || Number(form.totalAmount) <= 0) return toast.error("Enter a valid amount.");
@@ -137,7 +136,7 @@ export function VehicleRoadTaxSection({ vehicleId, branchId, registrationNumber 
 
       {/* Add form */}
       {showForm && (
-        <form onSubmit={handleSave} className="mt-5 space-y-4 rounded-xl border border-border bg-muted/30 p-4">
+        <div className="mt-5 space-y-4 rounded-xl border border-border bg-muted/30 p-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-muted-foreground">Month <span className="text-destructive">*</span></Label>
@@ -183,7 +182,7 @@ export function VehicleRoadTaxSection({ vehicleId, branchId, registrationNumber 
           </div>
 
           <div className="flex gap-2">
-            <Button type="submit" size="sm" disabled={saving}>
+            <Button type="button" size="sm" disabled={saving} onClick={handleSave}>
               {saving ? <Loader2 className="size-3.5 animate-spin" /> : null}
               {saving ? "Saving…" : "Save Road Tax"}
             </Button>
@@ -191,7 +190,7 @@ export function VehicleRoadTaxSection({ vehicleId, branchId, registrationNumber 
               Cancel
             </Button>
           </div>
-        </form>
+        </div>
       )}
 
       {/* Entries list */}
