@@ -627,7 +627,15 @@ export function TripForm({
             label="Branch (required)"
             value={trip.branch_id}
             options={branchOpts}
-            onChange={(id) => patch({ branch_id: id })}
+            onChange={(id) => {
+              // For new trips only: regenerate trip code using the branch's prefix
+              if (!trip.id) {
+                const prefix = allBranches.find((b) => b.id === id)?.trip_series_prefix ?? null;
+                patch({ branch_id: id, trip_code: newTripCode(prefix) });
+              } else {
+                patch({ branch_id: id });
+              }
+            }}
           />
 
           <LocationPicker

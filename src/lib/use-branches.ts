@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
 
-export type BranchOption = { id: string; branch_name: string; branch_type: string | null };
+export type BranchOption = {
+  id: string;
+  branch_name: string;
+  branch_type: string | null;
+  trip_series_prefix: string | null;
+};
 
 export function useBranches() {
   const [branches, setBranches] = useState<BranchOption[]>([]);
@@ -11,7 +16,7 @@ export function useBranches() {
       const rows = await fetchAll<BranchOption>(() =>
         supabase
           .from("branches")
-          .select("id,branch_name,branch_type")
+          .select("id,branch_name,branch_type,trip_series_prefix")
           .order("branch_name", { ascending: true }),
       );
       setBranches(rows);

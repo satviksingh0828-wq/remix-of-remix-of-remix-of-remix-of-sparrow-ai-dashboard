@@ -29,6 +29,7 @@ type Branch = Record<string, string> & { id?: string };
 const EMPTY: Branch = {
   branch_name: "",
   branch_type: "",
+  trip_series_prefix: "",
   address_line1: "",
   address_line2: "",
   area_locality: "",
@@ -142,6 +143,26 @@ export function BranchSettings() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Trip Series Prefix
+            </Label>
+            <input
+              className="flex h-10 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 uppercase"
+              maxLength={10}
+              placeholder="e.g. MUM, DEL, HO  (leave blank to use TR)"
+              value={editing.trip_series_prefix ?? ""}
+              onChange={(e) =>
+                setEditing((f) =>
+                  f ? { ...f, trip_series_prefix: e.target.value.toUpperCase() } : f,
+                )
+              }
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Used as the prefix in trip codes for this branch (e.g. <strong>MUM</strong>-1234567890).
+              Leave blank to use the default <strong>TR</strong>.
+            </p>
           </div>
         </Section>
 

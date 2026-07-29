@@ -93,8 +93,9 @@ export function manifestCharges(
   };
 }
 
-export function newTripCode(): string {
+export function newTripCode(prefix?: string | null): string {
   let digits = "";
   for (let i = 0; i < 10; i++) digits += Math.floor(Math.random() * 10);
-  return `TR-${digits}`;
+  const p = (prefix ?? "").trim().toUpperCase() || "TR";
+  return `${p}-${digits}`;
 }
