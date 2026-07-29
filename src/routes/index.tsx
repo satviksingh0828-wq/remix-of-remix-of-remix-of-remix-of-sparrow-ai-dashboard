@@ -220,18 +220,19 @@ function LoginPage() {
       )}
 
       {/* Login */}
-      <section className="flex flex-col items-center justify-center bg-background px-6 py-14">
-        <div className="w-full max-w-sm animate-fade-up">
-          <div className="mb-9 lg:hidden">
-            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-12 w-auto" />
-          </div>
+      <section className="relative flex flex-col items-center justify-center bg-background px-6 py-10">
+        {/* Logo — top-left, always visible */}
+        <div className="absolute left-6 top-5">
+          <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
+        </div>
 
+        <div className="w-full max-w-sm animate-fade-up">
           <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
             Enter your operator credentials to continue.
           </p>
 
-          <form onSubmit={onSubmit} className="mt-8 space-y-5">
+          <form onSubmit={onSubmit} className="mt-6 space-y-4">
             {/* Honeypot */}
             <div
               style={{ position: "absolute", left: "-9999px", top: "-9999px", opacity: 0, height: 0, overflow: "hidden" }}

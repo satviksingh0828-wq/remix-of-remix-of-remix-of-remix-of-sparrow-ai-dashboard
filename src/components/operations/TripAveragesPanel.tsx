@@ -56,6 +56,7 @@ export function TripAveragesPanel() {
 
   const [year,        setYear]        = useState(String(currentYear));
   const [month,       setMonth]       = useState(String(currentMonth));
+  const [day,         setDay]         = useState<string>("");
   const [method,      setMethod]      = useState<DistMethod>("weight");
   const [data,        setData]        = useState<TripAveragesData | null>(null);
   const [loading,     setLoading]     = useState(false);
@@ -64,6 +65,7 @@ export function TripAveragesPanel() {
   async function load() {
     setLoading(true);
     setExpandedId(null);
+    setDay("");
     try {
       const result = await serverFetchTripAverages({
         data: { year: Number(year), month: Number(month) },
@@ -102,12 +104,23 @@ export function TripAveragesPanel() {
     });
   }, [data, method]);
 
+  // Day-wise filter — filter rows by the day of closed_at
+  const filteredRows = useMemo(() => {
+    if (!day) return rows;
+    const d = Number(day);
+    return rows.filter(r => {
+      if (!r.closed_at) return false;
+      return new Date(r.closed_at).getDate() === d;
+    });
+  }, [rows, day]);
+
   const totalBase = useMemo(() => {
     if (!data) return 0;
+    const source = day ? filteredRows : rows;
     return method === "weight"
-      ? data.trips.reduce((s, t) => s + t.total_weight, 0)
-      : data.trips.reduce((s, t) => s + t.total_quantity, 0);
-  }, [data, method]);
+      ? source.reduce((s, r) => s + r.base, 0)
+      : source.reduce((s, r) => s + r.base, 0);
+  }, [data, method, rows, filteredRows, day]);
 
   const monthLabel = MONTHS.find(m => m.value === month)?.label ?? "";
 
@@ -214,6 +227,19 @@ export function TripAveragesPanel() {
           Load
         </Button>
 
+        {/* Day filter — appears once data is loaded */}
+        {data && (
+          <Select value={day} onValueChange={setDay}>
+            <SelectTrigger className="h-9 w-32"><SelectValue placeholder="All Days" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">All Days</SelectItem>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                <SelectItem key={d} value={String(d)}>Day {d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
         {/* Distribution method toggle */}
         {data && (
           <div className="flex items-center gap-1 rounded-lg bg-muted p-1">
@@ -296,6 +322,10 @@ export function TripAveragesPanel() {
             <p className="rounded-xl bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
               No closed trips in {monthLabel} {year}.
             </p>
+          ) : filteredRows.length === 0 ? (
+            <p className="rounded-xl bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
+              No closed trips on Day {day} of {monthLabel} {year}.
+            </p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
               <table className="w-full min-w-[960px] text-sm">
@@ -316,7 +346,7 @@ export function TripAveragesPanel() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rows.map(row => {
+                  {filteredRows.map(row => {
                     const isExpanded = expandedId === row.id;
                     return (
                       <>
@@ -436,18 +466,18 @@ export function TripAveragesPanel() {
                   <tr className="border-t-2 border-border bg-muted/40 font-semibold">
                     <td className="px-2 py-3" />
                     <td className="px-4 py-3" colSpan={2}>Totals</td>
-                    <td className="px-4 py-3 text-right">{inr(rows.reduce((s, r) => s + r.total_income, 0))}</td>
-                    <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">{inr(rows.reduce((s, r) => s + r.total_expense, 0))}</td>
-                    <td className={`px-4 py-3 text-right ${netColor(rows.reduce((s,r)=>s+r.net_income,0))}`}>
-                      {inr(rows.reduce((s, r) => s + r.net_income, 0))}
+                    <td className="px-4 py-3 text-right">{inr(filteredRows.reduce((s, r) => s + r.total_income, 0))}</td>
+                    <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">{inr(filteredRows.reduce((s, r) => s + r.total_expense, 0))}</td>
+                    <td className={`px-4 py-3 text-right ${netColor(filteredRows.reduce((s,r)=>s+r.net_income,0))}`}>
+                      {inr(filteredRows.reduce((s, r) => s + r.net_income, 0))}
                     </td>
                     <td className="px-4 py-3 text-right">{totalBase.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right">100%</td>
-                    <td className={`px-4 py-3 text-right ${netColor(data.otherNetPnL)}`}>
-                      {inr(data.otherNetPnL)}
+                    <td className="px-4 py-3 text-right">{day ? "—" : "100%"}</td>
+                    <td className={`px-4 py-3 text-right ${netColor(filteredRows.reduce((s,r)=>s+r.distAmount,0))}`}>
+                      {inr(filteredRows.reduce((s,r)=>s+r.distAmount,0))}
                     </td>
-                    <td className={`px-4 py-3 text-right ${netColor(rows.reduce((s,r)=>s+r.finalNet,0))}`}>
-                      {inr(rows.reduce((s, r) => s + r.finalNet, 0))}
+                    <td className={`px-4 py-3 text-right ${netColor(filteredRows.reduce((s,r)=>s+r.finalNet,0))}`}>
+                      {inr(filteredRows.reduce((s, r) => s + r.finalNet, 0))}
                     </td>
                   </tr>
                 </tfoot>
@@ -455,7 +485,7 @@ export function TripAveragesPanel() {
             </div>
           )}
 
-          {rows.some(r => r.base === 0) && (
+          {filteredRows.some(r => r.base === 0) && (
             <p className="text-xs text-muted-foreground">
               ⚠ Some trips have no {method} data recorded — they receive 0% distribution. Ensure manifests include {method === "weight" ? "weight (kg)" : "quantity"} values.
             </p>
