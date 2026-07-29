@@ -8,6 +8,7 @@ import { CsvIO } from "@/components/CsvIO";
 import { rangeKey, rangeLabel, basisRanges, basisUnit } from "@/lib/contract-ranges";
 import type { Range } from "@/lib/contract-ranges";
 import { fetchAll } from "@/lib/fetch-all";
+import { ensureLocationsForPins } from "@/lib/ensure-location";
 import { logAction } from "@/lib/log-actions";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import { ContractForm, EMPTY_CONTRACT, type ContractRow } from "./ContractForm";
@@ -371,12 +372,19 @@ function EntriesView({
       () => supabase.from("locations").select("id,location_name,pin_code"),
     );
     const nameToId = new Map(all.map((l) => [l.location_name.trim().toLowerCase(), l.id]));
-    const pinToId = new Map(
+    let pinToId = new Map(
       all
         .filter((l) => (l.pin_code ?? "").trim() !== "")
         .map((l) => [(l.pin_code ?? "").trim(), l.id]),
     );
     const pinById = new Map(all.map((l) => [l.id, (l.pin_code ?? "").trim()]));
+
+    // Auto-create locations for any unknown PINs in the CSV
+    const allPins = rows.flatMap((r) => [
+      (r.from_pin_code ?? "").trim(),
+      (r.to_pin_code ?? "").trim(),
+    ]);
+    pinToId = await ensureLocationsForPins(allPins, pinToId);
 
     const resolve = (name: string, pin: string) => {
       const n = (name ?? "").trim().toLowerCase();

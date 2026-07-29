@@ -34,6 +34,7 @@ import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
 import { logAction } from "@/lib/log-actions";
+import { ensureLocationsForPins } from "@/lib/ensure-location";
 import {
   findEntry,
   inr,
@@ -965,18 +966,26 @@ function ManifestTab({
   async function onImport(rows: Record<string, string>[]) {
     const id = await requireTripId();
     if (!id) return { inserted: 0, failed: rows.length };
+
+    // Collect all pins from the CSV and auto-create any that are missing
+    const allPins = rows.flatMap((r) => [
+      (r.from_pin_code ?? "").trim(),
+      (r.to_pin_code ?? "").trim(),
+    ]);
+    const pinToId = await ensureLocationsForPins(allPins, idByPin);
+
     const payload = rows.map((r) => ({
       trip_id: id,
       manifest_number: r["Cnmt No."] ?? r.manifest_number ?? "",
       source_id: r.source ? (sourceIdByName.get(r.source.toLowerCase()) ?? null) : null,
       from_location_id:
         idByName.get((r.from_location ?? "").toLowerCase()) ??
-        idByPin.get((r.from_pin_code ?? "").trim()) ??
+        pinToId.get((r.from_pin_code ?? "").trim()) ??
         null,
       from_pin_code: r.from_pin_code ?? "",
       to_location_id:
         idByName.get((r.to_location ?? "").toLowerCase()) ??
-        idByPin.get((r.to_pin_code ?? "").trim()) ??
+        pinToId.get((r.to_pin_code ?? "").trim()) ??
         null,
       to_pin_code: r.to_pin_code ?? "",
       weight_kg: r.weight_kg ?? "",
