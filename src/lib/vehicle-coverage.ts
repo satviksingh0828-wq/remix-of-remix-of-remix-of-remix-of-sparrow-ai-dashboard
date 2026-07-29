@@ -74,8 +74,10 @@ export type InsuranceEntry = {
 export type RoadTaxEntry = {
   id: string;
   vehicle_id: string;
-  month: number;
-  year: number;
+  start_month: number;
+  start_year: number;
+  end_month: number;
+  end_year: number;
   total_amount: number;
   state: string;
   created_at: string;
@@ -120,7 +122,30 @@ export const serverSaveInsurance = createServerFn({ method: "POST" })
     if (count < 1) throw new Error("End month/year must not be before start month/year.");
     if (count > 120) throw new Error("Period cannot exceed 10 years (120 months).");
 
-    // Insert insurance record (unique constraint handles duplicates at DB level)
+    // Check for overlapping insurance entries for this vehicle
+    const newStart = data.startYear * 12 + data.startMonth;
+    const newEnd   = data.endYear   * 12 + data.endMonth;
+
+    const { data: existing, error: overlapErr } = await supabaseAdmin
+      .from("vehicle_insurance")
+      .select("insurance_number, start_month, start_year, end_month, end_year")
+      .eq("vehicle_id", data.vehicleId);
+
+    if (overlapErr) throw new Error(overlapErr.message);
+
+    for (const row of existing ?? []) {
+      const exStart = (row.start_year as number) * 12 + (row.start_month as number);
+      const exEnd   = (row.end_year   as number) * 12 + (row.end_month   as number);
+      if (newStart <= exEnd && exStart <= newEnd) {
+        throw new Error(
+          `This period overlaps with existing insurance "${row.insurance_number}" ` +
+          `(${MONTH_NAMES[(row.start_month as number) - 1]} ${row.start_year} – ` +
+          `${MONTH_NAMES[(row.end_month as number) - 1]} ${row.end_year}).`
+        );
+      }
+    }
+
+    // Insert insurance record
     const { data: ins, error: insErr } = await supabaseAdmin
       .from("vehicle_insurance")
       .insert({
@@ -206,8 +231,8 @@ export const serverLoadRoadTax = createServerFn({ method: "POST" })
       .from("vehicle_road_tax")
       .select("*")
       .eq("vehicle_id", data.vehicleId)
-      .order("year", { ascending: false })
-      .order("month", { ascending: false });
+      .order("start_year", { ascending: false })
+      .order("start_month", { ascending: false });
     if (error) throw new Error(error.message);
     return (rows ?? []) as RoadTaxEntry[];
   });
@@ -218,8 +243,10 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
     vehicleId: string;
     branchId: string | null;
     registrationNumber: string;
-    month: number;
-    year: number;
+    startMonth: number;
+    startYear: number;
+    endMonth: number;
+    endYear: number;
     totalAmount: number;
     state: string;
   }) => data)
@@ -227,13 +254,19 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
     await requireAdmin(data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const count = monthCount(data.startMonth, data.startYear, data.endMonth, data.endYear);
+    if (count < 1) throw new Error("End month/year must not be before start month/year.");
+    if (count > 120) throw new Error("Period cannot exceed 10 years (120 months).");
+
     // Insert road tax record
     const { data: rt, error: rtErr } = await supabaseAdmin
       .from("vehicle_road_tax")
       .insert({
         vehicle_id: data.vehicleId,
-        month: data.month,
-        year: data.year,
+        start_month: data.startMonth,
+        start_year: data.startYear,
+        end_month: data.endMonth,
+        end_year: data.endYear,
         total_amount: data.totalAmount,
         state: data.state,
       })
@@ -243,14 +276,15 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
     if (rtErr) throw new Error(rtErr.message);
 
     const roadTaxId = (rt as { id: string }).id;
-    const entryDate = `${data.year}-${String(data.month).padStart(2, "0")}-01`;
+    const monthlyAmount = Number((data.totalAmount / count).toFixed(2));
 
-    // Create one paid expenditure for that month
-    const { error: expErr } = await supabaseAdmin
-      .from("expenditures")
-      .insert({
-        expenditure_name: `Road Tax — ${data.registrationNumber} (${monthShort(data.month)} ${data.year})`,
-        amount: String(data.totalAmount),
+    // Create one paid expenditure per month in the period
+    const expenditureRows = [];
+    for (const { month, year } of monthRange(data.startMonth, data.startYear, data.endMonth, data.endYear)) {
+      const entryDate = `${year}-${String(month).padStart(2, "0")}-01`;
+      expenditureRows.push({
+        expenditure_name: `Road Tax — ${data.registrationNumber} (${monthShort(month)} ${year})`,
+        amount: String(monthlyAmount),
         entry_date: entryDate,
         note: `State: ${data.state}`,
         vehicle_id: data.vehicleId,
@@ -259,14 +293,19 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
         paid_date: entryDate,
         is_road_tax: true,
         road_tax_id: roadTaxId,
-      } as never);
+      });
+    }
+
+    const { error: expErr } = await supabaseAdmin
+      .from("expenditures")
+      .insert(expenditureRows as never);
 
     if (expErr) {
       await supabaseAdmin.from("vehicle_road_tax").delete().eq("id", roadTaxId);
       throw new Error(`Expenditure creation failed: ${expErr.message}`);
     }
 
-    return { id: roadTaxId };
+    return { id: roadTaxId, monthCount: count, monthlyAmount };
   });
 
 export const serverDeleteRoadTax = createServerFn({ method: "POST" })
