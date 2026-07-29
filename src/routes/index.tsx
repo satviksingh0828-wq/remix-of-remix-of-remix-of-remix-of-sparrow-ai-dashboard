@@ -221,10 +221,12 @@ function LoginPage() {
 
       {/* Login */}
       <section className="relative flex flex-col items-center justify-center bg-background px-6 py-10">
-        {/* Logo — top-left, always visible */}
-        <div className="absolute left-6 top-5">
-          <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
-        </div>
+        {/* Logo — top-left only in image banner mode */}
+        {loginUi === "image" && (
+          <div className="absolute left-6 top-5">
+            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
+          </div>
+        )}
 
         <div className="w-full max-w-sm animate-fade-up">
           <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
