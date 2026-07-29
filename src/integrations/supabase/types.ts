@@ -18,16 +18,19 @@ export type Database = {
         Row: {
           id: string
           theme: string
+          login_ui: string
           updated_at: string
         }
         Insert: {
           id?: string
           theme?: string
+          login_ui?: string
           updated_at?: string
         }
         Update: {
           id?: string
           theme?: string
+          login_ui?: string
           updated_at?: string
         }
         Relationships: []

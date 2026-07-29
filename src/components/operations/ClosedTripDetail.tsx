@@ -18,6 +18,7 @@ import { downloadCsv, toCsv } from "@/lib/csv";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { useSession } from "@/lib/session";
 import { fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
+import type { TripNoteBranch } from "@/lib/trip-note-pdf";
 
 // ── Snapshot shape (mirrors what closeTrip() writes) ──────────────────────────
 
@@ -169,6 +170,7 @@ export function ClosedTripDetail({
       const lastName = locMap.get(lastM.to_location_id as string) || String(lastM.to_pin_code ?? "");
       await printTripNote({
         company,
+        branch: snap.branch as TripNoteBranch | null,
         trip: {
           trip_code: record.trip_code,
           start_date: record.start_date,

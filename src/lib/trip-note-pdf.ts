@@ -46,6 +46,18 @@ export type TripNoteDriver = {
   licence_expiry_date?: unknown;
 };
 
+export type TripNoteBranch = {
+  branch_name?: unknown;
+  address_line1?: unknown;
+  address_line2?: unknown;
+  area_locality?: unknown;
+  city?: unknown;
+  state?: unknown;
+  pin_code?: unknown;
+  gstin?: unknown;
+  pan?: unknown;
+};
+
 export type TripNoteData = {
   company: {
     company_name: string;
@@ -57,6 +69,7 @@ export type TripNoteData = {
     gstin?: string | null;
     pan?: string | null;
   };
+  branch?: TripNoteBranch | null;
   trip: {
     trip_code: string;
     start_date?: string | null;
@@ -101,6 +114,20 @@ export async function fetchCompany(): Promise<TripNoteData["company"] | null> {
       .limit(1)
       .maybeSingle();
     return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchBranch(branchId: string | null | undefined): Promise<TripNoteBranch | null> {
+  if (!branchId) return null;
+  try {
+    const { data } = await supabase
+      .from("branches")
+      .select("branch_name,address_line1,address_line2,area_locality,city,state,pin_code,gstin,pan")
+      .eq("id", branchId)
+      .maybeSingle();
+    return (data as TripNoteBranch) ?? null;
   } catch {
     return null;
   }
@@ -205,10 +232,14 @@ function buildTripNoteCSS(primaryHex: string): string {
 .tn-summary-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
 .tn-summary-table th {
   font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
-  color: #555; font-weight: 600; padding: 2px 6px;
+  color: #555; font-weight: 600; padding: 3px 6px;
   border: 1px solid #bbb; background: #f5f5f5;
+  vertical-align: middle; line-height: 1.35;
 }
-.tn-summary-table td { font-size: 10.5px; font-weight: 700; padding: 3px 6px; border: 1px solid #bbb; }
+.tn-summary-table td {
+  font-size: 10.5px; font-weight: 700; padding: 4px 6px;
+  border: 1px solid #bbb; vertical-align: middle; line-height: 1.35;
+}
 
 /* Trip details box */
 .tn-trip-box {
@@ -266,14 +297,19 @@ function buildTripNoteCSS(primaryHex: string): string {
 // ── HTML builder ──────────────────────────────────────────────────────────────
 
 function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
-  const { company, trip, vehicle, driver, transporter, manifests } = data;
+  const { company, branch, trip, vehicle, driver, transporter, manifests } = data;
 
-  // Address
+  // Address — prefer branch address (trip's own branch), fall back to company
+  const addr = branch ?? company;
   const addrParts = [
-    sv(company.address_line1),
-    sv(company.address_line2),
-    [sv(company.city), sv(company.state)].filter(Boolean).join(", "),
-    sv(company.pin_code),
+    sv((addr as Record<string, unknown>).address_line1),
+    sv((addr as Record<string, unknown>).address_line2),
+    sv((addr as Record<string, unknown>).area_locality),
+    [
+      sv((addr as Record<string, unknown>).city),
+      sv((addr as Record<string, unknown>).state),
+    ].filter(Boolean).join(", "),
+    sv((addr as Record<string, unknown>).pin_code),
   ].filter(Boolean);
   const addressHtml = addrParts.join(",&nbsp; ");
 
@@ -385,8 +421,8 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
     </thead>
     <tbody>
       <tr>
-        <td>${sv(company.pan) || "—"}</td>
-        <td>${sv(company.gstin) || "—"}</td>
+        <td>${sv((addr as Record<string, unknown>).pan) || sv(company.pan) || "—"}</td>
+        <td>${sv((addr as Record<string, unknown>).gstin) || sv(company.gstin) || "—"}</td>
         <td>${trip.trip_code}</td>
         <td>${sv(trip.start_date) || "—"}</td>
         <td>${fromLoc || "—"}</td>

@@ -57,13 +57,29 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Shared fetch helper — called on mount and on page-visibility regain.
+  // Tries to fetch both columns; if login_ui doesn't exist yet (migration
+  // not run), falls back to fetching just theme so the theme still loads.
   const fetchSettings = useCallback(async () => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("app_settings")
         .select("theme, login_ui")
         .limit(1)
         .maybeSingle();
+
+      if (error) {
+        // Likely login_ui column missing — fetch just theme as fallback.
+        const { data: fallback } = await supabase
+          .from("app_settings")
+          .select("theme")
+          .limit(1)
+          .maybeSingle();
+        const next = (fallback?.theme as ThemeId) ?? "sky";
+        setThemeState(next);
+        apply(next);
+        return;
+      }
+
       const next = (data?.theme as ThemeId) ?? "sky";
       setThemeState(next);
       apply(next);

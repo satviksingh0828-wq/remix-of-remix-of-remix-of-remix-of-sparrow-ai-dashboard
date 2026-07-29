@@ -43,7 +43,7 @@ import {
   type ContractLite,
   type EntryLite,
 } from "@/lib/trip-calc";
-import { fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
+import { fetchBranch, fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
 
 export type TripRow = {
   id?: string;
@@ -414,16 +414,20 @@ export function TripForm({
   async function handleTripNote() {
     setGeneratingPdf(true);
     try {
-      const company = await fetchCompany();
+      const [company, branch, locMap] = await Promise.all([
+        fetchCompany(),
+        fetchBranch(trip.branch_id),
+        fetchLocationMap(),
+      ]);
       if (!company) {
         toast.error("Company details not configured — add them in Settings first.");
         return;
       }
-      const locMap = await fetchLocationMap();
       const fromLoc = locations.find((l) => l.id === trip.start_location_id);
       const toLoc = locations.find((l) => l.id === trip.end_location_id);
       await printTripNote({
         company,
+        branch,
         trip: {
           trip_code: trip.trip_code,
           start_date: trip.start_date,
