@@ -36,6 +36,8 @@ export type AppUserPublic = {
   full_name: string;
   role: "admin" | "basic";
   is_active: boolean;
+  is_paused: boolean;
+  failed_login_attempts: number;
   created_at: string;
 };
 
@@ -53,7 +55,7 @@ export type SaveUserInput = {
 
 export type SignInResult =
   | { ok: true; user: SessionUser }
-  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "already_logged_in"; message: string };
+  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "already_logged_in" | "account_paused"; message: string };
 
 export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: {
@@ -89,7 +91,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
     // ── 3. Verify username + password ──────────────────────────────────────────
     const { data: user, error } = await supabaseAdmin
       .from("app_users")
-      .select("id, username, full_name, role, password")
+      .select("id, username, full_name, role, password, is_paused, failed_login_attempts")
       .eq("username", data.username.trim().toLowerCase())
       .eq("is_active", true)
       .maybeSingle();
@@ -102,9 +104,97 @@ export const serverSignIn = createServerFn({ method: "POST" })
       console.warn("[serverSignIn] No active user found for username:", data.username.trim().toLowerCase());
       return { ok: false, reason: "invalid_credentials", message: "Invalid login ID or password." };
     }
+
+    // ── 3a. Paused account check ───────────────────────────────────────────────
+    if (user.is_paused) {
+      console.warn("[serverSignIn] Blocked: account is paused:", data.username.trim().toLowerCase());
+      return {
+        ok: false,
+        reason: "account_paused",
+        message: "Your account has been paused after too many failed login attempts. Please contact your administrator to restore access.",
+      };
+    }
+
     if (user.password !== data.password) {
       console.warn("[serverSignIn] Password mismatch for username:", data.username.trim().toLowerCase());
+
+      // ── 3b. Increment failure counter; pause at 3 ─────────────────────────
+      const newCount = ((user.failed_login_attempts as number) ?? 0) + 1;
+      const shouldPause = newCount >= 3;
+      try {
+        await supabaseAdmin
+          .from("app_users")
+          .update({
+            failed_login_attempts: newCount,
+            ...(shouldPause ? { is_paused: true, paused_at: new Date().toISOString() } : {}),
+          })
+          .eq("id", user.id as string);
+
+        // ── 3c. Email alert + one-time code when an admin account gets paused ──
+        if (shouldPause && (user.role as string) === "admin") {
+          // Generate a 6-character alphanumeric code (e.g. "A3FX9K")
+          const unpauseCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+          // Store the code on the user row (cleared on unpause)
+          await supabaseAdmin
+            .from("app_users")
+            .update({ unpause_code: unpauseCode })
+            .eq("id", user.id as string)
+            .then(() => {/* fire-and-forget */});
+
+          const apiKey    = process.env.RESEND_API_KEY;
+          const toEmail   = process.env.ADMIN_ALERT_EMAIL;
+          const fromEmail = process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev";
+          if (apiKey && toEmail) {
+            fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${apiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: fromEmail,
+                to: [toEmail],
+                subject: "⚠️ Admin account paused — Garuda Logistics",
+                html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+  <h2 style="color:#c0392b">⚠️ Admin account paused</h2>
+  <p>The admin account <strong>${user.username as string}</strong> has been automatically <strong>paused</strong> after 3 consecutive failed login attempts.</p>
+  <p>To unpause the account, an administrator must go to the <strong>Users</strong> panel and enter the following one-time code:</p>
+  <div style="background:#f4f4f4;border:2px dashed #c0392b;border-radius:8px;padding:20px 32px;margin:24px 0;text-align:center">
+    <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#c0392b">${unpauseCode}</span>
+  </div>
+  <p style="color:#666;font-size:13px">This code is valid for one use only. The password has <strong>not</strong> been changed.</p>
+  <p style="color:#888;font-size:11px">Garuda Logistics Solutions — automated security alert</p>
+</div>`,
+              }),
+            }).catch(() => {/* non-fatal */});
+          }
+        }
+      } catch {
+        // Non-fatal — still return invalid_credentials
+      }
+
+      if (shouldPause) {
+        return {
+          ok: false,
+          reason: "account_paused",
+          message: "Your account has been paused after too many failed login attempts. Please contact your administrator to restore access.",
+        };
+      }
+
       return { ok: false, reason: "invalid_credentials", message: "Invalid login ID or password." };
+    }
+
+    // ── 3d. Successful password match — reset failure counter ─────────────────
+    try {
+      if ((user.failed_login_attempts as number) > 0) {
+        await supabaseAdmin
+          .from("app_users")
+          .update({ failed_login_attempts: 0 })
+          .eq("id", user.id as string);
+      }
+    } catch {
+      // Non-fatal
     }
 
     // ── 4. Device-user authorization check ────────────────────────────────────
@@ -365,7 +455,7 @@ export const serverListUsers = createServerFn({ method: "GET" }).handler(
     );
     const { data } = await supabaseAdmin
       .from("app_users")
-      .select("id, username, full_name, role, is_active, created_at")
+      .select("id, username, full_name, role, is_active, is_paused, failed_login_attempts, created_at")
       .order("created_at", { ascending: true });
     return (data ?? []) as AppUserPublic[];
   },
@@ -443,6 +533,72 @@ export const serverSaveUser = createServerFn({ method: "POST" })
     }
 
     return { id: userId! };
+  });
+
+// ── Force-logout a user (admin-only) ─────────────────────────────────────────
+// Deletes the user's session row so their next heartbeat (~30 s) invalidates them.
+
+export const serverForceLogout = createServerFn({ method: "POST" })
+  .validator((userId: string) => userId)
+  .handler(async ({ data: userId }): Promise<{ error?: string }> => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+    const { error } = await supabaseAdmin
+      .from("user_sessions")
+      .delete()
+      .eq("user_id", userId);
+    if (error) return { error: error.message };
+    return {};
+  });
+
+// ── Unpause a user (admin-only) ───────────────────────────────────────────────
+// Basic users: click to unpause, no code needed.
+// Admin users: requires the one-time code that was emailed when the account was paused.
+// Password is NEVER changed by this operation.
+
+export const serverUnpauseUser = createServerFn({ method: "POST" })
+  .validator((input: { userId: string; code?: string }) => input)
+  .handler(async ({ data }): Promise<{ error?: string }> => {
+    const { supabaseAdmin } = await import(
+      "@/integrations/supabase/client.server"
+    );
+
+    // Fetch role + stored code (never expose unpause_code to the client)
+    const { data: user, error: fetchErr } = await supabaseAdmin
+      .from("app_users")
+      .select("role, unpause_code")
+      .eq("id", data.userId)
+      .maybeSingle();
+
+    if (fetchErr || !user) return { error: "User not found" };
+
+    // Admin accounts require the emailed one-time code
+    if ((user.role as string) === "admin") {
+      if (!data.code?.trim()) {
+        return { error: "A verification code is required to unpause an admin account. Check the alert email." };
+      }
+      if (!user.unpause_code) {
+        return { error: "No verification code on record. Please contact support." };
+      }
+      if ((user.unpause_code as string).toUpperCase() !== data.code.trim().toUpperCase()) {
+        return { error: "Incorrect verification code. Check the alert email and try again." };
+      }
+    }
+
+    // Clear pause state. Password is untouched.
+    const { error } = await supabaseAdmin
+      .from("app_users")
+      .update({
+        is_paused: false,
+        failed_login_attempts: 0,
+        paused_at: null,
+        unpause_code: null,
+      })
+      .eq("id", data.userId);
+
+    if (error) return { error: error.message };
+    return {};
   });
 
 // ── Delete a user (admin-only) ───────────────────────────────────────────────

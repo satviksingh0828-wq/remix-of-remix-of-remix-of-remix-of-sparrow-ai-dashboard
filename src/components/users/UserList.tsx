@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Plus, Save, ShieldCheck, Trash2, User } from "lucide-react";
+import { ArrowLeft, LogOut, Loader2, Plus, Save, ShieldCheck, Trash2, Unlock, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ import {
   serverGetUserBranches,
   serverSaveUser,
   serverDeleteUser,
+  serverForceLogout,
+  serverUnpauseUser,
   type AppUserPublic,
   type SaveUserInput,
 } from "@/lib/user-auth";
@@ -36,11 +38,14 @@ function emptyUser(): EditingUser {
   };
 }
 
+type UnpauseDialog = { user: AppUserPublic; code: string; busy: boolean } | null;
+
 export function UserList() {
   const [users, setUsers] = useState<AppUserPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditingUser | null>(null);
   const [saving, setSaving] = useState(false);
+  const [unpauseDialog, setUnpauseDialog] = useState<UnpauseDialog>(null);
   const branches = useBranches();
 
   async function load() {
@@ -102,6 +107,34 @@ export function UserList() {
     if (result.error) return toast.error(result.error);
     logAction("deleted", "user", { entityId: u.id, entityLabel: u.username });
     toast.success("User removed");
+    load();
+  }
+
+  async function forceLogout(u: AppUserPublic) {
+    if (!window.confirm(`Force-logout ${u.full_name || u.username}? They will be signed out within ~30 seconds.`)) return;
+    const result = await serverForceLogout({ data: u.id });
+    if (result.error) return toast.error(result.error);
+    logAction("updated", "user", { entityId: u.id, entityLabel: u.username, details: { action: "force_logout" } });
+    toast.success(`${u.full_name || u.username} has been logged out`);
+  }
+
+  function startUnpause(u: AppUserPublic) {
+    if (u.role === "admin") {
+      // Admin accounts require the emailed code — open the dialog
+      setUnpauseDialog({ user: u, code: "", busy: false });
+    } else {
+      // Basic users — unpause directly
+      doUnpause(u.id, u.full_name || u.username, undefined);
+    }
+  }
+
+  async function doUnpause(userId: string, label: string, code: string | undefined) {
+    if (unpauseDialog) setUnpauseDialog({ ...unpauseDialog, busy: true });
+    const result = await serverUnpauseUser({ data: { userId, code } });
+    if (unpauseDialog) setUnpauseDialog(null);
+    if (result.error) { toast.error(result.error); return; }
+    logAction("updated", "user", { entityId: userId, entityLabel: label, details: { action: "unpause" } });
+    toast.success(`${label} has been unpaused`);
     load();
   }
 
@@ -261,6 +294,55 @@ export function UserList() {
     );
   }
 
+  // ── Unpause code dialog (admin accounts only) ────────────────────────────
+
+  if (unpauseDialog) {
+    const { user: pu, code, busy } = unpauseDialog;
+    return (
+      <div className="animate-fade-up flex items-center justify-center py-16">
+        <div className="surface-card w-full max-w-sm space-y-5 p-6">
+          <div className="flex items-center gap-3">
+            <span className="flex size-10 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600">
+              <Unlock className="size-5" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold">Unpause admin account</p>
+              <p className="text-xs text-muted-foreground">{pu.full_name || pu.username}</p>
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            This is an admin account. Enter the 6-character verification code that was sent to the alert email when the account was paused.
+          </p>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Verification code</Label>
+            <Input
+              className="h-10 font-mono tracking-widest uppercase text-center text-base"
+              placeholder="A3FX9K"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setUnpauseDialog({ ...unpauseDialog, code: e.target.value.toUpperCase() })}
+              autoFocus
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button type="button" variant="outline" onClick={() => setUnpauseDialog(null)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={code.trim().length < 6 || busy}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+              onClick={() => doUnpause(pu.id, pu.full_name || pu.username, code.trim())}
+            >
+              {busy ? <Loader2 className="size-4 animate-spin" /> : <Unlock className="size-4" />}
+              {busy ? "Verifying…" : "Unpause account"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── User list ─────────────────────────────────────────────────────────────
 
   return (
@@ -328,14 +410,38 @@ export function UserList() {
                   >
                     {u.role === "admin" ? "Admin" : "Basic user"}
                   </span>
-                  {!u.is_active ? (
+                  {u.is_paused ? (
+                    <span className="ml-2 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                      Paused
+                    </span>
+                  ) : !u.is_active ? (
                     <span className="ml-2 rounded-full bg-destructive/10 px-1.5 text-destructive">
                       Inactive
                     </span>
                   ) : null}
                 </p>
               </div>
-              <div className="flex shrink-0 gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
+                {u.is_paused ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-400 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950"
+                    onClick={() => startUnpause(u)}
+                  >
+                    <Unlock className="size-3.5" />
+                    Unpause
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    title="Force logout"
+                    onClick={() => forceLogout(u)}
+                  >
+                    <LogOut className="size-4 text-muted-foreground" />
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={() => startEdit(u)}>
                   Edit
                 </Button>

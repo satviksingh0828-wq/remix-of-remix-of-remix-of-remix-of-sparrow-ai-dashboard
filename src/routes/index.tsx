@@ -174,14 +174,18 @@ function LoginPage() {
         toast.success("Welcome back");
         navigate({ to: "/home", replace: true });
       } else {
-        const lockMs = recordFailedAttempt(id.trim());
         logAction("login_failed", "login", { entityLabel: id.trim(), details: { reason: outcome.reason } });
-        // Always refresh PoW + math after a failed attempt
         resetCaptcha();
-        if (lockMs > 0) {
-          setError(`Too many failed attempts. Account locked for ${lockoutLabel(lockMs)}.`);
+        if (outcome.reason === "account_paused") {
+          // Show as a persistent inline banner — not a dismissible dialog
+          setError(outcome.message);
         } else {
-          setErrorDialog(outcome.message);
+          const lockMs = recordFailedAttempt(id.trim());
+          if (lockMs > 0) {
+            setError(`Too many failed attempts. Account locked for ${lockoutLabel(lockMs)}.`);
+          } else {
+            setErrorDialog(outcome.message);
+          }
         }
       }
     } catch (err) {
