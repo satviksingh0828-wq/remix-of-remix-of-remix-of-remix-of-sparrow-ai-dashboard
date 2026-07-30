@@ -186,18 +186,192 @@ function FileCard({
   );
 }
 
+// ── README section ─────────────────────────────────────────────────────────
+
+function ReadMe() {
+  return (
+    <div className="mt-10 rounded-xl border border-border bg-muted/30 p-6 space-y-5 text-sm">
+      <h2 className="text-base font-bold tracking-tight">📖 READ ME — How to use Trip Import</h2>
+
+      <section className="space-y-2">
+        <h3 className="font-semibold text-foreground">What this does</h3>
+        <p className="text-muted-foreground">
+          Imports historical trips directly into the live Trips list. After import each trip
+          appears as a normal live trip — you can open it, edit details, and close it the usual way
+          (which enforces end date / end time / odometer validation).
+        </p>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="font-semibold text-foreground">Step-by-step</h3>
+        <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+          <li>Click the <strong className="text-foreground">template</strong> link on any card to download a blank CSV for that type.</li>
+          <li>Fill in your data (see column guide below).</li>
+          <li>Upload <code className="rounded bg-muted px-1">trips.csv</code> (required). Upload manifests / expenses / other-income files if you have them.</li>
+          <li>Click <strong className="text-foreground">Validate &amp; Preview</strong> — each row shows ✅ Ready or ❌ with the exact error.</li>
+          <li>Fix any errors in your CSV, re-upload, and validate again.</li>
+          <li>Click <strong className="text-foreground">Import X trips</strong>. Done.</li>
+        </ol>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="font-semibold text-foreground">trips.csv — columns</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="py-1.5 pr-4 font-medium">Column</th>
+                <th className="py-1.5 pr-4 font-medium">Required?</th>
+                <th className="py-1.5 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="text-muted-foreground">
+              {[
+                ["trip_code",                  "No",  "Leave blank to auto-generate (e.g. TR-1234567890)"],
+                ["ownership",                  "Yes", "'own' for your vehicle, 'rented' for hired transport"],
+                ["branch_name",                "Yes", "Must exactly match a branch name in Settings"],
+                ["vehicle_number",             "own trips", "Registration number — must exist in Masters → Vehicles"],
+                ["driver_name",                "own trips", "Full name — must exist in Masters → Drivers"],
+                ["transporter_name",           "rented trips", "Must exist in Masters → Transporters"],
+                ["start_date",                 "Yes", "Format: YYYY-MM-DD  e.g. 2024-06-15"],
+                ["start_time",                 "No",  "Format: HH:MM  e.g. 08:30"],
+                ["end_date",                   "No",  "Leave blank if trip not yet finished"],
+                ["end_time",                   "No",  "Leave blank if trip not yet finished"],
+                ["odometer_start",             "No",  "Numbers only, e.g. 45200"],
+                ["odometer_end",               "No",  "Numbers only"],
+                ["third_party_vehicle_number", "No",  "Rented trips only — the hired vehicle's number"],
+              ].map(([col, req, note]) => (
+                <tr key={col} className="border-b border-border/50">
+                  <td className="py-1.5 pr-4 font-mono text-foreground">{col}</td>
+                  <td className="py-1.5 pr-4">{req}</td>
+                  <td className="py-1.5">{note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="font-semibold text-foreground">manifests.csv — columns</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="py-1.5 pr-4 font-medium">Column</th>
+                <th className="py-1.5 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="text-muted-foreground">
+              {[
+                ["trip_code",       "Must match the trip_code in trips.csv exactly"],
+                ["manifest_number", "Your manifest / LR number"],
+                ["from_pin_code",   "6-digit PIN code of pickup location"],
+                ["to_pin_code",     "6-digit PIN code of delivery location"],
+                ["weight_kg",       "Payload weight in kg"],
+                ["quantity",        "Number of units / packages"],
+              ].map(([col, note]) => (
+                <tr key={col} className="border-b border-border/50">
+                  <td className="py-1.5 pr-4 font-mono text-foreground">{col}</td>
+                  <td className="py-1.5">{note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="font-semibold text-foreground">expenses.csv — columns</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[400px] text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="py-1.5 pr-4 font-medium">Column</th>
+                <th className="py-1.5 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="text-muted-foreground">
+              {[
+                ["trip_code",    "Must match the trip_code in trips.csv"],
+                ["expense_name", "e.g. Fuel Expense, Toll Charges, Driver Bata"],
+                ["amount",       "Numeric, e.g. 4500"],
+                ["note",         "Optional note"],
+              ].map(([col, note]) => (
+                <tr key={col} className="border-b border-border/50">
+                  <td className="py-1.5 pr-4 font-mono text-foreground">{col}</td>
+                  <td className="py-1.5">{note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <h3 className="font-semibold text-foreground">other-income.csv — columns</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[400px] text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-border text-left text-muted-foreground">
+                <th className="py-1.5 pr-4 font-medium">Column</th>
+                <th className="py-1.5 font-medium">Notes</th>
+              </tr>
+            </thead>
+            <tbody className="text-muted-foreground">
+              {[
+                ["trip_code",   "Must match the trip_code in trips.csv"],
+                ["income_name", "e.g. Detention Charges, Loading Charges"],
+                ["amount",      "Numeric, e.g. 1200"],
+                ["note",        "Optional note"],
+              ].map(([col, note]) => (
+                <tr key={col} className="border-b border-border/50">
+                  <td className="py-1.5 pr-4 font-mono text-foreground">{col}</td>
+                  <td className="py-1.5">{note}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="font-semibold text-foreground">Common errors & fixes</h3>
+        <ul className="space-y-1 text-muted-foreground list-disc list-inside">
+          <li><strong className="text-foreground">Branch "X" not found</strong> — check spelling matches exactly what's in Settings → Branches</li>
+          <li><strong className="text-foreground">Vehicle "X" not found</strong> — check registration number matches exactly in Masters → Vehicles</li>
+          <li><strong className="text-foreground">Driver "X" not found</strong> — check full name matches exactly in Masters → Drivers</li>
+          <li><strong className="text-foreground">Duplicate trip_code</strong> — two rows in your CSV share the same trip code; each must be unique</li>
+          <li><strong className="text-foreground">start_date required</strong> — date must be in YYYY-MM-DD format (not DD/MM/YYYY)</li>
+        </ul>
+      </section>
+
+      <section className="space-y-2">
+        <h3 className="font-semibold text-foreground">After import</h3>
+        <p className="text-muted-foreground">
+          Imported trips appear in the <strong className="text-foreground">Trip</strong> tab as live trips.
+          Open each one → fill in any missing details (end date, end time, odometer) → click
+          <strong className="text-foreground"> Close trip</strong> to archive it. The close button
+          in the trip form validates all required fields before archiving.
+        </p>
+      </section>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────
 
-export function TripImport() {
+export function TripImport({ embedded = false }: { embedded?: boolean }) {
   const { user, loading: sessionLoading } = useSession();
   const navigate = useNavigate();
 
-  // redirect non-admins
+  // redirect non-admins only in standalone mode
   useEffect(() => {
+    if (embedded) return;
     if (!sessionLoading && (!user || user.role !== "admin")) {
       navigate({ to: "/home", replace: true });
     }
-  }, [user, sessionLoading, navigate]);
+  }, [user, sessionLoading, navigate, embedded]);
 
   const [masters, setMasters] = useState<MasterMaps | null>(null);
   const [loadingMasters, setLoadingMasters] = useState(false);
@@ -351,24 +525,28 @@ export function TripImport() {
     setValidated(null); setResult(null);
   }
 
-  if (sessionLoading || loadingMasters) {
-    return (
+  // In embedded mode show inline spinner; standalone shows full-screen
+  if (loadingMasters || (!embedded && sessionLoading)) {
+    return embedded ? (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    ) : (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  if (!user || user.role !== "admin") return null;
+  if (!embedded && (!user || user.role !== "admin")) return null;
 
   const goodCount = validated?.filter(v => v.ok).length ?? 0;
   const badCount  = validated?.filter(v => !v.ok).length ?? 0;
 
-  return (
-    <div className="min-h-screen bg-muted/30 px-4 py-10">
-      <div className="mx-auto max-w-4xl space-y-6">
-
-        {/* Header */}
+  const content = (
+    <div className="space-y-6">
+      {/* Header — only shown in standalone mode; Operations already shows the tab title */}
+      {!embedded && (
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold tracking-tight">Trip Import</h1>
@@ -379,136 +557,149 @@ export function TripImport() {
           <p className="text-sm text-muted-foreground">
             Import historical trips as live trips. Matches vehicle/driver/transporter by name — they must already exist in Masters.
           </p>
-          <p className="text-xs text-muted-foreground">
-            After import, open each trip to verify details and close it normally (which enforces end date + odometer validation).
-          </p>
         </div>
+      )}
 
-        {/* Done state */}
-        {result ? (
-          <div className="rounded-xl border border-border bg-card p-8 text-center space-y-4">
-            <CheckCircle2 className="mx-auto size-10 text-green-500" />
-            <div>
-              <p className="text-lg font-semibold">{result.ok} trip{result.ok !== 1 ? "s" : ""} imported</p>
-              {result.skipped > 0 && (
-                <p className="text-sm text-muted-foreground">{result.skipped} row{result.skipped !== 1 ? "s" : ""} skipped due to validation errors</p>
+      {/* Done state */}
+      {result ? (
+        <div className="rounded-xl border border-border bg-card p-8 text-center space-y-4">
+          <CheckCircle2 className="mx-auto size-10 text-green-500" />
+          <div>
+            <p className="text-lg font-semibold">{result.ok} trip{result.ok !== 1 ? "s" : ""} imported</p>
+            {result.skipped > 0 && (
+              <p className="text-sm text-muted-foreground">{result.skipped} row{result.skipped !== 1 ? "s" : ""} skipped due to validation errors</p>
+            )}
+          </div>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" onClick={reset}>Import more</Button>
+            {!embedded && (
+              <Button onClick={() => navigate({ to: "/operations" })}>Go to Operations</Button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Upload cards */}
+          {!validated && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FileCard label="Trips" hint="One row per trip" filename="trips" cols={TRIPS_COLS} required file={tripsFile} onFile={setTripsFile} />
+              <FileCard label="Manifests" hint="One row per manifest (optional)" filename="manifests" cols={MANIFESTS_COLS} file={manifestsFile} onFile={setManifestsFile} />
+              <FileCard label="Expenses" hint="One row per expense line (optional)" filename="expenses" cols={EXPENSES_COLS} file={expensesFile} onFile={setExpensesFile} />
+              <FileCard label="Other Income" hint="One row per income entry (optional)" filename="other-income" cols={INCOME_COLS} file={incomeFile} onFile={setIncomeFile} />
+            </div>
+          )}
+
+          {/* Masters summary */}
+          {masters && !validated && (
+            <p className="text-xs text-muted-foreground">
+              Masters loaded — {masters.branches.size} branches · {masters.vehicles.size} vehicles · {masters.drivers.size} drivers · {masters.transporters.size} transporters
+            </p>
+          )}
+
+          {/* Validate button */}
+          {!validated && (
+            <Button onClick={handleValidate} disabled={!tripsFile || !masters}>
+              Validate &amp; Preview
+            </Button>
+          )}
+
+          {/* Preview table */}
+          {validated && (
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5 text-sm">
+                  <CheckCircle2 className="size-4 text-green-500" />
+                  <span className="font-semibold">{goodCount}</span> ready
+                </div>
+                {badCount > 0 && (
+                  <div className="flex items-center gap-1.5 text-sm">
+                    <XCircle className="size-4 text-destructive" />
+                    <span className="font-semibold">{badCount}</span> with errors (will be skipped)
+                  </div>
+                )}
+                <div className="ml-auto flex gap-2">
+                  <Button variant="outline" size="sm" onClick={reset}>Start over</Button>
+                  <Button
+                    size="sm"
+                    disabled={goodCount === 0 || importing}
+                    onClick={handleImport}
+                  >
+                    {importing ? <><Loader2 className="size-4 animate-spin" /> Importing…</> : `Import ${goodCount} trip${goodCount !== 1 ? "s" : ""}`}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto rounded-xl border border-border">
+                <table className="w-full min-w-[700px] text-xs">
+                  <thead className="border-b border-border bg-muted/50">
+                    <tr>
+                      <th className="px-3 py-2 text-left font-medium">Row</th>
+                      <th className="px-3 py-2 text-left font-medium">Trip Code</th>
+                      <th className="px-3 py-2 text-left font-medium">Type</th>
+                      <th className="px-3 py-2 text-left font-medium">Branch</th>
+                      <th className="px-3 py-2 text-left font-medium">Vehicle / Transporter</th>
+                      <th className="px-3 py-2 text-left font-medium">Driver</th>
+                      <th className="px-3 py-2 text-left font-medium">Start Date</th>
+                      <th className="px-3 py-2 text-left font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {validated.map((v) => (
+                      <tr
+                        key={v.rowNum}
+                        className={`border-b border-border/50 ${v.ok ? "" : "bg-destructive/5"}`}
+                      >
+                        <td className="px-3 py-2 text-muted-foreground">{v.rowNum}</td>
+                        <td className="px-3 py-2 font-mono font-medium">{v.trip_code}</td>
+                        <td className="px-3 py-2 capitalize">{v.ownership}</td>
+                        <td className="px-3 py-2">{v.raw.branch_name || "—"}</td>
+                        <td className="px-3 py-2">
+                          {v.ownership === "own"
+                            ? (v.raw.vehicle_number || "—")
+                            : (v.raw.transporter_name || "—")}
+                        </td>
+                        <td className="px-3 py-2">{v.raw.driver_name || "—"}</td>
+                        <td className="px-3 py-2">{v.start_date || "—"}</td>
+                        <td className="px-3 py-2">
+                          {v.ok ? (
+                            <span className="flex items-center gap-1 text-green-600">
+                              <CheckCircle2 className="size-3.5" /> Ready
+                            </span>
+                          ) : (
+                            <span className="text-destructive" title={v.errors.join("\n")}>
+                              <XCircle className="inline size-3.5 mr-1" />
+                              {v.errors[0]}{v.errors.length > 1 ? ` +${v.errors.length - 1}` : ""}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {manifests.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {manifests.length} manifest row{manifests.length !== 1 ? "s" : ""} · {expenses.length} expense row{expenses.length !== 1 ? "s" : ""} · {otherIncome.length} other-income row{otherIncome.length !== 1 ? "s" : ""} will be linked by trip_code on import.
+                </p>
               )}
             </div>
-            <div className="flex justify-center gap-3">
-              <Button variant="outline" onClick={reset}>Import more</Button>
-              <Button onClick={() => navigate({ to: "/operations" })}>Go to Operations</Button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Upload cards */}
-            {!validated && (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <FileCard label="Trips" hint="One row per trip" filename="trips" cols={TRIPS_COLS} required file={tripsFile} onFile={setTripsFile} />
-                <FileCard label="Manifests" hint="One row per manifest (optional)" filename="manifests" cols={MANIFESTS_COLS} file={manifestsFile} onFile={setManifestsFile} />
-                <FileCard label="Expenses" hint="One row per expense line (optional)" filename="expenses" cols={EXPENSES_COLS} file={expensesFile} onFile={setExpensesFile} />
-                <FileCard label="Other Income" hint="One row per income entry (optional)" filename="other-income" cols={INCOME_COLS} file={incomeFile} onFile={setIncomeFile} />
-              </div>
-            )}
+          )}
+        </>
+      )}
 
-            {/* Masters summary */}
-            {masters && !validated && (
-              <p className="text-xs text-muted-foreground">
-                Masters loaded — {masters.branches.size} branches · {masters.vehicles.size} vehicles · {masters.drivers.size} drivers · {masters.transporters.size} transporters
-              </p>
-            )}
+      {/* README always visible at the bottom */}
+      <ReadMe />
+    </div>
+  );
 
-            {/* Validate button */}
-            {!validated && (
-              <Button onClick={handleValidate} disabled={!tripsFile || !masters}>
-                Validate & Preview
-              </Button>
-            )}
+  // Standalone: wrap in full-page shell; embedded: render directly
+  if (embedded) return content;
 
-            {/* Preview table */}
-            {validated && (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5 text-sm">
-                    <CheckCircle2 className="size-4 text-green-500" />
-                    <span className="font-semibold">{goodCount}</span> ready
-                  </div>
-                  {badCount > 0 && (
-                    <div className="flex items-center gap-1.5 text-sm">
-                      <XCircle className="size-4 text-destructive" />
-                      <span className="font-semibold">{badCount}</span> with errors (will be skipped)
-                    </div>
-                  )}
-                  <div className="ml-auto flex gap-2">
-                    <Button variant="outline" size="sm" onClick={reset}>Start over</Button>
-                    <Button
-                      size="sm"
-                      disabled={goodCount === 0 || importing}
-                      onClick={handleImport}
-                    >
-                      {importing ? <><Loader2 className="size-4 animate-spin" /> Importing…</> : `Import ${goodCount} trip${goodCount !== 1 ? "s" : ""}`}
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto rounded-xl border border-border">
-                  <table className="w-full min-w-[700px] text-xs">
-                    <thead className="border-b border-border bg-muted/50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium">Row</th>
-                        <th className="px-3 py-2 text-left font-medium">Trip Code</th>
-                        <th className="px-3 py-2 text-left font-medium">Type</th>
-                        <th className="px-3 py-2 text-left font-medium">Branch</th>
-                        <th className="px-3 py-2 text-left font-medium">Vehicle / Transporter</th>
-                        <th className="px-3 py-2 text-left font-medium">Driver</th>
-                        <th className="px-3 py-2 text-left font-medium">Start Date</th>
-                        <th className="px-3 py-2 text-left font-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {validated.map((v) => (
-                        <tr
-                          key={v.rowNum}
-                          className={`border-b border-border/50 ${v.ok ? "" : "bg-destructive/5"}`}
-                        >
-                          <td className="px-3 py-2 text-muted-foreground">{v.rowNum}</td>
-                          <td className="px-3 py-2 font-mono font-medium">{v.trip_code}</td>
-                          <td className="px-3 py-2 capitalize">{v.ownership}</td>
-                          <td className="px-3 py-2">{v.raw.branch_name || "—"}</td>
-                          <td className="px-3 py-2">
-                            {v.ownership === "own"
-                              ? (v.raw.vehicle_number || "—")
-                              : (v.raw.transporter_name || "—")}
-                          </td>
-                          <td className="px-3 py-2">{v.raw.driver_name || "—"}</td>
-                          <td className="px-3 py-2">{v.start_date || "—"}</td>
-                          <td className="px-3 py-2">
-                            {v.ok ? (
-                              <span className="flex items-center gap-1 text-green-600">
-                                <CheckCircle2 className="size-3.5" /> Ready
-                              </span>
-                            ) : (
-                              <span className="text-destructive" title={v.errors.join("\n")}>
-                                <XCircle className="inline size-3.5 mr-1" />
-                                {v.errors[0]}{v.errors.length > 1 ? ` +${v.errors.length - 1}` : ""}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {manifests.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {manifests.length} manifest row{manifests.length !== 1 ? "s" : ""} · {expenses.length} expense row{expenses.length !== 1 ? "s" : ""} · {otherIncome.length} other-income row{otherIncome.length !== 1 ? "s" : ""} will be linked by trip_code on import.
-                  </p>
-                )}
-              </div>
-            )}
-          </>
-        )}
+  return (
+    <div className="min-h-screen bg-muted/30 px-4 py-10">
+      <div className="mx-auto max-w-4xl">
+        {content}
       </div>
     </div>
   );

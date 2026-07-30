@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { BarChart2, CalendarCheck, CalendarRange, ChevronRight, DollarSign, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingDown, TrendingUp, Users } from "lucide-react";
+import { BarChart2, CalendarCheck, CalendarRange, ChevronRight, DollarSign, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingDown, TrendingUp, Upload, Users } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { TabErrorBoundary } from "@/components/TabErrorBoundary";
@@ -11,6 +11,7 @@ import { TripAveragesPanel } from "@/components/operations/TripAveragesPanel";
 import { EmiScheduler } from "@/components/operations/EmiScheduler";
 import { YearlyExpenseScheduler } from "@/components/operations/YearlyExpenseScheduler";
 import { DriverPayroll } from "@/components/operations/DriverPayroll";
+import { TripImport } from "@/components/import/TripImport";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/operations")({
@@ -35,14 +36,15 @@ export const Route = createFileRoute("/operations")({
 });
 
 const ALL_TABS = [
-  { id: "trip",              label: "Trip",                desc: "Manifests, income & expenses",    icon: RouteIcon,      adminOnly: false },
-  { id: "income",            label: "Income",              desc: "Other income, branch-wise",       icon: TrendingUp,     adminOnly: false },
-  { id: "expenditure",       label: "Expenditure",         desc: "Other spend, branch-wise",        icon: TrendingDown,   adminOnly: false },
-  { id: "driver-payroll",    label: "Driver Payroll",      desc: "Salary, advances & deductions",   icon: Users,          adminOnly: false },
-  { id: "fixed-income",      label: "Fixed Income",        desc: "Contract recurring charges",      icon: DollarSign,     adminOnly: true  },
-  { id: "trip-averages",     label: "Trip Averages",       desc: "Monthly distribution analysis",  icon: BarChart2,      adminOnly: true  },
-  { id: "emi-scheduler",     label: "EMI Scheduler",       desc: "Vehicle loan & EMI tracker",      icon: CalendarCheck,  adminOnly: true  },
-  { id: "yearly-expenses",   label: "Yearly Expenses",     desc: "Fixed yearly cost tracker",       icon: CalendarRange,  adminOnly: true  },
+  { id: "trip",              label: "Trip",                desc: "Manifests, income & expenses",    icon: RouteIcon,      adminOnly: false, dividerBefore: false },
+  { id: "income",            label: "Income",              desc: "Other income, branch-wise",       icon: TrendingUp,     adminOnly: false, dividerBefore: false },
+  { id: "expenditure",       label: "Expenditure",         desc: "Other spend, branch-wise",        icon: TrendingDown,   adminOnly: false, dividerBefore: false },
+  { id: "driver-payroll",    label: "Driver Payroll",      desc: "Salary, advances & deductions",   icon: Users,          adminOnly: false, dividerBefore: false },
+  { id: "fixed-income",      label: "Fixed Income",        desc: "Contract recurring charges",      icon: DollarSign,     adminOnly: true,  dividerBefore: false },
+  { id: "trip-averages",     label: "Trip Averages",       desc: "Monthly distribution analysis",  icon: BarChart2,      adminOnly: true,  dividerBefore: false },
+  { id: "emi-scheduler",     label: "EMI Scheduler",       desc: "Vehicle loan & EMI tracker",      icon: CalendarCheck,  adminOnly: true,  dividerBefore: false },
+  { id: "yearly-expenses",   label: "Yearly Expenses",     desc: "Fixed yearly cost tracker",       icon: CalendarRange,  adminOnly: true,  dividerBefore: false },
+  { id: "import-trips",      label: "Import Trips",        desc: "Bulk import historical trips",    icon: Upload,         adminOnly: true,  dividerBefore: true  },
 ] as const;
 
 type TabId = (typeof ALL_TABS)[number]["id"];
@@ -94,6 +96,9 @@ function OperationsPage() {
                 const isActive = t.id === safeTab;
                 return (
                   <li key={t.id}>
+                    {t.dividerBefore && (
+                      <div className="my-2 border-t border-border" />
+                    )}
                     <button
                       type="button"
                       onClick={() => setTab(t.id)}
@@ -152,6 +157,7 @@ function OperationsPage() {
           {safeTab === "trip-averages"   && isAdmin && <TabErrorBoundary label="Trip Averages"><TripAveragesPanel /></TabErrorBoundary>}
           {safeTab === "emi-scheduler"   && isAdmin && <TabErrorBoundary label="EMI Scheduler"><EmiScheduler /></TabErrorBoundary>}
           {safeTab === "yearly-expenses" && isAdmin && <TabErrorBoundary label="Yearly Expenses"><YearlyExpenseScheduler /></TabErrorBoundary>}
+          {safeTab === "import-trips"    && isAdmin && <TabErrorBoundary label="Import Trips"><TripImport embedded /></TabErrorBoundary>}
         </div>
       </div>
     </AppShell>
