@@ -22,14 +22,9 @@ export function AppShell({
   const { open } = useSparrowAI();
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={cn("min-h-screen bg-background transition-all duration-300", open ? "mr-[360px]" : "")}>
       <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
-        <div
-          className={cn(
-            "flex h-16 items-center gap-3 px-4 sm:px-6 transition-all duration-300",
-            open ? "mr-[360px]" : "mx-auto max-w-screen-xl",
-          )}
-        >
+        <div className="mx-auto max-w-screen-xl flex h-16 items-center gap-3 px-4 sm:px-6">
           <Link to="/home" className="shrink-0">
             <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
           </Link>
@@ -65,14 +60,7 @@ export function AppShell({
           </div>
         </div>
       </header>
-      <div
-        className={cn(
-          "transition-all duration-300",
-          open ? "mr-[360px]" : "",
-        )}
-      >
-        <main className="mx-auto max-w-screen-xl px-4 sm:px-6 py-6 sm:py-8">{children}</main>
-      </div>
+      <main className="mx-auto max-w-screen-xl px-4 sm:px-6 py-6 sm:py-8">{children}</main>
     </div>
   );
 }
