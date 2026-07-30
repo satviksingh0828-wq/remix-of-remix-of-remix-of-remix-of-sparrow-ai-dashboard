@@ -1088,8 +1088,10 @@ export type Database = {
         Row: {
           id: string
           vehicle_id: string
-          month: number
-          year: number
+          start_month: number
+          start_year: number
+          end_month: number
+          end_year: number
           total_amount: number
           state: string
           created_at: string
@@ -1097,8 +1099,10 @@ export type Database = {
         Insert: {
           id?: string
           vehicle_id: string
-          month: number
-          year: number
+          start_month: number
+          start_year: number
+          end_month: number
+          end_year: number
           total_amount: number
           state: string
           created_at?: string
@@ -1106,8 +1110,10 @@ export type Database = {
         Update: {
           id?: string
           vehicle_id?: string
-          month?: number
-          year?: number
+          start_month?: number
+          start_year?: number
+          end_month?: number
+          end_year?: number
           total_amount?: number
           state?: string
           created_at?: string
@@ -1121,6 +1127,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_sessions: {
+        Row: {
+          user_id: string
+          session_token: string
+          created_at: string
+          last_seen_at: string
+        }
+        Insert: {
+          user_id: string
+          session_token: string
+          created_at?: string
+          last_seen_at?: string
+        }
+        Update: {
+          user_id?: string
+          session_token?: string
+          created_at?: string
+          last_seen_at?: string
+        }
+        Relationships: []
       }
       incomes: {
         Row: {

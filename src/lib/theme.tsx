@@ -136,7 +136,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Shared save helper — upserts a partial settings object.
   // Gets the existing row id first so we always UPDATE the same row, never
   // accumulate duplicate rows that would cause the wrong row to load later.
-  const saveSettings = useCallback(async (patch: Record<string, unknown>) => {
+  const saveSettings = useCallback(async (patch: Partial<{ theme: string; login_ui: string; updated_at: string }>) => {
     const { data } = await supabase.from("app_settings").select("id").limit(1).maybeSingle();
     if (data?.id) {
       await supabase.from("app_settings").update(patch).eq("id", data.id as string);

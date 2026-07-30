@@ -245,7 +245,7 @@ export const serverFinishAuthentication = createServerFn({ method: "POST" })
         expectedRPID: rpID,
         credential: {
           id: data.credentialId,
-          publicKey: base64urlToUint8(credRow.public_key_bytes as string),
+          publicKey: base64urlToUint8(credRow.public_key_bytes as string) as Uint8Array<ArrayBuffer>,
           counter: Number(credRow.counter ?? 0),
           transports: (JSON.parse(credRow.transports as string ?? "[]")) as never,
         },

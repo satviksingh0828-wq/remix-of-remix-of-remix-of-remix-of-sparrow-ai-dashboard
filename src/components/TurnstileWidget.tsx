@@ -14,9 +14,8 @@ import { useEffect, useRef } from "react";
 
 // Public test site key — always passes, no Cloudflare account needed
 export const TURNSTILE_SITEKEY =
-  (typeof import.meta !== "undefined" && (import.meta as Record<string, unknown>).env
-    ? ((import.meta as { env: Record<string, string> }).env.VITE_TURNSTILE_SITEKEY ?? "")
-    : "") || "1x00000000000000000000AA";
+  (typeof import.meta !== "undefined" && (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_TURNSTILE_SITEKEY) ||
+  "1x00000000000000000000AA";
 
 declare global {
   interface Window {

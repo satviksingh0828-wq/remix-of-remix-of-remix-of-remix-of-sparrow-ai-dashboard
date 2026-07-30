@@ -289,8 +289,8 @@ export function YearlyExpenseScheduler() {
         .from("yearly_fixed_expenses")
         .insert({
           expense_name: expenseName.trim(),
-          total_amount: totalAmt,
-          monthly_amount: monthlyAmt,
+          total_amount: totalAmt as number,
+          monthly_amount: monthlyAmt as number,
           start_date: startDate,
           end_date: endDate || addOneYear(startDate),
           include_start_month: includeStart,
@@ -298,7 +298,7 @@ export function YearlyExpenseScheduler() {
           branch_id: resolvedBranchId,
           vehicle_id: vehicleId || null,
           status: "active",
-        } as Parameters<ReturnType<typeof supabase.from>["insert"]>[0])
+        } as never)
         .select("id")
         .single();
 
