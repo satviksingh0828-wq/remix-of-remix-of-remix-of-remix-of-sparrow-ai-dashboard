@@ -429,6 +429,7 @@ export function MasterList({
           </Button>
         </div>
       ) : (
+        <>
         <ul className="space-y-3">
           {items.map((r, i) => (
             <li
@@ -491,6 +492,7 @@ export function MasterList({
             )}
           </button>
         )}
+        </>
       )}
     </div>
   );
