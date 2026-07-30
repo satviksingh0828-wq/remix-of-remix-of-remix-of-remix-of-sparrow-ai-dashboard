@@ -1044,6 +1044,8 @@ export type Database = {
         Row: {
           id: string
           vehicle_id: string
+          start_date: string
+          end_date: string
           start_month: number
           start_year: number
           end_month: number
@@ -1055,6 +1057,8 @@ export type Database = {
         Insert: {
           id?: string
           vehicle_id: string
+          start_date: string
+          end_date: string
           start_month: number
           start_year: number
           end_month: number
@@ -1066,6 +1070,8 @@ export type Database = {
         Update: {
           id?: string
           vehicle_id?: string
+          start_date?: string
+          end_date?: string
           start_month?: number
           start_year?: number
           end_month?: number
@@ -1088,6 +1094,8 @@ export type Database = {
         Row: {
           id: string
           vehicle_id: string
+          start_date: string
+          end_date: string
           start_month: number
           start_year: number
           end_month: number
@@ -1099,6 +1107,8 @@ export type Database = {
         Insert: {
           id?: string
           vehicle_id: string
+          start_date: string
+          end_date: string
           start_month: number
           start_year: number
           end_month: number
@@ -1110,6 +1120,8 @@ export type Database = {
         Update: {
           id?: string
           vehicle_id?: string
+          start_date?: string
+          end_date?: string
           start_month?: number
           start_year?: number
           end_month?: number

@@ -9,16 +9,17 @@
  * in app_users and throws if the role is not 'admin'.  This means a malicious
  * or unauthenticated caller who knows the endpoint URL still cannot perform
  * writes, deletes, or read sensitive coverage data.
+ *
+ * Monthly expense calculation (day-accurate):
+ *   daily_rate   = total_amount / total_days_inclusive
+ *   monthly_amt  = daily_rate × actual_days_covered_in_that_calendar_month
+ * This gives proper 28/29/30/31-day months and handles partial first/last months.
  */
 
 import { createServerFn } from "@tanstack/react-start";
 
 // ── Auth helper ────────────────────────────────────────────────────────────────
 
-/**
- * Verify that the supplied userId belongs to an active admin in app_users.
- * Throws "Forbidden" if not — this bubbles up as an error in the client.
- */
 async function requireAdmin(userId: string): Promise<void> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
@@ -43,18 +44,90 @@ const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"
 
 function monthShort(m: number) { return MONTH_SHORT[m - 1] ?? String(m); }
 
-/** Iterate from (startMonth,startYear) to (endMonth,endYear) inclusive. */
-function* monthRange(sm: number, sy: number, em: number, ey: number) {
-  let m = sm, y = sy;
-  while (y < ey || (y === ey && m <= em)) {
-    yield { month: m, year: y };
-    m++;
-    if (m > 12) { m = 1; y++; }
-  }
-}
-
 function monthCount(sm: number, sy: number, em: number, ey: number): number {
   return (ey * 12 + em) - (sy * 12 + sm) + 1;
+}
+
+// ── Day-accurate monthly split ─────────────────────────────────────────────────
+
+/**
+ * Parse a YYYY-MM-DD string into numeric components without any timezone shift.
+ * `new Date('YYYY-MM-DD')` parses as UTC midnight and drifts to the previous local
+ * day in negative-offset zones — always use this helper instead.
+ */
+function parseIsoDate(iso: string): { year: number; month: number; day: number } {
+  const parts = iso.split("-");
+  return { year: Number(parts[0]), month: Number(parts[1]), day: Number(parts[2]) };
+}
+
+/** UTC milliseconds for a calendar date (no time-zone shift). */
+function dateUtcMs(year: number, month: number, day: number): number {
+  return Date.UTC(year, month - 1, day);
+}
+
+/** Days in a calendar month, computed entirely in UTC. */
+function daysInCalendarMonth(year: number, month: number): number {
+  // Day 0 of the *next* month is the last day of this month.
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+/**
+ * Total inclusive days between two ISO date strings (YYYY-MM-DD).
+ * Uses pure UTC arithmetic — safe in every timezone.
+ */
+export function totalDaysBetween(startDate: string, endDate: string): number {
+  const s = parseIsoDate(startDate);
+  const e = parseIsoDate(endDate);
+  return Math.round((dateUtcMs(e.year, e.month, e.day) - dateUtcMs(s.year, s.month, s.day)) / 86_400_000) + 1;
+}
+
+/**
+ * Splits total_amount across calendar months using actual days per month.
+ * Handles partial first and last months correctly.
+ * Uses UTC arithmetic throughout — no timezone shift on `YYYY-MM-DD` strings.
+ * Zero-day slices are silently skipped (guard for identical start/end edge cases).
+ *
+ * Returns an array of { month (1-12), year, days (covered in that month), amount }.
+ */
+export function splitByMonth(
+  startDate: string,
+  endDate: string,
+  totalAmount: number,
+): Array<{ month: number; year: number; days: number; amount: number }> {
+  const s = parseIsoDate(startDate);
+  const e = parseIsoDate(endDate);
+
+  const totalDays = totalDaysBetween(startDate, endDate);
+  if (totalDays <= 0) return [];
+  const dailyRate = totalAmount / totalDays;
+
+  const result: Array<{ month: number; year: number; days: number; amount: number }> = [];
+
+  let curYear  = s.year;
+  let curMonth = s.month; // 1-based
+
+  const rangeStartMs = dateUtcMs(s.year, s.month, s.day);
+  const rangeEndMs   = dateUtcMs(e.year, e.month, e.day);
+
+  while (curYear < e.year || (curYear === e.year && curMonth <= e.month)) {
+    const monthFirstMs = dateUtcMs(curYear, curMonth, 1);
+    const monthLastMs  = dateUtcMs(curYear, curMonth, daysInCalendarMonth(curYear, curMonth));
+
+    const clampedStartMs = Math.max(rangeStartMs, monthFirstMs);
+    const clampedEndMs   = Math.min(rangeEndMs,   monthLastMs);
+
+    const days = Math.round((clampedEndMs - clampedStartMs) / 86_400_000) + 1;
+
+    if (days > 0) {
+      const amount = Math.round(dailyRate * days * 100) / 100;
+      result.push({ month: curMonth, year: curYear, days, amount });
+    }
+
+    curMonth++;
+    if (curMonth > 12) { curMonth = 1; curYear++; }
+  }
+
+  return result;
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -62,6 +135,8 @@ function monthCount(sm: number, sy: number, em: number, ey: number): number {
 export type InsuranceEntry = {
   id: string;
   vehicle_id: string;
+  start_date: string;
+  end_date: string;
   start_month: number;
   start_year: number;
   end_month: number;
@@ -74,6 +149,8 @@ export type InsuranceEntry = {
 export type RoadTaxEntry = {
   id: string;
   vehicle_id: string;
+  start_date: string;
+  end_date: string;
   start_month: number;
   start_year: number;
   end_month: number;
@@ -106,10 +183,8 @@ export const serverSaveInsurance = createServerFn({ method: "POST" })
     vehicleId: string;
     branchId: string | null;
     registrationNumber: string;
-    startMonth: number;
-    startYear: number;
-    endMonth: number;
-    endYear: number;
+    startDate: string;   // YYYY-MM-DD
+    endDate: string;     // YYYY-MM-DD
     totalAmount: number;
     insuranceNumber: string;
   }) => data)
@@ -117,14 +192,23 @@ export const serverSaveInsurance = createServerFn({ method: "POST" })
     await requireAdmin(data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Validate period order
-    const count = monthCount(data.startMonth, data.startYear, data.endMonth, data.endYear);
-    if (count < 1) throw new Error("End month/year must not be before start month/year.");
-    if (count > 120) throw new Error("Period cannot exceed 10 years (120 months).");
+    // Derive month/year from dates (UTC-safe — no new Date() on YYYY-MM-DD strings)
+    const startD = parseIsoDate(data.startDate);
+    const endD   = parseIsoDate(data.endDate);
+    const startMonth = startD.month;
+    const startYear  = startD.year;
+    const endMonth   = endD.month;
+    const endYear    = endD.year;
 
-    // Check for overlapping insurance entries for this vehicle
-    const newStart = data.startYear * 12 + data.startMonth;
-    const newEnd   = data.endYear   * 12 + data.endMonth;
+    if (dateUtcMs(endD.year, endD.month, endD.day) < dateUtcMs(startD.year, startD.month, startD.day))
+      throw new Error("End date must not be before start date.");
+
+    const count = monthCount(startMonth, startYear, endMonth, endYear);
+    if (count > 120) throw new Error("Period cannot exceed 10 years.");
+
+    // Check for overlapping insurance entries
+    const newStart = startYear * 12 + startMonth;
+    const newEnd   = endYear   * 12 + endMonth;
 
     const { data: existing, error: overlapErr } = await supabaseAdmin
       .from("vehicle_insurance")
@@ -150,10 +234,12 @@ export const serverSaveInsurance = createServerFn({ method: "POST" })
       .from("vehicle_insurance")
       .insert({
         vehicle_id: data.vehicleId,
-        start_month: data.startMonth,
-        start_year: data.startYear,
-        end_month: data.endMonth,
-        end_year: data.endYear,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        start_month: startMonth,
+        start_year: startYear,
+        end_month: endMonth,
+        end_year: endYear,
         total_amount: data.totalAmount,
         insurance_number: data.insuranceNumber,
       })
@@ -168,37 +254,37 @@ export const serverSaveInsurance = createServerFn({ method: "POST" })
     }
 
     const insuranceId = (ins as { id: string }).id;
-    const monthlyAmount = Number((data.totalAmount / count).toFixed(2));
 
-    // Create one paid expenditure per month in the period
-    const expenditureRows = [];
-    for (const { month, year } of monthRange(data.startMonth, data.startYear, data.endMonth, data.endYear)) {
+    // Day-accurate monthly split
+    const monthSlices = splitByMonth(data.startDate, data.endDate, data.totalAmount);
+    const totalDays   = totalDaysBetween(data.startDate, data.endDate);
+
+    const expenditureRows = monthSlices.map(({ month, year, days, amount }) => {
       const entryDate = `${year}-${String(month).padStart(2, "0")}-01`;
-      expenditureRows.push({
+      return {
         expenditure_name: `Insurance Premium — ${data.registrationNumber} (${monthShort(month)} ${year})`,
-        amount: String(monthlyAmount),
+        amount: String(amount),
         entry_date: entryDate,
-        note: `Policy: ${data.insuranceNumber}`,
+        note: `Policy: ${data.insuranceNumber} | ${days} days`,
         vehicle_id: data.vehicleId,
         branch_id: data.branchId,
         is_paid: true,
         paid_date: entryDate,
         is_insurance: true,
         insurance_id: insuranceId,
-      });
-    }
+      };
+    });
 
     const { error: expErr } = await supabaseAdmin
       .from("expenditures")
       .insert(expenditureRows as never);
 
     if (expErr) {
-      // Roll back insurance record
       await supabaseAdmin.from("vehicle_insurance").delete().eq("id", insuranceId);
       throw new Error(`Expenditure creation failed: ${expErr.message}`);
     }
 
-    return { id: insuranceId, monthCount: count, monthlyAmount };
+    return { id: insuranceId, totalDays, monthCount: monthSlices.length };
   });
 
 export const serverDeleteInsurance = createServerFn({ method: "POST" })
@@ -207,10 +293,8 @@ export const serverDeleteInsurance = createServerFn({ method: "POST" })
     await requireAdmin(data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    // Delete linked expenditures first
     await supabaseAdmin.from("expenditures").delete().eq("insurance_id", data.insuranceId);
 
-    // Delete insurance record
     const { error } = await supabaseAdmin
       .from("vehicle_insurance")
       .delete()
@@ -243,10 +327,8 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
     vehicleId: string;
     branchId: string | null;
     registrationNumber: string;
-    startMonth: number;
-    startYear: number;
-    endMonth: number;
-    endYear: number;
+    startDate: string;   // YYYY-MM-DD
+    endDate: string;     // YYYY-MM-DD
     totalAmount: number;
     state: string;
   }) => data)
@@ -254,19 +336,30 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
     await requireAdmin(data.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const count = monthCount(data.startMonth, data.startYear, data.endMonth, data.endYear);
-    if (count < 1) throw new Error("End month/year must not be before start month/year.");
-    if (count > 120) throw new Error("Period cannot exceed 10 years (120 months).");
+    // Derive month/year from dates (UTC-safe — no new Date() on YYYY-MM-DD strings)
+    const startD = parseIsoDate(data.startDate);
+    const endD   = parseIsoDate(data.endDate);
+    const startMonth = startD.month;
+    const startYear  = startD.year;
+    const endMonth   = endD.month;
+    const endYear    = endD.year;
 
-    // Insert road tax record
+    if (dateUtcMs(endD.year, endD.month, endD.day) < dateUtcMs(startD.year, startD.month, startD.day))
+      throw new Error("End date must not be before start date.");
+
+    const count = monthCount(startMonth, startYear, endMonth, endYear);
+    if (count > 120) throw new Error("Period cannot exceed 10 years.");
+
     const { data: rt, error: rtErr } = await supabaseAdmin
       .from("vehicle_road_tax")
       .insert({
         vehicle_id: data.vehicleId,
-        start_month: data.startMonth,
-        start_year: data.startYear,
-        end_month: data.endMonth,
-        end_year: data.endYear,
+        start_date: data.startDate,
+        end_date: data.endDate,
+        start_month: startMonth,
+        start_year: startYear,
+        end_month: endMonth,
+        end_year: endYear,
         total_amount: data.totalAmount,
         state: data.state,
       })
@@ -276,25 +369,25 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
     if (rtErr) throw new Error(rtErr.message);
 
     const roadTaxId = (rt as { id: string }).id;
-    const monthlyAmount = Number((data.totalAmount / count).toFixed(2));
 
-    // Create one paid expenditure per month in the period
-    const expenditureRows = [];
-    for (const { month, year } of monthRange(data.startMonth, data.startYear, data.endMonth, data.endYear)) {
+    const monthSlices = splitByMonth(data.startDate, data.endDate, data.totalAmount);
+    const totalDays   = totalDaysBetween(data.startDate, data.endDate);
+
+    const expenditureRows = monthSlices.map(({ month, year, days, amount }) => {
       const entryDate = `${year}-${String(month).padStart(2, "0")}-01`;
-      expenditureRows.push({
+      return {
         expenditure_name: `Road Tax — ${data.registrationNumber} (${monthShort(month)} ${year})`,
-        amount: String(monthlyAmount),
+        amount: String(amount),
         entry_date: entryDate,
-        note: `State: ${data.state}`,
+        note: `State: ${data.state} | ${days} days`,
         vehicle_id: data.vehicleId,
         branch_id: data.branchId,
         is_paid: true,
         paid_date: entryDate,
         is_road_tax: true,
         road_tax_id: roadTaxId,
-      });
-    }
+      };
+    });
 
     const { error: expErr } = await supabaseAdmin
       .from("expenditures")
@@ -305,7 +398,7 @@ export const serverSaveRoadTax = createServerFn({ method: "POST" })
       throw new Error(`Expenditure creation failed: ${expErr.message}`);
     }
 
-    return { id: roadTaxId, monthCount: count, monthlyAmount };
+    return { id: roadTaxId, totalDays, monthCount: monthSlices.length };
   });
 
 export const serverDeleteRoadTax = createServerFn({ method: "POST" })
@@ -326,8 +419,6 @@ export const serverDeleteRoadTax = createServerFn({ method: "POST" })
   });
 
 // ── Insurance lookup for Trip Note PDF ────────────────────────────────────────
-// Note: this read is called during PDF generation for admin users only.
-// The userId check ensures non-admins cannot enumerate insurance data.
 
 export const serverFetchInsuranceForMonth = createServerFn({ method: "POST" })
   .validator((data: { userId: string; vehicleId: string; month: number; year: number }) => data)
