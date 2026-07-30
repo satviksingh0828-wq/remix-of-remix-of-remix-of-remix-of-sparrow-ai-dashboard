@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as MastersRouteImport } from './routes/masters'
+import { Route as ImportTripsRouteImport } from './routes/import-trips'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
@@ -49,6 +50,11 @@ const MastersRoute = MastersRouteImport.update({
   path: '/masters',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImportTripsRoute = ImportTripsRouteImport.update({
+  id: '/import-trips',
+  path: '/import-trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
@@ -69,6 +75,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
+  '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
   '/reports': typeof ReportsRoute
@@ -80,6 +87,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
+  '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
   '/reports': typeof ReportsRoute
@@ -92,6 +100,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/home': typeof HomeRoute
+  '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
   '/reports': typeof ReportsRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/home'
+    | '/import-trips'
     | '/masters'
     | '/operations'
     | '/reports'
@@ -116,6 +126,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/home'
+    | '/import-trips'
     | '/masters'
     | '/operations'
     | '/reports'
@@ -127,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/home'
+    | '/import-trips'
     | '/masters'
     | '/operations'
     | '/reports'
@@ -139,6 +151,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   HomeRoute: typeof HomeRoute
+  ImportTripsRoute: typeof ImportTripsRoute
   MastersRoute: typeof MastersRoute
   OperationsRoute: typeof OperationsRoute
   ReportsRoute: typeof ReportsRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MastersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/import-trips': {
+      id: '/import-trips'
+      path: '/import-trips'
+      fullPath: '/import-trips'
+      preLoaderRoute: typeof ImportTripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/home': {
       id: '/home'
       path: '/home'
@@ -219,6 +239,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   HomeRoute: HomeRoute,
+  ImportTripsRoute: ImportTripsRoute,
   MastersRoute: MastersRoute,
   OperationsRoute: OperationsRoute,
   ReportsRoute: ReportsRoute,
