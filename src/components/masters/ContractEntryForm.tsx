@@ -85,6 +85,9 @@ function RouteRangeEditor({
     onRangesChange(ranges.filter((_, j) => j !== i));
   }
 
+  // Helper: parse a slab start string to a number for sorting
+  const num = (s: string) => parseFloat(s) || 0;
+
   // Build a map: original index → display "to" value, based on sorted start order.
   // Both start (≥) and end (≤ next_start − 1) are inclusive for whole-number units.
   const sortedByStart = [...ranges]
