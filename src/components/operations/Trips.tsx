@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Archive, Clock, Eye, Lock, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
+import { Archive, Clock, Eye, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -104,7 +104,6 @@ export function Trips() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<TripRow | null>(null);
   const [viewingClosedId, setViewingClosedId] = useState<string | null>(null);
-  const [closingId, setClosingId] = useState<string | null>(null);
   const [reopeningId, setReopeningId] = useState<string | null>(null);
 
   const { user } = useSession();
@@ -240,26 +239,6 @@ export function Trips() {
     load();
   }
 
-  async function close(trip: TripRow) {
-    if (
-      !window.confirm(
-        "Close this trip? A full snapshot is archived and the live trip is removed. This cannot be undone.",
-      )
-    )
-      return;
-    setClosingId(trip.id!);
-    try {
-      await closeTrip(trip.id!);
-      logAction("closed", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
-      toast.success("Trip closed and archived");
-      load();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Could not close trip");
-    } finally {
-      setClosingId(null);
-    }
-  }
-
   async function reopen(c: ClosedTrip) {
     if (!isAdmin) {
       toast.error("Only admins can reopen trips.");
@@ -381,16 +360,6 @@ export function Trips() {
                 aria-label="Delete trip"
               >
                 <Trash2 className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={closingId === t.id}
-                onClick={() => close(t)}
-                title="Close & archive this trip"
-              >
-                <Lock className="size-4" />
-                Close
               </Button>
             </li>
           ))}

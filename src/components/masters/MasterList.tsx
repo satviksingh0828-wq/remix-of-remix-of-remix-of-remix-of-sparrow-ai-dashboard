@@ -59,6 +59,12 @@ export function MasterList({
   const [saving, setSaving] = useState(false);
   const [pinLooking, setPinLooking] = useState(false);
   const pinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isLocations = config.table === "locations";
+  const PAGE_SIZE = 100;
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [locationOffset, setLocationOffset] = useState(0);
   const branches = useBranches();
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
@@ -79,6 +85,8 @@ export function MasterList({
 
   async function load() {
     setLoading(true);
+    setHasMore(false);
+    setLocationOffset(0);
     try {
       // If basic user has no branches assigned, show nothing
       if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
@@ -87,22 +95,60 @@ export function MasterList({
         return;
       }
 
-      const rows = await fetchAll<Row>(() => {
-        let q = supabase
-          .from(config.table)
+      if (isLocations) {
+        const res = await (supabase
+          .from("locations")
           .select("*")
-          .order("created_at", { ascending: true });
-        // Filter by allowed branches for basic users (only applies to branch-linked tables)
-        if (allowedBranchIds !== null && config.hasBranch) {
-          q = q.in("branch_id", allowedBranchIds) as typeof q;
-        }
-        return q;
-      });
-      setItems(rows);
+          .order("created_at", { ascending: true })
+          .range(0, PAGE_SIZE - 1) as unknown as Promise<{
+            data: Row[] | null;
+            error: { message: string } | null;
+          }>);
+        if (res.error) throw new Error(res.error.message);
+        const rows = res.data ?? [];
+        setItems(rows);
+        setHasMore(rows.length === PAGE_SIZE);
+        setLocationOffset(rows.length);
+      } else {
+        const rows = await fetchAll<Row>(() => {
+          let q = supabase
+            .from(config.table)
+            .select("*")
+            .order("created_at", { ascending: true });
+          // Filter by allowed branches for basic users (only applies to branch-linked tables)
+          if (allowedBranchIds !== null && config.hasBranch) {
+            q = q.in("branch_id", allowedBranchIds) as typeof q;
+          }
+          return q;
+        });
+        setItems(rows);
+      }
     } catch {
       toast.error(`Could not load ${config.entityLabel.toLowerCase()}`);
     }
     setLoading(false);
+  }
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const res = await (supabase
+        .from("locations")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .range(locationOffset, locationOffset + PAGE_SIZE - 1) as unknown as Promise<{
+          data: Row[] | null;
+          error: { message: string } | null;
+        }>);
+      if (res.error) throw new Error(res.error.message);
+      const rows = res.data ?? [];
+      setItems((prev) => [...prev, ...rows]);
+      setHasMore(rows.length === PAGE_SIZE);
+      setLocationOffset((prev) => prev + rows.length);
+    } catch {
+      toast.error(`Could not load more locations`);
+    }
+    setLoadingMore(false);
   }
 
   useEffect(() => {
@@ -429,6 +475,22 @@ export function MasterList({
             </li>
           ))}
         </ul>
+        {isLocations && hasMore && (
+          <button
+            type="button"
+            className="mt-2 w-full rounded-xl border border-dashed border-border py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? (
+              <span className="flex items-center justify-center gap-1.5">
+                <Loader2 className="size-3.5 animate-spin" /> Loading…
+              </span>
+            ) : (
+              `Load more locations (showing ${items.length} so far)`
+            )}
+          </button>
+        )}
       )}
     </div>
   );

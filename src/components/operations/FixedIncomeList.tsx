@@ -39,7 +39,7 @@ export function FixedIncomeList() {
   const [contracts, setContracts] = useState<ContractCharge[]>([]);
   const [loading, setLoading]     = useState(true);
   const [year, setYear]           = useState(String(new Date().getFullYear()));
-  const [month, setMonth]         = useState("0"); // 0 = all months
+  const [month, setMonth]         = useState(String(new Date().getMonth() + 1)); // default: current month
 
   async function load() {
     setLoading(true);

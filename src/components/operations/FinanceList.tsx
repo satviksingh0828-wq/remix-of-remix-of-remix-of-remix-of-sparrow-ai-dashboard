@@ -76,8 +76,9 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   const [transporters, setTransporters] = useState<AnyRow[]>([]);
 
   const currentYear = new Date().getFullYear();
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
   const [year, setYear] = useState(String(currentYear));
-  const [month, setMonth] = useState("all");
+  const [month, setMonth] = useState(currentMonth);
   const [status, setStatus] = useState<"all" | "done" | "pending">("all");
 
   async function load() {
