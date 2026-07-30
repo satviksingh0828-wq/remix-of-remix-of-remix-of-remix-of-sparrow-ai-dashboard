@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bot, ChevronRight, Loader2, Send, X } from "lucide-react";
+import { Bot, ChevronRight, Loader2, Send, Trash2, X } from "lucide-react";
 import { useSession } from "@/lib/session";
 import { useSparrowAI } from "@/lib/sparrow-context";
 import { cn } from "@/lib/utils";
@@ -503,6 +503,38 @@ export function SparrowAIPanel() {
   const chips = isAdmin ? ADMIN_CHIPS : BASIC_CHIPS;
   const allowedRoutes = isAdmin ? ADMIN_ROUTES : BASIC_ROUTES;
 
+  const STORAGE_KEY = `sparrow_history_${user?.id ?? "guest"}`;
+  const MAX_STORED = 50;
+
+  // Load persisted history on first open
+  useEffect(() => {
+    if (!open || messages.length > 0) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed: Msg[] = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
+      }
+    } catch { /* ignore corrupt storage */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    if (messages.length === 0) return;
+    try {
+      const toStore = messages.slice(-MAX_STORED);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+    } catch { /* ignore quota errors */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages]);
+
+  const clearHistory = useCallback(() => {
+    setMessages([]);
+    try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [STORAGE_KEY]);
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading, currentStep]);
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 100); }, [open]);
 
@@ -585,13 +617,25 @@ export function SparrowAIPanel() {
             {isAdmin ? "Admin" : "User"}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <X className="size-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={clearHistory}
+              title="Clear chat history"
+              className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="flex size-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
       </div>
 
       {/* ── Messages ── */}

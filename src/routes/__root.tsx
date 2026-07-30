@@ -166,7 +166,7 @@ function SparrowAIPanelMount() {
   const { open } = useSparrowAI();
   if (!open) return null;
   return (
-    <div className="fixed right-0 top-0 z-50 h-screen w-[360px] shadow-[-4px_0_32px_rgba(0,0,0,0.12)]">
+    <div className="fixed right-0 top-0 z-[60] h-screen w-[360px] shadow-[-4px_0_32px_rgba(0,0,0,0.12)]">
       <SparrowAIPanel />
     </div>
   );

@@ -505,7 +505,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
       )}
 
       <Dialog open={editing !== null} onOpenChange={(v) => !v && setEditing(null)}>
-        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editing?.id ? `Edit ${cfg.single}` : `New ${cfg.single}`}
