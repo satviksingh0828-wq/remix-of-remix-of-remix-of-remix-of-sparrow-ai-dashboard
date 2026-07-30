@@ -47,12 +47,16 @@ function fillReactInput(el: HTMLInputElement | HTMLTextAreaElement, value: strin
   el.focus();
 }
 
-/** Get clean text content of an element (strips icon SVG whitespace) */
-function getCleanText(el: Element): string {
+/** Get clean trimmed text of an element, stripping icon SVG whitespace. */
+function cleanText(el: Element): string {
   return (el.textContent ?? "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-/** Find an input/textarea associated with a given label text. */
+/**
+ * Find an input/textarea associated with a label text.
+ * Searches the whole document including open dialogs/portals.
+ * Handles: for=id, nested input, sibling pattern, placeholder/aria-label fallback.
+ */
 function findInputByLabel(labelText: string): HTMLInputElement | HTMLTextAreaElement | null {
   const needle = labelText.toLowerCase().replace(/[₹*()]/g, "").trim();
 
@@ -66,10 +70,10 @@ function findInputByLabel(labelText: string): HTMLInputElement | HTMLTextAreaEle
       const el = document.getElementById(forId);
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el;
     }
-    // 2. nested input
+    // 2. nested
     const nested = label.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
     if (nested) return nested;
-    // 3. sibling inside parent (shadcn pattern)
+    // 3. sibling in same parent (shadcn / custom Field pattern)
     const sibling = label.parentElement?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
       "input, textarea",
     );
@@ -90,8 +94,8 @@ function findInputByLabel(labelText: string): HTMLInputElement | HTMLTextAreaEle
 
 async function findInputRetry(
   label: string,
-  maxAttempts = 5,
-  delay = 450,
+  maxAttempts = 6,
+  delay = 400,
 ): Promise<HTMLInputElement | HTMLTextAreaElement | null> {
   for (let i = 0; i < maxAttempts; i++) {
     const el = findInputByLabel(label);
@@ -106,21 +110,22 @@ const isBlocked = (text: string) => BLOCKED.some((w) => text.toLowerCase().inclu
 
 /**
  * Find a button by text — robust to icon+text combos.
- * Checks both textContent and innerText after stripping SVG whitespace.
+ * Strips icon SVG whitespace and tries exact → contains matches,
+ * then falls back to innerText for elements where textContent differs.
  */
 function findButtonByText(text: string): HTMLButtonElement | null {
   const needle = text.toLowerCase().trim();
   const all = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
 
-  // Exact match first (clean text)
-  const exact = all.find((b) => getCleanText(b) === needle);
+  // exact clean-text match
+  const exact = all.find((b) => cleanText(b) === needle);
   if (exact) return exact;
 
-  // Contains match
-  const contains = all.find((b) => getCleanText(b).includes(needle));
+  // contains match (handles icon+text where SVG adds whitespace)
+  const contains = all.find((b) => cleanText(b).includes(needle));
   if (contains) return contains;
 
-  // innerText fallback (handles some edge cases with icon spacing)
+  // innerText fallback (may differ from textContent in icon buttons)
   return (
     all.find((b) => (b.innerText ?? "").toLowerCase().trim() === needle) ??
     all.find((b) => (b.innerText ?? "").toLowerCase().trim().includes(needle)) ??
@@ -130,7 +135,7 @@ function findButtonByText(text: string): HTMLButtonElement | null {
 
 async function findButtonRetry(
   text: string,
-  maxAttempts = 6,
+  maxAttempts = 7,
   delay = 500,
 ): Promise<HTMLButtonElement | null> {
   for (let i = 0; i < maxAttempts; i++) {
@@ -142,8 +147,8 @@ async function findButtonRetry(
 }
 
 /**
- * Find and open an EntityPicker (combobox) by its label, then type a search term.
- * The picker sits inside a <div> that contains a <Label> and a <button role="combobox">.
+ * Open an EntityPicker (combobox) by its label, type a search term,
+ * and click the first matching item in the command list.
  */
 async function openPickerByLabel(
   labelText: string,
@@ -155,54 +160,52 @@ async function openPickerByLabel(
     const ltext = (label.textContent ?? "").toLowerCase().replace(/[₹*()]/g, "").trim();
     if (!ltext.includes(needle) && !needle.includes(ltext)) continue;
 
-    // Find the combobox button sibling
     const container = label.closest("div");
     if (!container) continue;
     const btn = container.querySelector<HTMLButtonElement>('[role="combobox"]');
     if (!btn) continue;
 
     btn.scrollIntoView({ behavior: "smooth", block: "center" });
-    await sleep(100);
+    await sleep(120);
     btn.click();
     await sleep(500);
 
-    // Type in the CommandInput search box that appeared
     const searchInput = document.querySelector<HTMLInputElement>('[cmdk-input]');
     if (searchInput) {
       fillReactInput(searchInput, searchTerm);
       await sleep(400);
-
-      // Click the first matching item
       const items = Array.from(document.querySelectorAll<HTMLElement>('[cmdk-item]'));
       const match = items.find(
         (i) => (i.textContent ?? "").toLowerCase().includes(searchTerm.toLowerCase()),
       );
       if (match) {
         match.click();
-        return { ok: true, message: `Selected "${match.textContent?.trim()}" for ${labelText}` };
+        return { ok: true, message: `Selected "${match.textContent?.trim()}"` };
       }
       return { ok: false, message: `No match for "${searchTerm}" in ${labelText} picker` };
     }
-    return { ok: false, message: `Search input not found in ${labelText} picker` };
+    return { ok: false, message: `Picker search box not found for "${labelText}"` };
   }
-
   return { ok: false, message: `Picker "${labelText}" not found on page` };
 }
 
-// ── Detect active Operations tab from DOM ─────────────────────────────────────
+// ── Detect active sidebar tab from DOM ───────────────────────────────────────
 function getActiveTabFromDOM(): string {
-  // Desktop nav: the active item has bg-primary-soft
-  const activeNavBtn = document.querySelector<HTMLButtonElement>(
-    "nav button.bg-primary-soft, nav button[class*='bg-primary-soft']",
+  // Desktop nav active item has bg-primary-soft class
+  const desktopActive = document.querySelector<HTMLButtonElement>(
+    "nav button.bg-primary-soft, nav li button.bg-primary-soft",
   );
-  if (activeNavBtn) {
-    const text = (activeNavBtn.innerText ?? activeNavBtn.textContent ?? "").split("\n")[0].trim();
-    if (text) return text;
+  if (desktopActive) {
+    const lines = (desktopActive.innerText ?? desktopActive.textContent ?? "").split("\n");
+    const text = lines[0]?.trim();
+    if (text && text.length < 30) return text;
   }
-  // Mobile tab bar: active has bg-primary text-primary-foreground
-  const mobileBtns = document.querySelectorAll<HTMLButtonElement>("button.bg-primary");
-  for (const b of Array.from(mobileBtns)) {
-    const text = (b.innerText ?? b.textContent ?? "").trim();
+  // Mobile tab active = bg-primary text-primary-foreground
+  const mobileActive = document.querySelector<HTMLButtonElement>(
+    "button.bg-primary.text-primary-foreground",
+  );
+  if (mobileActive) {
+    const text = (mobileActive.innerText ?? mobileActive.textContent ?? "").trim();
     if (text && text.length < 30) return text;
   }
   return "";
@@ -229,7 +232,7 @@ async function executeActions(
       }
 
       case "wait":
-        await sleep(Math.min(act.ms, 4000));
+        await sleep(Math.min(act.ms, 5000));
         break;
 
       case "click_button": {
@@ -251,7 +254,7 @@ async function executeActions(
 
       case "click_tab": {
         onStep(`Switching to "${act.text}" tab…`);
-        const btn = await findButtonRetry(act.text, 6, 400);
+        const btn = await findButtonRetry(act.text, 7, 400);
         if (btn && !btn.disabled) {
           btn.click();
         } else {
@@ -329,77 +332,95 @@ function buildSystemPrompt(role: string, userName: string, currentPath: string, 
   const routes = isAdmin ? ADMIN_ROUTES : BASIC_ROUTES;
   const tabCtx = activeTab ? ` | ACTIVE TAB: ${activeTab}` : "";
 
-  return `You are SPARROW AI — an intelligent assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
+  return `You are SPARROW AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
 
 USER: ${userName} | ROLE: ${isAdmin ? "Admin" : "Basic User"} | CURRENT PAGE: ${currentPath}${tabCtx}
 
 ━━━ CORE RULES ━━━
-- Be concise (under 80 words). Say what you're doing and do it.
-- ${isAdmin ? "Full admin access to all modules." : "Basic user: NEVER suggest admin-only routes (Dashboard, Reports, Users, Settings)."}
-- You CAN navigate, click buttons, fill forms, open pickers. You CANNOT save, delete, or submit.
-- Whenever you interact with the app, you MUST include a <<SPARROW_ACTIONS>> block.
-- Never tell the user to do it themselves if you can do it with actions.
+- Be concise (under 80 words). State what you're doing, then do it.
+- ${isAdmin ? "Full admin access to all modules." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
+- You CAN navigate, click, fill text fields, open pickers. You CANNOT save, delete, submit.
+- ALWAYS include <<SPARROW_ACTIONS>> whenever you interact with the app.
+- Never say "you can do it yourself" if you can do it via actions.
 
 ALLOWED ROUTES: ${routes.join(", ")}
 
-━━━ TERMINOLOGY ALIASES (user may say these, map to the real field) ━━━
-- "location" / "city" / "place" / "where" → "Note" field (free text, put the city/place name here)
-- "department" / "branch" / "office" / "branch office" → "Branch (required)" picker
-- "expense type" / "type of expense" / "category" / "what expense" → "Expenditure name" field
-- "expense name" / "name" → "Expenditure name" field
-- "how much" / "price" / "cost" / "rupees" → "Amount" field (label shown as "Amount (₹)")
-- "status" / "payment status" → Status dropdown (Unpaid / Paid)
+━━━ WHERE THINGS LIVE ━━━
+- Trips, Income, Expenditure, Driver Payroll → /operations (sidebar tabs)
+- Drivers, Vehicles, Transporters, Locations, Sources → /masters (sidebar tabs)
+- Dashboard, Reports → /dashboard, /reports (admin only)
 
-━━━ EXACT BUTTON TEXTS ━━━
-- "New trip" → opens trip form
-- "New expenditure" → opens expenditure form (must be on Expenditure tab first)
-- "New income" → opens income form (must be on Income tab first)
-- "New Vehicle", "New Driver", "New Transporter", "New Locations" → master forms
-- "Generate Payroll", "Give Advance" → driver payroll
-- "Create manifest" → adds manifest row in trip form
-- "Add field" → adds expense/income row in trip form
+━━━ EXACT MODULE → TAB → BUTTON FLOW ━━━
+New driver:       navigate /masters → click_tab "Driver"       → click_button "New driver"
+New vehicle:      navigate /masters → click_tab "Vehicle"      → click_button "New vehicle"  (admin)
+New transporter:  navigate /masters → click_tab "Transporter"  → click_button "New transporter"
+New location:     navigate /masters → click_tab "Locations"    → click_button "New location" (admin)
+New trip:         navigate /operations → click_tab "Trip"         → click_button "New trip"
+New expenditure:  navigate /operations → click_tab "Expenditure"  → click_button "New expenditure"
+New income:       navigate /operations → click_tab "Income"       → click_button "New income"
 
-━━━ EXACT FIELD LABELS BY FORM ━━━
-Expenditure form fields (use these EXACT strings in fill_input):
-  - "Expenditure name"   ← the type/name of the expense (e.g. "Tea Expenses")
-  - "Amount"             ← numeric amount (label shows "Amount (₹)" but use "Amount")
-  - "Date"               ← date field
-  - "Note"               ← free text, use for city/location/remarks (e.g. "Ludhiana")
-  - "Branch (required)"  ← PICKER — use open_picker action, NOT fill_input
+━━━ EXACT FIELD LABELS — use these EXACTLY in fill_input ━━━
+Expenditure / Income form:
+  "Expenditure name"  — type of expense (e.g. "Tea Expenses")
+  "Amount"            — number (label shows "Amount (₹)", use "Amount")
+  "Date"              — date picker
+  "Note"              — city/remarks (e.g. "Ludhiana")
+  "Branch (required)" — PICKER, use open_picker NOT fill_input
+  "Vehicle"           — PICKER
+  "Driver"            — PICKER  
+  "Transporter"       — PICKER
 
-Income form: "Income name", "Amount", "Date", "Note", "Branch (required)"
-Trip form: "From", "To", "Start Date", "End Date"
-Driver form: "Driver Code", "Full Name", "Date of Birth", "Mobile Number", "Driving Licence Number"
-Vehicle form: "Vehicle Number (Registration Number)", "Manufacturer", "Model", "Engine No.", "Chassis No."
+Manifest form (inside trip, click "Create manifest" to open):
+  "Cnmt No."          — consignment number
+  "Weight (kg)"       — weight in kilograms
+  "Quantity (units)"  — number of units  ← NOT "Units", NOT "Quantity"
 
-━━━ OPERATIONS SIDEBAR TABS (click these to switch) ━━━
-Trip | Income | Expenditure | Driver Payroll${isAdmin ? " | Fixed Income | Trip Averages | EMI Scheduler | Yearly Expenses | Import Trips" : ""}
+Trip form tabs (visible after opening a trip):
+  Manifest | Other Income | Expenses | Vehicle | Driver | Transporter | Summary
+
+Driver form (at /masters Driver tab):
+  "Driver Code", "Full Name", "Date of Birth", "Mobile Number", "Driving Licence Number"
+
+Vehicle form (at /masters Vehicle tab):
+  "Vehicle Number (Registration Number)", "Manufacturer", "Model", "Engine No.", "Chassis No."
+
+━━━ TERMINOLOGY ALIASES — map user words to real fields ━━━
+- "location" / "city" / "place" / "where" → fill "Note" field
+- "department" / "branch" / "office"      → "Branch (required)" (picker — user must select)
+- "expense type" / "type" / "category"    → "Expenditure name"
+- "units" / "qty"                         → "Quantity (units)"
+- "weight"                                → "Weight (kg)"
+
+━━━ BRANCH PICKER — important ━━━
+Branch is a dropdown picker, not a text field. You CANNOT type it — the user must click it.
+When a task needs a branch: fill all text fields first, then tell the user:
+"Please select a branch from the Branch dropdown to complete the form."
+
+━━━ ACTION TIMING RULES ━━━
+- After navigate: wait 1500ms before any click
+- After click_tab: wait 900ms
+- After click_button that opens a dialog/form: wait 1200ms before filling fields
+- After open_picker: wait 500ms
+- Use fill_input only on text/number/date inputs with a matching Label
 
 ━━━ ACTION FORMAT ━━━
 <<SPARROW_ACTIONS>>
 [
-  {"type":"navigate","path":"/operations"},
+  {"type":"navigate","path":"/masters"},
+  {"type":"wait","ms":1500},
+  {"type":"click_tab","text":"Driver"},
+  {"type":"wait","ms":900},
+  {"type":"click_button","text":"New driver"},
   {"type":"wait","ms":1200},
-  {"type":"click_tab","text":"Expenditure"},
-  {"type":"wait","ms":800},
-  {"type":"click_button","text":"New expenditure"},
-  {"type":"wait","ms":700},
-  {"type":"fill_input","label":"Expenditure name","value":"Tea Expenses"},
-  {"type":"fill_input","label":"Amount","value":"20000"},
-  {"type":"fill_input","label":"Note","value":"Ludhiana"}
+  {"type":"fill_input","label":"Driver Code","value":"DRV-001"},
+  {"type":"fill_input","label":"Full Name","value":"Rajan Singh"}
 ]
 <<END_ACTIONS>>
 
-━━━ ACTION RULES ━━━
-- Always navigate first, then wait ≥1200ms before clicking anything
-- After click_button that opens a form/dialog: wait ≥700ms before filling fields
-- After click_tab: wait ≥800ms before next action
-- NEVER click_button with: save, delete, remove, submit trip, close trip
-- Pickers (Branch, Vehicle, Driver, Transporter) need open_picker, NOT fill_input
-- fill_input only works on text/number/date inputs with matching labels`;
+BLOCKED buttons (never click): save, delete, remove, submit trip, close trip`;
 }
 
-// ── Safe markdown renderer ────────────────────────────────────────────────────
+// ── Minimal markdown renderer ─────────────────────────────────────────────────
 function parseInline(line: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
   const re = /\*\*(.+?)\*\*|\*(.+?)\*/g;
@@ -444,8 +465,8 @@ function renderMessage(text: string): React.ReactNode {
 type Msg = { id: string; role: "user" | "assistant"; content: string; executing?: boolean };
 const uid = () => Math.random().toString(36).slice(2);
 
-const ADMIN_CHIPS = ["Open trip form", "New expenditure", "Add a vehicle", "Add a driver", "Open dashboard"];
-const BASIC_CHIPS = ["Open trip form", "New expenditure", "Add a driver", "Add a transporter"];
+const ADMIN_CHIPS = ["New expenditure", "New driver", "Open trip form", "Add vehicle", "Open dashboard"];
+const BASIC_CHIPS = ["New expenditure", "New driver", "Open trip form", "New transporter"];
 
 async function callPuter(messages: { role: string; content: string }[]): Promise<string> {
   const p = window.puter;
@@ -454,7 +475,7 @@ async function callPuter(messages: { role: string; content: string }[]): Promise
   const result = await Promise.race<R>([
     p.ai.chat(messages, { model: "gpt-4o-mini" }) as Promise<R>,
     new Promise<never>((_, rej) =>
-      setTimeout(() => rej(new Error("Request timed out. Please try again.")), 28000),
+      setTimeout(() => rej(new Error("Request timed out. Please try again.")), 30000),
     ),
   ]);
   return result.message?.content ?? "No response received.";
@@ -474,6 +495,7 @@ export function SparrowAIPanel() {
   const [currentStep, setCurrentStep] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
 
   const role = user?.role ?? "basic";
   const isAdmin = role === "admin";
@@ -482,7 +504,15 @@ export function SparrowAIPanel() {
   const allowedRoutes = isAdmin ? ADMIN_ROUTES : BASIC_ROUTES;
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading, currentStep]);
-  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 80); }, [open]);
+  useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 100); }, [open]);
+
+  // Auto-resize textarea
+  const resizeTextarea = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  };
 
   const send = useCallback(
     async (text: string) => {
@@ -493,6 +523,8 @@ export function SparrowAIPanel() {
       const userMsg: Msg = { id: uid(), role: "user", content: trimmed };
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
+      // Reset textarea height
+      if (inputRef.current) { inputRef.current.style.height = "auto"; }
       setLoading(true);
       setCurrentStep("");
 
@@ -506,13 +538,12 @@ export function SparrowAIPanel() {
         const { actions, displayText } = parseActions(rawText);
 
         const aiMsgId = uid();
-        const aiMsg: Msg = {
+        setMessages((prev) => [...prev, {
           id: aiMsgId,
           role: "assistant",
           content: displayText,
           executing: actions.length > 0,
-        };
-        setMessages((prev) => [...prev, aiMsg]);
+        }]);
 
         if (actions.length > 0) {
           await executeActions(
@@ -542,9 +573,10 @@ export function SparrowAIPanel() {
 
   return (
     <div className="flex flex-col h-full bg-card border-l border-border" role="complementary" aria-label="SPARROW AI">
-      {/* Header */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 bg-card">
-        <div className="flex items-center gap-2">
+
+      {/* ── Header ── */}
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
+        <div className="flex items-center gap-2.5">
           <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
             <Bot className="size-4 text-primary" />
           </div>
@@ -562,23 +594,30 @@ export function SparrowAIPanel() {
         </button>
       </div>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">
+      {/* ── Messages ── */}
+      <div
+        ref={messagesRef}
+        className="sparrow-scroll flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm"
+      >
         {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 py-10 text-center">
+          <div className="flex h-full flex-col items-center justify-center gap-3 py-12 text-center">
             <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
               <Bot className="size-7 text-primary" />
             </div>
             <div>
               <p className="font-semibold text-foreground">How can I help, {displayName}?</p>
-              <p className="mt-1 text-xs text-muted-foreground max-w-[200px]">
-                I can navigate, fill forms, and click buttons for you.
+              <p className="mt-1 text-xs text-muted-foreground max-w-[190px]">
+                I can navigate, fill forms and click buttons for you.
               </p>
             </div>
           </div>
         )}
+
         {messages.map((msg) => (
-          <div key={msg.id} className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}>
+          <div
+            key={msg.id}
+            className={cn("flex gap-2", msg.role === "user" ? "justify-end" : "justify-start")}
+          >
             <div
               className={cn(
                 "max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
@@ -590,38 +629,44 @@ export function SparrowAIPanel() {
               {renderMessage(msg.content)}
               {msg.executing && (
                 <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <Loader2 className="size-3 animate-spin" />
+                  <Loader2 className="size-3 animate-spin shrink-0" />
                   <span>{currentStep || "Working…"}</span>
                 </div>
               )}
             </div>
           </div>
         ))}
+
+        {/* Typing dots while waiting for AI response */}
         {loading && !messages.find((m) => m.executing) && (
           <div className="flex justify-start">
             <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
-              <span className="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:0ms]" />
-              <span className="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:150ms]" />
-              <span className="size-1.5 rounded-full bg-muted-foreground/50 animate-bounce [animation-delay:300ms]" />
+              <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
+              <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:150ms]" />
+              <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:300ms]" />
             </div>
           </div>
         )}
-        {/* Floating step indicator when executing */}
+
+        {/* Floating step banner when executing actions */}
         {currentStep && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 rounded-xl bg-primary/8 border border-primary/20 px-3 py-2 text-xs text-primary">
+            <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/6 px-3 py-2 text-xs text-primary">
               <Loader2 className="size-3 animate-spin shrink-0" />
               <span>{currentStep}</span>
             </div>
           </div>
         )}
+
         <div ref={endRef} />
       </div>
 
-      {/* Quick chips */}
+      {/* ── Quick chips (empty state only) ── */}
       {messages.length === 0 && (
         <div className="shrink-0 border-t border-border px-4 py-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick actions</p>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Quick actions
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {chips.map((chip) => (
               <button
@@ -639,44 +684,59 @@ export function SparrowAIPanel() {
         </div>
       )}
 
-      {/* Input */}
-      <div className="shrink-0 border-t border-border bg-card p-3">
-        <div className="flex items-end gap-2">
+      {/* ── ChatGPT-style input box ── */}
+      <div className="shrink-0 p-3">
+        <div className={cn(
+          "rounded-2xl border border-border bg-muted/30 transition-colors",
+          "focus-within:border-primary/50 focus-within:bg-background focus-within:shadow-sm",
+        )}>
           <textarea
             ref={inputRef}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input); } }}
-            onInput={(e) => {
-              const el = e.currentTarget;
-              el.style.height = "auto";
-              el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+            onChange={(e) => { setInput(e.target.value); resizeTextarea(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send(input);
+              }
             }}
-            placeholder="Ask anything or give an instruction…"
+            placeholder="Message SPARROW AI…"
             rows={1}
             disabled={loading}
             className={cn(
-              "flex-1 resize-none rounded-xl border border-border bg-muted/40 px-3 py-2.5 text-sm",
-              "placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary",
-              "disabled:opacity-50 min-h-[40px] max-h-[120px]",
+              "block w-full resize-none bg-transparent px-4 pt-3 pb-1 text-sm",
+              "placeholder:text-muted-foreground focus:outline-none",
+              "disabled:opacity-50 min-h-[40px] max-h-[140px]",
             )}
           />
-          <button
-            type="button"
-            onClick={() => send(input)}
-            disabled={loading || !input.trim()}
-            className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            {loading ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          </button>
+          <div className="flex items-center justify-between px-3 pb-2.5">
+            <span className="text-[10px] text-muted-foreground/40 select-none">
+              ↵ send · shift+↵ newline
+            </span>
+            <button
+              type="button"
+              onClick={() => send(input)}
+              disabled={loading || !input.trim()}
+              className={cn(
+                "flex size-8 items-center justify-center rounded-xl transition-all",
+                input.trim() && !loading
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                  : "bg-muted text-muted-foreground cursor-not-allowed opacity-40",
+              )}
+            >
+              {loading ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+            </button>
+          </div>
         </div>
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">POWERED BY SPARROW AI SOLUTIONS</p>
+        <p className="mt-1.5 text-center text-[10px] text-muted-foreground/40">
+          POWERED BY SPARROW AI SOLUTIONS
+        </p>
       </div>
     </div>
   );
 }
 
-// ── Trigger button ────────────────────────────────────────────────────────────
+// ── Trigger button ─────────────────────────────────────────────────────────────
 export function SparrowAITrigger() {
   const { open, toggle } = useSparrowAI();
   return (
