@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TMS — Sparrow AI Solution</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:        #f7f1e4;   /* warm off-white / tan */
+    --ink:       #10182b;   /* near-black navy — primary wordmark */
+    --muted:     #6b7280;   /* tagline gray */
+    --accent:    #000000;   /* black — precision / trace line */
+    --hairline:  #e9dfc9;   /* faint warm grid */
+    --dur-draw:   1900ms;
+    --dur-fill:    900ms;
+    --ease:      cubic-bezier(.65,0,.35,1);
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    height:100%;
+    margin:0;
+  }
+
+  body{
+    background:var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+    font-family:'Inter',system-ui,sans-serif;
+    position:relative;
+  }
+
+  /* faint engineering-grid texture — reads as precision, not decoration */
+  .grid{
+    position:absolute;
+    inset:0;
+    background-image:
+      linear-gradient(var(--hairline) 1px, transparent 1px),
+      linear-gradient(90deg, var(--hairline) 1px, transparent 1px);
+    background-size:48px 48px;
+    -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 45%, #000 0%, transparent 72%);
+            mask-image: radial-gradient(ellipse 60% 60% at 50% 45%, #000 0%, transparent 72%);
+    opacity:.55;
+  }
+
+  .frame{
+    position:fixed;
+    inset:20px;
+    border:1.5px solid var(--ink);
+    pointer-events:none;
+    z-index:1;
+  }
+
+  .frame-inner{
+    position:fixed;
+    inset:44px;
+    border:1px solid var(--ink);
+    pointer-events:none;
+    z-index:1;
+  }
+
+  .card{
+    position:relative;
+    z-index:2;
+    background:transparent;
+    padding:6vh clamp(28px, 8vw, 72px) 5vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:18px;
+    width:min(92vw, 640px);
+    opacity:0;
+    transform:translateY(10px);
+    animation:cardIn 700ms ease-out forwards;
+  }
+  @keyframes cardIn{
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  .stage{
+    position:relative;
+    width:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:clamp(14px, 2.4vw, 22px);
+  }
+
+  /* ---------- wordmark (signature element: traced then filled) ---------- */
+  .mark{
+    width:100%;
+    max-width:520px;
+    height:auto;
+    overflow:visible;
+  }
+
+  .mark text{
+    font-family:'Poppins', sans-serif;
+    font-weight:700;
+    font-size:132px;
+    letter-spacing:1px;
+  }
+
+  .mark .trace{
+    fill:var(--ink);
+    fill-opacity:0;
+    stroke:var(--accent);
+    stroke-width:1.6;
+    stroke-linejoin:round;
+    stroke-dasharray:1400;
+    stroke-dashoffset:1400;
+  }
+
+  .stage.run .mark .trace{
+    animation:
+      draw var(--dur-draw) var(--ease) forwards,
+      fillIn var(--dur-fill) ease-out forwards,
+      settle 700ms ease-out forwards;
+    animation-delay: 0ms, calc(var(--dur-draw) - 250ms), calc(var(--dur-draw) + 550ms);
+  }
+
+  @keyframes draw{
+    to{ stroke-dashoffset:0; }
+  }
+  @keyframes fillIn{
+    to{ fill-opacity:1; }
+  }
+  @keyframes settle{
+    to{ stroke-opacity:.35; stroke-width:1; }
+  }
+
+  /* underline trace — a single precise stroke, not a bar */
+  .rule{
+    width:120px;
+    height:2px;
+    background:var(--accent);
+    transform:scaleX(0);
+    transform-origin:center;
+    opacity:0;
+  }
+  .stage.run .rule{
+    animation:ruleIn 650ms var(--ease) forwards;
+    animation-delay: calc(var(--dur-draw) + 120ms);
+  }
+  @keyframes ruleIn{
+    0%{ transform:scaleX(0); opacity:0; }
+    40%{ opacity:1; }
+    100%{ transform:scaleX(1); opacity:1; }
+  }
+
+  /* ---------- tagline ---------- */
+  .tagline{
+    font-size:clamp(10px, 1.15vw, 13px);
+    font-weight:500;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:.2em;
+    opacity:1;
+    white-space:nowrap;
+  }
+
+  .footer{
+    width:100%;
+    margin-top:6px;
+    padding-top:16px;
+    border-top:1px solid var(--hairline);
+    text-align:center;
+    font-size:11px;
+    font-weight:500;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--muted);
+    opacity:.75;
+  }
+
+  @media (max-width: 600px){
+    .tagline{ display:none; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .card{ animation:none !important; opacity:1; transform:none; }
+    .stage.run .mark .trace,
+    .stage.run .rule,
+    .stage.run .tagline{
+      animation:none !important;
+      transition:none !important;
+    }
+    .mark .trace{ fill-opacity:1; stroke-dashoffset:0; stroke-opacity:.35; stroke-width:1; }
+    .rule{ transform:scaleX(1); opacity:1; }
+    .tagline{ opacity:1; letter-spacing:.34em; text-indent:.34em; transform:none; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="grid" aria-hidden="true"></div>
+  <div class="frame" aria-hidden="true"></div>
+  <div class="frame-inner" aria-hidden="true"></div>
+
+  <div class="card">
+    <div class="stage" id="stage">
+      <svg class="mark" viewBox="0 0 480 175" xmlns="http://www.w3.org/2000/svg">
+        <text x="50%" y="128" text-anchor="middle" class="trace">TMS</text>
+      </svg>
+
+      <div class="rule"></div>
+      <div class="tagline">Transportation Management System</div>
+    </div>
+
+    <div class="footer">Powered by Sparrow AI Solution</div>
+  </div>
+
+<script>
+  const stage = document.getElementById('stage');
+
+  function play(){
+    stage.classList.remove('run');
+    // force reflow so the animation can start cleanly
+    void stage.offsetWidth;
+    requestAnimationFrame(() => stage.classList.add('run'));
+  }
+
+  window.addEventListener('load', play);
+</script>
+
+</body>
+</html>
