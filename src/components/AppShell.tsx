@@ -3,6 +3,7 @@ import { LogOut, ShieldCheck, User } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
+import { SparrowAIContainer } from "@/components/SparrowAI";
 
 export function AppShell({
   children,
@@ -27,6 +28,7 @@ export function AppShell({
           {breadcrumb && <div className="ml-2 hidden md:block shrink-0">{breadcrumb}</div>}
           {headerEnd && <div className="ml-2 hidden lg:block">{headerEnd}</div>}
           <div className="ml-auto flex items-center gap-2 sm:gap-3 min-w-0">
+            <SparrowAIContainer />
             <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex min-w-0">
               {user?.role === "admin" ? (
                 <ShieldCheck className="size-3.5 text-primary shrink-0" />
