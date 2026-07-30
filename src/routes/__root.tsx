@@ -20,6 +20,9 @@ import { Toaster } from "../components/ui/sonner";
 import { PasskeyGate } from "../components/PasskeyGate";
 import { InactivityChallenge } from "../components/InactivityChallenge";
 import { MobileBlock } from "../components/MobileBlock";
+import { SparrowAIProvider } from "../lib/sparrow-context";
+import { SparrowAIPanel } from "../components/SparrowAI";
+import { useSparrowAI } from "../lib/sparrow-context";
 
 function NotFoundComponent() {
   return (
@@ -158,6 +161,17 @@ function SessionExpiredListener() {
   return null;
 }
 
+/** Renders the SPARROW AI panel as a fixed right-side copilot that persists across route changes */
+function SparrowAIPanelMount() {
+  const { open } = useSparrowAI();
+  if (!open) return null;
+  return (
+    <div className="fixed right-0 top-16 z-40 h-[calc(100vh-4rem)] w-[360px] shadow-[-4px_0_24px_rgba(0,0,0,0.07)]">
+      <SparrowAIPanel />
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const persister = useMemo(
@@ -179,17 +193,20 @@ function RootComponent() {
     >
       <SessionProvider>
         <ThemeProvider>
-          <SecurityInit />
-          <SessionExpiredListener />
-          {/* MobileBlock: desktop-only wall before anything else */}
-          <MobileBlock>
-          {/* PasskeyGate: device-level WebAuthn check before any page renders */}
-          <PasskeyGate>
-            <Outlet />
-          </PasskeyGate>
-          </MobileBlock>
-          <InactivityChallenge />
-          <Toaster position="top-right" />
+          <SparrowAIProvider>
+            <SecurityInit />
+            <SessionExpiredListener />
+            {/* MobileBlock: desktop-only wall before anything else */}
+            <MobileBlock>
+            {/* PasskeyGate: device-level WebAuthn check before any page renders */}
+            <PasskeyGate>
+              <Outlet />
+            </PasskeyGate>
+            </MobileBlock>
+            <InactivityChallenge />
+            <Toaster position="top-right" />
+            <SparrowAIPanelMount />
+          </SparrowAIProvider>
         </ThemeProvider>
       </SessionProvider>
     </PersistQueryClientProvider>
