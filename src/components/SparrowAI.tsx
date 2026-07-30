@@ -599,19 +599,6 @@ export function SparrowAIPanel() {
         ref={messagesRef}
         className="sparrow-scroll flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm"
       >
-        {messages.length === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 py-12 text-center">
-            <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/10">
-              <Bot className="size-7 text-primary" />
-            </div>
-            <div>
-              <p className="font-semibold text-foreground">How can I help, {displayName}?</p>
-              <p className="mt-1 text-xs text-muted-foreground max-w-[190px]">
-                I can navigate, fill forms and click buttons for you.
-              </p>
-            </div>
-          </div>
-        )}
 
         {messages.map((msg) => (
           <div
