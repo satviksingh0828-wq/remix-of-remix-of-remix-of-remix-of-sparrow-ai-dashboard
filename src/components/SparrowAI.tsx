@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bot, ChevronRight, Loader2, Send, Trash2, X } from "lucide-react";
+import { Bot, ChevronRight, Loader2, Mic, MicOff, Play, Send, Trash2, X } from "lucide-react";
 import { useSession } from "@/lib/session";
 import { useSparrowAI } from "@/lib/sparrow-context";
 import { cn } from "@/lib/utils";
 
-// ── Puter.js type shim ────────────────────────────────────────────────────────
+// ── Puter.js + Speech Recognition type shims ─────────────────────────────────
 declare global {
   interface Window {
     puter?: {
@@ -16,6 +16,21 @@ declare global {
         ) => Promise<{ message: { content: string } }>;
       };
     };
+    SpeechRecognition?: new () => SpeechRecognitionInstance;
+    webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+  }
+  interface SpeechRecognitionInstance extends EventTarget {
+    continuous: boolean;
+    interimResults: boolean;
+    lang: string;
+    start(): void;
+    stop(): void;
+    onresult: ((event: SpeechRecognitionEvent) => void) | null;
+    onerror: ((event: Event) => void) | null;
+    onend: (() => void) | null;
+  }
+  interface SpeechRecognitionEvent extends Event {
+    results: SpeechRecognitionResultList;
   }
 }
 
@@ -55,7 +70,6 @@ function cleanText(el: Element): string {
 /**
  * Find an input/textarea associated with a label text.
  * Searches the whole document including open dialogs/portals.
- * Handles: for=id, nested input, sibling pattern, placeholder/aria-label fallback.
  */
 function findInputByLabel(labelText: string): HTMLInputElement | HTMLTextAreaElement | null {
   const needle = labelText.toLowerCase().replace(/[₹*()]/g, "").trim();
@@ -64,23 +78,19 @@ function findInputByLabel(labelText: string): HTMLInputElement | HTMLTextAreaEle
     const ltext = (label.textContent ?? "").toLowerCase().replace(/[₹*()]/g, "").trim();
     if (!ltext.includes(needle) && !needle.includes(ltext)) continue;
 
-    // 1. for=id
     const forId = label.getAttribute("for");
     if (forId) {
       const el = document.getElementById(forId);
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return el;
     }
-    // 2. nested
     const nested = label.querySelector<HTMLInputElement | HTMLTextAreaElement>("input, textarea");
     if (nested) return nested;
-    // 3. sibling in same parent (shadcn / custom Field pattern)
     const sibling = label.parentElement?.querySelector<HTMLInputElement | HTMLTextAreaElement>(
       "input, textarea",
     );
     if (sibling) return sibling;
   }
 
-  // Fallback: placeholder or aria-label
   return (
     Array.from(
       document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea"),
@@ -92,6 +102,9 @@ function findInputByLabel(labelText: string): HTMLInputElement | HTMLTextAreaEle
   );
 }
 
+/**
+ * Retry finding an input — scrolls to trigger lazy rendering on later attempts.
+ */
 async function findInputRetry(
   label: string,
   maxAttempts = 6,
@@ -100,7 +113,12 @@ async function findInputRetry(
   for (let i = 0; i < maxAttempts; i++) {
     const el = findInputByLabel(label);
     if (el) return el;
-    if (i < maxAttempts - 1) await sleep(delay);
+    if (i < maxAttempts - 1) {
+      // On retry 2+, scroll the page to trigger lazy renders
+      if (i === 2) window.scrollTo({ top: 0, behavior: "smooth" });
+      if (i === 3) window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      await sleep(delay);
+    }
   }
   return null;
 }
@@ -110,29 +128,34 @@ const isBlocked = (text: string) => BLOCKED.some((w) => text.toLowerCase().inclu
 
 /**
  * Find a button by text — robust to icon+text combos.
- * Strips icon SVG whitespace and tries exact → contains matches,
- * then falls back to innerText for elements where textContent differs.
  */
 function findButtonByText(text: string): HTMLButtonElement | null {
   const needle = text.toLowerCase().trim();
   const all = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
 
-  // exact clean-text match
   const exact = all.find((b) => cleanText(b) === needle);
   if (exact) return exact;
 
-  // contains match (handles icon+text where SVG adds whitespace)
   const contains = all.find((b) => cleanText(b).includes(needle));
   if (contains) return contains;
 
-  // innerText fallback (may differ from textContent in icon buttons)
-  return (
+  // innerText fallback
+  const byInner =
     all.find((b) => (b.innerText ?? "").toLowerCase().trim() === needle) ??
-    all.find((b) => (b.innerText ?? "").toLowerCase().trim().includes(needle)) ??
-    null
-  );
+    all.find((b) => (b.innerText ?? "").toLowerCase().trim().includes(needle));
+  if (byInner) return byInner;
+
+  // Fuzzy fallback: match on first significant word
+  const firstWord = needle.split(/\s+/)[0];
+  if (firstWord && firstWord.length > 2) {
+    return all.find((b) => cleanText(b).startsWith(firstWord)) ?? null;
+  }
+  return null;
 }
 
+/**
+ * Retry finding a button — scrolls to reveal off-screen content on later attempts.
+ */
 async function findButtonRetry(
   text: string,
   maxAttempts = 7,
@@ -141,7 +164,11 @@ async function findButtonRetry(
   for (let i = 0; i < maxAttempts; i++) {
     const btn = findButtonByText(text);
     if (btn) return btn;
-    if (i < maxAttempts - 1) await sleep(delay);
+    if (i < maxAttempts - 1) {
+      if (i === 2) window.scrollTo({ top: 0, behavior: "smooth" });
+      if (i === 3) window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+      await sleep(delay);
+    }
   }
   return null;
 }
@@ -189,26 +216,44 @@ async function openPickerByLabel(
   return { ok: false, message: `Picker "${labelText}" not found on page` };
 }
 
-// ── Detect active sidebar tab from DOM ───────────────────────────────────────
-function getActiveTabFromDOM(): string {
-  // Desktop nav active item has bg-primary-soft class
+// ── Read visible page context from DOM ───────────────────────────────────────
+function getPageContext(): string {
+  const parts: string[] = [];
+
+  // Active sidebar tab
   const desktopActive = document.querySelector<HTMLButtonElement>(
     "nav button.bg-primary-soft, nav li button.bg-primary-soft",
   );
   if (desktopActive) {
     const lines = (desktopActive.innerText ?? desktopActive.textContent ?? "").split("\n");
     const text = lines[0]?.trim();
-    if (text && text.length < 30) return text;
+    if (text && text.length < 30) parts.push(`ACTIVE TAB: ${text}`);
   }
-  // Mobile tab active = bg-primary text-primary-foreground
-  const mobileActive = document.querySelector<HTMLButtonElement>(
-    "button.bg-primary.text-primary-foreground",
-  );
-  if (mobileActive) {
-    const text = (mobileActive.innerText ?? mobileActive.textContent ?? "").trim();
-    if (text && text.length < 30) return text;
+
+  // Open dialog / sheet title
+  const dialogTitle = document.querySelector(
+    '[role="dialog"] [id*="title"], [role="dialog"] h2, [role="dialog"] h3',
+  )?.textContent?.trim().replace(/\s+/g, " ");
+  if (dialogTitle && dialogTitle.length < 80) parts.push(`OPEN FORM: "${dialogTitle}"`);
+
+  // Page heading visible in main content
+  const heading = document.querySelector("main h1, main h2, [data-main] h1")
+    ?.textContent?.trim().replace(/\s+/g, " ");
+  if (heading && heading.length < 80 && heading !== dialogTitle) {
+    parts.push(`HEADING: "${heading}"`);
   }
-  return "";
+
+  // Already-filled fields in open dialog (gives AI awareness of current form state)
+  const filledFields: string[] = [];
+  document.querySelectorAll<HTMLInputElement>('[role="dialog"] input').forEach((inp) => {
+    if (!inp.value || inp.type === "hidden") return;
+    const label = inp.closest("[class*='space-y']")?.querySelector("label")?.textContent
+      ?.replace(/[₹*()]/g, "").trim();
+    if (label && inp.value) filledFields.push(`${label}="${inp.value}"`);
+  });
+  if (filledFields.length > 0) parts.push(`FORM FIELDS: ${filledFields.slice(0, 4).join(", ")}`);
+
+  return parts.join(" | ");
 }
 
 // ── Action executor ───────────────────────────────────────────────────────────
@@ -218,8 +263,11 @@ async function executeActions(
   allowedRoutes: string[],
   onLog: (msg: string) => void,
   onStep: (step: string) => void,
+  cancelRef: React.MutableRefObject<boolean>,
 ) {
   for (const act of actions) {
+    if (cancelRef.current) break;
+
     switch (act.type) {
       case "navigate": {
         if (!allowedRoutes.includes(act.path)) {
@@ -326,15 +374,34 @@ function parseActions(text: string): { actions: SparrowAction[]; displayText: st
   }
 }
 
+/** Convert an action to a short human-readable step label. Returns null for waits (skip). */
+function summarizeAction(act: SparrowAction): string | null {
+  switch (act.type) {
+    case "navigate": return `Go to ${act.path}`;
+    case "click_button": return `Click "${act.text}"`;
+    case "click_tab": return `Switch to "${act.text}" tab`;
+    case "fill_input": return `Fill ${act.label} → "${act.value}"`;
+    case "fill_placeholder": return `Fill (placeholder "${act.placeholder}") → "${act.value}"`;
+    case "open_picker": return `Select "${act.search}" in ${act.label}`;
+    case "scroll_to": return `Scroll to ${act.label}`;
+    case "wait": return null;
+    default: return null;
+  }
+}
+
 // ── System prompt ─────────────────────────────────────────────────────────────
-function buildSystemPrompt(role: string, userName: string, currentPath: string, activeTab: string): string {
+function buildSystemPrompt(
+  role: string,
+  userName: string,
+  currentPath: string,
+  pageContext: string,
+): string {
   const isAdmin = role === "admin";
   const routes = isAdmin ? ADMIN_ROUTES : BASIC_ROUTES;
-  const tabCtx = activeTab ? ` | ACTIVE TAB: ${activeTab}` : "";
 
   return `You are SPARROW AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
 
-USER: ${userName} | ROLE: ${isAdmin ? "Admin" : "Basic User"} | CURRENT PAGE: ${currentPath}${tabCtx}
+USER: ${userName} | ROLE: ${isAdmin ? "Admin" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
 
 ━━━ CORE RULES ━━━
 - Be concise (under 80 words). State what you're doing, then do it.
@@ -342,6 +409,7 @@ USER: ${userName} | ROLE: ${isAdmin ? "Admin" : "Basic User"} | CURRENT PAGE: ${
 - You CAN navigate, click, fill text fields, open pickers. You CANNOT save, delete, submit.
 - ALWAYS include <<SPARROW_ACTIONS>> whenever you interact with the app.
 - Never say "you can do it yourself" if you can do it via actions.
+- Use the CURRENT PAGE and OPEN FORM context above to understand what's already visible.
 
 ALLOWED ROUTES: ${routes.join(", ")}
 
@@ -461,8 +529,9 @@ function renderMessage(text: string): React.ReactNode {
   return <>{nodes}</>;
 }
 
-// ── Types + helpers ───────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 type Msg = { id: string; role: "user" | "assistant"; content: string; executing?: boolean };
+type PendingPlan = { aiMsgId: string; actions: SparrowAction[]; steps: string[] };
 const uid = () => Math.random().toString(36).slice(2);
 
 const ADMIN_CHIPS = ["New expenditure", "New driver", "Open trip form", "Add vehicle", "Open dashboard"];
@@ -493,9 +562,13 @@ export function SparrowAIPanel() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState("");
+  const [pendingPlan, setPendingPlan] = useState<PendingPlan | null>(null);
+  const [isListening, setIsListening] = useState(false);
+
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const cancelRef = useRef(false);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   const role = user?.role ?? "basic";
   const isAdmin = role === "admin";
@@ -506,7 +579,7 @@ export function SparrowAIPanel() {
   const STORAGE_KEY = `sparrow_history_${user?.id ?? "guest"}`;
   const MAX_STORED = 50;
 
-  // Load persisted history on first open
+  // ── Persistence ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open || messages.length > 0) return;
     try {
@@ -519,26 +592,26 @@ export function SparrowAIPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Persist messages to localStorage whenever they change
   useEffect(() => {
     if (messages.length === 0) return;
     try {
-      const toStore = messages.slice(-MAX_STORED);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-MAX_STORED)));
     } catch { /* ignore quota errors */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages]);
 
   const clearHistory = useCallback(() => {
     setMessages([]);
+    setPendingPlan(null);
     try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [STORAGE_KEY]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading, currentStep]);
+  // ── Scroll + focus ────────────────────────────────────────────────────────
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading, currentStep, pendingPlan]);
   useEffect(() => { if (open) setTimeout(() => inputRef.current?.focus(), 100); }, [open]);
 
-  // Auto-resize textarea
+  // ── Auto-resize textarea ──────────────────────────────────────────────────
   const resizeTextarea = () => {
     const el = inputRef.current;
     if (!el) return;
@@ -546,22 +619,90 @@ export function SparrowAIPanel() {
     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
   };
 
+  // ── Voice input ───────────────────────────────────────────────────────────
+  const SpeechRecognitionCtor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+  const voiceSupported = !!SpeechRecognitionCtor;
+
+  const toggleVoice = useCallback(() => {
+    if (!SpeechRecognitionCtor) return;
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const rec = new SpeechRecognitionCtor();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = "en-IN";
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[0]?.[0]?.transcript ?? "";
+      if (transcript) {
+        setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        setTimeout(resizeTextarea, 0);
+      }
+    };
+    rec.onerror = () => setIsListening(false);
+    rec.onend = () => setIsListening(false);
+    rec.start();
+    recognitionRef.current = rec;
+    setIsListening(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isListening, SpeechRecognitionCtor]);
+
+  // ── Execute a confirmed plan ──────────────────────────────────────────────
+  const runPlan = useCallback(
+    async (plan: PendingPlan) => {
+      setPendingPlan(null);
+      cancelRef.current = false;
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === plan.aiMsgId ? { ...m, executing: true } : m)),
+      );
+
+      await executeActions(
+        plan.actions,
+        (path) => navigate({ to: path as "/" }),
+        allowedRoutes,
+        (log) => setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: `⚠️ ${log}` }]),
+        (step) => setCurrentStep(step),
+        cancelRef,
+      );
+
+      setMessages((prev) =>
+        prev.map((m) => (m.id === plan.aiMsgId ? { ...m, executing: false } : m)),
+      );
+      setCurrentStep("");
+    },
+    [navigate, allowedRoutes],
+  );
+
+  const stopExecution = useCallback(() => {
+    cancelRef.current = true;
+    setCurrentStep("");
+    setMessages((prev) => prev.map((m) => m.executing ? { ...m, executing: false } : m));
+  }, []);
+
+  // ── Send message ──────────────────────────────────────────────────────────
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || loading) return;
 
-      const activeTab = getActiveTabFromDOM();
+      // Dismiss any pending plan before sending a new message
+      setPendingPlan(null);
+
+      const pageContext = getPageContext();
       const userMsg: Msg = { id: uid(), role: "user", content: trimmed };
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
-      // Reset textarea height
-      if (inputRef.current) { inputRef.current.style.height = "auto"; }
+      if (inputRef.current) inputRef.current.style.height = "auto";
       setLoading(true);
       setCurrentStep("");
 
       try {
-        const systemPrompt = buildSystemPrompt(role, displayName, currentPath, activeTab);
+        const systemPrompt = buildSystemPrompt(role, displayName, currentPath, pageContext);
         const history = [...messages, userMsg].slice(-12).map((m) => ({
           role: m.role, content: m.content,
         }));
@@ -574,21 +715,12 @@ export function SparrowAIPanel() {
           id: aiMsgId,
           role: "assistant",
           content: displayText,
-          executing: actions.length > 0,
+          executing: false,
         }]);
 
         if (actions.length > 0) {
-          await executeActions(
-            actions,
-            (path) => navigate({ to: path as "/" }),
-            allowedRoutes,
-            (log) => setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: `⚠️ ${log}` }]),
-            (step) => setCurrentStep(step),
-          );
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiMsgId ? { ...m, executing: false } : m)),
-          );
-          setCurrentStep("");
+          const steps = actions.map(summarizeAction).filter(Boolean) as string[];
+          setPendingPlan({ aiMsgId, actions, steps });
         }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Something went wrong. Please try again.";
@@ -598,10 +730,12 @@ export function SparrowAIPanel() {
         setLoading(false);
       }
     },
-    [loading, messages, role, displayName, currentPath, navigate, allowedRoutes],
+    [loading, messages, role, displayName, currentPath],
   );
 
   if (!user) return null;
+
+  const isExecuting = messages.some((m) => m.executing);
 
   return (
     <div className="flex flex-col h-full bg-card border-l border-border" role="complementary" aria-label="SPARROW AI">
@@ -639,10 +773,7 @@ export function SparrowAIPanel() {
       </div>
 
       {/* ── Messages ── */}
-      <div
-        ref={messagesRef}
-        className="sparrow-scroll flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm"
-      >
+      <div className="sparrow-scroll flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">
 
         {messages.map((msg) => (
           <div
@@ -669,7 +800,7 @@ export function SparrowAIPanel() {
         ))}
 
         {/* Typing dots while waiting for AI response */}
-        {loading && !messages.find((m) => m.executing) && (
+        {loading && (
           <div className="flex justify-start">
             <div className="flex items-center gap-1.5 rounded-2xl rounded-tl-sm bg-muted px-4 py-3">
               <span className="size-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
@@ -679,12 +810,64 @@ export function SparrowAIPanel() {
           </div>
         )}
 
-        {/* Floating step banner when executing actions */}
+        {/* Execution progress banner */}
         {currentStep && (
           <div className="flex justify-start">
             <div className="flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/6 px-3 py-2 text-xs text-primary">
               <Loader2 className="size-3 animate-spin shrink-0" />
-              <span>{currentStep}</span>
+              <span className="flex-1">{currentStep}</span>
+              <button
+                type="button"
+                onClick={stopExecution}
+                className="ml-1 text-[10px] font-medium text-primary/70 hover:text-primary underline underline-offset-2"
+              >
+                Stop
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Action plan confirmation card ── */}
+        {pendingPlan && !loading && !isExecuting && (
+          <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
+            <div className="mb-2.5 flex items-center justify-between">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+                Action Plan
+              </span>
+              <button
+                type="button"
+                onClick={() => setPendingPlan(null)}
+                className="flex size-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3" />
+              </button>
+            </div>
+            <div className="mb-3 space-y-1.5">
+              {pendingPlan.steps.map((step, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs text-foreground">
+                  <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[9px] font-bold text-primary">
+                    {i + 1}
+                  </span>
+                  <span>{step}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => runPlan(pendingPlan)}
+                className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                <Play className="size-3" />
+                Run
+              </button>
+              <button
+                type="button"
+                onClick={() => setPendingPlan(null)}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted"
+              >
+                Skip
+              </button>
             </div>
           </div>
         )}
@@ -715,11 +898,12 @@ export function SparrowAIPanel() {
         </div>
       )}
 
-      {/* ── ChatGPT-style input box ── */}
+      {/* ── Input box ── */}
       <div className="shrink-0 p-3">
         <div className={cn(
           "rounded-2xl border border-border bg-muted/30 transition-colors",
           "focus-within:border-primary/50 focus-within:bg-background focus-within:shadow-sm",
+          isListening && "border-primary/60 bg-primary/5",
         )}>
           <textarea
             ref={inputRef}
@@ -731,7 +915,7 @@ export function SparrowAIPanel() {
                 send(input);
               }
             }}
-            placeholder="Message SPARROW AI…"
+            placeholder={isListening ? "Listening…" : "Message SPARROW AI…"}
             rows={1}
             disabled={loading}
             className={cn(
@@ -744,19 +928,36 @@ export function SparrowAIPanel() {
             <span className="text-[10px] text-muted-foreground/40 select-none">
               ↵ send · shift+↵ newline
             </span>
-            <button
-              type="button"
-              onClick={() => send(input)}
-              disabled={loading || !input.trim()}
-              className={cn(
-                "flex size-8 items-center justify-center rounded-xl transition-all",
-                input.trim() && !loading
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
-                  : "bg-muted text-muted-foreground cursor-not-allowed opacity-40",
+            <div className="flex items-center gap-1.5">
+              {voiceSupported && (
+                <button
+                  type="button"
+                  onClick={toggleVoice}
+                  title={isListening ? "Stop listening" : "Voice input"}
+                  className={cn(
+                    "flex size-8 items-center justify-center rounded-xl transition-all",
+                    isListening
+                      ? "bg-primary/20 text-primary animate-pulse"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {isListening ? <MicOff className="size-3.5" /> : <Mic className="size-3.5" />}
+                </button>
               )}
-            >
-              {loading ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
-            </button>
+              <button
+                type="button"
+                onClick={() => send(input)}
+                disabled={loading || !input.trim()}
+                className={cn(
+                  "flex size-8 items-center justify-center rounded-xl transition-all",
+                  input.trim() && !loading
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
+                    : "bg-muted text-muted-foreground cursor-not-allowed opacity-40",
+                )}
+              >
+                {loading ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+              </button>
+            </div>
           </div>
         </div>
         <p className="mt-1.5 text-center text-[10px] text-muted-foreground/40">
