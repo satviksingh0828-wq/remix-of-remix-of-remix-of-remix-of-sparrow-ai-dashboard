@@ -73,6 +73,7 @@ export type Database = {
           address_line1: string | null
           address_line2: string | null
           area_locality: string | null
+          branch_email: string | null
           branch_name: string
           branch_phone: string | null
           branch_type: string | null
@@ -99,6 +100,7 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           area_locality?: string | null
+          branch_email?: string | null
           branch_name: string
           branch_phone?: string | null
           branch_type?: string | null
@@ -125,6 +127,7 @@ export type Database = {
           address_line1?: string | null
           address_line2?: string | null
           area_locality?: string | null
+          branch_email?: string | null
           branch_name?: string
           branch_phone?: string | null
           branch_type?: string | null

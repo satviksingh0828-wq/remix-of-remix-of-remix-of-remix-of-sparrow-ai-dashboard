@@ -1,15 +1,26 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Lock, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { logAction } from "@/lib/log-actions";
 
 export type ContractRow = {
   id?: string;
   contract_name: string;
+  // Contract period & status
+  start_date?: string;
+  end_date?: string;
+  status?: string; // 'active' | 'inactive'
   // Fixed recurring charges
   fixed_monthly_charge?: number | string;
   fixed_monthly_charge_note?: string;
@@ -40,6 +51,9 @@ export type ContractRow = {
 
 export const EMPTY_CONTRACT: ContractRow = {
   contract_name: "",
+  start_date: "",
+  end_date: "",
+  status: "active",
   fixed_monthly_charge: "",
   fixed_monthly_charge_note: "",
   fixed_yearly_charge: "",
@@ -82,6 +96,7 @@ function TextField({
   full,
   type,
   required,
+  disabled,
 }: {
   label: string;
   value: string;
@@ -89,6 +104,7 @@ function TextField({
   full?: boolean;
   type?: string;
   required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div className={`space-y-1.5 ${full ? "sm:col-span-2" : ""}`}>
@@ -100,6 +116,7 @@ function TextField({
         value={value}
         required={required}
         type={type ?? "text"}
+        disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
         className="h-10"
       />
@@ -120,8 +137,11 @@ export function ContractForm({
   const [saving, setSaving] = useState(false);
   const [showCompany, setShowCompany] = useState(!!initial.company_name);
 
+  const isInactive = form.status === "inactive";
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isInactive) return; // safety guard — UI shouldn't submit on inactive
     setSaving(true);
     const { id, ...rest } = form;
     const payload = rest as never;
@@ -141,6 +161,18 @@ export function ContractForm({
 
   const patch = (p: Partial<ContractRow>) => setForm((f) => ({ ...f, ...p }));
 
+  // When manually switching to inactive, append -old-{start}-{end} suffix to name
+  function handleStatusChange(v: string) {
+    if (v === "inactive" && form.status !== "inactive") {
+      const base = form.contract_name.replace(/-old(-[\d-]*)*$/, "").trimEnd();
+      const parts = [base, "old", form.start_date, form.end_date].filter(Boolean);
+      const newName = parts.join("-");
+      patch({ status: "inactive", contract_name: newName });
+    } else {
+      patch({ status: v });
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="animate-fade-up space-y-5">
       <div className="flex items-center gap-3">
@@ -149,9 +181,21 @@ export function ContractForm({
           Back to sources
         </Button>
         <h2 className="text-lg font-semibold tracking-tight">
-          {form.id ? "Edit source" : "New source"}
+          {form.id ? (isInactive ? "View source (inactive)" : "Edit source") : "New source"}
         </h2>
+        {isInactive && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+            <Lock className="size-3" /> Read-only
+          </span>
+        )}
       </div>
+
+      {isInactive && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-950/30 dark:text-amber-300">
+          This source is <strong>inactive</strong> — its data is shown for reference only and cannot be edited.
+          To reactivate it, change the status to Active below and save.
+        </div>
+      )}
 
       <Section title="Source">
         <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
@@ -161,7 +205,56 @@ export function ContractForm({
             full
             value={form.contract_name}
             onChange={(v) => patch({ contract_name: v })}
+            disabled={isInactive}
           />
+        </div>
+      </Section>
+
+      <Section title="Contract period &amp; status">
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Start Date</Label>
+            <Input
+              className="h-10"
+              type="date"
+              value={form.start_date ?? ""}
+              onChange={(e) => patch({ start_date: e.target.value })}
+              disabled={isInactive}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              End Date{" "}
+              <span className="text-muted-foreground/60">(optional — leave blank for no expiry)</span>
+            </Label>
+            <Input
+              className="h-10"
+              type="date"
+              value={form.end_date ?? ""}
+              onChange={(e) => patch({ end_date: e.target.value })}
+              disabled={isInactive}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+            <Select
+              value={form.status ?? "active"}
+              onValueChange={handleStatusChange}
+            >
+              <SelectTrigger className="h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {form.end_date
+                ? "Auto-set to Inactive when End Date is reached."
+                : "Active until manually set to Inactive or an End Date is added."}
+            </p>
+          </div>
         </div>
       </Section>
 
@@ -245,38 +338,48 @@ export function ContractForm({
         </div>
         {showCompany ? (
           <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-            <TextField label="Company Name" full value={form.company_name ?? ""} onChange={(v) => patch({ company_name: v })} />
-            <TextField label="Legal Business Name" value={form.legal_business_name ?? ""} onChange={(v) => patch({ legal_business_name: v })} />
-            <TextField label="Company Type" value={form.company_type ?? ""} onChange={(v) => patch({ company_type: v })} />
-            <TextField label="Industry" value={form.industry ?? ""} onChange={(v) => patch({ industry: v })} />
-            <TextField label="PAN" value={form.pan ?? ""} onChange={(v) => patch({ pan: v })} />
-            <TextField label="GSTIN" value={form.gstin ?? ""} onChange={(v) => patch({ gstin: v })} />
-            <TextField label="CIN" value={form.cin ?? ""} onChange={(v) => patch({ cin: v })} />
-            <TextField label="MSME / Udyam" value={form.msme_udyam ?? ""} onChange={(v) => patch({ msme_udyam: v })} />
-            <TextField label="TAN" value={form.tan ?? ""} onChange={(v) => patch({ tan: v })} />
-            <TextField label="IEC" value={form.iec ?? ""} onChange={(v) => patch({ iec: v })} />
-            <TextField label="Address Line 1" full value={form.address_line1 ?? ""} onChange={(v) => patch({ address_line1: v })} />
-            <TextField label="Address Line 2" full value={form.address_line2 ?? ""} onChange={(v) => patch({ address_line2: v })} />
-            <TextField label="City" value={form.city ?? ""} onChange={(v) => patch({ city: v })} />
-            <TextField label="State" value={form.state ?? ""} onChange={(v) => patch({ state: v })} />
-            <TextField label="Country" value={form.country ?? ""} onChange={(v) => patch({ country: v })} />
-            <TextField label="PIN Code" value={form.pin_code ?? ""} onChange={(v) => patch({ pin_code: v })} />
-            <TextField label="Mobile" value={form.mobile_number ?? ""} onChange={(v) => patch({ mobile_number: v })} />
-            <TextField label="Telephone" value={form.telephone_number ?? ""} onChange={(v) => patch({ telephone_number: v })} />
-            <TextField label="Email" type="email" value={form.email ?? ""} onChange={(v) => patch({ email: v })} />
-            <TextField label="Website" value={form.website ?? ""} onChange={(v) => patch({ website: v })} />
+            <TextField label="Company Name" full value={form.company_name ?? ""} onChange={(v) => patch({ company_name: v })} disabled={isInactive} />
+            <TextField label="Legal Business Name" value={form.legal_business_name ?? ""} onChange={(v) => patch({ legal_business_name: v })} disabled={isInactive} />
+            <TextField label="Company Type" value={form.company_type ?? ""} onChange={(v) => patch({ company_type: v })} disabled={isInactive} />
+            <TextField label="Industry" value={form.industry ?? ""} onChange={(v) => patch({ industry: v })} disabled={isInactive} />
+            <TextField label="PAN" value={form.pan ?? ""} onChange={(v) => patch({ pan: v })} disabled={isInactive} />
+            <TextField label="GSTIN" value={form.gstin ?? ""} onChange={(v) => patch({ gstin: v })} disabled={isInactive} />
+            <TextField label="CIN" value={form.cin ?? ""} onChange={(v) => patch({ cin: v })} disabled={isInactive} />
+            <TextField label="MSME / Udyam" value={form.msme_udyam ?? ""} onChange={(v) => patch({ msme_udyam: v })} disabled={isInactive} />
+            <TextField label="TAN" value={form.tan ?? ""} onChange={(v) => patch({ tan: v })} disabled={isInactive} />
+            <TextField label="IEC" value={form.iec ?? ""} onChange={(v) => patch({ iec: v })} disabled={isInactive} />
+            <TextField label="Address Line 1" full value={form.address_line1 ?? ""} onChange={(v) => patch({ address_line1: v })} disabled={isInactive} />
+            <TextField label="Address Line 2" full value={form.address_line2 ?? ""} onChange={(v) => patch({ address_line2: v })} disabled={isInactive} />
+            <TextField label="City" value={form.city ?? ""} onChange={(v) => patch({ city: v })} disabled={isInactive} />
+            <TextField label="State" value={form.state ?? ""} onChange={(v) => patch({ state: v })} disabled={isInactive} />
+            <TextField label="Country" value={form.country ?? ""} onChange={(v) => patch({ country: v })} disabled={isInactive} />
+            <TextField label="PIN Code" value={form.pin_code ?? ""} onChange={(v) => patch({ pin_code: v })} disabled={isInactive} />
+            <TextField label="Mobile" value={form.mobile_number ?? ""} onChange={(v) => patch({ mobile_number: v })} disabled={isInactive} />
+            <TextField label="Telephone" value={form.telephone_number ?? ""} onChange={(v) => patch({ telephone_number: v })} disabled={isInactive} />
+            <TextField label="Email" type="email" value={form.email ?? ""} onChange={(v) => patch({ email: v })} disabled={isInactive} />
+            <TextField label="Website" value={form.website ?? ""} onChange={(v) => patch({ website: v })} disabled={isInactive} />
           </div>
         ) : null}
       </section>
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>
-          Cancel
+          {isInactive ? "Close" : "Cancel"}
         </Button>
-        <Button type="submit" disabled={saving}>
-          {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {saving ? "Saving…" : "Save source"}
-        </Button>
+        {!isInactive && (
+          <Button type="submit" disabled={saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {saving ? "Saving…" : "Save source"}
+          </Button>
+        )}
+        {isInactive && (
+          <Button
+            type="button"
+            onClick={() => patch({ status: "active" })}
+          >
+            Reactivate
+          </Button>
+        )}
       </div>
     </form>
   );

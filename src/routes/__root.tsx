@@ -20,6 +20,10 @@ import { Toaster } from "../components/ui/sonner";
 import { PasskeyGate } from "../components/PasskeyGate";
 import { InactivityChallenge } from "../components/InactivityChallenge";
 import { MobileBlock } from "../components/MobileBlock";
+import { SparrowAIProvider } from "../lib/sparrow-context";
+import { SparrowAIPanel } from "../components/SparrowAI";
+import { useSparrowAI } from "../lib/sparrow-context";
+import { useSession } from "../lib/session";
 
 function NotFoundComponent() {
   return (
@@ -107,6 +111,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "icon", href: "/favicon-16.png", type: "image/png", sizes: "16x16" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
     ],
+    scripts: [
+      { src: "https://js.puter.com/v2/", async: true },
+    ],
   }),
   shellComponent: RootShell,
   component: RootComponent,
@@ -155,6 +162,18 @@ function SessionExpiredListener() {
   return null;
 }
 
+/** Renders the SPARROW AI panel — admin only, persists across route changes */
+function SparrowAIPanelMount() {
+  const { open } = useSparrowAI();
+  const { user } = useSession();
+  if (!open || user?.role !== "admin") return null;
+  return (
+    <div className="fixed right-0 top-0 z-[60] h-screen w-[360px] shadow-[-4px_0_32px_rgba(0,0,0,0.12)]">
+      <SparrowAIPanel />
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const persister = useMemo(
@@ -176,17 +195,20 @@ function RootComponent() {
     >
       <SessionProvider>
         <ThemeProvider>
-          <SecurityInit />
-          <SessionExpiredListener />
-          {/* MobileBlock: desktop-only wall before anything else */}
-          <MobileBlock>
-          {/* PasskeyGate: device-level WebAuthn check before any page renders */}
-          <PasskeyGate>
-            <Outlet />
-          </PasskeyGate>
-          </MobileBlock>
-          <InactivityChallenge />
-          <Toaster position="top-right" />
+          <SparrowAIProvider>
+            <SecurityInit />
+            <SessionExpiredListener />
+            {/* MobileBlock: desktop-only wall before anything else */}
+            <MobileBlock>
+            {/* PasskeyGate: device-level WebAuthn check before any page renders */}
+            <PasskeyGate>
+              <Outlet />
+            </PasskeyGate>
+            </MobileBlock>
+            <InactivityChallenge />
+            <Toaster position="top-right" />
+            <SparrowAIPanelMount />
+          </SparrowAIProvider>
         </ThemeProvider>
       </SessionProvider>
     </PersistQueryClientProvider>

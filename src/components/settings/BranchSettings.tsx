@@ -40,6 +40,7 @@ const EMPTY: Branch = {
   country: "",
   pin_code: "",
   branch_phone: "",
+  branch_email: "",
   mobile_number: "",
   email_address: "",
   manager_name: "",
@@ -194,6 +195,12 @@ export function BranchSettings() {
 
         <Section title="Contact">
           <Field label="Branch Phone" value={editing.branch_phone} onChange={set("branch_phone")} />
+          <Field
+            label="Branch Email"
+            type="email"
+            value={editing.branch_email ?? ""}
+            onChange={set("branch_email")}
+          />
           <Field
             label="Mobile Number"
             value={editing.mobile_number}

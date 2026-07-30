@@ -369,7 +369,8 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
             .lt("entry_date", end)
         ),
         db.from("contracts")
-          .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note"),
+          .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note")
+          .eq("status", "active"),
         db.from("branches").select("id,branch_name"),
         db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
         db.from("drivers").select("id,full_name,driver_code").order("full_name"),
@@ -444,7 +445,8 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
             .lt("entry_date", end)
         ),
         db.from("contracts")
-          .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note"),
+          .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note")
+          .eq("status", "active"),
         db.from("branches").select("id,branch_name"),
         db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
         db.from("drivers").select("id,full_name,driver_code").order("full_name"),
@@ -513,7 +515,8 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
           .lt("entry_date", end)
       ),
       db.from("contracts")
-        .select("fixed_monthly_charge,fixed_yearly_charge"),
+        .select("fixed_monthly_charge,fixed_yearly_charge")
+        .eq("status", "active"),
       db.from("locations").select("id,location_name,pin_code"),
     ]);
 
