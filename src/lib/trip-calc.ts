@@ -59,17 +59,19 @@ export function findEntry(entries: EntryLite[], m: ManifestLite): EntryLite | un
 }
 
 /**
- * Finds the matching slab: the last range whose start ≤ value (ranges sorted
- * ascending by start). This means:
- *   - ranges [0, 100, 500] with value 250  → matches "100" slab
- *   - ranges [0, 100, 500] with value 600  → matches "500" slab
- *   - value below the first slab start     → no match → 0 charge
+ * Finds the matching slab for a given value.
+ * A slab matches when:
+ *   - value >= start  (lower bound, inclusive)
+ *   - end is empty OR value <= end  (upper bound, inclusive; empty = open-ended ∞)
+ * When multiple slabs match, the one with the highest start wins.
  */
 function matchRouteRange(ranges: RouteRange[], value: number): RouteRange | undefined {
   const sorted = [...ranges].sort((a, b) => num(a.start) - num(b.start));
   let matched: RouteRange | undefined;
   for (const r of sorted) {
-    if (value >= num(r.start)) matched = r;
+    const startOk = value >= num(r.start);
+    const endOk   = !r.end || r.end.trim() === "" || value <= num(r.end);
+    if (startOk && endOk) matched = r;
   }
   return matched;
 }

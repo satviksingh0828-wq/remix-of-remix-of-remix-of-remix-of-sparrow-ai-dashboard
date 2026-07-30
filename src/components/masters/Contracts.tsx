@@ -277,9 +277,9 @@ function EntriesView({
     const nF = Math.max(3, entries.length > 0 ? Math.max(...entries.map((e) => (e.freight_route_ranges ?? []).length)) : 0);
     const nL = Math.max(3, entries.length > 0 ? Math.max(...entries.map((e) => (e.loading_route_ranges ?? []).length)) : 0);
     const cols: string[] = ["from_location", "from_pin_code", "to_location", "to_pin_code", "freight_range_type"];
-    for (let i = 1; i <= nF; i++) cols.push(`f_r${i}_start`, `f_r${i}_working`, `f_r${i}_value`);
+    for (let i = 1; i <= nF; i++) cols.push(`f_r${i}_start`, `f_r${i}_end`, `f_r${i}_working`, `f_r${i}_value`);
     cols.push("loading_range_type");
-    for (let i = 1; i <= nL; i++) cols.push(`l_r${i}_start`, `l_r${i}_working`, `l_r${i}_value`);
+    for (let i = 1; i <= nL; i++) cols.push(`l_r${i}_start`, `l_r${i}_end`, `l_r${i}_working`, `l_r${i}_value`);
     cols.push("per_manifest_amount", "per_manifest_note");
     return cols;
   }, [entries]);
@@ -366,6 +366,7 @@ function EntriesView({
         const working = (r[`f_r${i}_working`] ?? "rate").trim().toLowerCase();
         freight_route_ranges.push({
           start,
+          end: (r[`f_r${i}_end`] ?? "").trim(),
           working: working === "fixed" ? "fixed" : "rate",
           value: (r[`f_r${i}_value`] ?? "").trim(),
         });
@@ -379,6 +380,7 @@ function EntriesView({
         const working = (r[`l_r${i}_working`] ?? "rate").trim().toLowerCase();
         loading_route_ranges.push({
           start,
+          end: (r[`l_r${i}_end`] ?? "").trim(),
           working: working === "fixed" ? "fixed" : "rate",
           value: (r[`l_r${i}_value`] ?? "").trim(),
         });
@@ -421,12 +423,14 @@ function EntriesView({
     };
     (e.freight_route_ranges ?? []).forEach((r: RouteRange, i: number) => {
       row[`f_r${i + 1}_start`] = r.start;
+      row[`f_r${i + 1}_end`] = r.end ?? "";
       row[`f_r${i + 1}_working`] = r.working;
       row[`f_r${i + 1}_value`] = r.value;
     });
     row.loading_range_type = e.loading_route_range_type ?? "weight";
     (e.loading_route_ranges ?? []).forEach((r: RouteRange, i: number) => {
       row[`l_r${i + 1}_start`] = r.start;
+      row[`l_r${i + 1}_end`] = r.end ?? "";
       row[`l_r${i + 1}_working`] = r.working;
       row[`l_r${i + 1}_value`] = r.value;
     });

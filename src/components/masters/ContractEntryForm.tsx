@@ -76,9 +76,13 @@ function RouteRangeEditor({
 
   function addRange() {
     const last = ranges[ranges.length - 1];
-    // Suggest next start = last start + 1 so the user sees a sensible default
-    const nextStart = last ? String(Number(last.start || "0") + 1) : "0";
-    onRangesChange([...ranges, { start: nextStart, working: "rate", value: "" }]);
+    // Suggest next start = last end + 1 (or last start + 1) so user sees a sensible default
+    const nextStart = last
+      ? last.end && last.end.trim() !== ""
+        ? String(Number(last.end) + 1)
+        : String(Number(last.start || "0") + 1)
+      : "0";
+    onRangesChange([...ranges, { start: nextStart, end: "", working: "rate", value: "" }]);
   }
 
   function removeRange(i: number) {
@@ -86,31 +90,14 @@ function RouteRangeEditor({
   }
 
   // Helper: parse a slab start string to a number for sorting
-  const num = (s: string) => parseFloat(s) || 0;
-
-  // Build a map: original index → display "to" value, based on sorted start order.
-  // Both start (≥) and end (≤ next_start − 1) are inclusive for whole-number units.
-  const sortedByStart = [...ranges]
-    .map((r, origIdx) => ({ origIdx, startNum: num(r.start) }))
-    .sort((a, b) => a.startNum - b.startNum);
-  const toDisplay: Record<number, string> = {};
-  sortedByStart.forEach(({ origIdx }, sortedPos) => {
-    const next = sortedByStart[sortedPos + 1];
-    toDisplay[origIdx] = next
-      ? next.startNum > 0
-        ? String(next.startNum - 1)
-        : "—"
-      : "∞";
-  });
-
   return (
     <section className="surface-card p-6">
       <h3 className="text-sm font-semibold tracking-tight">{sectionLabel}</h3>
       <p className="mt-1 text-xs text-muted-foreground">
-        <span className="font-medium text-foreground">Both boundaries are inclusive</span>{" "}
-        — start (≥) and end (≤) are shown below.{" "}
-        End is computed automatically from the next slab's start.{" "}
-        The last slab has no upper limit (∞).{" "}
+        <span className="font-medium text-foreground">Both boundaries are inclusive.</span>{" "}
+        Enter the From (≥) and To (≤) values for each slab.{" "}
+        Leave <span className="font-medium text-foreground">To</span> blank for the last
+        open-ended slab (∞).{" "}
         <span className="font-medium text-foreground">Rate ×</span> multiplies charge by actual
         units.{" "}
         <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> is a
@@ -135,16 +122,16 @@ function RouteRangeEditor({
 
       {ranges.length > 0 && (
         <div className="mt-4 space-y-2">
-          {/* 5 cols: Start | To (computed) | Working | Value | Delete */}
-          <div className="grid grid-cols-[1fr_80px_96px_1fr_36px] gap-x-2 text-xs font-medium text-muted-foreground">
+          {/* 5 cols: From | To | Working | Value | Delete */}
+          <div className="grid grid-cols-[1fr_1fr_96px_1fr_36px] gap-x-2 text-xs font-medium text-muted-foreground">
             <span>From ({unit}) ≥</span>
-            <span className="text-center">To ({unit}) ≤</span>
+            <span>To ({unit}) ≤</span>
             <span className="text-center">Working</span>
             <span>Value</span>
             <span />
           </div>
           {ranges.map((r, i) => (
-            <div key={i} className="grid grid-cols-[1fr_80px_96px_1fr_36px] items-center gap-x-2">
+            <div key={i} className="grid grid-cols-[1fr_1fr_96px_1fr_36px] items-center gap-x-2">
               <Input
                 className="h-10"
                 type="number"
@@ -152,13 +139,14 @@ function RouteRangeEditor({
                 value={r.start}
                 onChange={(e) => update(i, { start: e.target.value })}
               />
-              {/* Computed upper bound — read-only */}
-              <div
-                className="flex h-10 items-center justify-center rounded-md border border-dashed border-border bg-muted/40 px-2 text-xs font-semibold text-muted-foreground"
-                title="Upper bound (inclusive) — auto-computed from next slab's start"
-              >
-                {toDisplay[i] ?? "∞"}
-              </div>
+              {/* Editable upper bound — blank = open-ended (∞) */}
+              <Input
+                className="h-10"
+                type="number"
+                placeholder="∞ (open)"
+                value={r.end ?? ""}
+                onChange={(e) => update(i, { end: e.target.value })}
+              />
               <button
                 type="button"
                 title={
