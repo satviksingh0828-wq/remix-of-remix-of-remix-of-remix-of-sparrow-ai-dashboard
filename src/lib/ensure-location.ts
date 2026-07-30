@@ -31,11 +31,12 @@ export async function ensureLocationForPin(pin: string): Promise<string | null> 
   const result = await lookupIndiaPin(p);
   if (!result) return null;
 
-  // Insert silently using district as the location name
+  // Insert silently using the specific post-office name (e.g. "Andheri East H.O")
+  // rather than the district (e.g. "Mumbai") — post-office names are unique delivery areas.
   const { data, error } = await supabase
     .from("locations")
     .insert({
-      location_name: result.district,
+      location_name: result.postOffices[0] || result.district,
       location_type: "Domestic",
       city: result.district,
       district: result.district,

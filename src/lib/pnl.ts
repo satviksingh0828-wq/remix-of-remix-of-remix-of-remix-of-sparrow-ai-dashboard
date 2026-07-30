@@ -260,12 +260,12 @@ async function fetchActiveTrips(db: any, start: string, end: string): Promise<Pn
       : Promise.resolve({ data: [] }),
     contractIds.length > 0
       ? db.from("contracts")
-          .select("id,freight_basis,loading_basis,weight_ranges,weight_ranges_2,quantity_ranges,quantity_ranges_2,freight_weight_set,loading_weight_set")
+          .select("id,contract_name,company_name,gstin,fixed_monthly_charge,fixed_yearly_charge")
           .in("id", contractIds)
       : Promise.resolve({ data: [] }),
     contractIds.length > 0
       ? db.from("contract_entries")
-          .select("contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_values,loading_values,freight_charge_types,loading_charge_types,per_manifest_amount")
+          .select("contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_route_range_type,freight_route_ranges,loading_route_range_type,loading_route_ranges,per_manifest_amount")
           .in("contract_id", contractIds)
       : Promise.resolve({ data: [] }),
   ]);

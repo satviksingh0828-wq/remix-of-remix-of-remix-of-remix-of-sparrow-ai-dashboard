@@ -1356,8 +1356,6 @@ function ContractDetails({
     ["Contract name", contract.contract_name],
     ["Company", String(contract.company_name ?? "")],
     ["GSTIN", String(contract.gstin ?? "")],
-    ["Freight basis", contract.freight_basis],
-    ["Loading basis", contract.loading_basis],
     ["Rate entries (routes)", String(entryCount)],
     ...(monthlyEquivalent > 0
       ? ([["Monthly fixed cost", inr(monthlyEquivalent)]] as [string, string][])

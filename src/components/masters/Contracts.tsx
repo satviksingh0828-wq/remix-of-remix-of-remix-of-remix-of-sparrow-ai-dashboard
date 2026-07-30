@@ -5,8 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CsvIO } from "@/components/CsvIO";
-import { rangeKey, rangeLabel, basisRanges, basisUnit } from "@/lib/contract-ranges";
-import type { Range } from "@/lib/contract-ranges";
+import type { RouteRange } from "@/lib/contract-ranges";
 import { fetchAll } from "@/lib/fetch-all";
 import { ensureLocationsForPins } from "@/lib/ensure-location";
 import { logAction } from "@/lib/log-actions";
@@ -21,14 +20,6 @@ import { useSession } from "@/lib/session";
 
 const CONTRACT_COLUMNS = [
   "contract_name",
-  "weight_ranges",
-  "weight_ranges_2",
-  "quantity_ranges",
-  "quantity_ranges_2",
-  "freight_basis",
-  "loading_basis",
-  "freight_weight_set",
-  "loading_weight_set",
   "fixed_monthly_charge",
   "fixed_monthly_charge_note",
   "fixed_yearly_charge",
@@ -101,19 +92,6 @@ export function Contracts() {
       .map((r) => {
         const o: Record<string, unknown> = {};
         for (const k of CONTRACT_COLUMNS) o[k] = r[k] ?? "";
-        // parse json range columns
-        try {
-          o.weight_ranges = r.weight_ranges ? JSON.parse(r.weight_ranges) : [];
-        } catch {
-          o.weight_ranges = [];
-        }
-        try {
-          o.quantity_ranges = r.quantity_ranges ? JSON.parse(r.quantity_ranges) : [];
-        } catch {
-          o.quantity_ranges = [];
-        }
-        o.freight_basis = (r.freight_basis || "weight").trim() || "weight";
-        o.loading_basis = (r.loading_basis || "weight").trim() || "weight";
         o.fixed_monthly_charge = r.fixed_monthly_charge ? Number(r.fixed_monthly_charge) : 0;
         o.fixed_yearly_charge = r.fixed_yearly_charge ? Number(r.fixed_yearly_charge) : 0;
         return o;
@@ -131,11 +109,7 @@ export function Contracts() {
     return { inserted: count ?? payload.length, failed: rows.length - payload.length };
   }
 
-  const exportRows = contracts.map((c) => ({
-    ...c,
-    weight_ranges: JSON.stringify(c.weight_ranges ?? []),
-    quantity_ranges: JSON.stringify(c.quantity_ranges ?? []),
-  })) as Record<string, unknown>[];
+  const exportRows = contracts as Record<string, unknown>[];
 
   if (view.kind === "new-contract") {
     return (
@@ -236,9 +210,7 @@ export function Contracts() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{c.contract_name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  Freight: {c.freight_basis} · Loading: {c.loading_basis} ·{" "}
-                  {(c.weight_ranges as Range[])?.length ?? 0} weight slabs ·{" "}
-                  {(c.quantity_ranges as Range[])?.length ?? 0} qty slabs
+                  Per-route rate slabs
                   {Number(c.fixed_monthly_charge) > 0 || Number(c.fixed_yearly_charge) > 0
                     ? " · Has fixed charges"
                     : ""}
@@ -301,30 +273,16 @@ function EntriesView({
   const [loading, setLoading] = useState(true);
   const [locNames, setLocNames] = useState<Record<string, string>>({});
 
-  const freightRanges = basisRanges(contract, contract.freight_basis);
-  const loadingRanges = basisRanges(contract, contract.loading_basis);
-  const freightUnit = basisUnit(contract.freight_basis);
-  const loadingUnit = basisUnit(contract.loading_basis);
-
   const entryColumns = useMemo(() => {
-    const freightCols = freightRanges.map((r) => `freight_${rangeKey(r)}`);
-    // charge-type columns: one per freight slab, e.g. freight_ct_0-100 → "rate" or "fixed"
-    const freightCtCols = freightRanges.map((r) => `freight_ct_${rangeKey(r)}`);
-    const loadingCols = loadingRanges.map((r) => `loading_${rangeKey(r)}`);
-    const loadingCtCols = loadingRanges.map((r) => `loading_ct_${rangeKey(r)}`);
-    return [
-      "from_location",
-      "from_pin_code",
-      "to_location",
-      "to_pin_code",
-      ...freightCols,
-      ...freightCtCols,
-      ...loadingCols,
-      ...loadingCtCols,
-      "per_manifest_amount",
-      "per_manifest_note",
-    ];
-  }, [freightRanges, loadingRanges]);
+    const nF = Math.max(3, entries.length > 0 ? Math.max(...entries.map((e) => (e.freight_route_ranges ?? []).length)) : 0);
+    const nL = Math.max(3, entries.length > 0 ? Math.max(...entries.map((e) => (e.loading_route_ranges ?? []).length)) : 0);
+    const cols: string[] = ["from_location", "from_pin_code", "to_location", "to_pin_code", "freight_range_type"];
+    for (let i = 1; i <= nF; i++) cols.push(`f_r${i}_start`, `f_r${i}_working`, `f_r${i}_value`);
+    cols.push("loading_range_type");
+    for (let i = 1; i <= nL; i++) cols.push(`l_r${i}_start`, `l_r${i}_working`, `l_r${i}_value`);
+    cols.push("per_manifest_amount", "per_manifest_note");
+    return cols;
+  }, [entries]);
 
   async function load() {
     setLoading(true);
@@ -399,25 +357,32 @@ function EntriesView({
     };
 
     const payload = rows.map((r) => {
-      const freight_values: Record<string, string> = {};
-      const freight_charge_types: Record<string, string> = {};
-      freightRanges.forEach((rg) => {
-        const k = rangeKey(rg);
-        const v = r[`freight_${k}`];
-        if (v !== undefined && v !== "") freight_values[k] = v;
-        // Import per-slab charge type: column freight_ct_<key> → "rate" | "fixed"
-        const ct = (r[`freight_ct_${k}`] ?? "").trim().toLowerCase();
-        if (ct === "rate" || ct === "fixed") freight_charge_types[k] = ct;
-      });
-      const loading_values: Record<string, string> = {};
-      const loading_charge_types: Record<string, string> = {};
-      loadingRanges.forEach((rg) => {
-        const k = rangeKey(rg);
-        const v = r[`loading_${k}`];
-        if (v !== undefined && v !== "") loading_values[k] = v;
-        const ct = (r[`loading_ct_${k}`] ?? "").trim().toLowerCase();
-        if (ct === "rate" || ct === "fixed") loading_charge_types[k] = ct;
-      });
+      const freight_route_range_type =
+        (r.freight_range_type ?? "weight").trim().toLowerCase() === "quantity" ? "quantity" : "weight";
+      const freight_route_ranges: RouteRange[] = [];
+      for (let i = 1; i <= 20; i++) {
+        const start = (r[`f_r${i}_start`] ?? "").trim();
+        if (!start) break;
+        const working = (r[`f_r${i}_working`] ?? "rate").trim().toLowerCase();
+        freight_route_ranges.push({
+          start,
+          working: working === "fixed" ? "fixed" : "rate",
+          value: (r[`f_r${i}_value`] ?? "").trim(),
+        });
+      }
+      const loading_route_range_type =
+        (r.loading_range_type ?? "weight").trim().toLowerCase() === "quantity" ? "quantity" : "weight";
+      const loading_route_ranges: RouteRange[] = [];
+      for (let i = 1; i <= 20; i++) {
+        const start = (r[`l_r${i}_start`] ?? "").trim();
+        if (!start) break;
+        const working = (r[`l_r${i}_working`] ?? "rate").trim().toLowerCase();
+        loading_route_ranges.push({
+          start,
+          working: working === "fixed" ? "fixed" : "rate",
+          value: (r[`l_r${i}_value`] ?? "").trim(),
+        });
+      }
       const from = resolve(r.from_location ?? "", r.from_pin_code ?? "");
       const to = resolve(r.to_location ?? "", r.to_pin_code ?? "");
       return {
@@ -426,10 +391,10 @@ function EntriesView({
         to_location_id: to.id,
         from_pin_code: from.pin,
         to_pin_code: to.pin,
-        freight_values,
-        freight_charge_types,
-        loading_values,
-        loading_charge_types,
+        freight_route_range_type,
+        freight_route_ranges,
+        loading_route_range_type,
+        loading_route_ranges,
         per_manifest_amount: r.per_manifest_amount ?? "",
         per_manifest_note: r.per_manifest_note ?? "",
       };
@@ -447,27 +412,26 @@ function EntriesView({
   }
 
   const exportRows = entries.map((e) => {
-    const fct = (e as EntryRow).freight_charge_types ?? {};
-    const lct = (e as EntryRow).loading_charge_types ?? {};
     const row: Record<string, unknown> = {
       from_location: e.from_location_id ? locNames[e.from_location_id] ?? "" : "",
       from_pin_code: e.from_pin_code,
       to_location: e.to_location_id ? locNames[e.to_location_id] ?? "" : "",
       to_pin_code: e.to_pin_code,
-      per_manifest_amount: e.per_manifest_amount,
-      per_manifest_note: e.per_manifest_note,
+      freight_range_type: e.freight_route_range_type ?? "weight",
     };
-    freightRanges.forEach((r) => {
-      const k = rangeKey(r);
-      row[`freight_${k}`] = (e.freight_values ?? {})[k] ?? "";
-      // Export the effective charge type for this slab: entry override or contract default
-      row[`freight_ct_${k}`] = fct[k] ?? r.charge_type ?? "rate";
+    (e.freight_route_ranges ?? []).forEach((r: RouteRange, i: number) => {
+      row[`f_r${i + 1}_start`] = r.start;
+      row[`f_r${i + 1}_working`] = r.working;
+      row[`f_r${i + 1}_value`] = r.value;
     });
-    loadingRanges.forEach((r) => {
-      const k = rangeKey(r);
-      row[`loading_${k}`] = (e.loading_values ?? {})[k] ?? "";
-      row[`loading_ct_${k}`] = lct[k] ?? r.charge_type ?? "rate";
+    row.loading_range_type = e.loading_route_range_type ?? "weight";
+    (e.loading_route_ranges ?? []).forEach((r: RouteRange, i: number) => {
+      row[`l_r${i + 1}_start`] = r.start;
+      row[`l_r${i + 1}_working`] = r.working;
+      row[`l_r${i + 1}_value`] = r.value;
     });
+    row.per_manifest_amount = e.per_manifest_amount;
+    row.per_manifest_note = e.per_manifest_note;
     return row;
   });
 
@@ -510,9 +474,6 @@ function EntriesView({
             <h2 className="text-lg font-semibold tracking-tight">
               {contract.contract_name}
             </h2>
-            <p className="text-xs text-muted-foreground">
-              Freight: {contract.freight_basis} · Loading: {contract.loading_basis}
-            </p>
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -555,11 +516,9 @@ function EntriesView({
           {entries.map((e, i) => {
             const from = e.from_location_id ? locNames[e.from_location_id] : "";
             const to = e.to_location_id ? locNames[e.to_location_id] : "";
-            const firstFreight = freightRanges[0];
-            const preview = firstFreight
-              ? `${rangeLabel(firstFreight, freightUnit)}: ${
-                  (e.freight_values ?? {})[rangeKey(firstFreight)] ?? "—"
-                }`
+            const fr = (e.freight_route_ranges ?? [])[0];
+            const preview = fr
+              ? `${e.freight_route_range_type ?? "weight"} · ≥${fr.start}: ${fr.value || "—"} (${fr.working})`
               : "";
             return (
               <li

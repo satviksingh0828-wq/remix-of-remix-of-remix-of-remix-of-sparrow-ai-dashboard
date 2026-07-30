@@ -688,8 +688,6 @@ function SourcesView({
               ["Source name", name],
               ["Company", String(src.company_name ?? "")],
               ["GSTIN", String(src.gstin ?? "")],
-              ["Freight basis", String(src.freight_basis ?? "")],
-              ["Loading basis", String(src.loading_basis ?? "")],
             ] as [string, string][]
           ).filter(([, v]) => v.trim() !== "");
           return (
@@ -717,8 +715,6 @@ function SourcesView({
         ["Source name", String(contract.contract_name ?? contract.source_name ?? "")],
         ["Company", String(contract.company_name ?? "")],
         ["GSTIN", String(contract.gstin ?? "")],
-        ["Freight basis", String(contract.freight_basis ?? "")],
-        ["Loading basis", String(contract.loading_basis ?? "")],
       ] as [string, string][]
     ).filter(([, v]) => v.trim() !== "");
 

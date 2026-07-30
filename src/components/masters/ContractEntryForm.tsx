@@ -1,14 +1,20 @@
 import { useState } from "react";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LocationPinPair } from "@/components/LocationPinPair";
-import { basisRanges, basisUnit, rangeBoundsNote, rangeKey, rangeLabel } from "@/lib/contract-ranges";
-import type { ChargeType } from "@/lib/contract-ranges";
+import type { RouteRange } from "@/lib/contract-ranges";
 import type { ContractRow } from "./ContractForm";
 
 export type EntryRow = {
@@ -18,12 +24,14 @@ export type EntryRow = {
   to_location_id: string | null;
   from_pin_code: string;
   to_pin_code: string;
-  freight_values: Record<string, string>;
-  loading_values: Record<string, string>;
-  /** Per-slab charge type overrides for freight (route-wise). Missing keys fall back to contract range charge_type. */
-  freight_charge_types: Record<string, string>;
-  /** Per-slab charge type overrides for loading (route-wise). Missing keys fall back to contract range charge_type. */
-  loading_charge_types: Record<string, string>;
+  /** "weight" or "quantity" — applies to all freight range slabs on this route */
+  freight_route_range_type: "weight" | "quantity";
+  /** Ordered list of freight slabs; start is inclusive lower bound */
+  freight_route_ranges: RouteRange[];
+  /** "weight" or "quantity" — applies to all loading range slabs on this route */
+  loading_route_range_type: "weight" | "quantity";
+  /** Ordered list of loading slabs */
+  loading_route_ranges: RouteRange[];
   per_manifest_amount: string;
   per_manifest_note: string;
 };
@@ -35,121 +43,134 @@ export function emptyEntry(contract_id: string): EntryRow {
     to_location_id: null,
     from_pin_code: "",
     to_pin_code: "",
-    freight_values: {},
-    loading_values: {},
-    freight_charge_types: {},
-    loading_charge_types: {},
+    freight_route_range_type: "weight",
+    freight_route_ranges: [],
+    loading_route_range_type: "weight",
+    loading_route_ranges: [],
     per_manifest_amount: "",
     per_manifest_note: "",
   };
 }
 
-function AmountNote({
-  title,
-  amount,
-  note,
-  onAmount,
-  onNote,
+/** Editable list of per-route slabs for one charge type (freight or loading). */
+function RouteRangeEditor({
+  sectionLabel,
+  rangeType,
+  ranges,
+  onRangeTypeChange,
+  onRangesChange,
 }: {
-  title: string;
-  amount: string;
-  note: string;
-  onAmount: (v: string) => void;
-  onNote: (v: string) => void;
+  sectionLabel: string;
+  rangeType: "weight" | "quantity";
+  ranges: RouteRange[];
+  onRangeTypeChange: (t: "weight" | "quantity") => void;
+  onRangesChange: (r: RouteRange[]) => void;
 }) {
+  const unit = rangeType === "weight" ? "kg" : "qty";
+
+  function update(i: number, patch: Partial<RouteRange>) {
+    const next = ranges.slice();
+    next[i] = { ...next[i], ...patch };
+    onRangesChange(next);
+  }
+
+  function addRange() {
+    const last = ranges[ranges.length - 1];
+    // Suggest next start = last start + 1 so the user sees a sensible default
+    const nextStart = last ? String(Number(last.start || "0") + 1) : "0";
+    onRangesChange([...ranges, { start: nextStart, working: "rate", value: "" }]);
+  }
+
+  function removeRange(i: number) {
+    onRangesChange(ranges.filter((_, j) => j !== i));
+  }
+
   return (
     <section className="surface-card p-6">
-      <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
-      <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium text-muted-foreground">Amount</Label>
-          <Input
-            type="number"
-            className="h-10"
-            value={amount}
-            onChange={(e) => onAmount(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label className="text-xs font-medium text-muted-foreground">Note</Label>
-          <Textarea
-            rows={2}
-            value={note}
-            onChange={(e) => onNote(e.target.value)}
-          />
-        </div>
-      </div>
-    </section>
-  );
-}
+      <h3 className="text-sm font-semibold tracking-tight">{sectionLabel}</h3>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Each slab starts at the given value (inclusive). The last slab has no upper limit.{" "}
+        <span className="font-medium text-foreground">Rate ×</span> multiplies the charge by
+        actual units.{" "}
+        <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> is a
+        flat amount regardless of units.
+      </p>
 
-/** Renders one slab row: label, Rate×/Fixed₹ toggle, amount input */
-function SlabInput({
-  label,
-  boundsNote,
-  unit,
-  contractChargeType,
-  entryChargeType,
-  value,
-  onChargeType,
-  onValue,
-}: {
-  label: string;
-  boundsNote: string;
-  unit: string;
-  contractChargeType: ChargeType;
-  entryChargeType: ChargeType | undefined;
-  value: string;
-  onChargeType: (ct: ChargeType) => void;
-  onValue: (v: string) => void;
-}) {
-  // Entry override takes priority; fall back to contract default
-  const effective: ChargeType = entryChargeType ?? contractChargeType;
-  const isFixed = effective === "fixed";
-  const isOverridden = entryChargeType !== undefined && entryChargeType !== contractChargeType;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2 flex-wrap">
-        <Label className="text-xs font-medium text-muted-foreground">
-          {label}
-        </Label>
-        <button
-          type="button"
-          title={
-            isFixed
-              ? "Fixed ₹: flat charge for this slab — amount is NOT multiplied by units. Click to switch to Rate ×."
-              : "Rate ×: amount is multiplied by weight / quantity. Click to switch to Fixed ₹."
-          }
-          onClick={() => onChargeType(isFixed ? "rate" : "fixed")}
-          className={`h-6 rounded px-2 text-[10px] font-semibold transition-colors border ${
-            isFixed
-              ? "border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-300"
-              : "border-border bg-muted text-muted-foreground hover:text-foreground"
-          } ${isOverridden ? "ring-1 ring-blue-400" : ""}`}
+      <div className="mt-4 space-y-1.5">
+        <Label className="text-xs font-medium text-muted-foreground">Range type</Label>
+        <Select
+          value={rangeType}
+          onValueChange={(v) => onRangeTypeChange(v as "weight" | "quantity")}
         >
-          {isFixed ? "Fixed ₹" : "Rate ×"}
-          {isOverridden ? " (custom)" : ""}
-        </button>
-        {isOverridden && (
-          <button
-            type="button"
-            className="text-[10px] text-muted-foreground underline hover:text-foreground"
-            onClick={() => onChargeType(contractChargeType)}
-          >
-            reset to contract default
-          </button>
-        )}
+          <SelectTrigger className="h-10 w-44">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="weight">Weight (kg)</SelectItem>
+            <SelectItem value="quantity">Quantity</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
-      <p className="text-[10px] text-muted-foreground/70">{boundsNote}</p>
-      <Input
-        type="number"
-        className="h-10"
-        placeholder={isFixed ? "Flat charge (₹)" : `Rate per ${unit}`}
-        value={value}
-        onChange={(e) => onValue(e.target.value)}
-      />
-    </div>
+
+      {ranges.length > 0 && (
+        <div className="mt-4 space-y-2">
+          <div className="grid grid-cols-[1fr_96px_1fr_36px] gap-x-2 text-xs font-medium text-muted-foreground">
+            <span>Start ({unit})</span>
+            <span className="text-center">Working</span>
+            <span>Value</span>
+            <span />
+          </div>
+          {ranges.map((r, i) => (
+            <div key={i} className="grid grid-cols-[1fr_96px_1fr_36px] items-center gap-x-2">
+              <Input
+                className="h-10"
+                type="number"
+                placeholder="e.g. 0"
+                value={r.start}
+                onChange={(e) => update(i, { start: e.target.value })}
+              />
+              <button
+                type="button"
+                title={
+                  r.working === "fixed"
+                    ? "Fixed ₹: flat charge, NOT multiplied by units. Click to switch to Rate ×."
+                    : "Rate ×: charge × actual units. Click to switch to Fixed ₹."
+                }
+                onClick={() => update(i, { working: r.working === "fixed" ? "rate" : "fixed" })}
+                className={`h-10 rounded-md border px-2 text-xs font-semibold transition-colors ${
+                  r.working === "fixed"
+                    ? "border-amber-400 bg-amber-50 text-amber-700 dark:border-amber-500 dark:bg-amber-950 dark:text-amber-300"
+                    : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {r.working === "fixed" ? "Fixed ₹" : "Rate ×"}
+              </button>
+              <Input
+                className="h-10"
+                type="number"
+                placeholder={r.working === "fixed" ? "Flat ₹" : `Per ${unit}`}
+                value={r.value}
+                onChange={(e) => update(i, { value: e.target.value })}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="size-10 p-0"
+                onClick={() => removeRange(i)}
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button type="button" variant="outline" size="sm" className="mt-4" onClick={addRange}>
+        <Plus className="size-4" />
+        Add range
+      </Button>
+    </section>
   );
 }
 
@@ -164,17 +185,8 @@ export function ContractEntryForm({
   onCancel: () => void;
   onSaved: () => void;
 }) {
-  const [form, setForm] = useState<EntryRow>({
-    ...initial,
-    freight_charge_types: initial.freight_charge_types ?? {},
-    loading_charge_types: initial.loading_charge_types ?? {},
-  });
+  const [form, setForm] = useState<EntryRow>({ ...initial });
   const [saving, setSaving] = useState(false);
-
-  const freightRanges = basisRanges(contract, contract.freight_basis, "freight");
-  const freightUnit = basisUnit(contract.freight_basis);
-  const loadingRanges = basisRanges(contract, contract.loading_basis, "loading");
-  const loadingUnit = basisUnit(contract.loading_basis);
 
   const patch = (p: Partial<EntryRow>) => setForm((f) => ({ ...f, ...p }));
 
@@ -201,6 +213,9 @@ export function ContractEntryForm({
         </Button>
         <h2 className="text-lg font-semibold tracking-tight">
           {form.id ? "Edit entry" : "New entry"}
+          <span className="ml-2 text-sm font-normal text-muted-foreground">
+            — {contract.contract_name}
+          </span>
         </h2>
       </div>
 
@@ -226,99 +241,44 @@ export function ContractEntryForm({
         </div>
       </section>
 
-      <section className="surface-card p-6">
-        <h3 className="text-sm font-semibold tracking-tight">
-          Freight ({contract.freight_basis})
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Each slab can independently be{" "}
-          <span className="font-medium text-foreground">Rate ×</span> (multiplied by actual{" "}
-          {contract.freight_basis}) or{" "}
-          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span> (flat
-          charge). The default comes from the contract; you can override it per route here.
-          Overridden slabs show a blue ring and a reset link.
-        </p>
-        <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-          {freightRanges.map((r) => {
-            const key = rangeKey(r);
-            const contractCt: ChargeType = r.charge_type ?? "rate";
-            const entryCt = form.freight_charge_types[key] as ChargeType | undefined;
-            return (
-              <SlabInput
-                key={`f-${key}`}
-                label={rangeLabel(r, freightUnit)}
-                boundsNote={rangeBoundsNote(r, freightUnit)}
-                unit={freightUnit}
-                contractChargeType={contractCt}
-                entryChargeType={entryCt}
-                value={form.freight_values[key] ?? ""}
-                onChargeType={(ct) => {
-                  const next = { ...form.freight_charge_types };
-                  if (ct === contractCt) {
-                    delete next[key]; // back to contract default — remove override
-                  } else {
-                    next[key] = ct;
-                  }
-                  patch({ freight_charge_types: next });
-                }}
-                onValue={(v) =>
-                  patch({ freight_values: { ...form.freight_values, [key]: v } })
-                }
-              />
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="surface-card p-6">
-        <h3 className="text-sm font-semibold tracking-tight">
-          Loading charges ({contract.loading_basis})
-        </h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Each slab can independently be{" "}
-          <span className="font-medium text-foreground">Rate ×</span> or{" "}
-          <span className="font-medium text-amber-700 dark:text-amber-300">Fixed ₹</span>. Default
-          from contract; override per route here.
-        </p>
-        <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
-          {loadingRanges.map((r) => {
-            const key = rangeKey(r);
-            const contractCt: ChargeType = r.charge_type ?? "rate";
-            const entryCt = form.loading_charge_types[key] as ChargeType | undefined;
-            return (
-              <SlabInput
-                key={`l-${key}`}
-                label={rangeLabel(r, loadingUnit)}
-                boundsNote={rangeBoundsNote(r, loadingUnit)}
-                unit={loadingUnit}
-                contractChargeType={contractCt}
-                entryChargeType={entryCt}
-                value={form.loading_values[key] ?? ""}
-                onChargeType={(ct) => {
-                  const next = { ...form.loading_charge_types };
-                  if (ct === contractCt) {
-                    delete next[key];
-                  } else {
-                    next[key] = ct;
-                  }
-                  patch({ loading_charge_types: next });
-                }}
-                onValue={(v) =>
-                  patch({ loading_values: { ...form.loading_values, [key]: v } })
-                }
-              />
-            );
-          })}
-        </div>
-      </section>
-
-      <AmountNote
-        title="Per manifest change"
-        amount={form.per_manifest_amount}
-        note={form.per_manifest_note}
-        onAmount={(v) => patch({ per_manifest_amount: v })}
-        onNote={(v) => patch({ per_manifest_note: v })}
+      <RouteRangeEditor
+        sectionLabel="Freight ranges"
+        rangeType={form.freight_route_range_type}
+        ranges={form.freight_route_ranges}
+        onRangeTypeChange={(t) => patch({ freight_route_range_type: t })}
+        onRangesChange={(r) => patch({ freight_route_ranges: r })}
       />
+
+      <RouteRangeEditor
+        sectionLabel="Loading ranges"
+        rangeType={form.loading_route_range_type}
+        ranges={form.loading_route_ranges}
+        onRangeTypeChange={(t) => patch({ loading_route_range_type: t })}
+        onRangesChange={(r) => patch({ loading_route_ranges: r })}
+      />
+
+      <section className="surface-card p-6">
+        <h3 className="text-sm font-semibold tracking-tight">Per manifest charge</h3>
+        <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Amount</Label>
+            <Input
+              type="number"
+              className="h-10"
+              value={form.per_manifest_amount}
+              onChange={(e) => patch({ per_manifest_amount: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-xs font-medium text-muted-foreground">Note</Label>
+            <Textarea
+              rows={2}
+              value={form.per_manifest_note}
+              onChange={(e) => patch({ per_manifest_note: e.target.value })}
+            />
+          </div>
+        </div>
+      </section>
 
       <div className="flex justify-end gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>

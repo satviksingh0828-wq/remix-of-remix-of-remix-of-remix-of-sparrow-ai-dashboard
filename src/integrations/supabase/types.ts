@@ -318,13 +318,13 @@ export type Database = {
         Row: {
           contract_id: string
           created_at: string
-          freight_charge_types: Json
-          freight_values: Json
+          freight_route_range_type: string
+          freight_route_ranges: Json
           from_location_id: string | null
           from_pin_code: string | null
           id: string
-          loading_charge_types: Json
-          loading_values: Json
+          loading_route_range_type: string
+          loading_route_ranges: Json
           monthly_change_amount: string | null
           monthly_change_note: string | null
           per_manifest_amount: string | null
@@ -338,13 +338,13 @@ export type Database = {
         Insert: {
           contract_id: string
           created_at?: string
-          freight_charge_types?: Json
-          freight_values?: Json
+          freight_route_range_type?: string
+          freight_route_ranges?: Json
           from_location_id?: string | null
           from_pin_code?: string | null
           id?: string
-          loading_charge_types?: Json
-          loading_values?: Json
+          loading_route_range_type?: string
+          loading_route_ranges?: Json
           monthly_change_amount?: string | null
           monthly_change_note?: string | null
           per_manifest_amount?: string | null
@@ -358,13 +358,13 @@ export type Database = {
         Update: {
           contract_id?: string
           created_at?: string
-          freight_charge_types?: Json
-          freight_values?: Json
+          freight_route_range_type?: string
+          freight_route_ranges?: Json
           from_location_id?: string | null
           from_pin_code?: string | null
           id?: string
-          loading_charge_types?: Json
-          loading_values?: Json
+          loading_route_range_type?: string
+          loading_route_ranges?: Json
           monthly_change_amount?: string | null
           monthly_change_note?: string | null
           per_manifest_amount?: string | null
@@ -411,13 +411,11 @@ export type Database = {
           country: string | null
           created_at: string
           email: string | null
-          freight_basis: string
           gstin: string | null
           id: string
           iec: string | null
           industry: string | null
           legal_business_name: string | null
-          loading_basis: string
           mobile_number: string | null
           msme_udyam: string | null
           pan: string | null
@@ -426,13 +424,11 @@ export type Database = {
           fixed_monthly_charge_note: string
           fixed_yearly_charge: number
           fixed_yearly_charge_note: string
-          quantity_ranges: Json
           state: string | null
           tan: string | null
           telephone_number: string | null
           updated_at: string
           website: string | null
-          weight_ranges: Json
         }
         Insert: {
           address_line1?: string | null
@@ -449,24 +445,20 @@ export type Database = {
           fixed_monthly_charge_note?: string
           fixed_yearly_charge?: number
           fixed_yearly_charge_note?: string
-          freight_basis?: string
           gstin?: string | null
           id?: string
           iec?: string | null
           industry?: string | null
           legal_business_name?: string | null
-          loading_basis?: string
           mobile_number?: string | null
           msme_udyam?: string | null
           pan?: string | null
           pin_code?: string | null
-          quantity_ranges?: Json
           state?: string | null
           tan?: string | null
           telephone_number?: string | null
           updated_at?: string
           website?: string | null
-          weight_ranges?: Json
         }
         Update: {
           address_line1?: string | null
@@ -483,24 +475,20 @@ export type Database = {
           fixed_monthly_charge_note?: string
           fixed_yearly_charge?: number
           fixed_yearly_charge_note?: string
-          freight_basis?: string
           gstin?: string | null
           id?: string
           iec?: string | null
           industry?: string | null
           legal_business_name?: string | null
-          loading_basis?: string
           mobile_number?: string | null
           msme_udyam?: string | null
           pan?: string | null
           pin_code?: string | null
-          quantity_ranges?: Json
           state?: string | null
           tan?: string | null
           telephone_number?: string | null
           updated_at?: string
           website?: string | null
-          weight_ranges?: Json
         }
         Relationships: []
       }
