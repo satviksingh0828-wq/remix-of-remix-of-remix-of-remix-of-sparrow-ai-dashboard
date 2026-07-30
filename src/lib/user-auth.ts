@@ -55,7 +55,8 @@ export type SaveUserInput = {
 
 export type SignInResult =
   | { ok: true; user: SessionUser }
-  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "already_logged_in" | "account_paused"; message: string };
+  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "already_logged_in"; message: string }
+  | { ok: false; reason: "account_paused"; message: string; role: "admin" | "basic" };
 
 export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: {
@@ -105,13 +106,14 @@ export const serverSignIn = createServerFn({ method: "POST" })
       return { ok: false, reason: "invalid_credentials", message: "Invalid login ID or password." };
     }
 
-    // ── 3a. Paused account check ───────────────────────────────────────────────
+    // ── 3a. Paused account check — block BEFORE password, no hints ────────────
     if (user.is_paused) {
       console.warn("[serverSignIn] Blocked: account is paused:", data.username.trim().toLowerCase());
       return {
         ok: false,
         reason: "account_paused",
-        message: "Your account has been paused after too many failed login attempts. Please contact your administrator to restore access.",
+        message: "Your account has been locked.",
+        role: user.role as "admin" | "basic",
       };
     }
 
@@ -533,6 +535,118 @@ export const serverSaveUser = createServerFn({ method: "POST" })
     }
 
     return { id: userId! };
+  });
+
+// ── Request OTP to unlock a paused admin account (self-service on login page) ─
+// Generates a new 6-char code, stores it + timestamp, emails it.
+// Rate-limited: one code per 2 minutes to prevent spam.
+
+export const serverRequestUnpauseOtp = createServerFn({ method: "POST" })
+  .validator((username: string) => username)
+  .handler(async ({ data: username }): Promise<{ ok: boolean; error?: string; retryAfterSeconds?: number }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: user } = await supabaseAdmin
+      .from("app_users")
+      .select("id, username, role, is_paused, otp_sent_at")
+      .eq("username", username.trim().toLowerCase())
+      .eq("is_active", true)
+      .maybeSingle();
+
+    // Generic error — reveal nothing about whether account/username exists
+    if (!user || !(user.is_paused as boolean) || (user.role as string) !== "admin") {
+      return { ok: false, error: "Unable to send code. Contact support if the problem persists." };
+    }
+
+    // Rate-limit: 2-minute cooldown per send
+    const COOLDOWN_MS = 2 * 60 * 1000;
+    if (user.otp_sent_at) {
+      const elapsed = Date.now() - new Date(user.otp_sent_at as string).getTime();
+      if (elapsed < COOLDOWN_MS) {
+        const retryAfterSeconds = Math.ceil((COOLDOWN_MS - elapsed) / 1000);
+        return { ok: false, error: "Please wait before requesting another code.", retryAfterSeconds };
+      }
+    }
+
+    // Generate + store code and timestamp
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+    await supabaseAdmin
+      .from("app_users")
+      .update({ unpause_code: code, otp_sent_at: new Date().toISOString() })
+      .eq("id", user.id as string);
+
+    // Send email
+    const apiKey    = process.env.RESEND_API_KEY;
+    const toEmail   = process.env.ADMIN_ALERT_EMAIL;
+    const fromEmail = process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev";
+    if (apiKey && toEmail) {
+      fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          from: fromEmail,
+          to: [toEmail],
+          subject: "Your account unlock code — Garuda Logistics",
+          html: `
+<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+  <h2 style="color:#b45309">🔓 Account unlock code</h2>
+  <p>A verification code was requested for the admin account <strong>${user.username as string}</strong>.</p>
+  <p>Enter this code on the login page to unlock the account:</p>
+  <div style="background:#fffbeb;border:2px dashed #b45309;border-radius:8px;padding:20px 32px;margin:24px 0;text-align:center">
+    <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#b45309">${code}</span>
+  </div>
+  <p style="color:#666;font-size:13px">This code expires when a new one is requested. Your password has <strong>not</strong> been changed.</p>
+  <p style="color:#999;font-size:11px">If you did not request this, contact your system administrator immediately.</p>
+  <p style="color:#aaa;font-size:11px">Garuda Logistics Solutions — security alert</p>
+</div>`,
+        }),
+      }).catch(() => {/* non-fatal */});
+    }
+
+    return { ok: true };
+  });
+
+// ── Submit OTP to unlock a paused admin account (self-service on login page) ─
+// Verifies the code, unpauses the account. Password is NEVER changed.
+// After this succeeds the user must still log in normally with their password.
+
+export const serverSubmitUnpauseOtp = createServerFn({ method: "POST" })
+  .validator((input: { username: string; code: string }) => input)
+  .handler(async ({ data }): Promise<{ ok: boolean; error?: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: user } = await supabaseAdmin
+      .from("app_users")
+      .select("id, role, is_paused, unpause_code")
+      .eq("username", data.username.trim().toLowerCase())
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!user || !(user.is_paused as boolean)) {
+      return { ok: false, error: "Invalid or expired code." };
+    }
+
+    if (!user.unpause_code) {
+      return { ok: false, error: "No code on record. Please request a new one." };
+    }
+
+    if ((user.unpause_code as string).toUpperCase() !== data.code.trim().toUpperCase()) {
+      return { ok: false, error: "Incorrect code. Check the email and try again." };
+    }
+
+    // Unpause — password column is never touched
+    await supabaseAdmin
+      .from("app_users")
+      .update({
+        is_paused: false,
+        failed_login_attempts: 0,
+        paused_at: null,
+        unpause_code: null,
+        otp_sent_at: null,
+      })
+      .eq("id", user.id as string);
+
+    return { ok: true };
   });
 
 // ── Force-logout a user (admin-only) ─────────────────────────────────────────

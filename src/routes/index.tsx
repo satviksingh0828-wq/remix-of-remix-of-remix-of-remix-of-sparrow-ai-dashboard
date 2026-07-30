@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Loader2, Lock, User } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Loader2, Lock, Mail, Unlock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { usePasskeyContext } from "@/components/PasskeyGate";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/login-rate-limit";
 import { logAction } from "@/lib/log-actions";
 import { useTheme } from "@/lib/theme";
+import { serverRequestUnpauseOtp, serverSubmitUnpauseOtp } from "@/lib/user-auth";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -106,6 +107,76 @@ function LoginPage() {
   const [lockedUntilMs, setLockedUntilMs] = useState(0);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // ── Paused-account OTP flow ────────────────────────────────────────────────
+  const [pausedRole, setPausedRole] = useState<"admin" | "basic" | null>(null);
+  const [otpSent, setOtpSent]       = useState(false);
+  const [otpCode, setOtpCode]       = useState("");
+  const [otpBusy, setOtpBusy]       = useState(false);
+  const [otpError, setOtpError]     = useState<string | null>(null);
+  const [otpSuccess, setOtpSuccess] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const otpCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function startCooldown(seconds: number) {
+    setOtpCooldown(seconds);
+    if (otpCooldownRef.current) clearInterval(otpCooldownRef.current);
+    otpCooldownRef.current = setInterval(() => {
+      setOtpCooldown((s) => {
+        if (s <= 1) { clearInterval(otpCooldownRef.current!); return 0; }
+        return s - 1;
+      });
+    }, 1000);
+  }
+
+  function clearPausedFlow() {
+    setPausedRole(null);
+    setOtpSent(false);
+    setOtpCode("");
+    setOtpBusy(false);
+    setOtpError(null);
+    setOtpSuccess(false);
+    setOtpCooldown(0);
+    if (otpCooldownRef.current) clearInterval(otpCooldownRef.current);
+  }
+
+  async function sendOtp() {
+    setOtpBusy(true);
+    setOtpError(null);
+    try {
+      const result = await serverRequestUnpauseOtp({ data: id.trim() });
+      if (!result.ok) {
+        setOtpError(result.error ?? "Failed to send code.");
+        if (result.retryAfterSeconds) startCooldown(result.retryAfterSeconds);
+      } else {
+        setOtpSent(true);
+        startCooldown(120); // 2-minute resend cooldown
+      }
+    } catch {
+      setOtpError("Unexpected error. Please try again.");
+    } finally {
+      setOtpBusy(false);
+    }
+  }
+
+  async function submitOtp() {
+    if (otpCode.trim().length < 6) return;
+    setOtpBusy(true);
+    setOtpError(null);
+    try {
+      const result = await serverSubmitUnpauseOtp({ data: { username: id.trim(), code: otpCode.trim() } });
+      if (!result.ok) {
+        setOtpError(result.error ?? "Incorrect code.");
+      } else {
+        setOtpSuccess(true);
+      }
+    } catch {
+      setOtpError("Unexpected error. Please try again.");
+    } finally {
+      setOtpBusy(false);
+    }
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (ready && user) navigate({ to: "/home", replace: true });
   }, [ready, user, navigate]);
@@ -129,7 +200,6 @@ function LoginPage() {
   function resetCaptcha() {
     setPowToken(null);
     powResetRef.current?.();
-    // Refresh math challenge too
     setMathChallenge(makeMathChallenge());
     setMathInput("");
     setMathError(false);
@@ -138,10 +208,8 @@ function LoginPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Honeypot
     if (honeypot.trim() !== "") return;
 
-    // Math CAPTCHA check
     if (!mathPassed) {
       setMathError(true);
       setMathChallenge(makeMathChallenge());
@@ -149,13 +217,11 @@ function LoginPage() {
       return;
     }
 
-    // PoW check
     if (!powToken) {
       setError("Security check is still running — please wait a moment.");
       return;
     }
 
-    // Rate limit
     const remaining = getLockoutRemaining(id.trim());
     if (remaining > 0) {
       setError(`Too many failed attempts. Try again in ${lockoutLabel(remaining)}.`);
@@ -177,8 +243,9 @@ function LoginPage() {
         logAction("login_failed", "login", { entityLabel: id.trim(), details: { reason: outcome.reason } });
         resetCaptcha();
         if (outcome.reason === "account_paused") {
-          // Show as a persistent inline banner — not a dismissible dialog
-          setError(outcome.message);
+          // Always count as a failed attempt (rate-limits the locked screen too)
+          recordFailedAttempt(id.trim());
+          setPausedRole(outcome.role);
         } else {
           const lockMs = recordFailedAttempt(id.trim());
           if (lockMs > 0) {
@@ -264,6 +331,127 @@ function LoginPage() {
       {/* Login */}
       <section className="relative flex flex-col items-center justify-center bg-background px-6 py-10">
 
+        {/* ── Paused / locked account panel ───────────────────────────────── */}
+        {pausedRole ? (
+          <div className="w-full max-w-sm animate-fade-up space-y-5">
+            {/* Lock banner */}
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-400">
+                <Lock className="size-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">Account locked</p>
+                <p className="text-xs text-muted-foreground">{id.trim()}</p>
+              </div>
+            </div>
+
+            {pausedRole === "basic" ? (
+              /* Basic user — no self-service */
+              <div className="rounded-xl border border-border bg-muted/40 p-5 text-center">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Your account has been locked after multiple failed login attempts.
+                  Please contact your administrator to restore access.
+                </p>
+              </div>
+            ) : otpSuccess ? (
+              /* Admin — OTP verified, account unlocked */
+              <div className="space-y-4 rounded-xl border border-green-200 bg-green-50 p-5 text-center dark:border-green-800 dark:bg-green-950/30">
+                <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900">
+                  <CheckCircle2 className="size-6" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold text-green-800 dark:text-green-300">Account unlocked</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    You can now sign in with your usual password. It has not been changed.
+                  </p>
+                </div>
+                <Button
+                  className="w-full"
+                  onClick={() => {
+                    clearPausedFlow();
+                    resetCaptcha();
+                  }}
+                >
+                  Continue to sign in
+                </Button>
+              </div>
+            ) : !otpSent ? (
+              /* Admin — send OTP step */
+              <div className="space-y-4">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Send a one-time verification code to the registered security email to unlock your account.
+                </p>
+                {otpError && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{otpError}</p>
+                )}
+                <Button
+                  className="h-11 w-full"
+                  onClick={sendOtp}
+                  disabled={otpBusy || otpCooldown > 0}
+                >
+                  {otpBusy
+                    ? <Loader2 className="size-4 animate-spin" />
+                    : <Mail className="size-4" />}
+                  {otpCooldown > 0
+                    ? `Wait ${otpCooldown}s before retrying`
+                    : otpBusy ? "Sending…" : "Send verification code"}
+                </Button>
+              </div>
+            ) : (
+              /* Admin — enter OTP step */
+              <div className="space-y-4">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  Check the security email and enter the 6-character code below.
+                </p>
+                <Input
+                  className="h-12 text-center font-mono text-lg uppercase tracking-[0.5em]"
+                  placeholder="A3FX9K"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => { setOtpCode(e.target.value.toUpperCase()); setOtpError(null); }}
+                  autoFocus
+                  disabled={otpBusy}
+                />
+                {otpError && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{otpError}</p>
+                )}
+                <Button
+                  className="h-11 w-full"
+                  onClick={submitOtp}
+                  disabled={otpCode.trim().length < 6 || otpBusy}
+                >
+                  {otpBusy
+                    ? <Loader2 className="size-4 animate-spin" />
+                    : <Unlock className="size-4" />}
+                  {otpBusy ? "Verifying…" : "Unlock account"}
+                </Button>
+                <div className="text-center">
+                  <button
+                    type="button"
+                    className="text-xs text-muted-foreground hover:underline disabled:pointer-events-none disabled:opacity-40"
+                    disabled={otpCooldown > 0 || otpBusy}
+                    onClick={() => { setOtpError(null); sendOtp(); }}
+                  >
+                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend code"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Back link */}
+            <div className="text-center">
+              <button
+                type="button"
+                className="text-xs text-muted-foreground hover:underline"
+                onClick={() => { clearPausedFlow(); setPassword(""); resetCaptcha(); }}
+              >
+                ← Use a different account
+              </button>
+            </div>
+          </div>
+        ) : (
+
+        /* ── Normal login form ────────────────────────────────────────────── */
         <div className="w-full max-w-sm animate-fade-up">
           <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
@@ -377,6 +565,7 @@ function LoginPage() {
             Access is limited to authorised operators. Contact your administrator for credentials.
           </p>
         </div>
+        )} {/* end pausedRole ternary */}
 
         {/* Powered by branding */}
         <p className="mt-auto pt-10 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
