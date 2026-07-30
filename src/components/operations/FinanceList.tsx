@@ -340,6 +340,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
 
   return (
     <div className="space-y-4">
+      {!editing && (
       <div className="flex flex-wrap items-center gap-2">
         <Button size="sm" onClick={() => {
           const row = emptyFinanceRow();
@@ -360,6 +361,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           />
         </div>
       </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl bg-muted/50 p-3">
         <Select value={year} onValueChange={setYear}>
@@ -405,99 +407,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
         </span>
       </div>
 
-      {loading ? (
-        <div className="space-y-2">
-          <Skeleton className="h-14 w-full" />
-          <Skeleton className="h-14 w-full" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <p className="rounded-xl bg-muted px-4 py-8 text-center text-sm text-muted-foreground">
-          No {cfg.title.toLowerCase()} records for this filter.
-        </p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="py-2 pr-3">Date</th>
-                <th className="py-2 pr-3">{cfg.nameLabel}</th>
-                <th className="py-2 pr-3">Branch</th>
-                <th className="py-2 pr-3">Linked to</th>
-                <th className="py-2 pr-3 text-right">Amount</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => {
-                const linked =
-                  nameOf(vehicleOpts, r.vehicle_id) ||
-                  nameOf(driverOpts, r.driver_id) ||
-                  nameOf(transporterOpts, r.transporter_id) ||
-                  "—";
-                // Payroll rows are read-only for basic users — only pay action allowed
-                const isPayrollRow = r.is_payroll === true;
-                const canEditDelete = isAdmin || !isPayrollRow;
-                return (
-                  <tr key={r.id} className={`border-b border-border/60 ${isPayrollRow ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}>
-                    <td className="py-2 pr-3">{r.entry_date || "—"}</td>
-                    <td className="py-2 pr-3 font-medium">
-                      <span>{r.name}</span>
-                      {isPayrollRow && (
-                        <span className="ml-1.5 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
-                          Payroll
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3">{nameOf(branchOpts, r.branch_id) || "—"}</td>
-                    <td className="py-2 pr-3">{linked}</td>
-                    <td className="py-2 pr-3 text-right">{inr(num(r.amount))}</td>
-                    <td className="py-2 pr-3">
-                      <span
-                        className={
-                          r.settled
-                            ? "rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary"
-                            : "rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                        }
-                      >
-                        {r.settled ? cfg.doneLabel : cfg.pendingLabel}
-                      </span>
-                    </td>
-                    <td className="py-2 text-right whitespace-nowrap">
-                      {!r.settled ? (
-                        <Button variant="outline" size="sm" onClick={() => settle(r)}>
-                          <Check className="size-4" />
-                          {cfg.actionLabel}
-                        </Button>
-                      ) : null}
-                      {canEditDelete && (
-                        <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
-                          Edit
-                        </Button>
-                      )}
-                      {/* Admin-only: per-row logs */}
-                      {isAdmin && r.id ? (
-                        <ItemLogsButton
-                          entityType={kind}
-                          entityId={r.id}
-                          entityLabel={r.name}
-                        />
-                      ) : null}
-                      {canEditDelete && (
-                        <Button variant="ghost" size="sm" onClick={() => remove(r)}>
-                          <Trash2 className="size-4 text-destructive" />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* ── Inline create / edit form (same style as EMI scheduler) ── */}
+      {/* ── Inline create / edit form — shown ABOVE the list ── */}
       {editing && (
         <div className="surface-card space-y-5 p-6">
           <div className="flex items-center justify-between">
@@ -627,6 +537,99 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           </form>
         </div>
       )}
+
+      {loading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-14 w-full" />
+          <Skeleton className="h-14 w-full" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="rounded-xl bg-muted px-4 py-8 text-center text-sm text-muted-foreground">
+          No {cfg.title.toLowerCase()} records for this filter.
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[860px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="py-2 pr-3">Date</th>
+                <th className="py-2 pr-3">{cfg.nameLabel}</th>
+                <th className="py-2 pr-3">Branch</th>
+                <th className="py-2 pr-3">Linked to</th>
+                <th className="py-2 pr-3 text-right">Amount</th>
+                <th className="py-2 pr-3">Status</th>
+                <th className="py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => {
+                const linked =
+                  nameOf(vehicleOpts, r.vehicle_id) ||
+                  nameOf(driverOpts, r.driver_id) ||
+                  nameOf(transporterOpts, r.transporter_id) ||
+                  "—";
+                // Payroll rows are read-only for basic users — only pay action allowed
+                const isPayrollRow = r.is_payroll === true;
+                const canEditDelete = isAdmin || !isPayrollRow;
+                return (
+                  <tr key={r.id} className={`border-b border-border/60 ${isPayrollRow ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}>
+                    <td className="py-2 pr-3">{r.entry_date || "—"}</td>
+                    <td className="py-2 pr-3 font-medium">
+                      <span>{r.name}</span>
+                      {isPayrollRow && (
+                        <span className="ml-1.5 inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-900/40 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">
+                          Payroll
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{nameOf(branchOpts, r.branch_id) || "—"}</td>
+                    <td className="py-2 pr-3">{linked}</td>
+                    <td className="py-2 pr-3 text-right">{inr(num(r.amount))}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={
+                          r.settled
+                            ? "rounded-full bg-primary-soft px-2 py-0.5 text-xs text-primary"
+                            : "rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                        }
+                      >
+                        {r.settled ? cfg.doneLabel : cfg.pendingLabel}
+                      </span>
+                    </td>
+                    <td className="py-2 text-right whitespace-nowrap">
+                      {!r.settled ? (
+                        <Button variant="outline" size="sm" onClick={() => settle(r)}>
+                          <Check className="size-4" />
+                          {cfg.actionLabel}
+                        </Button>
+                      ) : null}
+                      {canEditDelete && (
+                        <Button variant="ghost" size="sm" onClick={() => setEditing(r)}>
+                          Edit
+                        </Button>
+                      )}
+                      {/* Admin-only: per-row logs */}
+                      {isAdmin && r.id ? (
+                        <ItemLogsButton
+                          entityType={kind}
+                          entityId={r.id}
+                          entityLabel={r.name}
+                        />
+                      ) : null}
+                      {canEditDelete && (
+                        <Button variant="ghost" size="sm" onClick={() => remove(r)}>
+                          <Trash2 className="size-4 text-destructive" />
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
     </div>
   );
 }
