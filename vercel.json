@@ -1,5 +1,11 @@
 {
   "buildCommand": "npm run build:vercel",
   "installCommand": "npm install --legacy-peer-deps",
-  "framework": null
+  "framework": null,
+  "crons": [
+    {
+      "path": "/api/notify-expiry",
+      "schedule": "0 6 * * *"
+    }
+  ]
 }
