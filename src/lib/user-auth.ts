@@ -575,12 +575,18 @@ export const serverRequestUnpauseOtp = createServerFn({ method: "POST" })
       .update({ unpause_code: code, otp_sent_at: new Date().toISOString() })
       .eq("id", user.id as string);
 
-    // Send email
+    // Send email — awaited so we can report failures back to the caller
     const apiKey    = process.env.RESEND_API_KEY;
     const toEmail   = process.env.ADMIN_ALERT_EMAIL;
     const fromEmail = process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev";
-    if (apiKey && toEmail) {
-      fetch("https://api.resend.com/emails", {
+
+    if (!apiKey || !toEmail) {
+      console.error("[serverRequestUnpauseOtp] Email not configured — set RESEND_API_KEY and ADMIN_ALERT_EMAIL env vars");
+      return { ok: false, error: "Email service is not configured on this server. Contact your system administrator." };
+    }
+
+    try {
+      const resp = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -600,7 +606,16 @@ export const serverRequestUnpauseOtp = createServerFn({ method: "POST" })
   <p style="color:#aaa;font-size:11px">Garuda Logistics Solutions — security alert</p>
 </div>`,
         }),
-      }).catch(() => {/* non-fatal */});
+      });
+
+      if (!resp.ok) {
+        const body = await resp.text().catch(() => "");
+        console.error("[serverRequestUnpauseOtp] Resend API error:", resp.status, body);
+        return { ok: false, error: "Failed to send verification email. Please try again shortly." };
+      }
+    } catch (fetchErr) {
+      console.error("[serverRequestUnpauseOtp] Network error sending email:", fetchErr);
+      return { ok: false, error: "Failed to send verification email. Please check your connection and try again." };
     }
 
     return { ok: true };

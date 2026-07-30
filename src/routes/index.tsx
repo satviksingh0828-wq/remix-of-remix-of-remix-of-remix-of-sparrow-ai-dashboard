@@ -270,6 +270,121 @@ function LoginPage() {
   return (
     <>
     {/* ── Error popup ───────────────────────────────────────────────────── */}
+    {/* ── Locked account popup ──────────────────────────────────────────── */}
+    <AlertDialog
+      open={!!pausedRole}
+      onOpenChange={(open) => { if (!open) { clearPausedFlow(); setPassword(""); resetCaptcha(); } }}
+    >
+      <AlertDialogContent className="max-w-sm overflow-hidden p-0 gap-0">
+        {/* Header */}
+        <div className="flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-800 dark:bg-amber-950/50">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-400">
+            <Lock className="size-4" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold leading-tight">Account locked</p>
+            <p className="text-xs text-muted-foreground">{id.trim()}</p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="space-y-4 p-5">
+          {pausedRole === "basic" ? (
+            <p className="text-center text-sm leading-relaxed text-muted-foreground">
+              Your account has been locked after multiple failed login attempts.
+              Please contact your administrator to restore access.
+            </p>
+          ) : otpSuccess ? (
+            <div className="space-y-3 text-center">
+              <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900">
+                <CheckCircle2 className="size-6" />
+              </span>
+              <p className="text-sm font-semibold">Account unlocked</p>
+              <p className="text-xs text-muted-foreground">
+                You can now sign in with your usual password. It has not been changed.
+              </p>
+            </div>
+          ) : !otpSent ? (
+            <div className="space-y-3">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Request a one-time verification code to the registered security email to unlock your account.
+              </p>
+              {otpError && (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{otpError}</p>
+              )}
+              <Button
+                className="h-10 w-full"
+                onClick={sendOtp}
+                disabled={otpBusy || otpCooldown > 0}
+              >
+                {otpBusy ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
+                {otpCooldown > 0
+                  ? `Wait ${otpCooldown}s…`
+                  : otpBusy ? "Sending…" : "Send verification code"}
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Enter the 6-character code from the security email.
+              </p>
+              <Input
+                className="h-12 text-center font-mono text-lg uppercase tracking-[0.5em]"
+                placeholder="A3FX9K"
+                maxLength={6}
+                value={otpCode}
+                onChange={(e) => { setOtpCode(e.target.value.toUpperCase()); setOtpError(null); }}
+                autoFocus
+                disabled={otpBusy}
+              />
+              {otpError && (
+                <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{otpError}</p>
+              )}
+              <Button
+                className="h-10 w-full"
+                onClick={submitOtp}
+                disabled={otpCode.trim().length < 6 || otpBusy}
+              >
+                {otpBusy ? <Loader2 className="size-4 animate-spin" /> : <Unlock className="size-4" />}
+                {otpBusy ? "Verifying…" : "Unlock account"}
+              </Button>
+              <div className="text-center">
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground hover:underline disabled:pointer-events-none disabled:opacity-40"
+                  disabled={otpCooldown > 0 || otpBusy}
+                  onClick={() => { setOtpError(null); sendOtp(); }}
+                >
+                  {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend code"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="border-t px-5 py-3">
+          {otpSuccess ? (
+            <Button
+              className="h-9 w-full"
+              onClick={() => { clearPausedFlow(); resetCaptcha(); }}
+            >
+              Continue to sign in →
+            </Button>
+          ) : (
+            <button
+              type="button"
+              className="w-full text-center text-xs text-muted-foreground hover:underline"
+              onClick={() => { clearPausedFlow(); setPassword(""); resetCaptcha(); }}
+            >
+              ← Use a different account
+            </button>
+          )}
+        </div>
+      </AlertDialogContent>
+    </AlertDialog>
+
+    {/* ── Sign-in error popup ────────────────────────────────────────────── */}
     <AlertDialog open={!!errorDialog} onOpenChange={(open) => { if (!open) setErrorDialog(null); }}>
       <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
@@ -331,127 +446,7 @@ function LoginPage() {
       {/* Login */}
       <section className="relative flex flex-col items-center justify-center bg-background px-6 py-10">
 
-        {/* ── Paused / locked account panel ───────────────────────────────── */}
-        {pausedRole ? (
-          <div className="w-full max-w-sm animate-fade-up space-y-5">
-            {/* Lock banner */}
-            <div className="flex items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950/30">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-400">
-                <Lock className="size-5" />
-              </span>
-              <div>
-                <p className="text-sm font-semibold">Account locked</p>
-                <p className="text-xs text-muted-foreground">{id.trim()}</p>
-              </div>
-            </div>
-
-            {pausedRole === "basic" ? (
-              /* Basic user — no self-service */
-              <div className="rounded-xl border border-border bg-muted/40 p-5 text-center">
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Your account has been locked after multiple failed login attempts.
-                  Please contact your administrator to restore access.
-                </p>
-              </div>
-            ) : otpSuccess ? (
-              /* Admin — OTP verified, account unlocked */
-              <div className="space-y-4 rounded-xl border border-green-200 bg-green-50 p-5 text-center dark:border-green-800 dark:bg-green-950/30">
-                <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900">
-                  <CheckCircle2 className="size-6" />
-                </span>
-                <div>
-                  <p className="text-sm font-semibold text-green-800 dark:text-green-300">Account unlocked</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    You can now sign in with your usual password. It has not been changed.
-                  </p>
-                </div>
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    clearPausedFlow();
-                    resetCaptcha();
-                  }}
-                >
-                  Continue to sign in
-                </Button>
-              </div>
-            ) : !otpSent ? (
-              /* Admin — send OTP step */
-              <div className="space-y-4">
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Send a one-time verification code to the registered security email to unlock your account.
-                </p>
-                {otpError && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{otpError}</p>
-                )}
-                <Button
-                  className="h-11 w-full"
-                  onClick={sendOtp}
-                  disabled={otpBusy || otpCooldown > 0}
-                >
-                  {otpBusy
-                    ? <Loader2 className="size-4 animate-spin" />
-                    : <Mail className="size-4" />}
-                  {otpCooldown > 0
-                    ? `Wait ${otpCooldown}s before retrying`
-                    : otpBusy ? "Sending…" : "Send verification code"}
-                </Button>
-              </div>
-            ) : (
-              /* Admin — enter OTP step */
-              <div className="space-y-4">
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  Check the security email and enter the 6-character code below.
-                </p>
-                <Input
-                  className="h-12 text-center font-mono text-lg uppercase tracking-[0.5em]"
-                  placeholder="A3FX9K"
-                  maxLength={6}
-                  value={otpCode}
-                  onChange={(e) => { setOtpCode(e.target.value.toUpperCase()); setOtpError(null); }}
-                  autoFocus
-                  disabled={otpBusy}
-                />
-                {otpError && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">{otpError}</p>
-                )}
-                <Button
-                  className="h-11 w-full"
-                  onClick={submitOtp}
-                  disabled={otpCode.trim().length < 6 || otpBusy}
-                >
-                  {otpBusy
-                    ? <Loader2 className="size-4 animate-spin" />
-                    : <Unlock className="size-4" />}
-                  {otpBusy ? "Verifying…" : "Unlock account"}
-                </Button>
-                <div className="text-center">
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground hover:underline disabled:pointer-events-none disabled:opacity-40"
-                    disabled={otpCooldown > 0 || otpBusy}
-                    onClick={() => { setOtpError(null); sendOtp(); }}
-                  >
-                    {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : "Resend code"}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Back link */}
-            <div className="text-center">
-              <button
-                type="button"
-                className="text-xs text-muted-foreground hover:underline"
-                onClick={() => { clearPausedFlow(); setPassword(""); resetCaptcha(); }}
-              >
-                ← Use a different account
-              </button>
-            </div>
-          </div>
-        ) : (
-
-        /* ── Normal login form ────────────────────────────────────────────── */
+        {/* ── Normal login form — always visible ────────────────────────── */}
         <div className="w-full max-w-sm animate-fade-up">
           <h2 className="text-2xl font-semibold tracking-tight">Sign in</h2>
           <p className="mt-1.5 text-sm text-muted-foreground">
@@ -565,7 +560,6 @@ function LoginPage() {
             Access is limited to authorised operators. Contact your administrator for credentials.
           </p>
         </div>
-        )} {/* end pausedRole ternary */}
 
         {/* Powered by branding */}
         <p className="mt-auto pt-10 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
