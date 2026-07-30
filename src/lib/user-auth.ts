@@ -160,6 +160,32 @@ export const serverSignIn = createServerFn({ method: "POST" })
       // Admin server functions will reject the empty token.
     }
 
+    // ── 7. Persist session token (single-session enforcement) ─────────────────
+    // One row per user – upsert replaces any previous token, so if another
+    // device was already logged in its next heartbeat will get { valid: false }
+    // and auto-sign-out.
+    if (sessionToken) {
+      try {
+        const { error: upsertErr } = await supabaseAdmin
+          .from("user_sessions")
+          .upsert(
+            {
+              user_id: user.id as string,
+              session_token: sessionToken,
+              created_at: new Date().toISOString(),
+              last_seen_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id" },
+          );
+        if (upsertErr) {
+          // Non-fatal: session enforcement best-effort (table may not exist yet)
+          console.warn("[serverSignIn] Could not upsert user_sessions:", upsertErr.message);
+        }
+      } catch (e) {
+        console.warn("[serverSignIn] Unexpected error upserting user_sessions:", e);
+      }
+    }
+
     return {
       ok: true,
       user: {
@@ -173,6 +199,128 @@ export const serverSignIn = createServerFn({ method: "POST" })
         sessionToken,
       },
     };
+  });
+
+// ── Shared token-integrity helper ────────────────────────────────────────────
+// Verifies the HMAC signature AND expiry of an app session token.
+// Returns the parsed { uid, role } when valid, or null when invalid/tampered/expired.
+// Uses timingSafeEqual to prevent timing-oracle attacks on the signature.
+
+async function verifyAppToken(
+  token: string,
+): Promise<{ uid: string; role: string } | null> {
+  if (!token) return null;
+
+  // Token format: "userId:role:expiresMs:hmacHex"
+  // Strategy: split on the LAST colon → everything after is the hex signature;
+  // everything before is the signed payload "userId:role:expiresMs".
+  // userId is a UUID (hyphens only, no colons), so payload has exactly 3 segments.
+  const lastColon = token.lastIndexOf(":");
+  if (lastColon === -1) return null;
+
+  const payload     = token.slice(0, lastColon);   // "userId:role:expiresMs"
+  const suppliedSig = token.slice(lastColon + 1);  // "hmacHex"
+
+  // Payload must have exactly 3 colon-delimited parts: uid, role, expiresMs
+  const payloadParts = payload.split(":");
+  if (payloadParts.length !== 3) return null;
+
+  const [uid, role, expiresStr] = payloadParts;
+  const expiresMs = Number(expiresStr);
+  if (!uid || !role || !Number.isFinite(expiresMs)) return null;
+  if (Date.now() > expiresMs) return null; // token expired
+
+  try {
+    const { createHmac, timingSafeEqual } = await import("crypto");
+    const secret   = process.env.SESSION_SECRET ?? "dev-fallback-secret";
+    // HMAC was computed over "uid:role:expiresMs" — same as payload
+    const expected = createHmac("sha256", secret).update(payload).digest("hex");
+
+    // timingSafeEqual requires equal-length buffers
+    if (suppliedSig.length !== expected.length) return null;
+    const aBytes = Buffer.from(suppliedSig, "utf8");
+    const bBytes = Buffer.from(expected,    "utf8");
+    if (!timingSafeEqual(aBytes, bBytes)) return null;
+  } catch {
+    return null;
+  }
+
+  return { uid, role };
+}
+
+// ── Verify session heartbeat (single-session enforcement) ────────────────────
+// Called every ~30 s by the client. Returns { valid: false } when another
+// device has signed in (the DB token no longer matches this client's token),
+// or when the token is tampered / expired.
+
+export const serverVerifySession = createServerFn({ method: "POST" })
+  .validator((token: string) => token)
+  .handler(async ({ data: token }): Promise<{ valid: boolean }> => {
+    const parsed = await verifyAppToken(token);
+    if (!parsed) return { valid: false };
+    const { uid } = parsed;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let supabaseAdmin: any;
+    try {
+      const mod = await import("@/integrations/supabase/client.server");
+      supabaseAdmin = mod.supabaseAdmin;
+    } catch {
+      // DB client unavailable — don't boot the user for infrastructure issues
+      return { valid: true };
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("user_sessions")
+      .select("session_token")
+      .eq("user_id", uid)
+      .maybeSingle();
+
+    // Any DB / RLS / table-missing error → non-destructive: let session continue
+    if (error) {
+      console.warn("[serverVerifySession] DB error, allowing session:", error.message);
+      return { valid: true };
+    }
+
+    // No row yet (table empty / upsert failed at login) → benefit of the doubt
+    if (!data) return { valid: true };
+
+    // Row found but token differs → another device logged in → revoke this session
+    if (data.session_token !== token) return { valid: false };
+
+    // Tokens match → valid; bump last_seen_at (fire-and-forget)
+    supabaseAdmin
+      .from("user_sessions")
+      .update({ last_seen_at: new Date().toISOString() })
+      .eq("user_id", uid)
+      .then(() => {/* ignore */});
+
+    return { valid: true };
+  });
+
+// ── Clear session on sign-out ─────────────────────────────────────────────────
+// Requires a valid HMAC-signed token. Deletes matching on BOTH user_id AND
+// session_token so a stale / forged token cannot revoke another user's active session.
+
+export const serverSignOut = createServerFn({ method: "POST" })
+  .validator((token: string) => token)
+  .handler(async ({ data: token }): Promise<void> => {
+    const parsed = await verifyAppToken(token);
+    if (!parsed) return; // invalid / expired / tampered — nothing to do
+
+    const { uid } = parsed;
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      // Match on BOTH columns: a stale token from a previous session cannot
+      // delete the row that now belongs to a newer login.
+      await supabaseAdmin
+        .from("user_sessions")
+        .delete()
+        .eq("user_id", uid)
+        .eq("session_token", token);
+    } catch {
+      // Non-fatal
+    }
   });
 
 // ── List users (admin-only) ──────────────────────────────────────────────────

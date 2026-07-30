@@ -9,6 +9,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, useMemo, type ReactNode } from "react";
+import { toast } from "sonner";
 import { createIdbPersister } from "../lib/query-persist";
 import { initSecurity } from "../lib/security";
 
@@ -129,6 +130,26 @@ function SecurityInit() {
   return null;
 }
 
+/** Listens for session-expired custom events dispatched by SessionProvider and
+ *  shows an appropriate toast so the user knows why they were signed out. */
+function SessionExpiredListener() {
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const reason = (e as CustomEvent<{ reason: string }>).detail?.reason;
+      if (reason === "elsewhere") {
+        toast.warning("You were signed out because your account was opened on another device.", {
+          duration: 8000,
+        });
+      } else {
+        toast.info("You were signed out due to inactivity.", { duration: 6000 });
+      }
+    };
+    window.addEventListener("tms:session-expired", handler);
+    return () => window.removeEventListener("tms:session-expired", handler);
+  }, []);
+  return null;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const persister = useMemo(
@@ -151,6 +172,7 @@ function RootComponent() {
       <SessionProvider>
         <ThemeProvider>
           <SecurityInit />
+          <SessionExpiredListener />
           {/* MobileBlock: desktop-only wall before anything else */}
           <MobileBlock>
           {/* PasskeyGate: device-level WebAuthn check before any page renders */}
