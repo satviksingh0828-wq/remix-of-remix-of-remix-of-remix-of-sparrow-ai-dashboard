@@ -161,6 +161,18 @@ export function ContractForm({
 
   const patch = (p: Partial<ContractRow>) => setForm((f) => ({ ...f, ...p }));
 
+  // When manually switching to inactive, append -old-{start}-{end} suffix to name
+  function handleStatusChange(v: string) {
+    if (v === "inactive" && form.status !== "inactive") {
+      const base = form.contract_name.replace(/-old(-[\d-]*)*$/, "").trimEnd();
+      const parts = [base, "old", form.start_date, form.end_date].filter(Boolean);
+      const newName = parts.join("-");
+      patch({ status: "inactive", contract_name: newName });
+    } else {
+      patch({ status: v });
+    }
+  }
+
   return (
     <form onSubmit={onSubmit} className="animate-fade-up space-y-5">
       <div className="flex items-center gap-3">
@@ -227,7 +239,7 @@ export function ContractForm({
             <Label className="text-xs font-medium text-muted-foreground">Status</Label>
             <Select
               value={form.status ?? "active"}
-              onValueChange={(v) => patch({ status: v })}
+              onValueChange={handleStatusChange}
             >
               <SelectTrigger className="h-10">
                 <SelectValue />

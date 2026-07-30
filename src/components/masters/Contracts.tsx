@@ -69,18 +69,25 @@ export function Contracts() {
         supabase.from("contracts").select("*").order("created_at", { ascending: true }),
       );
 
-      // Auto-expire: if end_date is set and has passed, mark inactive in DB
+      // Auto-expire: if end_date is set and has passed, mark inactive + rename in DB
       const today = new Date().toISOString().slice(0, 10);
       const toExpire = rows.filter(
         (c) => c.status !== "inactive" && c.end_date && c.end_date < today,
       );
       if (toExpire.length > 0) {
-        await supabase
-          .from("contracts")
-          .update({ status: "inactive" } as never)
-          .in("id", toExpire.map((c) => c.id!));
-        // Update local state to reflect the change
-        toExpire.forEach((c) => { c.status = "inactive"; });
+        await Promise.all(
+          toExpire.map((c) => {
+            const base = (c.contract_name ?? "").replace(/-old(-[\d-]*)*$/, "").trimEnd();
+            const parts = [base, "old", c.start_date, c.end_date].filter(Boolean);
+            const newName = parts.join("-");
+            c.status = "inactive";
+            c.contract_name = newName;
+            return supabase
+              .from("contracts")
+              .update({ status: "inactive", contract_name: newName } as never)
+              .eq("id", c.id!);
+          }),
+        );
       }
 
       setContracts(rows);
