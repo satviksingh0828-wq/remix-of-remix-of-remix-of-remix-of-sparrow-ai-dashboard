@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Lock, User } from "lucide-react";
+import { AlertTriangle, Loader2, Lock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { usePasskeyContext } from "@/components/PasskeyGate";
@@ -9,6 +9,15 @@ import type { PowToken } from "@/lib/pow-captcha";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   getLockoutRemaining,
   lockoutLabel,
@@ -75,6 +84,7 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [busy, setBusy]         = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [errorDialog, setErrorDialog] = useState<string | null>(null);
 
   // PoW CAPTCHA state
   const [powToken, setPowToken] = useState<PowToken | null>(null);
@@ -171,12 +181,12 @@ function LoginPage() {
         if (lockMs > 0) {
           setError(`Too many failed attempts. Account locked for ${lockoutLabel(lockMs)}.`);
         } else {
-          setError(outcome.message);
+          setErrorDialog(outcome.message);
         }
       }
     } catch (err) {
       void (err instanceof Error ? err.message : String(err));
-      setError("Unexpected error — please try again.");
+      setErrorDialog("Unexpected error — please try again.");
       resetCaptcha();
     } finally {
       setBusy(false);
@@ -187,6 +197,30 @@ function LoginPage() {
   const canSubmit = !!powToken && mathPassed && !isLocked && !busy;
 
   return (
+    <>
+    {/* ── Error popup ───────────────────────────────────────────────────── */}
+    <AlertDialog open={!!errorDialog} onOpenChange={(open) => { if (!open) setErrorDialog(null); }}>
+      <AlertDialogContent className="max-w-sm">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+            <AlertTriangle className="size-5 shrink-0" />
+            Sign-in failed
+          </AlertDialogTitle>
+          <AlertDialogDescription className="text-sm leading-relaxed">
+            {errorDialog}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogAction
+            onClick={() => setErrorDialog(null)}
+            className="w-full"
+          >
+            OK
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       {/* Banner — switches between plain gradient and image based on Settings */}
       {loginUi === "image" ? (
@@ -325,14 +359,6 @@ function LoginPage() {
               />
             </div>
 
-            {error ? (
-              <p className="animate-fade-in rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {isLocked
-                  ? `Account temporarily locked. Try again in ${lockoutLabel(lockedUntilMs)}.`
-                  : error}
-              </p>
-            ) : null}
-
             <Button type="submit" disabled={!canSubmit} className="h-11 w-full">
               {busy ? <Loader2 className="size-4 animate-spin" /> : null}
               {busy
@@ -354,5 +380,6 @@ function LoginPage() {
         </p>
       </section>
     </div>
+    </>
   );
 }
