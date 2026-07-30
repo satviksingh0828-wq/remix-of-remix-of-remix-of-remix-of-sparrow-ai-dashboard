@@ -20,7 +20,7 @@ const HEARTBEAT_MS = 30 * 1000; // 30 seconds
 
 export type SignInOutcome =
   | { ok: true }
-  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "session_expired" | "logged_in_elsewhere"; message: string };
+  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "session_expired" | "logged_in_elsewhere" | "already_logged_in"; message: string };
 
 type SessionValue = {
   ready: boolean;

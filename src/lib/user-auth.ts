@@ -53,7 +53,7 @@ export type SaveUserInput = {
 
 export type SignInResult =
   | { ok: true; user: SessionUser }
-  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed"; message: string };
+  | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "already_logged_in"; message: string };
 
 export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: {
@@ -139,6 +139,39 @@ export const serverSignIn = createServerFn({ method: "POST" })
       .from("user_branch_access")
       .select("branch_id")
       .eq("user_id", user.id);
+
+    // ── 5b. Single-session enforcement: first login wins ──────────────────────
+    // If a live session row exists (last_seen_at within 2 minutes) the account
+    // is actively in use — reject this login attempt.
+    // 2 min = ~4 missed heartbeats (heartbeat runs every 30 s); anything older
+    // means the previous session ended without a clean sign-out (crash / inactivity
+    // auto-logout) and a new login is safe to allow.
+    try {
+      const STALE_MS  = 2 * 60 * 1000; // 2 minutes
+      const staleTime = new Date(Date.now() - STALE_MS).toISOString();
+
+      const { data: existingSession, error: sessionCheckErr } = await supabaseAdmin
+        .from("user_sessions")
+        .select("last_seen_at")
+        .eq("user_id", user.id as string)
+        .maybeSingle();
+
+      if (!sessionCheckErr && existingSession) {
+        const lastSeen = new Date(existingSession.last_seen_at as string).getTime();
+        if (lastSeen > Date.now() - STALE_MS) {
+          console.warn("[serverSignIn] Blocked: active session exists for user:", data.username);
+          void staleTime; // suppress unused warning
+          return {
+            ok: false,
+            reason: "already_logged_in",
+            message: "This account is already logged in on another device. Please sign out there first, or wait for the session to expire.",
+          };
+        }
+      }
+      // If sessionCheckErr (table missing / RLS) → allow login gracefully
+    } catch {
+      // Non-fatal: if check fails, allow login rather than locking the user out
+    }
 
     // ── 6. Generate HMAC-signed session token ─────────────────────────────────
     // Token = "userId:role:expiresMs:hmac" signed with SESSION_SECRET.
