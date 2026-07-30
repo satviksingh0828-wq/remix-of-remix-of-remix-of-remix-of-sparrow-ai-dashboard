@@ -7,13 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -504,150 +497,136 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
         </div>
       )}
 
-      <Sheet open={editing !== null} onOpenChange={(v) => !v && setEditing(null)}>
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto flex flex-col">
-          <SheetHeader className="shrink-0">
-            <SheetTitle>
-              {editing?.id ? `Edit ${cfg.single}` : `New ${cfg.single}`}
-            </SheetTitle>
-          </SheetHeader>
-          {editing ? (
-            <form onSubmit={save} className="flex-1 overflow-y-auto mt-4">
-              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    {cfg.nameLabel}
-                  </Label>
-                  <Input
-                    className="h-10"
-                    value={editing.name}
-                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Amount (₹)</Label>
-                  <Input
-                    className="h-10"
-                    type="number"
-                    value={editing.amount}
-                    onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Date</Label>
-                  <Input
-                    className="h-10"
-                    type="date"
-                    value={editing.entry_date}
-                    onChange={(e) => setEditing({ ...editing, entry_date: e.target.value })}
-                  />
-                </div>
-                <EntityPicker
-                  label="Branch (required)"
-                  value={editing.branch_id}
-                  options={branchOpts}
-                  onChange={(id) => setEditing({ ...editing, branch_id: id })}
+      {/* ── Inline create / edit form (same style as EMI scheduler) ── */}
+      {editing && (
+        <div className="surface-card space-y-5 p-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold tracking-tight">
+              {editing.id ? `Edit ${cfg.single}` : `New ${cfg.single}`}
+            </h3>
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(null)}>
+              Cancel
+            </Button>
+          </div>
+          <form onSubmit={save}>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  {cfg.nameLabel}
+                </Label>
+                <Input
+                  className="h-10"
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 />
-                <div className="text-xs text-muted-foreground sm:col-span-2">
-                  Optionally link this {cfg.single} to one vehicle, driver or transporter.
-                </div>
-                <EntityPicker
-                  label="Vehicle"
-                  value={editing.vehicle_id}
-                  options={vehicleOpts}
-                  onChange={(id) =>
-                    setEditing({
-                      ...editing,
-                      vehicle_id: id,
-                      driver_id: null,
-                      transporter_id: null,
-                    })
-                  }
-                />
-                <EntityPicker
-                  label="Driver"
-                  value={editing.driver_id}
-                  options={driverOpts}
-                  onChange={(id) =>
-                    setEditing({
-                      ...editing,
-                      driver_id: id,
-                      vehicle_id: null,
-                      transporter_id: null,
-                    })
-                  }
-                />
-                <EntityPicker
-                  label="Transporter"
-                  value={editing.transporter_id}
-                  options={transporterOpts}
-                  onChange={(id) =>
-                    setEditing({
-                      ...editing,
-                      transporter_id: id,
-                      vehicle_id: null,
-                      driver_id: null,
-                    })
-                  }
-                />
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label className="text-xs font-medium text-muted-foreground">Note</Label>
-                  <Input
-                    className="h-10"
-                    value={editing.note}
-                    onChange={(e) => setEditing({ ...editing, note: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">Status</Label>
-                  <Select
-                    value={editing.settled ? "done" : "pending"}
-                    onValueChange={(v) =>
-                      setEditing({
-                        ...editing,
-                        settled: v === "done",
-                        settled_date:
-                          v === "done"
-                            ? editing.settled_date ||
-                              new Date().toISOString().slice(0, 10)
-                            : "",
-                      })
-                    }
-                  >
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">{cfg.pendingLabel}</SelectItem>
-                      <SelectItem value="done">{cfg.doneLabel}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-muted-foreground">
-                    {cfg.doneLabel} on
-                  </Label>
-                  <Input
-                    className="h-10"
-                    type="date"
-                    value={editing.settled_date}
-                    onChange={(e) => setEditing({ ...editing, settled_date: e.target.value })}
-                  />
-                </div>
               </div>
-              <SheetFooter className="mt-6 sm:col-span-2">
-                <Button type="button" variant="outline" onClick={() => setEditing(null)}>
-                  Cancel
-                </Button>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Amount (₹)</Label>
+                <Input
+                  className="h-10"
+                  type="number"
+                  value={editing.amount}
+                  onChange={(e) => setEditing({ ...editing, amount: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Date</Label>
+                <Input
+                  className="h-10"
+                  type="date"
+                  value={editing.entry_date}
+                  onChange={(e) => setEditing({ ...editing, entry_date: e.target.value })}
+                />
+              </div>
+              <EntityPicker
+                label="Branch (required)"
+                value={editing.branch_id}
+                options={branchOpts}
+                onChange={(id) => setEditing({ ...editing, branch_id: id })}
+              />
+              <div className="text-xs text-muted-foreground sm:col-span-2">
+                Optionally link this {cfg.single} to one vehicle, driver or transporter.
+              </div>
+              <EntityPicker
+                label="Vehicle"
+                value={editing.vehicle_id}
+                options={vehicleOpts}
+                onChange={(id) =>
+                  setEditing({ ...editing, vehicle_id: id, driver_id: null, transporter_id: null })
+                }
+              />
+              <EntityPicker
+                label="Driver"
+                value={editing.driver_id}
+                options={driverOpts}
+                onChange={(id) =>
+                  setEditing({ ...editing, driver_id: id, vehicle_id: null, transporter_id: null })
+                }
+              />
+              <EntityPicker
+                label="Transporter"
+                value={editing.transporter_id}
+                options={transporterOpts}
+                onChange={(id) =>
+                  setEditing({ ...editing, transporter_id: id, vehicle_id: null, driver_id: null })
+                }
+              />
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs font-medium text-muted-foreground">Note</Label>
+                <Input
+                  className="h-10"
+                  value={editing.note}
+                  onChange={(e) => setEditing({ ...editing, note: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Status</Label>
+                <Select
+                  value={editing.settled ? "done" : "pending"}
+                  onValueChange={(v) =>
+                    setEditing({
+                      ...editing,
+                      settled: v === "done",
+                      settled_date:
+                        v === "done"
+                          ? editing.settled_date || new Date().toISOString().slice(0, 10)
+                          : "",
+                    })
+                  }
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">{cfg.pendingLabel}</SelectItem>
+                    <SelectItem value="done">{cfg.doneLabel}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  {cfg.doneLabel} on
+                </Label>
+                <Input
+                  className="h-10"
+                  type="date"
+                  value={editing.settled_date}
+                  onChange={(e) => setEditing({ ...editing, settled_date: e.target.value })}
+                />
+              </div>
+              <div className="flex items-center gap-2 pt-2 sm:col-span-2">
                 <Button type="submit" disabled={saving}>
                   {saving ? <Loader2 className="size-4 animate-spin" /> : null}
                   Save
                 </Button>
-              </SheetFooter>
-            </form>
-          ) : null}
-        </SheetContent>
-      </Sheet>
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

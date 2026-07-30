@@ -20,9 +20,10 @@ export function AppShell({
   const { signOut, user } = useSession();
   const navigate = useNavigate();
   const { open } = useSparrowAI();
+  const isAdmin = user?.role === "admin";
 
   return (
-    <div className={cn("min-h-screen bg-background transition-all duration-300", open ? "mr-[360px]" : "")}>
+    <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "mr-[360px]" : "")}>
       <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
         <div className="mx-auto max-w-screen-xl flex h-16 items-center gap-3 px-4 sm:px-6">
           <Link to="/home" className="shrink-0">
@@ -31,7 +32,7 @@ export function AppShell({
           {breadcrumb && <div className="ml-2 hidden md:block shrink-0">{breadcrumb}</div>}
           {headerEnd && <div className="ml-2 hidden lg:block">{headerEnd}</div>}
           <div className="ml-auto flex items-center gap-2 sm:gap-3 min-w-0">
-            <SparrowAITrigger />
+            {user?.role === "admin" && <SparrowAITrigger />}
             <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex min-w-0">
               {user?.role === "admin" ? (
                 <ShieldCheck className="size-3.5 text-primary shrink-0" />
