@@ -47,6 +47,7 @@ export function FixedIncomeList() {
       const { data, error } = await supabase
         .from("contracts")
         .select("id,contract_name,fixed_monthly_charge,fixed_monthly_charge_note,fixed_yearly_charge,fixed_yearly_charge_note")
+        .eq("status", "active")
         .order("contract_name");
       if (error) throw new Error(error.message);
       const rows = (data ?? [])

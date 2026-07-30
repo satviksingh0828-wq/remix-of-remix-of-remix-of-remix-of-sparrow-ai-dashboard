@@ -58,6 +58,7 @@ export function Contracts() {
   const [view, setView] = useState<View>({ kind: "list" });
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
 
@@ -67,6 +68,21 @@ export function Contracts() {
       const rows = await fetchAll<ContractRow>(() =>
         supabase.from("contracts").select("*").order("created_at", { ascending: true }),
       );
+
+      // Auto-expire: if end_date is set and has passed, mark inactive in DB
+      const today = new Date().toISOString().slice(0, 10);
+      const toExpire = rows.filter(
+        (c) => c.status !== "inactive" && c.end_date && c.end_date < today,
+      );
+      if (toExpire.length > 0) {
+        await supabase
+          .from("contracts")
+          .update({ status: "inactive" } as never)
+          .in("id", toExpire.map((c) => c.id!));
+        // Update local state to reflect the change
+        toExpire.forEach((c) => { c.status = "inactive"; });
+      }
+
       setContracts(rows);
     } catch {
       toast.error("Could not load sources");
@@ -151,6 +167,15 @@ export function Contracts() {
     );
   }
 
+  const activeCount   = contracts.filter((c) => c.status !== "inactive").length;
+  const inactiveCount = contracts.filter((c) => c.status === "inactive").length;
+
+  const visibleContracts = contracts.filter((c) => {
+    if (filter === "active")   return c.status !== "inactive";
+    if (filter === "inactive") return c.status === "inactive";
+    return true;
+  });
+
   return (
     <div className="animate-fade-up space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -176,6 +201,30 @@ export function Contracts() {
         </div>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex gap-1 rounded-xl bg-muted/50 p-1 w-fit">
+        {(["active", "inactive", "all"] as const).map((f) => {
+          const label =
+            f === "active"   ? `Active (${activeCount})` :
+            f === "inactive" ? `Inactive (${inactiveCount})` :
+            `All (${contracts.length})`;
+          return (
+            <button
+              key={f}
+              type="button"
+              onClick={() => setFilter(f)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                filter === f
+                  ? "bg-background shadow text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -196,24 +245,43 @@ export function Contracts() {
             New source
           </Button>
         </div>
+      ) : visibleContracts.length === 0 ? (
+        <p className="rounded-xl bg-muted px-4 py-8 text-center text-sm text-muted-foreground">
+          No {filter} sources found.
+        </p>
       ) : (
         <ul className="space-y-3">
-          {contracts.map((c, i) => (
+          {visibleContracts.map((c, i) => {
+            const inactive = c.status === "inactive";
+            return (
             <li
               key={c.id}
               style={{ animationDelay: `${i * 40}ms` }}
-              className="surface-card animate-fade-up flex items-center gap-4 p-4 transition-shadow hover:shadow-[var(--shadow-lift)]"
+              className={`surface-card animate-fade-up flex items-center gap-4 p-4 transition-shadow hover:shadow-[var(--shadow-lift)] ${inactive ? "opacity-60" : ""}`}
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${inactive ? "bg-muted text-muted-foreground" : "bg-primary-soft text-primary"}`}>
                 <FileText className="size-5" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{c.contract_name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-semibold">{c.contract_name}</p>
+                  {inactive ? (
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Inactive
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                      Active
+                    </span>
+                  )}
+                </div>
                 <p className="truncate text-xs text-muted-foreground">
                   Per-route rate slabs
                   {Number(c.fixed_monthly_charge) > 0 || Number(c.fixed_yearly_charge) > 0
                     ? " · Has fixed charges"
                     : ""}
+                  {c.start_date ? ` · From ${c.start_date}` : ""}
+                  {c.end_date   ? ` · To ${c.end_date}` : ""}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -227,17 +295,19 @@ export function Contracts() {
                 ) : null}
                 <Button
                   size="sm"
+                  variant={inactive ? "outline" : "default"}
                   onClick={() => setView({ kind: "entries", contract: c })}
                 >
-                  Open
+                  {inactive ? "View" : "Open"}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setView({ kind: "edit-contract", contract: c })}
                 >
-                  Edit
+                  {inactive ? "View" : "Edit"}
                 </Button>
+                {!inactive && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -245,9 +315,11 @@ export function Contracts() {
                 >
                   <Trash2 className="size-4 text-destructive" />
                 </Button>
+                )}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </div>

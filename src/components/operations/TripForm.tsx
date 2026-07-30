@@ -187,7 +187,7 @@ export function TripForm({
       supabase.from("vehicles").select("*").order("registration_number"),
       supabase.from("drivers").select("*").order("full_name"),
       supabase.from("transporters").select("*").order("transporter_name"),
-      supabase.from("contracts").select("*").order("contract_name"),
+      supabase.from("contracts").select("*").eq("status", "active").order("contract_name"),
       supabase.from("contract_entries").select("*"),
     ]);
     setVehicles((v.data as AnyRow[]) ?? []);
