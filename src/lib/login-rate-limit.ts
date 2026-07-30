@@ -2,9 +2,9 @@
  * login-rate-limit.ts
  *
  * Progressive lockout policy:
- *   • 3 failed attempts  → locked for  5 minutes
- *   • 4 failed attempts  → locked for 10 minutes
- *   • 5+ failed attempts → locked for 15 minutes
+ *   • 5 failed attempts  → locked for  5 minutes
+ *   • 7 failed attempts  → locked for 10 minutes
+ *   • 10+ failed attempts → locked for 15 minutes
  *
  * State is stored in encrypted localStorage so lockouts
  * survive browser refresh but reset when cleared.
@@ -36,9 +36,9 @@ function save(state: RateLimitState): void {
 }
 
 function lockoutMs(attempts: number): number {
-  if (attempts >= 5) return 15 * 60 * 1000;
-  if (attempts >= 4) return 10 * 60 * 1000;
-  if (attempts >= 3) return 5 * 60 * 1000;
+  if (attempts >= 10) return 15 * 60 * 1000;
+  if (attempts >= 7)  return 10 * 60 * 1000;
+  if (attempts >= 5)  return  5 * 60 * 1000;
   return 0;
 }
 
