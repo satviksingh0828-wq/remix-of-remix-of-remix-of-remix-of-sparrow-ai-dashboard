@@ -698,6 +698,50 @@ export type Database = {
           },
         ]
       }
+      fastag_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          note: string | null
+          transaction_date: string
+          transaction_type: string
+          trip_code: string | null
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          transaction_date: string
+          transaction_type: string
+          trip_code?: string | null
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          note?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          trip_code?: string | null
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fastag_transactions_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_advances: {
         Row: {
           id: string

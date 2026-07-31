@@ -124,6 +124,23 @@ export async function closeTrip(tripId: string) {
   } as never);
   if (insert.error) throw new Error(insert.error.message);
 
+  // Fastag deduction automation:
+  // If there's an expense named exactly "Toll Charges", record it in fastag_transactions
+  const tollCharges = expenses.filter((e: any) => e.expense_name === "Toll Charges");
+  if (tollCharges.length > 0 && t.vehicle_id) {
+    const totalToll = tollCharges.reduce((s, e) => s + num(e.amount), 0);
+    if (totalToll > 0) {
+      await supabase.from("fastag_transactions" as any).insert({
+        vehicle_id: t.vehicle_id,
+        transaction_type: "deduction",
+        amount: totalToll,
+        transaction_date: String(t.end_date || new Date().toISOString().split("T")[0]),
+        note: `Toll Charges (Trip ${t.trip_code})`,
+        trip_code: String(t.trip_code ?? ""),
+      });
+    }
+  }
+
   await Promise.all([
     supabase.from("trip_manifests").delete().eq("trip_id", tripId),
     supabase.from("trip_other_income").delete().eq("trip_id", tripId),

@@ -50,11 +50,11 @@ interface FastagBalance {
 
 interface FastagTransaction {
   id: string;
-  type: "recharge" | "deduction";
-  date: string;
+  transaction_type: "recharge" | "deduction";
+  transaction_date: string;
   amount: number;
-  note: string;
-  trip_code?: string;
+  note: string | null;
+  trip_code: string | null;
 }
 
 export function FastagLedger() {
@@ -85,14 +85,9 @@ export function FastagLedger() {
       );
       setVehicles(vehiclesData);
 
-      // 2. Load all recharges from expenditures
-      const rechargesData = await fetchAll<any>(() => 
-        supabase.from("expenditures").select("vehicle_id,amount").eq("is_fastag_recharge", true)
-      );
-
-      // 3. Load all deductions from closed_trips snapshots
-      const closedTripsData = await fetchAll<any>(() => 
-        supabase.from("closed_trips").select("vehicle_id,snapshot")
+      // 2. Load all transactions from standalone table
+      const transactions = await fetchAll<any>(() => 
+        supabase.from("fastag_transactions").select("vehicle_id,transaction_type,amount")
       );
 
       const vehicleBalances: Record<string, { recharge: number; deduction: number }> = {};
@@ -101,22 +96,14 @@ export function FastagLedger() {
         vehicleBalances[v.id] = { recharge: 0, deduction: 0 };
       });
 
-      // Aggregate recharges
-      rechargesData.forEach(r => {
-        if (r.vehicle_id && vehicleBalances[r.vehicle_id]) {
-          vehicleBalances[r.vehicle_id].recharge += num(r.amount);
-        }
-      });
-
-      // Aggregate deductions from snapshots
-      closedTripsData.forEach(ct => {
-        if (ct.vehicle_id && vehicleBalances[ct.vehicle_id]) {
-          const snapshot = ct.snapshot as any;
-          const expenses = snapshot?.expenses || [];
-          const tollCharges = expenses
-            .filter((e: any) => e.expense_name === "Toll Charges")
-            .reduce((sum: number, e: any) => sum + num(e.amount), 0);
-          vehicleBalances[ct.vehicle_id].deduction += tollCharges;
+      // Aggregate from standalone table
+      transactions.forEach(t => {
+        if (t.vehicle_id && vehicleBalances[t.vehicle_id]) {
+          if (t.transaction_type === "recharge") {
+            vehicleBalances[t.vehicle_id].recharge += Number(t.amount);
+          } else {
+            vehicleBalances[t.vehicle_id].deduction += Number(t.amount);
+          }
         }
       });
 
@@ -141,50 +128,14 @@ export function FastagLedger() {
     setLoadingHistory(true);
     setSelectedVehicleId(vehicleId);
     try {
-      const [rechargesRes, closedTripsRes] = await Promise.all([
-        supabase
-          .from("expenditures")
-          .select("id,entry_date,amount,note")
-          .eq("vehicle_id", vehicleId as any)
-          .eq("is_fastag_recharge", true)
-          .order("entry_date", { ascending: false }),
-        supabase
-          .from("closed_trips")
-          .select("trip_code,end_date,snapshot")
-          .eq("vehicle_id" as any, vehicleId)
-          .order("end_date" as any, { ascending: false })
-      ]);
+      const { data, error } = await supabase
+        .from("fastag_transactions")
+        .select("*")
+        .eq("vehicle_id", vehicleId)
+        .order("transaction_date", { ascending: false });
 
-      const rechargeTxns: FastagTransaction[] = (rechargesRes.data || []).map(r => ({
-        id: r.id,
-        type: "recharge",
-        date: r.entry_date || "",
-        amount: num(r.amount),
-        note: r.note || "Recharge"
-      }));
-
-      const deductionTxns: FastagTransaction[] = [];
-      (closedTripsRes.data || []).forEach(ct => {
-        const snapshot = ct.snapshot as any;
-        const expenses = snapshot?.expenses || [];
-        expenses.forEach((e: any) => {
-          if (e.expense_name === "Toll Charges") {
-            deductionTxns.push({
-              id: `${ct.trip_code}-${e.id || Math.random()}`,
-              type: "deduction",
-              date: ct.end_date || "",
-              amount: num(e.amount),
-              note: `Toll Charges (Trip ${ct.trip_code})`,
-              trip_code: ct.trip_code
-            });
-          }
-        });
-      });
-
-      const allTxns = [...rechargeTxns, ...deductionTxns].sort((a, b) => 
-        new Date(b.date).getTime() - new Date(a.date).getTime()
-      );
-      setHistory(allTxns);
+      if (error) throw error;
+      setHistory(data as any[]);
     } catch (err: any) {
       toast.error("Failed to load history: " + err.message);
     } finally {
@@ -198,15 +149,12 @@ export function FastagLedger() {
     }
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("expenditures").insert({
+      const { error } = await supabase.from("fastag_transactions").insert({
         vehicle_id: rechargeVehicleId,
-        amount: rechargeAmount,
-        entry_date: rechargeDate,
-        expenditure_name: "Fastag Recharge",
-        note: rechargeNote,
-        is_fastag_recharge: true,
-        is_paid: true, // Recharges are usually paid immediately
-        paid_date: rechargeDate
+        amount: Number(rechargeAmount),
+        transaction_date: rechargeDate,
+        transaction_type: "recharge",
+        note: rechargeNote
       });
 
       if (error) throw error;
@@ -406,24 +354,27 @@ export function FastagLedger() {
                                 <table className="w-full text-xs">
                                   <thead>
                                     <tr className="text-muted-foreground border-b border-border">
-                                      <th className="pb-2 font-semibold">Date</th>
-                                      <th className="pb-2 font-semibold">Type</th>
-                                      <th className="pb-2 font-semibold">Note</th>
+                                      <th className="pb-2 font-semibold text-left">Date</th>
+                                      <th className="pb-2 font-semibold text-left">Type</th>
+                                      <th className="pb-2 font-semibold text-left">Note</th>
                                       <th className="pb-2 text-right font-semibold">Amount</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border/50">
                                     {history.map(txn => (
                                       <tr key={txn.id}>
-                                        <td className="py-2">{txn.date}</td>
+                                        <td className="py-2">{txn.transaction_date}</td>
                                         <td className="py-2 capitalize">
-                                          <span className={txn.type === "recharge" ? "text-green-600" : "text-red-600"}>
-                                            {txn.type}
+                                          <span className={txn.transaction_type === "recharge" ? "text-green-600" : "text-red-600"}>
+                                            {txn.transaction_type}
                                           </span>
                                         </td>
-                                        <td className="py-2 text-muted-foreground">{txn.note}</td>
-                                        <td className={`py-2 text-right font-medium ${txn.type === "recharge" ? "text-green-600" : "text-red-600"}`}>
-                                          {txn.type === "recharge" ? "+" : "-"}{inr(txn.amount)}
+                                        <td className="py-2 text-muted-foreground">
+                                          {txn.note}
+                                          {txn.trip_code && ` (Trip ${txn.trip_code})`}
+                                        </td>
+                                        <td className={`py-2 text-right font-medium ${txn.transaction_type === "recharge" ? "text-green-600" : "text-red-600"}`}>
+                                          {txn.transaction_type === "recharge" ? "+" : "-"}{inr(Number(txn.amount))}
                                         </td>
                                       </tr>
                                     ))}
