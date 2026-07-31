@@ -4,6 +4,134 @@ import { Bot, ChevronRight, Loader2, Mic, MicOff, Play, Send, Trash2, X } from "
 import { useSession } from "@/lib/session";
 import { useSparrowAI } from "@/lib/sparrow-context";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { fetchAll } from "@/lib/fetch-all";
+
+type ReadOnlyRow = {
+  id?: string;
+  branch_id?: string | null;
+  amount?: string | number | null;
+  [key: string]: unknown;
+};
+
+function money(value: number) {
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function currentMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return {
+    start: fmt(start),
+    end: fmt(end),
+    label: start.toLocaleString("en-IN", { month: "long", year: "numeric" }),
+  };
+}
+
+function sumAmounts(rows: ReadOnlyRow[]) {
+  return rows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
+}
+
+function applyBranchFilter<T extends { branch_id?: string | null }>(
+  rows: T[],
+  branchIds: string[] | null,
+) {
+  if (branchIds === null) return rows;
+  return rows.filter((row) => row.branch_id && branchIds.includes(row.branch_id));
+}
+
+function asksCurrentMonthInsurancePremium(text: string) {
+  return (
+    /insurance|premium/i.test(text) &&
+    /(this month|current month|month|how much|total|sum)/i.test(text)
+  );
+}
+
+async function answerCurrentMonthInsurancePremium(role: string, branchIds: string[] | undefined) {
+  const allowedBranchIds = role === "basic" ? (branchIds ?? []) : null;
+  if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
+    return "No insurance premium data is accessible because your account has no assigned branches.";
+  }
+
+  const { start, end, label } = currentMonthRange();
+  const rows = await fetchAll<ReadOnlyRow>(() => {
+    let query = supabase
+      .from("expenditures")
+      .select("id,expenditure_name,amount,entry_date,branch_id,is_insurance,note")
+      .gte("entry_date", start)
+      .lt("entry_date", end)
+      .order("entry_date", { ascending: false });
+
+    if (allowedBranchIds !== null) {
+      query = query.in("branch_id", allowedBranchIds) as typeof query;
+    }
+    return query;
+  });
+  const insuranceRows = rows.filter(
+    (row) =>
+      row.is_insurance === true || /insurance|premium/i.test(String(row.expenditure_name ?? "")),
+  );
+  const total = sumAmounts(insuranceRows);
+  const details = insuranceRows
+    .slice(0, 5)
+    .map(
+      (row) =>
+        `• ${row.entry_date ?? "No date"}: ${row.expenditure_name ?? "Insurance Premium"} — ${money(Number(row.amount ?? 0))}${row.note ? ` (${row.note})` : ""}`,
+    )
+    .join("\n");
+
+  return `Insurance premium expenditure for ${label} is ${money(total)} across ${insuranceRows.length} row(s).${details ? `\n${details}` : ""}`;
+}
+
+function wantsReadOnlyData(text: string) {
+  return /(how much|total|sum|report|filter|find|show|list|count|insurance|premium|income|expenditure|expense|vehicle|driver|trip|closed trip|open trip)/i.test(
+    text,
+  );
+}
+
+async function buildReadOnlyDataContext(text: string, role: string, branchIds: string[] | undefined) {
+  if (!wantsReadOnlyData(text)) return "";
+
+  const allowedBranchIds = role === "basic" ? (branchIds ?? []) : null;
+  if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
+    return "READ-ONLY DATA: Basic user has no assigned branches, so no business rows are accessible.";
+  }
+
+  const { start, end, label } = currentMonthRange();
+  const [expRows, incomeRows, openTripsRows, closedTripsRows, vehiclesRows, driversRows] = await Promise.all([
+    fetchAll<ReadOnlyRow>(() => supabase.from("expenditures").select("id,expenditure_name,amount,entry_date,paid_date,branch_id,vehicle_id,driver_id,transporter_id,is_insurance,is_road_tax,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("incomes").select("id,income_name,amount,entry_date,received_date,branch_id,vehicle_id,driver_id,transporter_id,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("trips").select("id,trip_code,branch_id,vehicle_id,driver_id,transporter_id,start_date,start_time,ownership,created_at").order("created_at", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("closed_trips").select("id,trip_code,branch_id,branch_name,start_date,end_date,closed_at,total_income,total_expense,net_income").gte("closed_at", start).lt("closed_at", end).order("closed_at", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("vehicles").select("id,registration_number,nickname,branch_id").order("registration_number")),
+    fetchAll<ReadOnlyRow>(() => supabase.from("drivers").select("id,driver_code,full_name,branch_id").order("full_name")),
+  ]);
+
+  const expenditures = applyBranchFilter(expRows, allowedBranchIds);
+  const incomes = applyBranchFilter(incomeRows, allowedBranchIds);
+  const openTrips = applyBranchFilter(openTripsRows, allowedBranchIds);
+  const closedTrips = applyBranchFilter(closedTripsRows, allowedBranchIds);
+  const vehicles = applyBranchFilter(vehiclesRows, allowedBranchIds);
+  const drivers = applyBranchFilter(driversRows, allowedBranchIds);
+  const insuranceRows = expenditures.filter((row) => row.is_insurance === true || /insurance|premium/i.test(String(row.expenditure_name ?? "")));
+
+  return [
+    `READ-ONLY DATA ACCESS: Use this live Supabase data to answer; do not say you cannot access financial data. Data is read-only and already role-filtered.`,
+    `Current month: ${label} (${start} to ${end}, end exclusive).`,
+    `This month insurance premium expenditure: ${money(sumAmounts(insuranceRows))} across ${insuranceRows.length} row(s).`,
+    `This month total expenditures: ${money(sumAmounts(expenditures))} across ${expenditures.length} row(s).`,
+    `This month total incomes: ${money(sumAmounts(incomes))} across ${incomes.length} row(s).`,
+    `Open trips: ${openTrips.length}; closed trips this month: ${closedTrips.length}; vehicles: ${vehicles.length}; drivers: ${drivers.length}.`,
+    `Insurance premium rows: ${insuranceRows.slice(0, 10).map((r) => `${r.entry_date ?? "no date"} ${r.expenditure_name ?? "Insurance"} ${money(Number(r.amount ?? 0))}${r.note ? ` (${r.note})` : ""}`).join("; ") || "none"}.`,
+  ].join("\n");
+}
 
 // ── Puter.js + Speech Recognition type shims ─────────────────────────────────
 declare global {
@@ -702,7 +830,15 @@ export function SparrowAIPanel() {
       setCurrentStep("");
 
       try {
-        const systemPrompt = buildSystemPrompt(role, displayName, currentPath, pageContext);
+        if (asksCurrentMonthInsurancePremium(trimmed)) {
+          const content = await answerCurrentMonthInsurancePremium(role, user?.branchIds);
+          setMessages((prev) => [...prev, { id: uid(), role: "assistant", content }]);
+          setCurrentStep("");
+          return;
+        }
+
+        const readOnlyDataContext = await buildReadOnlyDataContext(trimmed, role, user?.branchIds);
+        const systemPrompt = `${buildSystemPrompt(role, displayName, currentPath, pageContext)}${readOnlyDataContext ? `\n\n━━━ READ-ONLY DATA CONTEXT ━━━\n${readOnlyDataContext}` : ""}`;
         const history = [...messages, userMsg].slice(-12).map((m) => ({
           role: m.role, content: m.content,
         }));
@@ -730,7 +866,7 @@ export function SparrowAIPanel() {
         setLoading(false);
       }
     },
-    [loading, messages, role, displayName, currentPath],
+    [loading, messages, role, displayName, currentPath, user?.branchIds],
   );
 
   if (!user) return null;
