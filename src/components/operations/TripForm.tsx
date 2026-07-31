@@ -215,17 +215,16 @@ export function TripForm({
     return locationIdByPin.get(pin) ?? ensureLocationForPin(pin);
   }
 
-  async function applyBranchLocationDefaults(branchId: string | null, force = false) {
+  async function applyBranchStartLocationDefault(branchId: string | null, force = false) {
     const locationId = await branchLocationId(branchId);
     if (!locationId) return;
     setTrip((t) => ({
       ...t,
       ...(force || !t.start_location_id ? { start_location_id: locationId } : {}),
-      ...(force || !t.end_location_id ? { end_location_id: locationId } : {}),
     }));
   }
 
-  // Auto-update trip_code prefix and location defaults when branch data becomes available
+  // Auto-update trip_code prefix and start-location defaults when branch data becomes available
   // (covers basic users with a single auto-filled branch on new trips).
   useEffect(() => {
     if (!initial.id && trip.branch_id && allBranches.length > 0) {
@@ -233,7 +232,7 @@ export function TripForm({
       if (prefix) {
         setTrip((t) => ({ ...t, trip_code: newTripCode(prefix) }));
       }
-      void applyBranchLocationDefaults(trip.branch_id);
+      void applyBranchStartLocationDefault(trip.branch_id);
     }
     // Run only when allBranches first becomes available (or branch_id changes on new trips)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -709,7 +708,7 @@ export function TripForm({
                 ...(!vehicleStillValid ? { vehicle_id: null } : {}),
                 ...(!driverStillValid ? { driver_id: null } : {}),
               });
-              void applyBranchLocationDefaults(id, true);
+              void applyBranchStartLocationDefault(id, true);
             }}
           />
 
