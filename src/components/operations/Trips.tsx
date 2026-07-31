@@ -111,7 +111,7 @@ export function Trips() {
   const isBasic = user?.role === "basic";
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
-  // Closed trips: show last 90 days by default; admin can expand to all-time
+  // Closed trips: show last 15 days by default; admin can expand to all-time
   const [showAllClosed, setShowAllClosed] = useState(false);
 
   async function load() {
@@ -125,8 +125,8 @@ export function Trips() {
         return;
       }
 
-      // Default: closed_trips last 90 days only (prevents loading 50k archived rows on startup)
-      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+      // Default: closed_trips last 15 days only (prevents loading 50k archived rows on startup)
+      const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
         .toISOString()
         .slice(0, 10);
 
@@ -147,7 +147,7 @@ export function Trips() {
             .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
             .order("closed_at", { ascending: false });
           if (!showAllClosed) {
-            q = q.gte("closed_at", ninetyDaysAgo) as typeof q;
+            q = q.gte("closed_at", fifteenDaysAgo) as typeof q;
           }
           if (allowedBranchIds !== null) {
             q = q.in("branch_id", allowedBranchIds) as typeof q;
@@ -205,7 +205,7 @@ export function Trips() {
               .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
               .order("closed_at", { ascending: false });
             if (!showAllClosed) {
-              q = q.gte("closed_at", ninetyDaysAgo) as typeof q;
+              q = q.gte("closed_at", fifteenDaysAgo) as typeof q;
             }
             if (allowedBranchIds !== null) {
               q = q.in("branch_id", allowedBranchIds) as typeof q;
@@ -372,7 +372,7 @@ export function Trips() {
             <Archive className="size-4 text-muted-foreground" />
             Closed trips
             {!showAllClosed && (
-              <span className="text-xs font-normal text-muted-foreground">(last 90 days)</span>
+              <span className="text-xs font-normal text-muted-foreground">(last 15 days)</span>
             )}
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -424,7 +424,7 @@ export function Trips() {
               </li>
             ))}
           </ul>
-          {/* Load older closed trips if viewing only last 90 days */}
+          {/* Load older closed trips if viewing only last 15 days */}
           {!showAllClosed && (
             <button
               type="button"
