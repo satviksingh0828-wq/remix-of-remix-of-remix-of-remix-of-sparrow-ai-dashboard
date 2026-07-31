@@ -954,6 +954,7 @@ export type Database = {
           insurance_id: string | null
           is_road_tax: boolean
           road_tax_id: string | null
+          is_fastag_recharge: boolean
           note: string | null
           paid_date: string | null
           transporter_id: string | null
@@ -980,6 +981,7 @@ export type Database = {
           insurance_id?: string | null
           is_road_tax?: boolean
           road_tax_id?: string | null
+          is_fastag_recharge?: boolean
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null
@@ -1006,6 +1008,7 @@ export type Database = {
           insurance_id?: string | null
           is_road_tax?: boolean
           road_tax_id?: string | null
+          is_fastag_recharge?: boolean
           note?: string | null
           paid_date?: string | null
           transporter_id?: string | null
