@@ -3,7 +3,7 @@
  * Each contract with fixed_monthly_charge > 0 or fixed_yearly_charge > 0 is listed.
  * Shows the effective monthly amount per selected month and provides a CSV export.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { inr } from "@/lib/trip-calc";
+import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
 
 type ContractCharge = {
   id: string;
@@ -40,6 +41,7 @@ export function FixedIncomeList() {
   const [loading, setLoading]     = useState(true);
   const [year, setYear]           = useState(String(new Date().getFullYear()));
   const [month, setMonth]         = useState(String(new Date().getMonth() + 1)); // default: current month
+  const [financialYear, setFinancialYear] = useState("none");
 
   async function load() {
     setLoading(true);
@@ -74,15 +76,18 @@ export function FixedIncomeList() {
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 7 }, (_, i) => currentYear - 5 + i + 1);
+  const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
   const monthlyTotal = contracts.reduce((s, c) => s + c.effective_monthly, 0);
   const yearlyTotal  = monthlyTotal * 12;
 
   // Which months to display
   const monthNum     = Number(month);
-  const displayMonths = monthNum > 0
-    ? [{ short: SHORT_MONTHS[monthNum - 1], idx: monthNum - 1 }]
-    : SHORT_MONTHS.map((s, i) => ({ short: s, idx: i }));
+  const displayMonths = financialYear !== "none"
+    ? [3,4,5,6,7,8,9,10,11,0,1,2].map((idx) => ({ short: SHORT_MONTHS[idx], idx }))
+    : monthNum > 0
+      ? [{ short: SHORT_MONTHS[monthNum - 1], idx: monthNum - 1 }]
+      : SHORT_MONTHS.map((s, i) => ({ short: s, idx: i }));
 
   function exportCsv() {
     const rows: string[][] = [];
@@ -103,8 +108,8 @@ export function FixedIncomeList() {
     URL.revokeObjectURL(url);
   }
 
-  const periodTotal = monthNum > 0 ? monthlyTotal : yearlyTotal;
-  const periodLabel = monthNum > 0 ? `${MONTHS[monthNum - 1]} ${year}` : `Year ${year}`;
+  const periodTotal = financialYear !== "none" || monthNum === 0 ? yearlyTotal : monthlyTotal;
+  const periodLabel = financialYear !== "none" ? `FY ${financialYearLabel(Number(financialYear))}` : monthNum > 0 ? `${MONTHS[monthNum - 1]} ${year}` : `Year ${year}`;
 
   return (
     <div className="animate-fade-up space-y-5">
@@ -139,6 +144,13 @@ export function FixedIncomeList() {
         <Select value={month} onValueChange={setMonth}>
           <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
           <SelectContent>{MONTH_FILTER_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={financialYear} onValueChange={setFinancialYear}>
+          <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Financial Year: None</SelectItem>
+            {financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
+          </SelectContent>
         </Select>
         <span className="ml-auto text-sm text-muted-foreground">
           {periodLabel} total:{" "}

@@ -5,6 +5,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { num, manifestCharges, findEntry, type ContractLite, type EntryLite } from "./trip-calc";
+import { financialYearRange } from "./financial-year";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ export type TripAveragesData = {
   otherNetPnL: number;
   year: number;
   month: number;
+  financialYearStart?: number;
 };
 
 export type PnLIncomeRow = {
@@ -132,7 +134,7 @@ export type PnLStats = {
 };
 
 export type EntityKind = "vehicle" | "driver" | "transporter";
-export type PeriodSpec = { year: number; month?: number };
+export type PeriodSpec = { year?: number; month?: number; financialYearStart?: number };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -408,17 +410,23 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabaseAdmin as any;
 
-    const { year, month } = data.period;
+    const { year, month, financialYearStart } = data.period;
     let start: string;
     let end: string;
+    let outputYear = year ?? financialYearStart ?? new Date().getFullYear();
 
-    if (month !== undefined) {
+    if (financialYearStart !== undefined) {
+      ({ start, end } = financialYearRange(financialYearStart));
+      outputYear = financialYearStart;
+    } else if (year !== undefined && month !== undefined) {
       const m = String(month).padStart(2, "0");
       start = `${year}-${m}-01`;
       end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    } else {
+    } else if (year !== undefined) {
       start = `${year}-01-01`;
       end = `${year + 1}-01-01`;
+    } else {
+      throw new Error("Select a calendar year or financial year.");
     }
 
     const months = month !== undefined ? 1 : 12;
@@ -478,21 +486,30 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
         id: t.id as string,
         label: String(t.transporter_name ?? ""),
       })),
-      year,
+      year: outputYear,
     };
   });
 
 export const serverFetchTripAverages = createServerFn({ method: "POST" })
-  .validator((input: { year: number; month: number }) => input)
+  .validator((input: { year?: number; month?: number; financialYearStart?: number }) => input)
   .handler(async ({ data }): Promise<TripAveragesData> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabaseAdmin as any;
 
-    const { year, month } = data;
-    const m = String(month).padStart(2, "0");
-    const start = `${year}-${m}-01`;
-    const end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const { financialYearStart } = data;
+    const year = data.year ?? financialYearStart ?? new Date().getFullYear();
+    const month = data.month ?? 1;
+    let start: string;
+    let end: string;
+    const months = financialYearStart !== undefined ? 12 : 1;
+    if (financialYearStart !== undefined) {
+      ({ start, end } = financialYearRange(financialYearStart));
+    } else {
+      const m = String(month).padStart(2, "0");
+      start = `${year}-${m}-01`;
+      end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    }
 
     const [tripsRows, incomesRows, expendituresRows, contractsRes, locationsRes] = await Promise.all([
       fetchAllAdmin<Record<string, unknown>>(() =>
@@ -577,11 +594,11 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
     const otherIncome = incomesRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
     const totalExpenditure = expendituresRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
     const fixedIncome = (contractsRes.data ?? []).reduce((s: number, c: Record<string, unknown>) => {
-      return s + Number(c.fixed_monthly_charge ?? 0) + Number(c.fixed_yearly_charge ?? 0) / 12;
+      return s + (Number(c.fixed_monthly_charge ?? 0) + Number(c.fixed_yearly_charge ?? 0) / 12) * months;
     }, 0);
     const otherNetPnL = otherIncome + fixedIncome - totalExpenditure;
 
-    return { trips, otherIncome, totalExpenditure, fixedIncome, otherNetPnL, year, month };
+    return { trips, otherIncome, totalExpenditure, fixedIncome, otherNetPnL, year, month, financialYearStart };
   });
 
 // ── Client-side computation helpers ───────────────────────────────────────────

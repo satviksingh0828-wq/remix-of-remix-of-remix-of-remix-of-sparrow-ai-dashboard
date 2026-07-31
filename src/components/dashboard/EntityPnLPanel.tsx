@@ -21,6 +21,7 @@ import {
   type PnLVehicle, type PnLDriver, type PnLTransporter,
 } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
+import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
 
 const MONTH_OPTIONS = [
   { value: "0",  label: "All Year" },
@@ -165,10 +166,12 @@ export function EntityPnLPanel({ kind }: Props) {
   const meta = LABELS[kind];
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => Array.from({ length: 6 }, (_, i) => currentYear - 3 + i), [currentYear]);
+  const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
   // Single-period state
   const [year, setYear]       = useState(String(currentYear));
   const [month, setMonth]     = useState("0");
+  const [financialYear, setFinancialYear] = useState("none");
   const [data, setData]       = useState<PnLRawData | null>(null);
   const [loading, setLoading] = useState(true);
   const [entityId, setEntityId] = useState<string | null>(null);
@@ -178,20 +181,23 @@ export function EntityPnLPanel({ kind }: Props) {
   const [compareMode, setCompareMode] = useState(false);
   const [p2Year, setP2Year]   = useState(String(currentYear));
   const [p2Month, setP2Month] = useState("0");
+  const [p2FinancialYear, setP2FinancialYear] = useState("none");
   const [data2, setData2]     = useState<PnLRawData | null>(null);
   const [loading2, setLoading2] = useState(false);
 
-  async function loadPeriod(y: string, m: string): Promise<PnLRawData> {
+  async function loadPeriod(y: string, m: string, fy = "none"): Promise<PnLRawData> {
     const mn = Number(m);
-    return mn > 0
-      ? await serverFetchPnLPeriod({ data: { period: { year: Number(y), month: mn } } })
-      : await serverFetchPnLYear({ data: { year: Number(y) } });
+    return fy !== "none"
+      ? await serverFetchPnLPeriod({ data: { period: { financialYearStart: Number(fy) } } })
+      : mn > 0
+        ? await serverFetchPnLPeriod({ data: { period: { year: Number(y), month: mn } } })
+        : await serverFetchPnLYear({ data: { year: Number(y) } });
   }
 
   async function load(y: string, m: string) {
     setLoading(true);
     try {
-      const result = await loadPeriod(y, m);
+      const result = await loadPeriod(y, m, financialYear);
       setData(result);
       setEntityId(null);
     } catch (err) {
@@ -203,7 +209,7 @@ export function EntityPnLPanel({ kind }: Props) {
   async function loadP2(y: string, m: string) {
     setLoading2(true);
     try {
-      const result = await loadPeriod(y, m);
+      const result = await loadPeriod(y, m, p2FinancialYear);
       setData2(result);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not load comparison data");
@@ -211,11 +217,11 @@ export function EntityPnLPanel({ kind }: Props) {
     setLoading2(false);
   }
 
-  useEffect(() => { load(year, month); }, [year, month]);
+  useEffect(() => { load(year, month); }, [year, month, financialYear]);
   useEffect(() => {
     if (compareMode) loadP2(p2Year, p2Month);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [compareMode, p2Year, p2Month]);
+  }, [compareMode, p2Year, p2Month, p2FinancialYear]);
 
   const entities: Array<PnLVehicle | PnLDriver | PnLTransporter> = useMemo(() => {
     if (!data) return [];
@@ -273,8 +279,8 @@ export function EntityPnLPanel({ kind }: Props) {
   }
 
   const selectedLabel = entityId ? entities.find(e => e.id === entityId)?.label ?? "" : meta.allLabel;
-  const p1Label = periodLabel(year, month);
-  const p2Label = periodLabel(p2Year, p2Month);
+  const p1Label = financialYear !== "none" ? `FY ${financialYearLabel(Number(financialYear))}` : periodLabel(year, month);
+  const p2Label = p2FinancialYear !== "none" ? `FY ${financialYearLabel(Number(p2FinancialYear))}` : periodLabel(p2Year, p2Month);
 
   return (
     <div className="animate-fade-up space-y-5">
@@ -283,8 +289,16 @@ export function EntityPnLPanel({ kind }: Props) {
         {compareMode ? (
           <div className="flex flex-wrap gap-4 flex-1">
             <PeriodSelector label="Period 1" year={year} month={month} onYear={setYear} onMonth={setMonth} years={years} />
+            <Select value={financialYear} onValueChange={setFinancialYear}>
+              <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="none">Financial Year: None</SelectItem>{financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}</SelectContent>
+            </Select>
             <div className="flex items-end pb-1 text-muted-foreground text-sm">vs</div>
             <PeriodSelector label="Period 2" year={p2Year} month={p2Month} onYear={setP2Year} onMonth={setP2Month} years={years} />
+            <Select value={p2FinancialYear} onValueChange={setP2FinancialYear}>
+              <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="none">Financial Year: None</SelectItem>{financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}</SelectContent>
+            </Select>
           </div>
         ) : (
           <>
@@ -295,6 +309,10 @@ export function EntityPnLPanel({ kind }: Props) {
             <Select value={month} onValueChange={v => setMonth(v)}>
               <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
               <SelectContent>{MONTH_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={financialYear} onValueChange={setFinancialYear}>
+              <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="none">Financial Year: None</SelectItem>{financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}</SelectContent>
             </Select>
             <Button variant="outline" size="sm" onClick={() => load(year, month)} disabled={loading}>
               <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { serverFetchTripAverages, type TripAveragesData } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
+import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
 
 const MONTHS = [
   { value: "1",  label: "January" },  { value: "2",  label: "February" },
@@ -53,9 +54,11 @@ export function TripAveragesPanel() {
   const currentMonth = new Date().getMonth() + 1;
 
   const years = useMemo(() => Array.from({ length: 6 }, (_, i) => currentYear - 3 + i), [currentYear]);
+  const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
   const [year,        setYear]        = useState(String(currentYear));
   const [month,       setMonth]       = useState(String(currentMonth));
+  const [financialYear, setFinancialYear] = useState("none");
   const [day,         setDay]         = useState<string>("");
   const [method,      setMethod]      = useState<DistMethod>("weight");
   const [data,        setData]        = useState<TripAveragesData | null>(null);
@@ -68,7 +71,9 @@ export function TripAveragesPanel() {
     setDay("");
     try {
       const result = await serverFetchTripAverages({
-        data: { year: Number(year), month: Number(month) },
+        data: financialYear !== "none"
+          ? { financialYearStart: Number(financialYear) }
+          : { year: Number(year), month: Number(month) },
       });
       setData(result);
     } catch (err) {
@@ -122,7 +127,7 @@ export function TripAveragesPanel() {
       : source.reduce((s, r) => s + r.base, 0);
   }, [data, method, rows, filteredRows, day]);
 
-  const monthLabel = MONTHS.find(m => m.value === month)?.label ?? "";
+  const monthLabel = financialYear !== "none" ? `FY ${financialYearLabel(Number(financialYear))}` : MONTHS.find(m => m.value === month)?.label ?? "";
 
   // ── Excel exports ─────────────────────────────────────────────────────────
   function exportTripWise() {
@@ -157,7 +162,7 @@ export function TripAveragesPanel() {
     ws["!cols"] = [18, 16, 14, 14, 14, 14, 10, 16, 14].map(w => ({ wch: w }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Trip Wise");
-    XLSX.writeFile(wb, `trip-averages-trip-wise-${year}-${month.padStart(2, "0")}.xlsx`);
+    XLSX.writeFile(wb, financialYear !== "none" ? `trip-averages-trip-wise-fy-${financialYearLabel(Number(financialYear))}.xlsx` : `trip-averages-trip-wise-${year}-${month.padStart(2, "0")}.xlsx`);
   }
 
   function exportManifestWise() {
@@ -207,7 +212,7 @@ export function TripAveragesPanel() {
     ws["!cols"] = [16,14,14,14,14,14,10,14,14,14,16,16,12,10,16,14,14].map(w => ({ wch: w }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Manifest Wise");
-    XLSX.writeFile(wb, `trip-averages-manifest-wise-${year}-${month.padStart(2, "0")}.xlsx`);
+    XLSX.writeFile(wb, financialYear !== "none" ? `trip-averages-manifest-wise-fy-${financialYearLabel(Number(financialYear))}.xlsx` : `trip-averages-manifest-wise-${year}-${month.padStart(2, "0")}.xlsx`);
   }
 
   return (
@@ -221,6 +226,10 @@ export function TripAveragesPanel() {
         <Select value={month} onValueChange={setMonth}>
           <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
           <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={financialYear} onValueChange={setFinancialYear}>
+          <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="none">Financial Year: None</SelectItem>{financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}</SelectContent>
         </Select>
         <Button onClick={load} disabled={loading} size="sm">
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />

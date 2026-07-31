@@ -32,6 +32,7 @@ import {
   type PeriodSpec,
 } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
+import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
 
 const MONTHS = [
   { value: "0", label: "Full Year" },
@@ -49,7 +50,8 @@ const MONTHS = [
   { value: "12", label: "December" },
 ];
 
-function periodLabel(year: string, month: string) {
+function periodLabel(year: string, month: string, financialYear = "none") {
+  if (financialYear !== "none") return `FY ${financialYearLabel(Number(financialYear))}`;
   const m = Number(month);
   if (m === 0) return String(year);
   return `${MONTHS[m]?.label} ${year}`;
@@ -62,6 +64,9 @@ function PeriodSelector({
   onYear,
   onMonth,
   years,
+  financialYear,
+  onFinancialYear,
+  financialYears,
 }: {
   label: string;
   year: string;
@@ -69,6 +74,9 @@ function PeriodSelector({
   onYear: (v: string) => void;
   onMonth: (v: string) => void;
   years: number[];
+  financialYear: string;
+  onFinancialYear: (v: string) => void;
+  financialYears: { value: string; label: string }[];
 }) {
   return (
     <div className="space-y-2">
@@ -92,6 +100,13 @@ function PeriodSelector({
             {MONTHS.map((m) => (
               <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={financialYear} onValueChange={onFinancialYear}>
+          <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Financial Year: None</SelectItem>
+            {financialYears.map((fy) => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
           </SelectContent>
         </Select>
       </div>
@@ -145,11 +160,14 @@ function formatYAxis(v: number) {
 export function ProfitLossComparison() {
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => Array.from({ length: 7 }, (_, i) => currentYear - 4 + i), [currentYear]);
+  const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
   const [p1Year, setP1Year] = useState(String(currentYear - 1));
   const [p1Month, setP1Month] = useState("0");
+  const [p1FinancialYear, setP1FinancialYear] = useState("none");
   const [p2Year, setP2Year] = useState(String(currentYear));
   const [p2Month, setP2Month] = useState("0");
+  const [p2FinancialYear, setP2FinancialYear] = useState("none");
 
   const [data1, setData1] = useState<PnLRawData | null>(null);
   const [data2, setData2] = useState<PnLRawData | null>(null);
@@ -160,14 +178,12 @@ export function ProfitLossComparison() {
   async function run() {
     setLoading(true);
     try {
-      const period1: PeriodSpec = {
-        year: Number(p1Year),
-        month: Number(p1Month) === 0 ? undefined : Number(p1Month),
-      };
-      const period2: PeriodSpec = {
-        year: Number(p2Year),
-        month: Number(p2Month) === 0 ? undefined : Number(p2Month),
-      };
+      const period1: PeriodSpec = p1FinancialYear !== "none"
+        ? { financialYearStart: Number(p1FinancialYear) }
+        : { year: Number(p1Year), month: Number(p1Month) === 0 ? undefined : Number(p1Month) };
+      const period2: PeriodSpec = p2FinancialYear !== "none"
+        ? { financialYearStart: Number(p2FinancialYear) }
+        : { year: Number(p2Year), month: Number(p2Month) === 0 ? undefined : Number(p2Month) };
 
       const [r1, r2] = await Promise.all([
         serverFetchPnLPeriod({ data: { period: period1 } }),
@@ -220,6 +236,9 @@ export function ProfitLossComparison() {
             onYear={setP1Year}
             onMonth={setP1Month}
             years={years}
+            financialYear={p1FinancialYear}
+            onFinancialYear={setP1FinancialYear}
+            financialYears={financialYears}
           />
           <div className="flex items-center pb-1">
             <ArrowLeftRight className="size-5 text-muted-foreground" />
@@ -231,6 +250,9 @@ export function ProfitLossComparison() {
             onYear={setP2Year}
             onMonth={setP2Month}
             years={years}
+            financialYear={p2FinancialYear}
+            onFinancialYear={setP2FinancialYear}
+            financialYears={financialYears}
           />
           <Button onClick={run} disabled={loading} className="self-end">
             {loading ? <RefreshCw className="size-4 animate-spin" /> : null}
@@ -256,12 +278,12 @@ export function ProfitLossComparison() {
           <div className="flex items-center gap-4 text-sm">
             <span className="flex items-center gap-1.5">
               <span className="size-3 rounded-sm bg-blue-500" />
-              <span className="font-medium">{periodLabel(p1Year, p1Month)}</span>
+              <span className="font-medium">{periodLabel(p1Year, p1Month, p1FinancialYear)}</span>
             </span>
             <span className="text-muted-foreground">vs</span>
             <span className="flex items-center gap-1.5">
               <span className="size-3 rounded-sm bg-green-500" />
-              <span className="font-medium">{periodLabel(p2Year, p2Month)}</span>
+              <span className="font-medium">{periodLabel(p2Year, p2Month, p2FinancialYear)}</span>
             </span>
           </div>
 
@@ -309,11 +331,11 @@ export function ProfitLossComparison() {
           <div className="surface-card p-4">
             <div className="flex flex-wrap gap-6 text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">Trips Closed — {periodLabel(p1Year, p1Month)}</p>
+                <p className="text-xs text-muted-foreground">Trips Closed — {periodLabel(p1Year, p1Month, p1FinancialYear)}</p>
                 <p className="mt-0.5 text-xl font-bold">{stats1.tripCount}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Trips Closed — {periodLabel(p2Year, p2Month)}</p>
+                <p className="text-xs text-muted-foreground">Trips Closed — {periodLabel(p2Year, p2Month, p2FinancialYear)}</p>
                 <p className="mt-0.5 text-xl font-bold">{stats2.tripCount}</p>
               </div>
               <div>
@@ -336,7 +358,7 @@ export function ProfitLossComparison() {
           {/* Comparison bar chart */}
           <div className="surface-card p-5">
             <h3 className="mb-4 text-sm font-semibold tracking-tight">
-              Side-by-side: {periodLabel(p1Year, p1Month)} vs {periodLabel(p2Year, p2Month)}
+              Side-by-side: {periodLabel(p1Year, p1Month, p1FinancialYear)} vs {periodLabel(p2Year, p2Month, p2FinancialYear)}
             </h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={barData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
@@ -348,8 +370,8 @@ export function ProfitLossComparison() {
                   contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="p1" name={periodLabel(p1Year, p1Month)} fill="#3b82f6" radius={[2,2,0,0]} />
-                <Bar dataKey="p2" name={periodLabel(p2Year, p2Month)} fill="#22c55e" radius={[2,2,0,0]} />
+                <Bar dataKey="p1" name={periodLabel(p1Year, p1Month, p1FinancialYear)} fill="#3b82f6" radius={[2,2,0,0]} />
+                <Bar dataKey="p2" name={periodLabel(p2Year, p2Month, p2FinancialYear)} fill="#22c55e" radius={[2,2,0,0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -360,8 +382,8 @@ export function ProfitLossComparison() {
             <ResponsiveContainer width="100%" height={180}>
               <BarChart
                 data={[
-                  { name: periodLabel(p1Year, p1Month), value: stats1.netPnL },
-                  { name: periodLabel(p2Year, p2Month), value: stats2.netPnL },
+                  { name: periodLabel(p1Year, p1Month, p1FinancialYear), value: stats1.netPnL },
+                  { name: periodLabel(p2Year, p2Month, p2FinancialYear), value: stats2.netPnL },
                 ]}
                 margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
               >

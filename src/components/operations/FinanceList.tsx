@@ -20,6 +20,7 @@ import { useSession } from "@/lib/session";
 import { inr, num } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
 import { logAction } from "@/lib/log-actions";
+import { financialYearOptions, financialYearRange, dateInFinancialYear } from "@/lib/financial-year";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import {
   emptyFinanceRow,
@@ -72,6 +73,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   const currentMonth = String(new Date().getMonth() + 1).padStart(2, "0");
   const [year, setYear] = useState(String(currentYear));
   const [month, setMonth] = useState(currentMonth);
+  const [financialYear, setFinancialYear] = useState("none");
   const [status, setStatus] = useState<"all" | "done" | "pending">("all");
 
   async function load() {
@@ -91,7 +93,10 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           .order("entry_date", { ascending: false });
 
         // ── Push date filter to Supabase (avoids loading 50k+ rows client-side) ──
-        if (year !== "all") {
+        if (financialYear !== "none") {
+          const range = financialYearRange(Number(financialYear));
+          q = q.gte("entry_date", range.start).lt("entry_date", range.end) as typeof q;
+        } else if (year !== "all") {
           if (month !== "all") {
             const nextMonthNum = Number(month) + 1;
             const nextMonthStart =
@@ -177,7 +182,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kind, user?.id, year, month]);
+  }, [kind, user?.id, year, month, financialYear]);
 
   useEffect(() => {
     loadMasters();
@@ -210,10 +215,15 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
     const yr = new Date().getFullYear();
     return Array.from({ length: yr - 2019 }, (_, i) => String(yr - i));
   }, []);
+  const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
   const filtered = rows.filter((r) => {
-    if (year !== "all" && yearOf(r.entry_date) !== year) return false;
-    if (month !== "all" && monthOf(r.entry_date) !== month) return false;
+    if (financialYear !== "none") {
+      if (!dateInFinancialYear(r.entry_date, financialYear)) return false;
+    } else {
+      if (year !== "all" && yearOf(r.entry_date) !== year) return false;
+      if (month !== "all" && monthOf(r.entry_date) !== month) return false;
+    }
     if (status === "done" && !r.settled) return false;
     if (status === "pending" && r.settled) return false;
     return true;
@@ -388,6 +398,13 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                 {m}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={financialYear} onValueChange={setFinancialYear}>
+          <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Financial Year: None</SelectItem>
+            {financialYears.map((fy) => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
