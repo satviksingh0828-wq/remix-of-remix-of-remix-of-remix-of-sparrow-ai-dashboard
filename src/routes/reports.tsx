@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BarChart3, Car, ChevronRight, FileBarChart, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, Users } from "lucide-react";
+import { BarChart3, Car, ChevronRight, FileBarChart, FileText, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, Shield, Users } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { ProfitLossComparison } from "@/components/reports/ProfitLossComparison";
+import { CoverageLedger } from "@/components/reports/CoverageLedger";
 import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
 import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
 import { useSession } from "@/lib/session";
@@ -30,6 +31,8 @@ const TABS = [
   { id: "drivers",       label: "Drivers",           desc: "Driver-wise P&L & performance",        icon: Users },
   { id: "transporters",  label: "Transporters",      desc: "Transporter-wise P&L",                 icon: BarChart3 },
   { id: "trips",         label: "Trips",             desc: "All trips — income & net",             icon: RouteIcon },
+  { id: "insurance",     label: "Insurance Premium Ledger", desc: "Vehicle insurance expenses",     icon: Shield },
+  { id: "road-tax",      label: "Road Tax Ledger",          desc: "Vehicle road tax expenses",      icon: FileText },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -139,6 +142,8 @@ function ReportsPage() {
           {tab === "drivers"       && <EntityPnLPanel kind="driver" />}
           {tab === "transporters"  && <EntityPnLPanel kind="transporter" />}
           {tab === "trips"         && <TripSummaryPanel />}
+          {tab === "insurance"     && <CoverageLedger type="insurance" />}
+          {tab === "road-tax"      && <CoverageLedger type="road_tax" />}
         </div>
       </div>
     </AppShell>
