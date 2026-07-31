@@ -29,6 +29,8 @@ const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
 
 /** Returns the auto-close deadline for a live trip. */
 function getTripDeadline(t: TripRow): Date | null {
+  // Bulk-imported trips are intentionally kept open until a user closes them manually.
+  if (t.notes === "IMPORT_OPEN_TRIP") return null;
   // Reopened trips: auto-close 1 day after reopen
   if (t.reopened_at) {
     return new Date(new Date(t.reopened_at).getTime() + ONE_DAY_MS);

@@ -64,6 +64,7 @@ export type TripRow = {
   odometer_start: string;
   odometer_end: string;
   third_party_vehicle_number: string;
+  notes?: string | null;
   created_at?: string;
   reopened_at?: string | null;
 };

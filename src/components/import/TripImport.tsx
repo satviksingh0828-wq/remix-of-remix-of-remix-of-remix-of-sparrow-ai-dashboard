@@ -137,10 +137,8 @@ function validate(
     if (endPin && !/^\d{6}$/.test(endPin)) errors.push("end_pin_code must be a 6-digit PIN");
 
     const startDate = normalizeDate(raw.start_date);
-    const endDate = normalizeDate(raw.end_date);
     if (!startDate) errors.push("start_date required (YYYY-MM-DD or DD/MM/YYYY)");
     else if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) errors.push("start_date must be YYYY-MM-DD or DD/MM/YYYY");
-    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) errors.push("end_date must be YYYY-MM-DD or DD/MM/YYYY");
 
     const tripCode = raw.trip_code?.trim() || newTripCode();
     if (seen.has(tripCode)) errors.push(`Duplicate trip_code "${tripCode}" in file`);
@@ -157,7 +155,7 @@ function validate(
       transporter_id: transporterId,
       start_date: startDate,
       start_time: raw.start_time?.trim() ?? "",
-      end_date: endDate,
+      end_date: "",
       end_time: raw.end_time?.trim() ?? "",
       odometer_start: raw.odometer_start?.trim() ?? "",
       odometer_end: raw.odometer_end?.trim() ?? "",
@@ -273,10 +271,10 @@ function ReadMe() {
                 ["transporter_name",           "rented trips", "Must exist in Masters → Transporters"],
                 ["start_date",                 "Yes", "Format: YYYY-MM-DD or DD/MM/YYYY. Excel serial dates are also converted."],
                 ["start_time",                 "No",  "Format: HH:MM  e.g. 08:30"],
-                ["end_date",                   "No",  "Leave blank if trip not yet finished. Accepts YYYY-MM-DD, DD/MM/YYYY, or an Excel serial date."],
-                ["end_time",                   "No",  "Leave blank if trip not yet finished"],
+                ["end_date",                   "Ignored",  "Trip Import keeps every trip open, so end date is not saved during import."],
+                ["end_time",                   "Ignored",  "Trip Import keeps every trip open, so end time is not saved during import."],
                 ["odometer_start",             "No",  "Numbers only, e.g. 45200"],
-                ["odometer_end",               "No",  "Numbers only"],
+                ["odometer_end",               "Ignored", "Trip Import keeps every trip open, so closing odometer is not saved during import."],
                 ["third_party_vehicle_number", "No",  "Rented trips only — the hired vehicle's number"],
               ].map(([col, req, note]) => (
                 <tr key={col} className="border-b border-border/50">
@@ -388,8 +386,9 @@ function ReadMe() {
       <section className="space-y-2">
         <h3 className="font-semibold text-foreground">After import</h3>
         <p className="text-muted-foreground">
-          Imported trips appear in the <strong className="text-foreground">Trip</strong> tab as live trips.
-          Open each one → fill in any missing details (end date, end time, odometer) → click
+          Imported trips appear in the <strong className="text-foreground">Trip</strong> tab as open live trips.
+          End date, end time, and closing odometer values are intentionally not imported.
+          Open each one → fill in the closing details when ready → click
           <strong className="text-foreground"> Close trip</strong> to archive it. The close button
           in the trip form validates all required fields before archiving.
         </p>
@@ -509,10 +508,12 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
             end_location_id: tripLocationIdsByPin.get((t.raw.end_pin_code ?? "").trim()) ?? null,
             start_date:   t.start_date || null,
             start_time:   t.start_time || null,
-            end_date:     t.end_date   || null,
-            end_time:     t.end_time   || null,
+            // Imported trips must remain open/live. End details are filled manually before closing.
+            end_date:     null,
+            end_time:     null,
             odometer_start: t.odometer_start || null,
-            odometer_end:   t.odometer_end   || null,
+            odometer_end:   null,
+            notes: "IMPORT_OPEN_TRIP",
             third_party_vehicle_number: t.third_party_vehicle_number || null,
           } as never)
           .select("id")
