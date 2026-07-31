@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
 import { readCsvFile, downloadCsv, toCsv } from "@/lib/csv";
+import { ensureLocationsForPins } from "@/lib/ensure-location";
 import { newTripCode } from "@/lib/trip-calc";
 import { Button } from "@/components/ui/button";
 
@@ -26,6 +27,8 @@ type MasterMaps = {
   vehicles: Map<string, string>;    // lower(registration_number) → id
   drivers:  Map<string, string>;    // lower(full_name) → id
   transporters: Map<string, string>;// lower(transporter_name) → id
+  sources: Map<string, string>;     // lower(contract_name) → id
+  locationsByPin: Map<string, string>; // pin_code → id
 };
 
 type ValidatedTrip = {
@@ -53,16 +56,40 @@ type ValidatedTrip = {
 
 const TRIPS_COLS = [
   "trip_code","ownership","branch_name","vehicle_number","driver_name",
-  "transporter_name","start_date","start_time","end_date","end_time",
+  "transporter_name","start_pin_code","end_pin_code","start_date","start_time","end_date","end_time",
   "odometer_start","odometer_end","third_party_vehicle_number",
 ];
-const MANIFESTS_COLS = ["trip_code","manifest_number","from_pin_code","to_pin_code","weight_kg","quantity"];
+const MANIFESTS_COLS = ["trip_code","manifest_number","source","from_pin_code","to_pin_code","weight_kg","quantity"];
 const EXPENSES_COLS  = ["trip_code","expense_name","amount","note"];
 const INCOME_COLS    = ["trip_code","income_name","amount","note"];
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 function norm(s: string) { return (s ?? "").trim().toLowerCase(); }
+
+function normalizeDate(raw: string | undefined): string {
+  const value = (raw ?? "").trim();
+  if (!value) return "";
+
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(value)) {
+    const [year, month, day] = value.split("-");
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  const slash = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+  if (slash) {
+    const [, day, month, year] = slash;
+    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+  }
+
+  const serial = Number(value);
+  if (Number.isInteger(serial) && serial > 0) {
+    const date = new Date(Date.UTC(1899, 11, 30 + serial));
+    return date.toISOString().slice(0, 10);
+  }
+
+  return value;
+}
 
 function validate(
   rows: Record<string, string>[],
@@ -104,7 +131,16 @@ function validate(
       errors.push(`Transporter "${raw.transporter_name}" not found`);
     }
 
-    if (!raw.start_date?.trim()) errors.push("start_date required (YYYY-MM-DD)");
+    const startPin = (raw.start_pin_code ?? "").trim();
+    const endPin = (raw.end_pin_code ?? "").trim();
+    if (startPin && !/^\d{6}$/.test(startPin)) errors.push("start_pin_code must be a 6-digit PIN");
+    if (endPin && !/^\d{6}$/.test(endPin)) errors.push("end_pin_code must be a 6-digit PIN");
+
+    const startDate = normalizeDate(raw.start_date);
+    const endDate = normalizeDate(raw.end_date);
+    if (!startDate) errors.push("start_date required (YYYY-MM-DD or DD/MM/YYYY)");
+    else if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) errors.push("start_date must be YYYY-MM-DD or DD/MM/YYYY");
+    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) errors.push("end_date must be YYYY-MM-DD or DD/MM/YYYY");
 
     const tripCode = raw.trip_code?.trim() || newTripCode();
     if (seen.has(tripCode)) errors.push(`Duplicate trip_code "${tripCode}" in file`);
@@ -119,9 +155,9 @@ function validate(
       vehicle_id: vehicleId,
       driver_id: driverId,
       transporter_id: transporterId,
-      start_date: raw.start_date?.trim() ?? "",
+      start_date: startDate,
       start_time: raw.start_time?.trim() ?? "",
-      end_date: raw.end_date?.trim() ?? "",
+      end_date: endDate,
       end_time: raw.end_time?.trim() ?? "",
       odometer_start: raw.odometer_start?.trim() ?? "",
       odometer_end: raw.odometer_end?.trim() ?? "",
@@ -230,12 +266,14 @@ function ReadMe() {
                 ["trip_code",                  "No",  "Leave blank to auto-generate (e.g. TR-1234567890)"],
                 ["ownership",                  "Yes", "'own' for your vehicle, 'rented' for hired transport"],
                 ["branch_name",                "Yes", "Must exactly match a branch name in Settings"],
+                ["start_pin_code",           "No",  "6-digit PIN code; importer finds or creates the Starting Location from this PIN"],
+                ["end_pin_code",             "No",  "6-digit PIN code; importer finds or creates the Ending Location from this PIN"],
                 ["vehicle_number",             "own trips", "Registration number — must exist in Masters → Vehicles"],
                 ["driver_name",                "own trips", "Full name — must exist in Masters → Drivers"],
                 ["transporter_name",           "rented trips", "Must exist in Masters → Transporters"],
-                ["start_date",                 "Yes", "Format: YYYY-MM-DD  e.g. 2024-06-15"],
+                ["start_date",                 "Yes", "Format: YYYY-MM-DD or DD/MM/YYYY. Excel serial dates are also converted."],
                 ["start_time",                 "No",  "Format: HH:MM  e.g. 08:30"],
-                ["end_date",                   "No",  "Leave blank if trip not yet finished"],
+                ["end_date",                   "No",  "Leave blank if trip not yet finished. Accepts YYYY-MM-DD, DD/MM/YYYY, or an Excel serial date."],
                 ["end_time",                   "No",  "Leave blank if trip not yet finished"],
                 ["odometer_start",             "No",  "Numbers only, e.g. 45200"],
                 ["odometer_end",               "No",  "Numbers only"],
@@ -266,6 +304,7 @@ function ReadMe() {
               {[
                 ["trip_code",       "Must match the trip_code in trips.csv exactly"],
                 ["manifest_number", "Your manifest / LR number"],
+                ["source",          "Contract/source name used to calculate freight and loading. Must exactly match an active source in Masters → Contracts. Leave blank if charges should stay zero until you edit the manifest."],
                 ["from_pin_code",   "6-digit PIN code of pickup location"],
                 ["to_pin_code",     "6-digit PIN code of delivery location"],
                 ["weight_kg",       "Payload weight in kg"],
@@ -398,12 +437,16 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
       supabase.from("vehicles").select("id,registration_number"),
       supabase.from("drivers").select("id,full_name"),
       supabase.from("transporters").select("id,transporter_name"),
-    ]).then(([b, v, d, t]) => {
+      supabase.from("contracts").select("id,contract_name").eq("status", "active"),
+      supabase.from("locations").select("id,pin_code"),
+    ]).then(([b, v, d, t, c, l]) => {
       setMasters({
         branches:     new Map((b.data ?? []).map(r => [norm(r.branch_name), r.id])),
         vehicles:     new Map((v.data ?? []).map(r => [norm(r.registration_number), r.id])),
         drivers:      new Map((d.data ?? []).map(r => [norm(r.full_name), r.id])),
         transporters: new Map((t.data ?? []).map(r => [norm(r.transporter_name), r.id])),
+        sources:      new Map((c.data ?? []).map(r => [norm(r.contract_name), r.id])),
+        locationsByPin: new Map((l.data ?? []).filter(r => (r.pin_code ?? "").trim()).map(r => [(r.pin_code ?? "").trim(), r.id])),
       });
     }).catch(() => toast.error("Could not load master data")).finally(() => setLoadingMasters(false));
   }, [user]);
@@ -420,6 +463,16 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
         incomeFile    ? readCsvFile(incomeFile)     : Promise.resolve([]),
       ]);
       if (tripRows.length === 0) return toast.error("trips.csv has no data rows");
+
+      const unknownSources = mfRows
+        .map((row, i) => ({ rowNum: i + 2, source: row.source?.trim() ?? "" }))
+        .filter((row) => row.source && !masters.sources.has(norm(row.source)));
+      if (unknownSources.length > 0) {
+        return toast.error(
+          `Unknown manifest source on row ${unknownSources[0].rowNum}: ${unknownSources[0].source}. Match an active contract/source name exactly.`,
+        );
+      }
+
       setValidated(validate(tripRows, masters));
       setManifests(mfRows);
       setExpenses(exRows);
@@ -437,6 +490,9 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
     setImporting(true);
     let inserted = 0;
 
+    const tripPins = good.flatMap((t) => [t.raw.start_pin_code ?? "", t.raw.end_pin_code ?? ""]);
+    const tripLocationIdsByPin = await ensureLocationsForPins(tripPins, masters.locationsByPin);
+
     for (const t of good) {
       try {
         // 1. Insert trip
@@ -449,6 +505,8 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
             vehicle_id:   t.vehicle_id,
             driver_id:    t.driver_id,
             transporter_id: t.transporter_id,
+            start_location_id: tripLocationIdsByPin.get((t.raw.start_pin_code ?? "").trim()) ?? null,
+            end_location_id: tripLocationIdsByPin.get((t.raw.end_pin_code ?? "").trim()) ?? null,
             start_date:   t.start_date || null,
             start_time:   t.start_time || null,
             end_date:     t.end_date   || null,
@@ -470,7 +528,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
             mfRows.map(m => ({
               trip_id: tripId,
               manifest_number: m.manifest_number?.trim() ?? "",
-              source_id: null,
+              source_id: m.source?.trim() ? (masters.sources.get(norm(m.source)) ?? null) : null,
               from_location_id: null,
               from_pin_code: m.from_pin_code?.trim() ?? "",
               to_location_id: null,
@@ -592,7 +650,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
           {/* Masters summary */}
           {masters && !validated && (
             <p className="text-xs text-muted-foreground">
-              Masters loaded — {masters.branches.size} branches · {masters.vehicles.size} vehicles · {masters.drivers.size} drivers · {masters.transporters.size} transporters
+              Masters loaded — {masters.branches.size} branches · {masters.vehicles.size} vehicles · {masters.drivers.size} drivers · {masters.transporters.size} transporters · {masters.sources.size} active sources · {masters.locationsByPin.size} locations
             </p>
           )}
 
