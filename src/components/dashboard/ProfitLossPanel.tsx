@@ -19,6 +19,7 @@ import {
   type PnLRawData, type PnLStats,
 } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
+import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
 
 const MONTH_OPTIONS = [
   { value: "0",  label: "All Year" },
@@ -59,19 +60,23 @@ export function ProfitLossPanel() {
   const currentYear = new Date().getFullYear();
   const [year, setYear]       = useState(String(currentYear));
   const [month, setMonth]     = useState("0");
+  const [financialYear, setFinancialYear] = useState("none");
   const [data, setData]       = useState<PnLRawData | null>(null);
   const [loading, setLoading] = useState(true);
   const [branchTab, setBranchTab] = useState<string>("all");
 
   const years = useMemo(() => Array.from({ length: 6 }, (_, i) => currentYear - 3 + i), [currentYear]);
+  const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
-  async function load(y: string, m: string) {
+  async function load(y: string, m: string, fy = financialYear) {
     setLoading(true);
     try {
       const mn = Number(m);
-      const result = mn > 0
-        ? await serverFetchPnLPeriod({ data: { period: { year: Number(y), month: mn } } })
-        : await serverFetchPnLYear({ data: { year: Number(y) } });
+      const result = fy !== "none"
+        ? await serverFetchPnLPeriod({ data: { period: { financialYearStart: Number(fy) } } })
+        : mn > 0
+          ? await serverFetchPnLPeriod({ data: { period: { year: Number(y), month: mn } } })
+          : await serverFetchPnLYear({ data: { year: Number(y) } });
       setData(result);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not load P&L data");
@@ -79,7 +84,7 @@ export function ProfitLossPanel() {
     setLoading(false);
   }
 
-  useEffect(() => { load(year, month); }, [year, month]);
+  useEffect(() => { load(year, month, financialYear); }, [year, month, financialYear]);
 
   const branchId = branchTab === "all" ? null : branchTab;
   const monthNum = Number(month);
@@ -105,7 +110,7 @@ export function ProfitLossPanel() {
     ].filter(d => d.value > 0);
   }, [stats]);
 
-  const periodLabel = monthNum > 0 ? `${MONTH_OPTIONS[monthNum]?.label} ${year}` : year;
+  const periodLabel = financialYear !== "none" ? `FY ${financialYearLabel(Number(financialYear))}` : monthNum > 0 ? `${MONTH_OPTIONS[monthNum]?.label} ${year}` : year;
 
   if (loading) {
     return (
@@ -133,7 +138,14 @@ export function ProfitLossPanel() {
           <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
           <SelectContent>{MONTH_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
         </Select>
-        <Button variant="outline" size="sm" onClick={() => load(year, month)} disabled={loading}>
+        <Select value={financialYear} onValueChange={setFinancialYear}>
+          <SelectTrigger className="h-9 w-44"><SelectValue placeholder="Financial Year" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Financial Year: None</SelectItem>
+            {financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={() => load(year, month, financialYear)} disabled={loading}>
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
@@ -201,7 +213,7 @@ export function ProfitLossPanel() {
           {/* Monthly bar chart (all year only) */}
           {monthlyData.length > 0 && (
             <div className="surface-card p-5">
-              <h3 className="mb-4 text-sm font-semibold tracking-tight">Monthly Trend — {year}</h3>
+              <h3 className="mb-4 text-sm font-semibold tracking-tight">Monthly Trend — {periodLabel}</h3>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -221,7 +233,7 @@ export function ProfitLossPanel() {
           {/* Net P&L chart (all year only) */}
           {monthlyData.length > 0 && (
             <div className="surface-card p-5">
-              <h3 className="mb-4 text-sm font-semibold tracking-tight">Net P&amp;L by Month — {year}</h3>
+              <h3 className="mb-4 text-sm font-semibold tracking-tight">Net P&amp;L by Month — {periodLabel}</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={monthlyData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
