@@ -34,7 +34,7 @@ import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
 import { logAction } from "@/lib/log-actions";
-import { ensureLocationsForPins } from "@/lib/ensure-location";
+import { ensureLocationForPin, ensureLocationsForPins } from "@/lib/ensure-location";
 import {
   findEntry,
   inr,
@@ -180,6 +180,15 @@ export function TripForm({
 
   const { locations } = useLocations();
   const allBranches = useBranches();
+  const locationIdByPin = useMemo(
+    () =>
+      new Map(
+        locations
+          .filter((l) => (l.pin_code ?? "").trim() !== "")
+          .map((l) => [(l.pin_code ?? "").trim(), l.id]),
+      ),
+    [locations],
+  );
   const patch = (p: Partial<TripRow>) => setTrip((t) => ({ ...t, ...p }));
 
   async function loadMasters() {
@@ -200,18 +209,35 @@ export function TripForm({
     loadMasters();
   }, []);
 
-  // Auto-update trip_code prefix when allBranches loads and branch is already set
-  // (covers basic users with a single auto-filled branch — prefix applies on open)
+  async function branchLocationId(branchId: string | null): Promise<string | null> {
+    const pin = allBranches.find((b) => b.id === branchId)?.pin_code?.trim() ?? "";
+    if (!/^\d{6}$/.test(pin)) return null;
+    return locationIdByPin.get(pin) ?? ensureLocationForPin(pin);
+  }
+
+  async function applyBranchLocationDefaults(branchId: string | null, force = false) {
+    const locationId = await branchLocationId(branchId);
+    if (!locationId) return;
+    setTrip((t) => ({
+      ...t,
+      ...(force || !t.start_location_id ? { start_location_id: locationId } : {}),
+      ...(force || !t.end_location_id ? { end_location_id: locationId } : {}),
+    }));
+  }
+
+  // Auto-update trip_code prefix and location defaults when branch data becomes available
+  // (covers basic users with a single auto-filled branch on new trips).
   useEffect(() => {
     if (!initial.id && trip.branch_id && allBranches.length > 0) {
       const prefix = allBranches.find((b) => b.id === trip.branch_id)?.trip_series_prefix ?? null;
       if (prefix) {
         setTrip((t) => ({ ...t, trip_code: newTripCode(prefix) }));
       }
+      void applyBranchLocationDefaults(trip.branch_id);
     }
     // Run only when allBranches first becomes available (or branch_id changes on new trips)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allBranches, trip.branch_id]);
+  }, [allBranches, trip.branch_id, locationIdByPin]);
 
   async function loadChildren(tripId: string) {
     const [m, i, e] = await Promise.all([
@@ -683,6 +709,7 @@ export function TripForm({
                 ...(!vehicleStillValid ? { vehicle_id: null } : {}),
                 ...(!driverStillValid ? { driver_id: null } : {}),
               });
+              void applyBranchLocationDefaults(id, true);
             }}
           />
 
