@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Archive, Clock, Eye, Plus, RotateCcw, Trash2, Truck } from "lucide-react";
+import { Archive, Clock, Eye, Plus, RotateCcw, Search, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
 import { reopenTrip } from "@/lib/reopen-trip";
@@ -107,14 +108,15 @@ export function Trips() {
   const [editing, setEditing] = useState<TripRow | null>(null);
   const [viewingClosedId, setViewingClosedId] = useState<string | null>(null);
   const [reopeningId, setReopeningId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
   const isBasic = user?.role === "basic";
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
-  // Closed trips: show last 15 days by default; admin can expand to all-time
-  const [showAllClosed, setShowAllClosed] = useState(false);
+  // Closed trips: load archived records in 15-day windows to avoid pulling all history at once.
+  const [closedDaysToLoad, setClosedDaysToLoad] = useState(15);
 
   async function load() {
     setLoading(true);
@@ -127,10 +129,9 @@ export function Trips() {
         return;
       }
 
-      // Default: closed_trips last 15 days only (prevents loading 50k archived rows on startup)
-      const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .slice(0, 10);
+      // Default: closed_trips last 15 days only; the list can extend in 15-day increments.
+      const closedSince = new Date(Date.now() - closedDaysToLoad * 24 * 60 * 60 * 1000)
+        .toISOString();
 
       const [live, archived] = await Promise.all([
         fetchAll<TripRow>(() => {
@@ -148,9 +149,7 @@ export function Trips() {
             .from("closed_trips")
             .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
             .order("closed_at", { ascending: false });
-          if (!showAllClosed) {
-            q = q.gte("closed_at", fifteenDaysAgo) as typeof q;
-          }
+          q = q.gte("closed_at", closedSince) as typeof q;
           if (allowedBranchIds !== null) {
             q = q.in("branch_id", allowedBranchIds) as typeof q;
           }
@@ -206,9 +205,7 @@ export function Trips() {
               .from("closed_trips")
               .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
               .order("closed_at", { ascending: false });
-            if (!showAllClosed) {
-              q = q.gte("closed_at", fifteenDaysAgo) as typeof q;
-            }
+            q = q.gte("closed_at", closedSince) as typeof q;
             if (allowedBranchIds !== null) {
               q = q.in("branch_id", allowedBranchIds) as typeof q;
             }
@@ -230,7 +227,7 @@ export function Trips() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, showAllClosed]);
+  }, [user?.id, closedDaysToLoad]);
 
   async function remove(trip: TripRow) {
     if (!window.confirm("Delete this trip? This cannot be undone.")) return;
@@ -265,6 +262,16 @@ export function Trips() {
     }
   }
 
+  const normalizedSearch = searchTerm.trim().toLowerCase();
+  const matchesTripSearch = (id: string | null | undefined, tripCode: string | null | undefined) => {
+    if (!normalizedSearch) return true;
+    return [id, tripCode].some((value) =>
+      (value ?? "").toLowerCase().includes(normalizedSearch),
+    );
+  };
+  const visibleTrips = trips.filter((t) => matchesTripSearch(t.id, t.trip_code));
+  const visibleClosed = closed.filter((c) => matchesTripSearch(c.id, c.trip_code));
+
   // ── Inline detail views (replace the list) ────────────────────────────────
 
   if (editing)
@@ -298,16 +305,30 @@ export function Trips() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => {
-          const t = emptyTrip();
-          // Auto-fill branch when user has exactly one allowed branch
-          if (allowedBranchIds?.length === 1) t.branch_id = allowedBranchIds[0];
-          setEditing(t);
-        }}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <Button
+          size="sm"
+          className="w-fit"
+          onClick={() => {
+            const t = emptyTrip();
+            // Auto-fill branch when user has exactly one allowed branch
+            if (allowedBranchIds?.length === 1) t.branch_id = allowedBranchIds[0];
+            setEditing(t);
+          }}
+        >
           <Plus className="size-4" />
           New trip
         </Button>
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search trip ID or code"
+            className="pl-9"
+            aria-label="Search trips by trip ID or code"
+          />
+        </div>
       </div>
 
       {loading ? (
@@ -315,15 +336,17 @@ export function Trips() {
           <Skeleton className="h-16 w-full" />
           <Skeleton className="h-16 w-full" />
         </div>
-      ) : trips.length === 0 ? (
+      ) : visibleTrips.length === 0 ? (
         <p className="rounded-xl bg-muted px-4 py-8 text-center text-sm text-muted-foreground">
           {isBasic && allowedBranchIds?.length === 0
             ? "No branches assigned to your account. Contact your administrator."
-            : "No trips yet. Create a trip to record manifests, income and expenses."}
+            : normalizedSearch
+              ? "No live trips match your search."
+              : "No trips yet. Create a trip to record manifests, income and expenses."}
         </p>
       ) : (
         <ul className="space-y-2">
-          {trips.map((t) => (
+          {visibleTrips.map((t) => (
             <li
               key={t.id}
               className="surface-card flex flex-wrap items-center gap-3 p-4 transition-colors hover:bg-muted/40"
@@ -368,74 +391,80 @@ export function Trips() {
         </ul>
       )}
 
-      {closed.length > 0 ? (
+      {!loading ? (
         <section className="space-y-2 pt-4">
           <h3 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
             <Archive className="size-4 text-muted-foreground" />
             Closed trips
-            {!showAllClosed && (
-              <span className="text-xs font-normal text-muted-foreground">(last 15 days)</span>
-            )}
+            <span className="text-xs font-normal text-muted-foreground">
+              (last {closedDaysToLoad} days)
+            </span>
           </h3>
           <p className="text-xs text-muted-foreground">
             Archived snapshots. Later changes to masters, contracts or rates never affect
             these.
           </p>
-          <ul className="space-y-2">
-            {closed.map((c) => (
-              <li key={c.id} className="surface-card flex items-center gap-3 p-4">
-                <Archive className="size-4 text-muted-foreground" />
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 text-left"
-                  onClick={() => setViewingClosedId(c.id)}
-                >
-                  <span className="block text-sm font-medium">{c.trip_code}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {[c.branch_name, c.start_date, c.end_date]
-                      .filter(Boolean)
-                      .join(" · ") || "—"}
-                  </span>
-                </button>
-                {/* Net income shown to admins only */}
-                {isAdmin ? (
-                  <span className="text-sm font-semibold">{inr(Number(c.net_income ?? 0))}</span>
-                ) : null}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setViewingClosedId(c.id)}
-                  title="View full archived details"
-                >
-                  <Eye className="size-4" />
-                  Details
-                </Button>
-                {/* Admin-only: reopen trips */}
-                {isAdmin ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={reopeningId === c.id}
-                    onClick={() => reopen(c)}
-                    title="Move back to live trips (admin only)"
+          {visibleClosed.length === 0 ? (
+            <p className="rounded-xl bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
+              {normalizedSearch
+                ? "No closed trips match your search in the loaded date range."
+                : "No closed trips found in the loaded date range."}
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {visibleClosed.map((c) => (
+                <li key={c.id} className="surface-card flex items-center gap-3 p-4">
+                  <Archive className="size-4 text-muted-foreground" />
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => setViewingClosedId(c.id)}
                   >
-                    <RotateCcw className="size-4" />
-                    Reopen
+                    <span className="block text-sm font-medium">{c.trip_code}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {[c.branch_name, c.start_date, c.end_date]
+                        .filter(Boolean)
+                        .join(" · ") || "—"}
+                    </span>
+                  </button>
+                  {/* Net income shown to admins only */}
+                  {isAdmin ? (
+                    <span className="text-sm font-semibold">{inr(Number(c.net_income ?? 0))}</span>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewingClosedId(c.id)}
+                    title="View full archived details"
+                  >
+                    <Eye className="size-4" />
+                    Details
                   </Button>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {/* Load older closed trips if viewing only last 15 days */}
-          {!showAllClosed && (
-            <button
-              type="button"
-              className="mt-2 w-full rounded-xl border border-dashed border-border py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-              onClick={() => setShowAllClosed(true)}
-            >
-              Load all archived trips
-            </button>
+                  {/* Admin-only: reopen trips */}
+                  {isAdmin ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={reopeningId === c.id}
+                      onClick={() => reopen(c)}
+                      title="Move back to live trips (admin only)"
+                    >
+                      <RotateCcw className="size-4" />
+                      Reopen
+                    </Button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           )}
+          {/* Load older closed trips in safe 15-day increments. */}
+          <button
+            type="button"
+            className="mt-2 w-full rounded-xl border border-dashed border-border py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            onClick={() => setClosedDaysToLoad((days) => days + 15)}
+          >
+            Load next 15 days
+          </button>
         </section>
       ) : null}
     </div>
