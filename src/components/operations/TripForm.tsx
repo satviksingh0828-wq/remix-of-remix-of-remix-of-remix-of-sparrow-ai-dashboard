@@ -200,6 +200,19 @@ export function TripForm({
     loadMasters();
   }, []);
 
+  // Auto-update trip_code prefix when allBranches loads and branch is already set
+  // (covers basic users with a single auto-filled branch — prefix applies on open)
+  useEffect(() => {
+    if (!initial.id && trip.branch_id && allBranches.length > 0) {
+      const prefix = allBranches.find((b) => b.id === trip.branch_id)?.trip_series_prefix ?? null;
+      if (prefix) {
+        setTrip((t) => ({ ...t, trip_code: newTripCode(prefix) }));
+      }
+    }
+    // Run only when allBranches first becomes available (or branch_id changes on new trips)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allBranches, trip.branch_id]);
+
   async function loadChildren(tripId: string) {
     const [m, i, e] = await Promise.all([
       supabase.from("trip_manifests").select("*").eq("trip_id", tripId).order("created_at"),
@@ -386,12 +399,38 @@ export function TripForm({
     }
   }
 
-  const vehicleOpts: PickerOption[] = vehicles.map((v) => ({
+  // Filter vehicles: by selected branch (if any), plus basic-user branch restriction
+  const filteredVehicles = useMemo(() => {
+    let list = vehicles;
+    if (trip.branch_id) {
+      list = list.filter((v) => v.branch_id === trip.branch_id);
+    } else if (allowedBranchIds !== null) {
+      list = list.filter(
+        (v) => v.branch_id === null || allowedBranchIds.includes(v.branch_id as string),
+      );
+    }
+    return list;
+  }, [vehicles, trip.branch_id, allowedBranchIds]);
+
+  // Filter drivers: by selected branch (if any), plus basic-user branch restriction
+  const filteredDrivers = useMemo(() => {
+    let list = drivers;
+    if (trip.branch_id) {
+      list = list.filter((d) => d.branch_id === trip.branch_id);
+    } else if (allowedBranchIds !== null) {
+      list = list.filter(
+        (d) => d.branch_id === null || allowedBranchIds.includes(d.branch_id as string),
+      );
+    }
+    return list;
+  }, [drivers, trip.branch_id, allowedBranchIds]);
+
+  const vehicleOpts: PickerOption[] = filteredVehicles.map((v) => ({
     id: v.id,
     label: String(v.registration_number ?? ""),
     sub: [v.manufacturer, v.model].filter(Boolean).join(" ") || undefined,
   }));
-  const driverOpts: PickerOption[] = drivers.map((d) => ({
+  const driverOpts: PickerOption[] = filteredDrivers.map((d) => ({
     id: d.id,
     label: String(d.full_name ?? ""),
     sub: String(d.mobile_number ?? "") || undefined,
@@ -629,13 +668,21 @@ export function TripForm({
             value={trip.branch_id}
             options={branchOpts}
             onChange={(id) => {
-              // For new trips only: regenerate trip code using the branch's prefix
-              if (!trip.id) {
-                const prefix = allBranches.find((b) => b.id === id)?.trip_series_prefix ?? null;
-                patch({ branch_id: id, trip_code: newTripCode(prefix) });
-              } else {
-                patch({ branch_id: id });
-              }
+              const prefix = allBranches.find((b) => b.id === id)?.trip_series_prefix ?? null;
+              // Clear vehicle/driver if they belong to a different branch
+              const vehicleStillValid =
+                !trip.vehicle_id ||
+                vehicles.find((v) => v.id === trip.vehicle_id)?.branch_id === id;
+              const driverStillValid =
+                !trip.driver_id ||
+                drivers.find((d) => d.id === trip.driver_id)?.branch_id === id;
+              patch({
+                branch_id: id,
+                // Regenerate trip code on new trips
+                ...(!trip.id ? { trip_code: newTripCode(prefix) } : {}),
+                ...(!vehicleStillValid ? { vehicle_id: null } : {}),
+                ...(!driverStillValid ? { driver_id: null } : {}),
+              });
             }}
           />
 
