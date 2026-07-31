@@ -96,6 +96,26 @@ const DEFAULT_EXPENSES = [
   "Unloading",
 ];
 
+function formatDateInput(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function getBasicStartDateBounds() {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  return {
+    min: formatDateInput(yesterday),
+    max: formatDateInput(today),
+  };
+}
+
+function isBasicStartDateAllowed(startDate: string) {
+  const { min, max } = getBasicStartDateBounds();
+  return startDate === min || startDate === max;
+}
+
 export function emptyTrip(): TripRow {
   const now = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -159,6 +179,7 @@ export function TripForm({
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
   const TABS = isBasic ? TABS_BASIC : TABS_ALL;
+  const basicStartDateBounds = getBasicStartDateBounds();
 
   const [trip, setTrip] = useState<TripRow>(initial);
   const [saving, setSaving] = useState(false);
@@ -302,6 +323,10 @@ export function TripForm({
     // ── Validation ──────────────────────────────────────────────────────────
     if (!trip.start_date) {
       toast.error("Start date is required");
+      return;
+    }
+    if (isBasic && !isBasicStartDateAllowed(trip.start_date)) {
+      toast.error("Basic users can select only today or yesterday as the trip start date");
       return;
     }
     if (!trip.start_time) {
@@ -730,6 +755,8 @@ export function TripForm({
             type="date"
             value={trip.start_date}
             onChange={(v) => patch({ start_date: v })}
+            min={isBasic ? basicStartDateBounds.min : undefined}
+            max={isBasic ? basicStartDateBounds.max : undefined}
           />
           <Field
             label="Start Time (required)"
@@ -878,11 +905,15 @@ function Field({
   value,
   onChange,
   type = "text",
+  min,
+  max,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  min?: string;
+  max?: string;
 }) {
   return (
     <div className="space-y-1.5">
@@ -891,6 +922,8 @@ function Field({
         className="h-10"
         type={type}
         value={value ?? ""}
+        min={min}
+        max={max}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>
