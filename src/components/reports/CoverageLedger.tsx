@@ -4,9 +4,7 @@ import {
   ChevronRight, 
   Download, 
   RefreshCw, 
-  Search,
-  Shield,
-  FileText
+  Search
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { inr } from "@/lib/trip-calc";
@@ -28,6 +26,12 @@ const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ];
+
+interface Vehicle {
+  id: string;
+  registration_number: string;
+  nickname?: string;
+}
 
 interface CoverageRow {
   id: string;
@@ -65,10 +69,26 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
   const [financialYear, setFinancialYear] = useState<string>("none");
   const [status, setStatus] = useState<"all" | "paid" | "unpaid">("all");
   const [search, setSearch] = useState("");
+  const [vehicleFilter, setVehicleFilter] = useState<string>("all");
   
   const [rows, setRows] = useState<CoverageRow[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  async function loadVehicles() {
+    try {
+      const data = await fetchAll<any>(() => 
+        supabase
+          .from("vehicles")
+          .select("id,registration_number,nickname")
+          .order("registration_number")
+      );
+      setVehicles(data);
+    } catch (err: any) {
+      console.error("Failed to load vehicles:", err.message);
+    }
+  }
 
   async function load() {
     setLoading(true);
@@ -103,6 +123,10 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
               .lt("entry_date", `${Number(year) + 1}-01-01`) as typeof q;
           }
         }
+
+        if (vehicleFilter !== "all") {
+          q = q.eq("vehicle_id", vehicleFilter) as typeof q;
+        }
         return q;
       });
 
@@ -119,8 +143,12 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
   }
 
   useEffect(() => {
+    loadVehicles();
+  }, []);
+
+  useEffect(() => {
     load();
-  }, [year, month, financialYear, type]);
+  }, [year, month, financialYear, type, vehicleFilter]);
 
   const filteredRows = useMemo(() => {
     return rows.filter(r => {
@@ -202,6 +230,20 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
           <SelectContent>
             <SelectItem value="none">Financial Year: None</SelectItem>
             {financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={vehicleFilter} onValueChange={setVehicleFilter}>
+          <SelectTrigger className="h-9 w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All vehicles</SelectItem>
+            {vehicles.map(v => (
+              <SelectItem key={v.id} value={v.id}>
+                {v.registration_number} {v.nickname ? `(${v.nickname})` : ""}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
