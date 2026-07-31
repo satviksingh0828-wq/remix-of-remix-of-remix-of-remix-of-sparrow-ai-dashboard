@@ -26,6 +26,7 @@ type MasterMaps = {
   vehicles: Map<string, string>;    // lower(registration_number) → id
   drivers:  Map<string, string>;    // lower(full_name) → id
   transporters: Map<string, string>;// lower(transporter_name) → id
+  sources: Map<string, string>;     // lower(contract_name) → id
 };
 
 type ValidatedTrip = {
@@ -56,7 +57,7 @@ const TRIPS_COLS = [
   "transporter_name","start_date","start_time","end_date","end_time",
   "odometer_start","odometer_end","third_party_vehicle_number",
 ];
-const MANIFESTS_COLS = ["trip_code","manifest_number","from_pin_code","to_pin_code","weight_kg","quantity"];
+const MANIFESTS_COLS = ["trip_code","manifest_number","source","from_pin_code","to_pin_code","weight_kg","quantity"];
 const EXPENSES_COLS  = ["trip_code","expense_name","amount","note"];
 const INCOME_COLS    = ["trip_code","income_name","amount","note"];
 
@@ -266,6 +267,7 @@ function ReadMe() {
               {[
                 ["trip_code",       "Must match the trip_code in trips.csv exactly"],
                 ["manifest_number", "Your manifest / LR number"],
+                ["source",          "Contract/source name used to calculate freight and loading. Must exactly match an active source in Masters → Contracts. Leave blank if charges should stay zero until you edit the manifest."],
                 ["from_pin_code",   "6-digit PIN code of pickup location"],
                 ["to_pin_code",     "6-digit PIN code of delivery location"],
                 ["weight_kg",       "Payload weight in kg"],
@@ -398,12 +400,14 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
       supabase.from("vehicles").select("id,registration_number"),
       supabase.from("drivers").select("id,full_name"),
       supabase.from("transporters").select("id,transporter_name"),
-    ]).then(([b, v, d, t]) => {
+      supabase.from("contracts").select("id,contract_name").eq("status", "active"),
+    ]).then(([b, v, d, t, c]) => {
       setMasters({
         branches:     new Map((b.data ?? []).map(r => [norm(r.branch_name), r.id])),
         vehicles:     new Map((v.data ?? []).map(r => [norm(r.registration_number), r.id])),
         drivers:      new Map((d.data ?? []).map(r => [norm(r.full_name), r.id])),
         transporters: new Map((t.data ?? []).map(r => [norm(r.transporter_name), r.id])),
+        sources:      new Map((c.data ?? []).map(r => [norm(r.contract_name), r.id])),
       });
     }).catch(() => toast.error("Could not load master data")).finally(() => setLoadingMasters(false));
   }, [user]);
@@ -420,6 +424,16 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
         incomeFile    ? readCsvFile(incomeFile)     : Promise.resolve([]),
       ]);
       if (tripRows.length === 0) return toast.error("trips.csv has no data rows");
+
+      const unknownSources = mfRows
+        .map((row, i) => ({ rowNum: i + 2, source: row.source?.trim() ?? "" }))
+        .filter((row) => row.source && !masters.sources.has(norm(row.source)));
+      if (unknownSources.length > 0) {
+        return toast.error(
+          `Unknown manifest source on row ${unknownSources[0].rowNum}: ${unknownSources[0].source}. Match an active contract/source name exactly.`,
+        );
+      }
+
       setValidated(validate(tripRows, masters));
       setManifests(mfRows);
       setExpenses(exRows);
@@ -470,7 +484,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
             mfRows.map(m => ({
               trip_id: tripId,
               manifest_number: m.manifest_number?.trim() ?? "",
-              source_id: null,
+              source_id: m.source?.trim() ? (masters.sources.get(norm(m.source)) ?? null) : null,
               from_location_id: null,
               from_pin_code: m.from_pin_code?.trim() ?? "",
               to_location_id: null,
@@ -592,7 +606,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
           {/* Masters summary */}
           {masters && !validated && (
             <p className="text-xs text-muted-foreground">
-              Masters loaded — {masters.branches.size} branches · {masters.vehicles.size} vehicles · {masters.drivers.size} drivers · {masters.transporters.size} transporters
+              Masters loaded — {masters.branches.size} branches · {masters.vehicles.size} vehicles · {masters.drivers.size} drivers · {masters.transporters.size} transporters · {masters.sources.size} active sources
             </p>
           )}
 
