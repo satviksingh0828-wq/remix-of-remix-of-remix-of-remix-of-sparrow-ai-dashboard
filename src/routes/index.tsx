@@ -34,6 +34,9 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Secure operator sign-in for Garuda Logistics Solutions." },
       { name: "robots", content: "noindex, nofollow, noarchive" },
     ],
+    links: [
+      { rel: "preload", href: "/garuda-banner.webp", as: "image", type: "image/webp" },
+    ],
   }),
   component: LoginPage,
 });
@@ -383,11 +386,16 @@ function LoginPage() {
       {/* Banner — switches between plain gradient and image based on Settings */}
       {loginUi === "image" ? (
         <aside className="relative hidden overflow-hidden lg:block">
-          <img
-            src="/garuda-banner.jpeg"
-            alt="Garuda Logistics Solution"
-            className="h-full w-full object-cover"
-          />
+          <picture>
+            <source srcSet="/garuda-banner.webp" type="image/webp" />
+            <img
+              src="/garuda-banner.jpeg"
+              alt="Garuda Logistics Solution"
+              className="h-full w-full object-cover"
+              fetchPriority="high"
+              decoding="async"
+            />
+          </picture>
           {/* Logo overlaid top-left on the banner image */}
           <div className="absolute left-6 top-6 rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm shadow-md">
             <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-14 w-auto" />
