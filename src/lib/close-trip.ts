@@ -124,21 +124,86 @@ export async function closeTrip(tripId: string) {
   } as never);
   if (insert.error) throw new Error(insert.error.message);
 
-  // Fastag deduction automation:
-  // If there's an expense named exactly "Toll Charges", record it in fastag_transactions
-  const tollCharges = expenses.filter((e: any) => e.expense_name === "Toll Charges");
-  if (tollCharges.length > 0 && t.vehicle_id) {
-    const totalToll = tollCharges.reduce((s, e) => s + num(e.amount), 0);
+  const tripCode  = String(t.trip_code ?? "");
+  const tripDate  = String(t.end_date || new Date().toISOString().split("T")[0]);
+
+  // All known standard expense names — anything else goes to "other"
+  const ALL_KNOWN_EXPENSES = [
+    "Fuel Expense", "Toll Charges", "Driver Bata",
+    "Morning Exp.", "Night Exp.", "Sunday",
+    "Parking Charges", "Dala Charges", "Unloading",
+  ];
+
+  const expSum = (name: string) =>
+    expenses.filter((e: any) => e.expense_name === name).reduce((s, e) => s + num(e.amount), 0);
+
+  // ── Fastag deduction ────────────────────────────────────────────────────────
+  if (t.vehicle_id) {
+    const totalToll = expSum("Toll Charges");
     if (totalToll > 0) {
       await supabase.from("fastag_transactions" as any).insert({
         vehicle_id: t.vehicle_id,
         transaction_type: "deduction",
         amount: totalToll,
-        transaction_date: String(t.end_date || new Date().toISOString().split("T")[0]),
-        note: `Toll Charges (Trip ${t.trip_code})`,
-        trip_code: String(t.trip_code ?? ""),
+        transaction_date: tripDate,
+        note: `Toll Charges (Trip ${tripCode})`,
+        trip_code: tripCode,
       });
     }
+  }
+
+  // ── Vehicle expense log (fuel, parking, odometer) ───────────────────────────
+  if (t.vehicle_id) {
+    const fuel    = expSum("Fuel Expense");
+    const parking = expSum("Parking Charges");
+    const odoStart = t.odometer_start != null ? num(t.odometer_start as string) : null;
+    const odoEnd   = t.odometer_end   != null ? num(t.odometer_end   as string) : null;
+    if (fuel > 0 || parking > 0 || odoStart != null || odoEnd != null) {
+      await supabase.from("vehicle_trip_logs" as any).insert({
+        trip_code: tripCode,
+        vehicle_id: t.vehicle_id,
+        trip_date: tripDate,
+        fuel_expense: fuel,
+        parking_charges: parking,
+        odometer_start: odoStart,
+        odometer_end: odoEnd,
+      });
+    }
+  }
+
+  // ── Driver expense log (bata, morning, night) ────────────────────────────────
+  if (t.driver_id) {
+    const bata    = expSum("Driver Bata");
+    const morning = expSum("Morning Exp.");
+    const night   = expSum("Night Exp.");
+    if (bata > 0 || morning > 0 || night > 0) {
+      await supabase.from("driver_expense_logs" as any).insert({
+        trip_code: tripCode,
+        driver_id: t.driver_id,
+        trip_date: tripDate,
+        driver_bata: bata,
+        morning_exp: morning,
+        night_exp: night,
+      });
+    }
+  }
+
+  // ── Other expense log (dala, unloading, sunday + any non-standard names) ────
+  const dala      = expSum("Dala Charges");
+  const unloading = expSum("Unloading");
+  const sunday    = expSum("Sunday");
+  const otherExps = expenses.filter((e: any) => !ALL_KNOWN_EXPENSES.includes(e.expense_name));
+  const otherAmt  = otherExps.reduce((s, e) => s + num(e.amount), 0);
+  if (dala > 0 || unloading > 0 || sunday > 0 || otherAmt > 0) {
+    await supabase.from("other_expense_logs" as any).insert({
+      trip_code: tripCode,
+      trip_date: tripDate,
+      dala_charges: dala,
+      unloading: unloading,
+      sunday_exp: sunday,
+      other_amount: otherAmt,
+      other_details: otherExps.map((e: any) => ({ name: e.expense_name, amount: num(e.amount) })),
+    });
   }
 
   await Promise.all([

@@ -1,13 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BarChart3, Car, ChevronRight, CreditCard, FileBarChart, FileText, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, Shield, Users } from "lucide-react";
+import { BarChart3, Car, ChevronRight, CreditCard, FileBarChart, FileText, PanelLeftClose, PanelLeftOpen, Shield, Truck, Users } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { ProfitLossComparison } from "@/components/reports/ProfitLossComparison";
 import { CoverageLedger } from "@/components/reports/CoverageLedger";
 import { FastagLedger } from "@/components/reports/FastagLedger";
-import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
-import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
+import { VehicleExpenseReport } from "@/components/reports/VehicleExpenseReport";
+import { DriverExpenseReport } from "@/components/reports/DriverExpenseReport";
+import { OtherExpenseReport } from "@/components/reports/OtherExpenseReport";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/reports")({
@@ -27,14 +28,13 @@ export const Route = createFileRoute("/reports")({
 });
 
 const TABS = [
-  { id: "pnl-compare",   label: "P&L Comparison",  desc: "Compare two periods side-by-side",     icon: FileBarChart },
-  { id: "vehicles",      label: "Vehicles",          desc: "Vehicle-wise P&L & distribution",      icon: Car },
-  { id: "drivers",       label: "Drivers",           desc: "Driver-wise P&L & performance",        icon: Users },
-  { id: "transporters",  label: "Transporters",      desc: "Transporter-wise P&L",                 icon: BarChart3 },
-  { id: "trips",         label: "Trips",             desc: "All trips — income & net",             icon: RouteIcon },
-  { id: "insurance",     label: "Insurance Premium Ledger", desc: "Vehicle insurance expenses",     icon: Shield },
-  { id: "road-tax",      label: "Road Tax Ledger",          desc: "Vehicle road tax expenses",      icon: FileText },
-  { id: "fastag",        label: "Fastag Balance",           desc: "Vehicle-wise fastag balance & recharges", icon: CreditCard },
+  { id: "pnl-compare",      label: "P&L Comparison",          desc: "Compare two periods side-by-side",            icon: FileBarChart },
+  { id: "insurance",        label: "Insurance Premium Ledger", desc: "Vehicle insurance expenses",                  icon: Shield },
+  { id: "road-tax",         label: "Road Tax Ledger",          desc: "Vehicle road tax expenses",                   icon: FileText },
+  { id: "fastag",           label: "Fastag Balance",           desc: "Vehicle-wise fastag balance & recharges",     icon: CreditCard },
+  { id: "vehicle-expenses", label: "Vehicle Expenses",         desc: "Fuel, parking & distance per vehicle",        icon: Truck },
+  { id: "driver-expenses",  label: "Driver Expenses",          desc: "Bata, morning & night exp per driver",        icon: Users },
+  { id: "other-expenses",   label: "Other Expenses",           desc: "Dala, unloading, Sunday & other trip costs",  icon: BarChart3 },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -139,14 +139,13 @@ function ReportsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
-          {tab === "pnl-compare"   && <ProfitLossComparison />}
-          {tab === "vehicles"      && <EntityPnLPanel kind="vehicle" />}
-          {tab === "drivers"       && <EntityPnLPanel kind="driver" />}
-          {tab === "transporters"  && <EntityPnLPanel kind="transporter" />}
-          {tab === "trips"         && <TripSummaryPanel />}
-          {tab === "insurance"     && <CoverageLedger type="insurance" />}
-          {tab === "road-tax"      && <CoverageLedger type="road_tax" />}
-          {tab === "fastag"        && <FastagLedger />}
+          {tab === "pnl-compare"      && <ProfitLossComparison />}
+          {tab === "insurance"        && <CoverageLedger type="insurance" />}
+          {tab === "road-tax"         && <CoverageLedger type="road_tax" />}
+          {tab === "fastag"           && <FastagLedger />}
+          {tab === "vehicle-expenses" && <VehicleExpenseReport />}
+          {tab === "driver-expenses"  && <DriverExpenseReport />}
+          {tab === "other-expenses"   && <OtherExpenseReport />}
         </div>
       </div>
     </AppShell>

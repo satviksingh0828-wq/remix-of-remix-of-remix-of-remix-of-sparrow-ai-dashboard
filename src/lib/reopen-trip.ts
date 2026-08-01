@@ -69,16 +69,20 @@ export async function reopenTrip(closedId: string) {
   const del = await supabase.from("closed_trips").delete().eq("id", closedId);
   if (del.error) throw new Error(del.error.message);
 
-  // Remove the FASTag deduction that was created when this trip was closed,
-  // so it doesn't leave a stale/double entry. A fresh deduction will be
-  // created automatically when the trip is closed again.
+  // Remove all log entries created when this trip was closed.
+  // Fresh entries will be created automatically when the trip is closed again.
   const tripCode = String(tripSnap.trip_code ?? "");
   if (tripCode) {
-    await supabase
-      .from("fastag_transactions" as any)
-      .delete()
-      .eq("trip_code", tripCode)
-      .eq("transaction_type", "deduction");
+    await Promise.all([
+      supabase.from("fastag_transactions" as any).delete()
+        .eq("trip_code", tripCode).eq("transaction_type", "deduction"),
+      supabase.from("vehicle_trip_logs" as any).delete()
+        .eq("trip_code", tripCode),
+      supabase.from("driver_expense_logs" as any).delete()
+        .eq("trip_code", tripCode),
+      supabase.from("other_expense_logs" as any).delete()
+        .eq("trip_code", tripCode),
+    ]);
   }
 
   return newTripId;
