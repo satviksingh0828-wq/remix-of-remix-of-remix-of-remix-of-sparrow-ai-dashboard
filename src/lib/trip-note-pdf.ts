@@ -237,12 +237,14 @@ function buildTripNoteCSS(primaryHex: string): string {
   font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em;
   color: #555; font-weight: 600; padding: 3px 6px;
   border: 1px solid #bbb; background: #f5f5f5;
-  vertical-align: top; line-height: 1.4; word-break: break-word;
+  vertical-align: middle; line-height: 1.4; word-break: break-word;
+  text-align: center;
 }
 .tn-summary-table td {
   font-size: 10px; font-weight: 700; padding: 4px 6px;
-  border: 1px solid #bbb; vertical-align: top; line-height: 1.4;
+  border: 1px solid #bbb; vertical-align: middle; line-height: 1.4;
   word-break: break-word; overflow-wrap: break-word;
+  text-align: center;
 }
 
 /* Trip details box */
@@ -400,14 +402,17 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
     <div class="tn-company-info">
       <div class="tn-company-name">${company.company_name}</div>
       <div class="tn-company-addr">${addressHtml}</div>
-      ${
-        company.gstin || company.pan
+      ${(() => {
+        // Prefer branch GSTIN/PAN (trip's own branch) over company-level values
+        const gstin = sv((branch as Record<string, unknown> | null | undefined)?.gstin) || sv(company.gstin);
+        const pan   = sv((branch as Record<string, unknown> | null | undefined)?.pan)   || sv(company.pan);
+        return gstin || pan
           ? `<div class="tn-company-reg">${[
-              company.gstin ? `GSTIN: ${company.gstin}` : "",
-              company.pan   ? `PAN: ${company.pan}`     : "",
+              gstin ? `GSTIN: ${gstin}` : "",
+              pan   ? `PAN: ${pan}`     : "",
             ].filter(Boolean).join(" &nbsp;|&nbsp; ")}</div>`
-          : ""
-      }
+          : "";
+      })()}
     </div>
   </div>
 
