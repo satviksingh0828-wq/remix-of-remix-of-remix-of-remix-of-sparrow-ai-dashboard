@@ -218,7 +218,7 @@ export function UserList() {
                 <SelectContent>
                   <SelectItem value="admin">Admin — full access</SelectItem>
                   <SelectItem value="basic">Basic user — branch-restricted</SelectItem>
-                  <SelectItem value="viewer">Viewer — read-only reports</SelectItem>
+                  <SelectItem value="viewer">Viewer — read-only access, all branches</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -242,8 +242,8 @@ export function UserList() {
           </div>
         </section>
 
-        {/* Branch access — relevant for basic and viewer users */}
-        {(editing.role === "basic" || editing.role === "viewer") && (
+        {/* Branch access — relevant for basic users only; viewers see all branches */}
+        {editing.role === "basic" && (
           <section className="surface-card p-6">
             <h3 className="text-sm font-semibold tracking-tight">Branch access</h3>
             <p className="mt-1 text-xs text-muted-foreground">
