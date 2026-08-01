@@ -1,12 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { BarChart3, Car, ChevronRight, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingUp, Users } from "lucide-react";
+import { BarChart3, Bot, Car, ChevronRight, PanelLeftClose, PanelLeftOpen, Route as RouteIcon, TrendingUp, Users } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { ProfitLossPanel } from "@/components/dashboard/ProfitLossPanel";
 import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
 import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
+import { AIWorkspacePanel } from "@/components/dashboard/AIWorkspacePanel";
 import { useSession } from "@/lib/session";
+import { readSparrowWorkspaceArtifact, SPARROW_WORKSPACE_EVENT } from "@/lib/sparrow-workspace";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -30,6 +32,7 @@ const TABS = [
   { id: "drivers",      label: "Drivers",         desc: "Driver-wise P&L & performance",     icon: Users },
   { id: "transporters", label: "Transporters",    desc: "Transporter-wise P&L",              icon: BarChart3 },
   { id: "trips",        label: "Trips",           desc: "All trips — income & net",          icon: RouteIcon },
+  { id: "ai-workspace", label: "AI WORKSPACE",    desc: "SparrowAI charts, tables & visuals", icon: Bot },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -43,6 +46,16 @@ function DashboardPage() {
   useEffect(() => {
     if (user && user.role !== "admin") navigate({ to: "/home", replace: true });
   }, [user, navigate]);
+
+  useEffect(() => {
+    const openWorkspace = () => {
+      if (readSparrowWorkspaceArtifact()) setTab("ai-workspace");
+    };
+    openWorkspace();
+    window.addEventListener(SPARROW_WORKSPACE_EVENT, openWorkspace);
+    return () => window.removeEventListener(SPARROW_WORKSPACE_EVENT, openWorkspace);
+  }, []);
+
 
   if (user?.role !== "admin") return null;
 
@@ -139,6 +152,7 @@ function DashboardPage() {
           {tab === "drivers"      && <EntityPnLPanel kind="driver" />}
           {tab === "transporters" && <EntityPnLPanel kind="transporter" />}
           {tab === "trips"        && <TripSummaryPanel />}
+          {tab === "ai-workspace" && <AIWorkspacePanel />}
         </div>
       </div>
     </AppShell>
