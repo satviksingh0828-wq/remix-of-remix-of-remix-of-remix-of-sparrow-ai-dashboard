@@ -35,6 +35,94 @@ function currentMonthRange() {
   };
 }
 
+
+type SparrowSearchFilter = {
+  start?: string;
+  end?: string;
+  tripCode?: string;
+  vehicleText?: string;
+  driverText?: string;
+  minAmount?: number;
+};
+
+const SPARROW_APP_MAP = `
+━━━ COMPLETE APP MAP ━━━
+Operations (/operations):
+- Trip tab: live/open trips from trips. Trip editor has tabs Manifest, Other Income, Expenses, Vehicle, Driver, Transporter, Summary. Buttons include New trip, Edit, Delete, Close trip, View logs. Manifest fields: Cnmt No., Source, Weight (kg), Quantity (units), Freight, Loading, remarks. Other Income and Expenses are trip-specific rows.
+- Expenditure tab: general expenses with Branch, Vehicle, Driver, Transporter, Expenditure name, Amount, Date, Paid date, Note, insurance/road-tax/fastag flags, settle/delete/import/export/log actions.
+- Income tab: general non-trip income with Branch, Vehicle, Driver, Transporter, Income name, Amount, Date, Received date, Note, settle/delete/import/export/log actions.
+- Driver Payroll tab: payroll summaries, Generate Payroll, Give Advance, payroll month, salary, deduction and advance schedule fields.
+- Fixed Incomes tab: admin-only fixed-income list with filters and Excel export.
+Masters (/masters): Driver, Vehicle, Transporter, Locations, Sources. Each master supports create/edit/delete/import/export and admin log viewing. Source forms include rate contract entries, fixed monthly charges and quantity slabs.
+Dashboard (/dashboard): admin-only stat cards, P&L, trip summary, entity P&L and branch/date/month/year filters.
+Reports (/reports): admin-only P&L reports, trip averages, vehicle/driver/other expense reports, Fastag Balance and date/entity filters.
+Users (/users): admin-only user management, roles, branch access, device/session controls and Logs tab.
+Settings (/settings): admin-only theme/login UI settings that sync through Supabase realtime.
+Import Trips (/import-trips): admin import for historical trips, manifests, expenses and income CSVs.
+
+━━━ DATA SEMANTICS ━━━
+- trips = open/live/in-progress trips that are not finalized yet.
+- closed_trips = completed, archived and finalized trips with snapshot totals.
+- trip_manifests = consignments inside an open trip.
+- trip_other_income = extra income attached to an open trip.
+- trip_expenses = expenses attached to an open trip.
+- incomes/expenditures = general income/expense rows not necessarily tied to a trip.
+- app_logs = audit trail for user/module actions.
+- vehicle_trip_logs, driver_expense_logs, other_expense_logs and fastag_transactions = close-trip ledgers used by reports.
+`;
+
+function isoDate(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function inferSearchFilter(text: string): SparrowSearchFilter {
+  const now = new Date();
+  const lower = text.toLowerCase();
+  const filter: SparrowSearchFilter = {};
+  if (/last\s+30\s+days/.test(lower)) {
+    const start = new Date(now); start.setDate(start.getDate() - 30);
+    filter.start = isoDate(start); filter.end = isoDate(now);
+  } else if (/this\s+year/.test(lower)) {
+    filter.start = `${now.getFullYear()}-01-01`; filter.end = isoDate(now);
+  } else if (/last\s+quarter/.test(lower)) {
+    const q = Math.floor(now.getMonth() / 3);
+    const start = new Date(now.getFullYear(), (q - 1) * 3, 1);
+    const end = new Date(now.getFullYear(), q * 3, 1);
+    filter.start = isoDate(start); filter.end = isoDate(end);
+  } else if (/this\s+week/.test(lower)) {
+    const start = new Date(now); start.setDate(now.getDate() - now.getDay());
+    filter.start = isoDate(start); filter.end = isoDate(now);
+  } else {
+    const range = lower.match(/(\d{4}-\d{2}-\d{2})\s*(?:to|through|-)\s*(\d{4}-\d{2}-\d{2})/);
+    if (range) { filter.start = range[1]; filter.end = range[2]; }
+  }
+  const trip = text.match(/\b(?:trip\s*)?([A-Z]{2,}[-/]?\d{2,}[-/]?\d*)\b/i);
+  if (trip) filter.tripCode = trip[1];
+  const vehicle = text.match(/vehicle\s+([A-Z0-9 -]{4,15})/i);
+  if (vehicle) filter.vehicleText = vehicle[1].trim();
+  const driver = text.match(/driver\s+([A-Za-z ]{3,30})/i);
+  if (driver) filter.driverText = driver[1].trim();
+  const amount = lower.match(/(?:above|over|greater than|more than)\s*₹?\s*([\d,]+)/);
+  if (amount) filter.minAmount = Number(amount[1].replace(/,/g, ""));
+  return filter;
+}
+
+
+async function safeFetchAll<T = ReadOnlyRow>(buildQuery: Parameters<typeof fetchAll<T>>[0]) {
+  try {
+    return await fetchAll<T>(buildQuery);
+  } catch {
+    return [];
+  }
+}
+
+function summarizeRows(label: string, rows: ReadOnlyRow[], fields: string[]) {
+  const sample = rows.slice(0, 8).map((row) =>
+    fields.map((f) => `${f}=${String(row[f] ?? "—")}`).join(", "),
+  ).join("; ");
+  return `${label}: ${rows.length} row(s)${sample ? ` | ${sample}` : ""}.`;
+}
+
 function sumAmounts(rows: ReadOnlyRow[]) {
   return rows.reduce((sum, row) => sum + Number(row.amount ?? 0), 0);
 }
@@ -90,6 +178,101 @@ async function answerCurrentMonthInsurancePremium(role: string, branchIds: strin
   return `Insurance premium expenditure for ${label} is ${money(total)} across ${insuranceRows.length} row(s).${details ? `\n${details}` : ""}`;
 }
 
+
+function wantsFileGeneration(text: string) {
+  return /(excel|xlsx|spreadsheet|csv|file|download|export)/i.test(text) && /(expense|expenditure|income|trip|manifest|log|fastag|report)/i.test(text);
+}
+
+function reportKind(text: string) {
+  const lower = text.toLowerCase();
+  if (/manifest/.test(lower)) return "manifests";
+  if (/fastag/.test(lower)) return "fastag";
+  if (/log/.test(lower)) return "logs";
+  if (/closed\s+trip|completed\s+trip/.test(lower)) return "closed_trips";
+  if (/open\s+trip|live\s+trip|\btrip/.test(lower)) return "trips";
+  if (/income/.test(lower)) return "incomes";
+  return "expenditures";
+}
+
+function csvEscape(value: unknown) {
+  const text = String(value ?? "");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+async function downloadRowsFile(rows: ReadOnlyRow[], filename: string, sheetName: string) {
+  if (rows.length === 0) throw new Error("No rows found for that file request.");
+  try {
+    const XLSX = await import("xlsx");
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+    XLSX.writeFile(wb, filename.endsWith(".xlsx") ? filename : `${filename}.xlsx`);
+  } catch {
+    const headers = Object.keys(rows[0] ?? {});
+    const csv = [headers.join(","), ...rows.map((row) => headers.map((h) => csvEscape(row[h])).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename.replace(/\.xlsx$/i, ".csv");
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+}
+
+async function generateReportFile(text: string, role: string, branchIds: string[] | undefined) {
+  const allowedBranchIds = role === "basic" ? (branchIds ?? []) : null;
+  if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
+    return "I couldn't create the file because your account has no assigned branches.";
+  }
+
+  const filter = inferSearchFilter(text);
+  const { start: monthStart, end: monthEnd, label } = currentMonthRange();
+  const start = filter.start ?? monthStart;
+  const end = filter.end ?? monthEnd;
+  const kind = reportKind(text);
+  const db = supabase as any;
+
+  const withBranch = (query: any) => allowedBranchIds === null ? query : query.in("branch_id", allowedBranchIds);
+  let rows: ReadOnlyRow[] = [];
+  let sheet = kind;
+
+  if (kind === "incomes") {
+    rows = await fetchAll<ReadOnlyRow>(() => withBranch(supabase.from("incomes").select("id,income_name,amount,entry_date,received_date,branch_id,vehicle_id,driver_id,transporter_id,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })));
+    sheet = "Incomes";
+  } else if (kind === "trips") {
+    rows = await fetchAll<ReadOnlyRow>(() => withBranch(supabase.from("trips").select("id,trip_code,branch_id,ownership,start_date,start_time,vehicle_id,driver_id,transporter_id,created_at").order("created_at", { ascending: false })));
+    sheet = "Open Trips";
+  } else if (kind === "closed_trips") {
+    rows = await fetchAll<ReadOnlyRow>(() => withBranch(supabase.from("closed_trips").select("id,trip_code,branch_id,branch_name,start_date,end_date,closed_at,total_income,total_expense,net_income,vehicle_id,driver_id,transporter_id").gte("closed_at", start).lt("closed_at", end).order("closed_at", { ascending: false })));
+    sheet = "Closed Trips";
+  } else if (kind === "manifests") {
+    rows = await fetchAll<ReadOnlyRow>(() => supabase.from("trip_manifests").select("id,trip_id,source_id,manifest_number,weight,quantity,freight_amount,loading_amount,created_at").order("created_at", { ascending: false }));
+    sheet = "Manifests";
+  } else if (kind === "fastag") {
+    rows = await safeFetchAll<ReadOnlyRow>(() => db.from("fastag_transactions").select("id,vehicle_id,amount,transaction_type,transaction_date,description,trip_code").gte("transaction_date", start).lt("transaction_date", end).order("transaction_date", { ascending: false }));
+    sheet = "Fastag";
+  } else if (kind === "logs") {
+    if (role !== "admin") return "Audit and ledger log files are admin-only.";
+    rows = await safeFetchAll<ReadOnlyRow>(() => db.from("app_logs").select("id,created_at,username,entity_type,action,entity_label,details").gte("created_at", start).lt("created_at", end).order("created_at", { ascending: false }));
+    sheet = "Audit Logs";
+  } else {
+    rows = await fetchAll<ReadOnlyRow>(() => withBranch(supabase.from("expenditures").select("id,expenditure_name,amount,entry_date,paid_date,branch_id,vehicle_id,driver_id,transporter_id,is_insurance,is_road_tax,is_fastag_recharge,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })));
+    sheet = "Expenditures";
+  }
+
+  rows = rows.filter((row) =>
+    (!filter.tripCode || String(row.trip_code ?? "").toLowerCase().includes(filter.tripCode.toLowerCase())) &&
+    (!filter.minAmount || Number(row.amount ?? row.total_expense ?? row.total_income ?? 0) > filter.minAmount)
+  );
+
+  const filename = `sparrow-${sheet.toLowerCase().replace(/\s+/g, "-")}-${start}-to-${end}.xlsx`;
+  await downloadRowsFile(rows, filename, sheet);
+  return `Done — I generated ${filename} with ${rows.length} ${sheet.toLowerCase()} row(s) for ${filter.start || filter.end ? `${start} to ${end}` : label}. If your browser asks, allow the download.`;
+}
+
 function wantsReadOnlyData(text: string) {
   return /(how much|total|sum|report|filter|find|show|list|count|insurance|premium|income|expenditure|expense|vehicle|driver|trip|closed trip|open trip)/i.test(
     text,
@@ -104,32 +287,61 @@ async function buildReadOnlyDataContext(text: string, role: string, branchIds: s
     return "READ-ONLY DATA: Basic user has no assigned branches, so no business rows are accessible.";
   }
 
-  const { start, end, label } = currentMonthRange();
-  const [expRows, incomeRows, openTripsRows, closedTripsRows, vehiclesRows, driversRows] = await Promise.all([
-    fetchAll<ReadOnlyRow>(() => supabase.from("expenditures").select("id,expenditure_name,amount,entry_date,paid_date,branch_id,vehicle_id,driver_id,transporter_id,is_insurance,is_road_tax,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })),
+  const { start: monthStart, end: monthEnd, label } = currentMonthRange();
+  const filter = inferSearchFilter(text);
+  const start = filter.start ?? monthStart;
+  const end = filter.end ?? monthEnd;
+  const dateLabel = filter.start || filter.end ? `${start} to ${end}` : `${label} (${monthStart} to ${monthEnd}, end exclusive)`;
+
+  const db = supabase as any;
+  const [expRows, incomeRows, openTripsRows, closedTripsRows, vehiclesRows, driversRows, manifestRows, tripIncomeRows, tripExpenseRows, fastagRows, vehicleLogRows, driverLogRows, otherLogRows, appLogRows] = await Promise.all([
+    fetchAll<ReadOnlyRow>(() => supabase.from("expenditures").select("id,expenditure_name,amount,entry_date,paid_date,branch_id,vehicle_id,driver_id,transporter_id,is_insurance,is_road_tax,is_fastag_recharge,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })),
     fetchAll<ReadOnlyRow>(() => supabase.from("incomes").select("id,income_name,amount,entry_date,received_date,branch_id,vehicle_id,driver_id,transporter_id,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })),
     fetchAll<ReadOnlyRow>(() => supabase.from("trips").select("id,trip_code,branch_id,vehicle_id,driver_id,transporter_id,start_date,start_time,ownership,created_at").order("created_at", { ascending: false })),
-    fetchAll<ReadOnlyRow>(() => supabase.from("closed_trips").select("id,trip_code,branch_id,branch_name,start_date,end_date,closed_at,total_income,total_expense,net_income").gte("closed_at", start).lt("closed_at", end).order("closed_at", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("closed_trips").select("id,trip_code,branch_id,branch_name,start_date,end_date,closed_at,total_income,total_expense,net_income,vehicle_id,driver_id,transporter_id").gte("closed_at", start).lt("closed_at", end).order("closed_at", { ascending: false })),
     fetchAll<ReadOnlyRow>(() => supabase.from("vehicles").select("id,registration_number,nickname,branch_id").order("registration_number")),
     fetchAll<ReadOnlyRow>(() => supabase.from("drivers").select("id,driver_code,full_name,branch_id").order("full_name")),
+    fetchAll<ReadOnlyRow>(() => supabase.from("trip_manifests").select("id,trip_id,source_id,manifest_number,weight,quantity,freight_amount,loading_amount,created_at").order("created_at", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("trip_other_income").select("id,trip_id,income_name,amount,note,created_at").order("created_at", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("trip_expenses").select("id,trip_id,expense_name,amount,note,created_at").order("created_at", { ascending: false })),
+    safeFetchAll<ReadOnlyRow>(() => db.from("fastag_transactions").select("id,vehicle_id,amount,transaction_type,transaction_date,description,trip_code").gte("transaction_date", start).lt("transaction_date", end).order("transaction_date", { ascending: false })),
+    safeFetchAll<ReadOnlyRow>(() => db.from("vehicle_trip_logs").select("id,vehicle_id,trip_code,trip_date,fuel_amount,parking_amount,odo_start,odo_end,distance_km").gte("trip_date", start).lt("trip_date", end).order("trip_date", { ascending: false })),
+    safeFetchAll<ReadOnlyRow>(() => db.from("driver_expense_logs").select("id,driver_id,trip_code,trip_date,bata_amount,morning_amount,night_amount").gte("trip_date", start).lt("trip_date", end).order("trip_date", { ascending: false })),
+    safeFetchAll<ReadOnlyRow>(() => db.from("other_expense_logs").select("id,trip_code,trip_date,expense_name,amount").gte("trip_date", start).lt("trip_date", end).order("trip_date", { ascending: false })),
+    role === "admin" ? safeFetchAll<ReadOnlyRow>(() => db.from("app_logs").select("id,created_at,username,entity_type,action,entity_label,details").gte("created_at", start).lt("created_at", end).order("created_at", { ascending: false })) : Promise.resolve([]),
   ]);
 
-  const expenditures = applyBranchFilter(expRows, allowedBranchIds);
-  const incomes = applyBranchFilter(incomeRows, allowedBranchIds);
-  const openTrips = applyBranchFilter(openTripsRows, allowedBranchIds);
-  const closedTrips = applyBranchFilter(closedTripsRows, allowedBranchIds);
   const vehicles = applyBranchFilter(vehiclesRows, allowedBranchIds);
   const drivers = applyBranchFilter(driversRows, allowedBranchIds);
+  const matchingVehicleIds = new Set(vehicles.filter((v) => !filter.vehicleText || `${v.registration_number ?? ""} ${v.nickname ?? ""}`.toLowerCase().includes(filter.vehicleText.toLowerCase())).map((v) => v.id).filter(Boolean));
+  const matchingDriverIds = new Set(drivers.filter((d) => !filter.driverText || `${d.full_name ?? ""} ${d.driver_code ?? ""}`.toLowerCase().includes(filter.driverText.toLowerCase())).map((d) => d.id).filter(Boolean));
+  const vehicleIds = new Set(vehicles.map((v) => v.id).filter(Boolean));
+  const driverIds = new Set(drivers.map((d) => d.id).filter(Boolean));
+  const entityMatches = (r: ReadOnlyRow) => (!filter.vehicleText || matchingVehicleIds.has(r.vehicle_id)) && (!filter.driverText || matchingDriverIds.has(r.driver_id));
+  const expenditures = applyBranchFilter(expRows, allowedBranchIds).filter((r) => entityMatches(r) && (!filter.minAmount || Number(r.amount ?? 0) > filter.minAmount));
+  const incomes = applyBranchFilter(incomeRows, allowedBranchIds).filter((r) => entityMatches(r) && (!filter.minAmount || Number(r.amount ?? 0) > filter.minAmount));
+  const openTrips = applyBranchFilter(openTripsRows, allowedBranchIds).filter((r) => entityMatches(r) && (!filter.tripCode || String(r.trip_code ?? "").toLowerCase().includes(filter.tripCode!.toLowerCase())));
+  const openTripIds = new Set(openTrips.map((t) => t.id).filter(Boolean));
+  const closedTrips = applyBranchFilter(closedTripsRows, allowedBranchIds).filter((r) => entityMatches(r) && (!filter.tripCode || String(r.trip_code ?? "").toLowerCase().includes(filter.tripCode!.toLowerCase())));
+  const manifests = manifestRows.filter((r) => openTripIds.has(r.trip_id));
+  const tripIncome = tripIncomeRows.filter((r) => openTripIds.has(r.trip_id));
+  const tripExpenses = tripExpenseRows.filter((r) => openTripIds.has(r.trip_id));
+  const fastag = fastagRows.filter((r) => allowedBranchIds === null || !r.vehicle_id || vehicleIds.has(r.vehicle_id));
+  const vehicleLogs = vehicleLogRows.filter((r) => allowedBranchIds === null || !r.vehicle_id || vehicleIds.has(r.vehicle_id));
+  const driverLogs = driverLogRows.filter((r) => allowedBranchIds === null || !r.driver_id || driverIds.has(r.driver_id));
+  const otherLogs = otherLogRows.filter((r) => !filter.minAmount || Number(r.amount ?? 0) > filter.minAmount);
   const insuranceRows = expenditures.filter((row) => row.is_insurance === true || /insurance|premium/i.test(String(row.expenditure_name ?? "")));
 
   return [
-    `READ-ONLY DATA ACCESS: Use this live Supabase data to answer; do not say you cannot access financial data. Data is read-only and already role-filtered.`,
-    `Current month: ${label} (${start} to ${end}, end exclusive).`,
-    `This month insurance premium expenditure: ${money(sumAmounts(insuranceRows))} across ${insuranceRows.length} row(s).`,
-    `This month total expenditures: ${money(sumAmounts(expenditures))} across ${expenditures.length} row(s).`,
-    `This month total incomes: ${money(sumAmounts(incomes))} across ${incomes.length} row(s).`,
-    `Open trips: ${openTrips.length}; closed trips this month: ${closedTrips.length}; vehicles: ${vehicles.length}; drivers: ${drivers.length}.`,
-    `Insurance premium rows: ${insuranceRows.slice(0, 10).map((r) => `${r.entry_date ?? "no date"} ${r.expenditure_name ?? "Insurance"} ${money(Number(r.amount ?? 0))}${r.note ? ` (${r.note})` : ""}`).join("; ") || "none"}.`,
+    `READ-ONLY DATA ACCESS: Live Supabase data, role-filtered, read-only. Date/search scope: ${dateLabel}.`,
+    `Semantic rule: trips are OPEN/RUNNING; closed_trips are DONE/FINALIZED archives. Never mix them unless the user asks for all trips.`,
+    `Totals: expenditures ${money(sumAmounts(expenditures))}/${expenditures.length}; incomes ${money(sumAmounts(incomes))}/${incomes.length}; insurance premium ${money(sumAmounts(insuranceRows))}/${insuranceRows.length}; trip income ${money(sumAmounts(tripIncome))}/${tripIncome.length}; trip expenses ${money(sumAmounts(tripExpenses))}/${tripExpenses.length}.`,
+    `Counts: open trips ${openTrips.length}; closed trips ${closedTrips.length}; manifests ${manifests.length}; vehicles ${vehicles.length}; drivers ${drivers.length}; fastag txns ${fastag.length}; vehicle logs ${vehicleLogs.length}; driver logs ${driverLogs.length}; other expense logs ${otherLogs.length}; app logs ${appLogRows.length}.`,
+    summarizeRows("Open trip sample", openTrips, ["trip_code", "start_date", "ownership", "vehicle_id", "driver_id"]),
+    summarizeRows("Closed trip sample", closedTrips, ["trip_code", "closed_at", "total_income", "total_expense", "net_income"]),
+    summarizeRows("Manifest sample", manifests, ["manifest_number", "weight", "quantity", "freight_amount", "loading_amount"]),
+    summarizeRows("Ledger/log sample", [...vehicleLogs, ...driverLogs, ...otherLogs, ...fastag].slice(0, 8), ["trip_code", "trip_date", "transaction_date", "amount", "expense_name", "transaction_type"]),
+    role === "admin" ? summarizeRows("Audit log sample", appLogRows, ["created_at", "username", "entity_type", "action", "entity_label"]) : "Audit logs: admin-only; hidden for basic users.",
   ].join("\n");
 }
 
@@ -381,6 +593,23 @@ function getPageContext(): string {
   });
   if (filledFields.length > 0) parts.push(`FORM FIELDS: ${filledFields.slice(0, 4).join(", ")}`);
 
+  // Visible screen/errors/toasts so Sparrow can explain what the user is seeing.
+  const visibleAlerts = Array.from(
+    document.querySelectorAll<HTMLElement>(
+      '[role="alert"], [data-sonner-toast], .text-destructive, [aria-invalid="true"]',
+    ),
+  )
+    .map((el) => (el.innerText || el.textContent || el.getAttribute("aria-label") || "").replace(/\s+/g, " ").trim())
+    .filter((text, idx, arr) => text.length > 2 && text.length < 180 && arr.indexOf(text) === idx)
+    .slice(0, 5);
+  if (visibleAlerts.length > 0) parts.push(`VISIBLE ALERTS/ERRORS: ${visibleAlerts.join("; ")}`);
+
+  const visibleButtons = Array.from(document.querySelectorAll<HTMLButtonElement>("main button, [role='dialog'] button"))
+    .map((btn) => (btn.innerText || btn.textContent || "").replace(/\s+/g, " ").trim())
+    .filter((text, idx, arr) => text.length > 1 && text.length < 40 && arr.indexOf(text) === idx)
+    .slice(0, 10);
+  if (visibleButtons.length > 0) parts.push(`VISIBLE BUTTONS: ${visibleButtons.join(", ")}`);
+
   return parts.join(" | ");
 }
 
@@ -529,12 +758,18 @@ function buildSystemPrompt(
 
   return `You are SPARROW AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
 
+${SPARROW_APP_MAP}
 USER: ${userName} | ROLE: ${isAdmin ? "Admin" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
 
 ━━━ CORE RULES ━━━
 - Be concise (under 80 words). State what you're doing, then do it.
 - ${isAdmin ? "Full admin access to all modules." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
-- You CAN navigate, click, fill text fields, open pickers. You CANNOT save, delete, submit.
+- You CAN navigate, click, fill text/date/number fields, open pickers, read visible screen errors, and generate downloadable Excel files for read-only reports. You CANNOT save, delete, submit, close or reopen trips.
+- Date inputs must be filled as YYYY-MM-DD; time inputs as HH:mm.
+- If the user asks what error is on screen, use VISIBLE ALERTS/ERRORS from page context first.
+- If the user asks for Excel/download/export, the app can generate the file directly before calling AI.
+- If you filled a form, end with: "I filled everything I can. Please review and click Save to confirm."
+- If the user asks for delete/close/reopen/submit, do not create an action for it; explain the exact manual steps and that approval is required.
 - ALWAYS include <<SPARROW_ACTIONS>> whenever you interact with the app.
 - Never say "you can do it yourself" if you can do it via actions.
 - Use the CURRENT PAGE and OPEN FORM context above to understand what's already visible.
@@ -566,10 +801,20 @@ Expenditure / Income form:
   "Driver"            — PICKER  
   "Transporter"       — PICKER
 
+Trip main form:
+  "Trip Code", "Branch", "Ownership", "Start Date", "Start Time", "End Date", "End Time"
+  Vehicle tab: "Vehicle", "Odometer Start", "Odometer End", fuel/parking/Fastag fields
+  Driver tab: "Driver", bata/morning/night allowance fields
+  Transporter tab: "Transporter", third-party vehicle/driver fields
+
 Manifest form (inside trip, click "Create manifest" to open):
   "Cnmt No."          — consignment number
   "Weight (kg)"       — weight in kilograms
+  "Source"            — PICKER per manifest row
   "Quantity (units)"  — number of units  ← NOT "Units", NOT "Quantity"
+
+Trip Other Income / Trip Expenses row forms:
+  "Income name", "Expense name", "Amount", "Note"
 
 Trip form tabs (visible after opening a trip):
   Manifest | Other Income | Expenses | Vehicle | Driver | Transporter | Summary
@@ -613,7 +858,7 @@ When a task needs a branch: fill all text fields first, then tell the user:
 ]
 <<END_ACTIONS>>
 
-BLOCKED buttons (never click): save, delete, remove, submit trip, close trip`;
+BLOCKED buttons (never click): save, delete, remove, submit trip, close trip, reopen`;
 }
 
 // ── Minimal markdown renderer ─────────────────────────────────────────────────
@@ -830,6 +1075,13 @@ export function SparrowAIPanel() {
       setCurrentStep("");
 
       try {
+        if (wantsFileGeneration(trimmed)) {
+          const content = await generateReportFile(trimmed, role, user?.branchIds);
+          setMessages((prev) => [...prev, { id: uid(), role: "assistant", content }]);
+          setCurrentStep("");
+          return;
+        }
+
         if (asksCurrentMonthInsurancePremium(trimmed)) {
           const content = await answerCurrentMonthInsurancePremium(role, user?.branchIds);
           setMessages((prev) => [...prev, { id: uid(), role: "assistant", content }]);
