@@ -10,7 +10,7 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
-import { verifyPoWToken, type PowToken } from "@/lib/pow-captcha";
+import { verifyTurnstileToken } from "@/lib/turnstile";
 
 // ── Public user shape (safe to store in localStorage / send to client) ──────
 
@@ -62,18 +62,19 @@ export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: {
     username: string;
     password: string;
-    powToken: PowToken;
+    turnstileToken: string;
     /** Credential ID of the passkey that already passed Windows Hello on this device */
     credentialId?: string;
   }) => data)
   .handler(async ({ data }): Promise<SignInResult> => {
 
-    // ── 1. Verify Proof-of-Work CAPTCHA ───────────────────────────────────────
-    if (!data.powToken || !verifyPoWToken(data.powToken)) {
+    // ── 1. Verify Cloudflare Turnstile CAPTCHA ───────────────────────────────
+    const captcha = await verifyTurnstileToken({ token: data.turnstileToken });
+    if (!captcha.ok) {
       return {
         ok: false,
         reason: "captcha_failed",
-        message: "Security check failed or expired. Please wait for it to complete and try again.",
+        message: captcha.error ?? "Security check failed or expired. Please try again.",
       };
     }
 

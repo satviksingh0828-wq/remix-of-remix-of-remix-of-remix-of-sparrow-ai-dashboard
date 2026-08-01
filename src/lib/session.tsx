@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { ReactNode } from "react";
 import { serverSignIn, serverSignOut, serverVerifySession } from "@/lib/user-auth";
 import type { SessionUser } from "@/lib/user-auth";
-import type { PowToken } from "@/lib/pow-captcha";
 import { secureSession } from "@/lib/storage";
 import { setLoggerUser } from "@/lib/log-actions";
 
@@ -29,7 +28,7 @@ type SessionValue = {
   signIn: (
     username: string,
     password: string,
-    powToken: PowToken,
+    turnstileToken: string,
     credentialId?: string,
   ) => Promise<SignInOutcome>;
   signOut: (reason?: "inactivity" | "elsewhere" | "manual") => void;
@@ -139,11 +138,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (
     username: string,
     password: string,
-    powToken: PowToken,
+    turnstileToken: string,
     credentialId?: string,
   ): Promise<SignInOutcome> => {
     try {
-      const result = await serverSignIn({ data: { username, password, powToken, credentialId } });
+      const result = await serverSignIn({ data: { username, password, turnstileToken, credentialId } });
       if (!result.ok) return result;
 
       secureSession.setItem(KEY, JSON.stringify(result.user));

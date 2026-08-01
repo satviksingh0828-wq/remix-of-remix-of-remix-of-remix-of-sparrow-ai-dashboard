@@ -12,6 +12,8 @@ export function validateActions(actions: SparrowAction[], role: string) {
     if (!ACTION_TYPES.has(action.type)) { warnings.push(`Skipped unknown action ${String(action.type)}.`); continue; }
     if (action.type === "navigate" && !(allowedRoutes as readonly string[]).includes(action.path)) { warnings.push(`Skipped unavailable route ${action.path}.`); continue; }
     if (action.type === "click_button" && classifyButtonAction(action.text) !== "allowed") { warnings.push(`Skipped user-only/blocked button ${action.text}.`); continue; }
+    if (action.type === "open_picker" && (!action.search || action.search === "undefined" || action.search === "null")) { warnings.push(`Skipped ${action.label} picker because no option was provided.`); continue; }
+    if (action.type === "select_dropdown" && (!action.option || action.option === "undefined" || action.option === "null")) { warnings.push(`Skipped ${action.label} dropdown because no option was provided.`); continue; }
     valid.push(action);
   }
   return { actions: valid, warnings };

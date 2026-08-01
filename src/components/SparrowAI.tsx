@@ -656,9 +656,8 @@ Vehicle form (at /masters Vehicle tab):
 - "weight"                                → "Weight (kg)"
 
 ━━━ BRANCH PICKER — important ━━━
-Branch is a dropdown picker, not a text field. You CANNOT type it — the user must click it.
-When a task needs a branch: fill all text fields first, then tell the user:
-"Please select a branch from the Branch dropdown to complete the form."
+Branch is a dropdown picker, not a text field. If the user provides a branch name such as "Ludhiana", use open_picker with that exact value: {"type":"open_picker","label":"Branch (required)","search":"Ludhiana"}.
+Never output search "undefined" or an empty picker search. If the branch is not provided, fill all known fields and use ask_user to request the branch.
 
 ━━━ ACTION TIMING RULES ━━━
 - After navigate: wait 1500ms before any click
