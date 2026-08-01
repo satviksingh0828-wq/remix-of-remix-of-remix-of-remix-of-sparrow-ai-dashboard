@@ -416,7 +416,7 @@ function LoginPage() {
       )}
 
       {/* Login */}
-      <section className="relative flex flex-col items-center justify-center bg-background px-6 py-10">
+      <section className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-10">
 
         {/* ── Normal login form — always visible ────────────────────────── */}
         <div className="w-full max-w-sm animate-fade-up">
@@ -505,7 +505,7 @@ function LoginPage() {
         </div>
 
         {/* Powered by branding */}
-        <p className="mt-auto pt-10 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
+        <p className="absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-6 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
           Powered by Sparrow AI Solutions
         </p>
       </section>
