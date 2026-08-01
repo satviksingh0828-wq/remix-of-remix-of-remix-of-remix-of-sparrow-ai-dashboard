@@ -231,7 +231,7 @@ export function EntityPnLPanel({ kind }: Props) {
   }, [data, kind]);
 
   const filteredEntities = useMemo(
-    () => entities.filter(e => e.label.toLowerCase().includes(search.toLowerCase())),
+    () => entities.filter(e => (e.label || "").toLowerCase().includes((search || "").toLowerCase())),
     [entities, search],
   );
 
