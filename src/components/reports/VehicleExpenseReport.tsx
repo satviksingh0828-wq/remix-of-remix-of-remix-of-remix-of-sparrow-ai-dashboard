@@ -1,13 +1,22 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
-import { ChevronDown, ChevronRight, Download, RefreshCw, Search, History } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { inr, num } from "@/lib/trip-calc";
+import { inr } from "@/lib/trip-calc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
+
+const MONTHS = [
+  { v: "01", l: "January" }, { v: "02", l: "February" }, { v: "03", l: "March" },
+  { v: "04", l: "April" },   { v: "05", l: "May" },       { v: "06", l: "June" },
+  { v: "07", l: "July" },    { v: "08", l: "August" },    { v: "09", l: "September" },
+  { v: "10", l: "October" }, { v: "11", l: "November" },  { v: "12", l: "December" },
+];
 
 interface VehicleRow {
   vehicle_id: string;
@@ -30,30 +39,52 @@ interface TripLog {
 }
 
 export function VehicleExpenseReport() {
-  const today = new Date().toISOString().split("T")[0];
-  const firstOfMonth = today.slice(0, 7) + "-01";
+  const now = new Date();
+  const currentYear = String(now.getFullYear());
+  const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
+
+  const [year, setYear]   = useState(currentYear);
+  const [month, setMonth] = useState(currentMonth);
+  const years = useMemo(() => {
+    const arr: string[] = [];
+    for (let y = now.getFullYear(); y >= 2020; y--) arr.push(String(y));
+    return arr;
+  }, []);
 
   const [rows, setRows] = useState<VehicleRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState(firstOfMonth);
-  const [dateTo, setDateTo] = useState(today);
-
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [history, setHistory] = useState<TripLog[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  function dateRange() {
+    const start = `${year}-${month === "all" ? "01" : month}-01`;
+    let end: string;
+    if (month === "all") {
+      end = `${Number(year) + 1}-01-01`;
+    } else {
+      const nm = Number(month) + 1;
+      end = nm > 12 ? `${Number(year) + 1}-01-01` : `${year}-${String(nm).padStart(2, "0")}-01`;
+    }
+    return { start, end };
+  }
+
   async function loadData() {
     setLoading(true);
     try {
+      const { start, end } = dateRange();
+
       const vehicles = await fetchAll<any>(() =>
         supabase.from("vehicles").select("id,registration_number,nickname").order("registration_number")
       );
 
-      let q = supabase.from("vehicle_trip_logs" as any).select("vehicle_id,fuel_expense,parking_charges,odometer_start,odometer_end");
-      if (dateFrom) q = (q as any).gte("trip_date", dateFrom);
-      if (dateTo)   q = (q as any).lte("trip_date", dateTo);
-      const logs = await fetchAll<any>(() => q);
+      const logs = await fetchAll<any>(() =>
+        supabase.from("vehicle_trip_logs" as any)
+          .select("vehicle_id,fuel_expense,parking_charges,odometer_start,odometer_end,trip_date")
+          .gte("trip_date", start)
+          .lt("trip_date", end)
+      );
 
       const agg: Record<string, { fuel: number; parking: number; distance: number; trips: number }> = {};
       vehicles.forEach((v: any) => { agg[v.id] = { fuel: 0, parking: 0, distance: 0, trips: 0 }; });
@@ -88,10 +119,14 @@ export function VehicleExpenseReport() {
     setLoadingHistory(true);
     setSelectedId(vehicleId);
     try {
-      let q = supabase.from("vehicle_trip_logs" as any).select("*").eq("vehicle_id", vehicleId).order("trip_date", { ascending: false });
-      if (dateFrom) q = (q as any).gte("trip_date", dateFrom);
-      if (dateTo)   q = (q as any).lte("trip_date", dateTo);
-      const { data, error } = await q;
+      const { start, end } = dateRange();
+      const { data, error } = await supabase
+        .from("vehicle_trip_logs" as any)
+        .select("*")
+        .eq("vehicle_id", vehicleId)
+        .gte("trip_date", start)
+        .lt("trip_date", end)
+        .order("trip_date", { ascending: false });
       if (error) throw error;
       setHistory(data as any[]);
     } catch (err: any) {
@@ -101,7 +136,7 @@ export function VehicleExpenseReport() {
     }
   }
 
-  useEffect(() => { loadData(); }, [dateFrom, dateTo]);
+  useEffect(() => { loadData(); }, [year, month]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
@@ -116,34 +151,41 @@ export function VehicleExpenseReport() {
       filtered.map(r => ({
         Vehicle: r.registration_number,
         Nickname: r.nickname ?? "—",
-        "Trips": r.trip_count,
+        Trips: r.trip_count,
         "Total Distance (km)": r.total_distance,
         "Total Fuel (₹)": r.total_fuel,
         "Total Parking (₹)": r.total_parking,
       })),
       ["Vehicle", "Nickname", "Trips", "Total Distance (km)", "Total Fuel (₹)", "Total Parking (₹)"]
     );
-    downloadCsv(csv, `vehicle_expense_report_${dateFrom}_${dateTo}.csv`);
+    const label = month === "all" ? year : `${year}-${month}`;
+    downloadCsv(csv, `vehicle_expense_${label}.csv`);
   }
 
   return (
     <div className="space-y-4">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-muted/30 p-3">
+      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
         <div className="relative w-full sm:w-56">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-          <Input placeholder="Search vehicle..." className="h-9 pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input placeholder="Search vehicle…" className="h-9 pl-9" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="flex items-end gap-2">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">From</Label>
-            <Input type="date" className="h-9 w-36" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">To</Label>
-            <Input type="date" className="h-9 w-36" value={dateTo} onChange={e => setDateTo(e.target.value)} />
-          </div>
-        </div>
+
+        <Select value={year} onValueChange={v => { setYear(v); setSelectedId(null); }}>
+          <SelectTrigger className="h-9 w-28"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
+        <Select value={month} onValueChange={v => { setMonth(v); setSelectedId(null); }}>
+          <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Months</SelectItem>
+            {MONTHS.map(m => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}
+          </SelectContent>
+        </Select>
+
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-2">
             <Download className="size-4" /> Export
@@ -160,7 +202,6 @@ export function VehicleExpenseReport() {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <th className="w-10 px-4 py-3"></th>
                 <th className="px-4 py-3">Vehicle</th>
                 <th className="px-4 py-3">Nickname</th>
                 <th className="px-4 py-3 text-right">Trips</th>
@@ -172,18 +213,17 @@ export function VehicleExpenseReport() {
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">
+                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">
                   <RefreshCw className="mx-auto mb-2 size-6 animate-spin opacity-20" />Loading…
                 </td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={8} className="py-12 text-center text-muted-foreground">No data for this period.</td></tr>
+              ) : filtered.filter(r => r.trip_count > 0).length === 0 ? (
+                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">No trips found for this period.</td></tr>
               ) : (
-                filtered.map(row => {
+                filtered.filter(r => r.trip_count > 0).map(row => {
                   const isExpanded = selectedId === row.vehicle_id;
                   return (
                     <Fragment key={row.vehicle_id}>
                       <tr className="transition-colors hover:bg-muted/30">
-                        <td className="px-4 py-3 text-center text-muted-foreground text-xs">{row.trip_count}</td>
                         <td className="px-4 py-3 font-medium">{row.registration_number}</td>
                         <td className="px-4 py-3 text-muted-foreground">{row.nickname ?? "—"}</td>
                         <td className="px-4 py-3 text-right">{row.trip_count}</td>
@@ -200,7 +240,7 @@ export function VehicleExpenseReport() {
                       </tr>
                       {isExpanded && (
                         <tr className="bg-muted/10 border-b border-border">
-                          <td colSpan={8} className="p-0">
+                          <td colSpan={7} className="p-0">
                             <div className="max-h-[300px] overflow-y-auto p-4">
                               <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Trip History</h4>
                               {loadingHistory ? (
@@ -221,7 +261,7 @@ export function VehicleExpenseReport() {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border/50">
-                                    {history.map(h => {
+                                    {history.map((h: any) => {
                                       const dist = h.odometer_end != null && h.odometer_start != null
                                         ? Number(h.odometer_end) - Number(h.odometer_start) : null;
                                       return (
