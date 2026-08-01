@@ -181,6 +181,7 @@ export function TripForm({
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
   const isBasic = user?.role === "basic";
+  const isViewer = user?.role === "viewer";
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
   const TABS = isBasic ? TABS_BASIC : TABS_ALL;
@@ -644,19 +645,23 @@ export function TripForm({
           {generatingPdf ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
           Trip Note
         </Button>
-        <Button onClick={() => saveTrip()} disabled={saving}>
-          {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-          {trip.id ? "Update trip" : "Save trip"}
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleClose}
-          disabled={closing || !trip.id}
-          title="Archive a snapshot of this trip and remove it from live records"
-        >
-          {closing ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
-          Close trip
-        </Button>
+        {!isViewer && (
+          <Button onClick={() => saveTrip()} disabled={saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            {trip.id ? "Update trip" : "Save trip"}
+          </Button>
+        )}
+        {!isViewer && (
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={closing || !trip.id}
+            title="Archive a snapshot of this trip and remove it from live records"
+          >
+            {closing ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
+            Close trip
+          </Button>
+        )}
       </div>
 
       <form onSubmit={saveTrip} className="surface-card space-y-5 p-6">

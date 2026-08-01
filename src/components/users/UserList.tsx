@@ -218,7 +218,7 @@ export function UserList() {
                 <SelectContent>
                   <SelectItem value="admin">Admin — full access</SelectItem>
                   <SelectItem value="basic">Basic user — branch-restricted</SelectItem>
-                  <SelectItem value="viewer">Viewer — read-only access, all branches</SelectItem>
+                  <SelectItem value="viewer">Manager — read-only access, all branches</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -409,7 +409,7 @@ export function UserList() {
                         : "text-muted-foreground"
                     }
                   >
-                    {u.role === "admin" ? "Admin" : u.role === "viewer" ? "Viewer" : "Basic user"}
+                    {u.role === "admin" ? "Admin" : u.role === "viewer" ? "Manager" : "Basic user"}
                   </span>
                   {u.is_paused ? (
                     <span className="ml-2 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">

@@ -381,14 +381,16 @@ export function Trips() {
                   entityLabel={t.trip_code}
                 />
               ) : null}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => remove(t)}
-                aria-label="Delete trip"
-              >
-                <Trash2 className="size-4" />
-              </Button>
+              {!isViewer && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => remove(t)}
+                  aria-label="Delete trip"
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              )}
             </li>
           ))}
         </ul>
