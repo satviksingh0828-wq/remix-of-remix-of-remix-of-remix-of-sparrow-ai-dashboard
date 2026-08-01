@@ -388,6 +388,7 @@ export function TripForm({
     table: "trip_other_income" | "trip_expenses",
     rows: LineRow[],
     nameCol: "income_name" | "expense_name",
+    silent = false,
   ) {
     const tripId = await requireTripId();
     if (!tripId) return;
@@ -406,7 +407,7 @@ export function TripForm({
       if (error) return toast.error(error.message);
     }
     logAction("updated", "trip", { entityId: tripId, entityLabel: trip.trip_code, details: { section: table } });
-    toast.success("Saved");
+    if (!silent) toast.success("Saved");
     loadChildren(tripId);
   }
 
@@ -429,6 +430,8 @@ export function TripForm({
 
     // Save any unsaved changes first (e.g. end_date/end_time just entered)
     await saveTrip();
+    // Silently flush expense lines to DB so closeTrip reads the latest values
+    await saveLines("trip_expenses", expenses, "expense_name", true);
 
     if (
       !window.confirm(

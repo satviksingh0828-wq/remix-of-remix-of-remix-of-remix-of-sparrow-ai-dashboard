@@ -156,10 +156,10 @@ export async function closeTrip(tripId: string) {
   if (t.vehicle_id) {
     const fuel    = expSum("Fuel Expense");
     const parking = expSum("Parking Charges");
-    const odoStart = t.odometer_start != null ? num(t.odometer_start as string) : null;
-    const odoEnd   = t.odometer_end   != null ? num(t.odometer_end   as string) : null;
+    const odoStart = t.odometer_start != null && t.odometer_start !== "" ? num(t.odometer_start as string) : null;
+    const odoEnd   = t.odometer_end   != null && t.odometer_end   !== "" ? num(t.odometer_end   as string) : null;
     if (fuel > 0 || parking > 0 || odoStart != null || odoEnd != null) {
-      await supabase.from("vehicle_trip_logs" as any).insert({
+      const { error: vErr } = await supabase.from("vehicle_trip_logs" as any).insert({
         trip_code: tripCode,
         vehicle_id: t.vehicle_id,
         trip_date: tripDate,
@@ -168,6 +168,7 @@ export async function closeTrip(tripId: string) {
         odometer_start: odoStart,
         odometer_end: odoEnd,
       });
+      if (vErr) throw new Error("Vehicle log: " + vErr.message);
     }
   }
 
@@ -177,7 +178,7 @@ export async function closeTrip(tripId: string) {
     const morning = expSum("Morning Exp.");
     const night   = expSum("Night Exp.");
     if (bata > 0 || morning > 0 || night > 0) {
-      await supabase.from("driver_expense_logs" as any).insert({
+      const { error: dErr } = await supabase.from("driver_expense_logs" as any).insert({
         trip_code: tripCode,
         driver_id: t.driver_id,
         trip_date: tripDate,
@@ -185,6 +186,7 @@ export async function closeTrip(tripId: string) {
         morning_exp: morning,
         night_exp: night,
       });
+      if (dErr) throw new Error("Driver log: " + dErr.message);
     }
   }
 
@@ -195,7 +197,7 @@ export async function closeTrip(tripId: string) {
   const otherExps = expenses.filter((e: any) => !ALL_KNOWN_EXPENSES.includes(e.expense_name));
   const otherAmt  = otherExps.reduce((s, e) => s + num(e.amount), 0);
   if (dala > 0 || unloading > 0 || sunday > 0 || otherAmt > 0) {
-    await supabase.from("other_expense_logs" as any).insert({
+    const { error: oErr } = await supabase.from("other_expense_logs" as any).insert({
       trip_code: tripCode,
       trip_date: tripDate,
       dala_charges: dala,
@@ -204,6 +206,7 @@ export async function closeTrip(tripId: string) {
       other_amount: otherAmt,
       other_details: otherExps.map((e: any) => ({ name: e.expense_name, amount: num(e.amount) })),
     });
+    if (oErr) throw new Error("Other log: " + oErr.message);
   }
 
   await Promise.all([
