@@ -434,6 +434,10 @@ export function TripForm({
       toast.error("Odometer end reading is required to close an own-vehicle trip");
       return;
     }
+    if (isRented && !trip.third_party_vehicle_number?.trim()) {
+      toast.error("Vehicle Number (3rd party) is required to close a rented trip");
+      return;
+    }
 
     // Save any unsaved changes first (e.g. end_date/end_time just entered)
     await saveTrip();
