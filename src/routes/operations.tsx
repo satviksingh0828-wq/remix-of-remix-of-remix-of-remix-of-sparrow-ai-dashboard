@@ -54,7 +54,7 @@ function OperationsPage() {
   const isAdmin = user?.role === "admin";
   const isViewer = user?.role === "viewer";
 
-  const TABS = ALL_TABS.filter(t => isViewer ? t.id === "trip" : isAdmin || !t.adminOnly);
+  const TABS = ALL_TABS.filter(t => isViewer ? t.id !== "import-trips" : isAdmin || !t.adminOnly);
   const [tab, setTab]     = useState<TabId>("trip");
   const [navOpen, setNavOpen] = useState(true);
 
@@ -154,10 +154,10 @@ function OperationsPage() {
           {safeTab === "income"          && <TabErrorBoundary label="Income"><FinanceList kind="income" /></TabErrorBoundary>}
           {safeTab === "expenditure"     && <TabErrorBoundary label="Expenditure"><FinanceList kind="expenditure" /></TabErrorBoundary>}
           {safeTab === "driver-payroll"  && <TabErrorBoundary label="Driver Payroll"><DriverPayroll /></TabErrorBoundary>}
-          {safeTab === "fixed-income"    && isAdmin && <TabErrorBoundary label="Fixed Income"><FixedIncomeList /></TabErrorBoundary>}
-          {safeTab === "trip-averages"   && isAdmin && <TabErrorBoundary label="Trip Averages"><TripAveragesPanel /></TabErrorBoundary>}
-          {safeTab === "emi-scheduler"   && isAdmin && <TabErrorBoundary label="EMI Scheduler"><EmiScheduler /></TabErrorBoundary>}
-          {safeTab === "yearly-expenses" && isAdmin && <TabErrorBoundary label="Yearly Expenses"><YearlyExpenseScheduler /></TabErrorBoundary>}
+          {safeTab === "fixed-income"    && (isAdmin || isViewer) && <TabErrorBoundary label="Fixed Income"><FixedIncomeList /></TabErrorBoundary>}
+          {safeTab === "trip-averages"   && (isAdmin || isViewer) && <TabErrorBoundary label="Trip Averages"><TripAveragesPanel /></TabErrorBoundary>}
+          {safeTab === "emi-scheduler"   && (isAdmin || isViewer) && <TabErrorBoundary label="EMI Scheduler"><EmiScheduler /></TabErrorBoundary>}
+          {safeTab === "yearly-expenses" && (isAdmin || isViewer) && <TabErrorBoundary label="Yearly Expenses"><YearlyExpenseScheduler /></TabErrorBoundary>}
           {safeTab === "import-trips"    && isAdmin && <TabErrorBoundary label="Import Trips"><TripImport embedded /></TabErrorBoundary>}
         </div>
       </div>

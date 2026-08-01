@@ -53,7 +53,7 @@ function MastersPage() {
   const isAdmin = user?.role === "admin";
   const isViewer = user?.role === "viewer";
 
-  const TABS = isAdmin ? ALL_TABS : isViewer ? ALL_TABS.filter((t) => t.id !== "contract") : ALL_TABS.filter((t) => !t.adminOnly);
+  const TABS = isAdmin || isViewer ? ALL_TABS : ALL_TABS.filter((t) => !t.adminOnly);
 
   const [tab, setTab] = useState<TabId>(isAdmin || isViewer ? "vehicle" : "driver");
   const [navOpen, setNavOpen] = useState(true);

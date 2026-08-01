@@ -72,7 +72,7 @@ export function MasterList({
 
   // For basic/viewer users, restrict data to their allowed branches
   const isBasic = user?.role === "basic";
-  const allowedBranchIds = user?.role !== "admin" ? (user?.branchIds ?? []) : null;
+  const allowedBranchIds = user?.role === "basic" ? (user?.branchIds ?? []) : null;
 
   const allFieldKeys = config.sections.flatMap((s) => s.fields.map((f) => f.key));
   const emptyRow: Row = Object.fromEntries(allFieldKeys.map((k) => [k, ""])) as Row;

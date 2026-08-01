@@ -114,7 +114,7 @@ export function Trips() {
   const isAdmin = user?.role === "admin";
   const isBasic = user?.role === "basic";
   const isViewer = user?.role === "viewer";
-  const allowedBranchIds = user?.role !== "admin" ? (user?.branchIds ?? []) : null;
+  const allowedBranchIds = user?.role === "basic" ? (user?.branchIds ?? []) : null;
 
   // Closed trips: load archived records in 15-day windows to avoid pulling all history at once.
   const [closedDaysToLoad, setClosedDaysToLoad] = useState(15);
