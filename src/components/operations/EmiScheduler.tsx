@@ -192,6 +192,7 @@ export function EmiScheduler() {
 
   // Marking paid
   const [markingPaid, setMarkingPaid] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
   // ── Load ─────────────────────────────────────────────────────────────────────
 
@@ -450,6 +451,55 @@ export function EmiScheduler() {
     setSchedules((prev) =>
       prev.map((s) => (s.id === id ? { ...s, expanded: !s.expanded } : s)),
     );
+  }
+
+  async function handleDeleteSchedule(scheduleId: string) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this EMI schedule? This will also delete all associated expenditure records. This action cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(scheduleId);
+    try {
+      // 1. Get all expenditure IDs linked to this schedule's installments
+      const { data: installments, error: fetchErr } = await supabase
+        .from("emi_installments")
+        .select("expenditure_id")
+        .eq("schedule_id", scheduleId);
+
+      if (fetchErr) throw fetchErr;
+
+      const expenditureIds = installments
+        ?.map((i) => i.expenditure_id)
+        .filter((id): id is string => !!id);
+
+      // 2. Delete expenditures
+      if (expenditureIds && expenditureIds.length > 0) {
+        const { error: expDelErr } = await supabase
+          .from("expenditures")
+          .delete()
+          .in("id", expenditureIds);
+
+        if (expDelErr) throw expDelErr;
+      }
+
+      // 3. Delete the schedule (cascades to installments)
+      const { error: schedDelErr } = await supabase
+        .from("emi_schedules")
+        .delete()
+        .eq("id", scheduleId);
+
+      if (schedDelErr) throw schedDelErr;
+
+      toast.success("EMI schedule and associated expenditures deleted");
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not delete EMI schedule");
+    }
+    setDeleting(null);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -847,53 +897,73 @@ export function EmiScheduler() {
             return (
               <div key={sched.id} className="surface-card overflow-hidden">
                 {/* Schedule header */}
-                <button
-                  type="button"
-                  onClick={() => toggleExpand(sched.id)}
-                  className="flex w-full items-center gap-4 p-5 text-left hover:bg-muted/20 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="font-semibold text-sm truncate">{sched.vehicle_label}</span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                          sched.status === "active"
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {sched.status}
-                      </span>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                        {sched.emi_type === "normal" ? "Normal EMI" : "Custom EMI"}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                      <span>Loan: <strong className="text-foreground">{inr(sched.loan_amount)}</strong></span>
-                      {sched.interest_rate && (
-                        <span>Rate: <strong className="text-foreground">{sched.interest_rate}%</strong></span>
-                      )}
-                      {sched.lender_name && <span>{sched.lender_name}</span>}
-                      <span className="text-emerald-600 dark:text-emerald-400">
-                        <CheckCircle2 className="size-3 inline mr-0.5" />{paid}/{total} paid
-                      </span>
-                      {nextDue && (
-                        <span className="text-amber-600 dark:text-amber-400">
-                          <Clock className="size-3 inline mr-0.5" />Next: {nextDue.due_date}
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(sched.id)}
+                    className="flex-1 flex items-center gap-4 p-5 text-left hover:bg-muted/20 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-semibold text-sm truncate">{sched.vehicle_label}</span>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                            sched.status === "active"
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          {sched.status}
                         </span>
-                      )}
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          {sched.emi_type === "normal" ? "Normal EMI" : "Custom EMI"}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+                        <span>Loan: <strong className="text-foreground">{inr(sched.loan_amount)}</strong></span>
+                        {sched.interest_rate && (
+                          <span>Rate: <strong className="text-foreground">{sched.interest_rate}%</strong></span>
+                        )}
+                        {sched.lender_name && <span>{sched.lender_name}</span>}
+                        <span className="text-emerald-600 dark:text-emerald-400">
+                          <CheckCircle2 className="size-3 inline mr-0.5" />{paid}/{total} paid
+                        </span>
+                        {nextDue && (
+                          <span className="text-amber-600 dark:text-amber-400">
+                            <Clock className="size-3 inline mr-0.5" />Next: {nextDue.due_date}
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-muted-foreground">Pending</p>
+                      <p className="font-bold text-sm text-amber-600 dark:text-amber-400">{inr(pendingAmt)}</p>
+                    </div>
+                    {sched.expanded ? (
+                      <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+                    ) : (
+                      <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+                    )}
+                  </button>
+                  <div className="pr-5">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      disabled={deleting === sched.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSchedule(sched.id);
+                      }}
+                    >
+                      {deleting === sched.id ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="size-4" />
+                      )}
+                    </Button>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-muted-foreground">Pending</p>
-                    <p className="font-bold text-sm text-amber-600 dark:text-amber-400">{inr(pendingAmt)}</p>
-                  </div>
-                  {sched.expanded ? (
-                    <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-                  ) : (
-                    <ChevronRight className="size-4 text-muted-foreground shrink-0" />
-                  )}
-                </button>
+                </div>
 
                 {/* Progress bar */}
                 <div className="h-1 bg-muted">
