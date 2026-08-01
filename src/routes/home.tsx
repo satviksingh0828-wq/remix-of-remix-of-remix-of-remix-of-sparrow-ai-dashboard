@@ -46,7 +46,7 @@ const ALL_MODULES = [
     icon: Truck,
     active: true,
     to: "/operations" as const,
-    roles: ["admin", "basic"] as const,
+    roles: ["admin", "basic", "viewer"] as const,
   },
   {
     key: "masters",
@@ -55,7 +55,7 @@ const ALL_MODULES = [
     icon: Database,
     active: true,
     to: "/masters" as const,
-    roles: ["admin", "basic"] as const,
+    roles: ["admin", "basic", "viewer"] as const,
   },
   {
     key: "dashboard",
@@ -64,7 +64,7 @@ const ALL_MODULES = [
     icon: BarChart3,
     active: true,
     to: "/dashboard" as const,
-    roles: ["admin"] as const,
+    roles: ["admin", "viewer"] as const,
   },
   {
     key: "reports",
@@ -73,7 +73,7 @@ const ALL_MODULES = [
     icon: FileText,
     active: true,
     to: "/reports" as const,
-    roles: ["admin"] as const,
+    roles: ["admin", "viewer"] as const,
   },
   {
     key: "users",

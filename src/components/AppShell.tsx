@@ -21,6 +21,7 @@ export function AppShell({
   const navigate = useNavigate();
   const { open } = useSparrowAI();
   const isAdmin = user?.role === "admin";
+  const isViewer = user?.role === "viewer";
 
   return (
     <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "mr-[360px]" : "")}>
@@ -43,7 +44,7 @@ export function AppShell({
                 {user?.fullName ?? user?.username}
               </span>
               <span className="hidden md:inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide shrink-0">
-                {user?.role === "admin" ? "Admin" : "User"}
+                {user?.role === "admin" ? "Admin" : isViewer ? "Viewer" : "User"}
               </span>
             </span>
             <Button

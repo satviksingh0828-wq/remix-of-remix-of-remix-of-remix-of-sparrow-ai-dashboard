@@ -113,7 +113,8 @@ export function Trips() {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
   const isBasic = user?.role === "basic";
-  const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
+  const isViewer = user?.role === "viewer";
+  const allowedBranchIds = user?.role !== "admin" ? (user?.branchIds ?? []) : null;
 
   // Closed trips: load archived records in 15-day windows to avoid pulling all history at once.
   const [closedDaysToLoad, setClosedDaysToLoad] = useState(15);
@@ -306,6 +307,7 @@ export function Trips() {
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {!isViewer ? (
         <Button
           size="sm"
           className="w-fit"
@@ -319,6 +321,7 @@ export function Trips() {
           <Plus className="size-4" />
           New trip
         </Button>
+        ) : null}
         <div className="relative w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input

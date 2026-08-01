@@ -68,10 +68,11 @@ export function MasterList({
   const branches = useBranches();
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
+  const isViewer = user?.role === "viewer";
 
-  // For basic users, restrict data to their allowed branches
+  // For basic/viewer users, restrict data to their allowed branches
   const isBasic = user?.role === "basic";
-  const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
+  const allowedBranchIds = user?.role !== "admin" ? (user?.branchIds ?? []) : null;
 
   const allFieldKeys = config.sections.flatMap((s) => s.fields.map((f) => f.key));
   const emptyRow: Row = Object.fromEntries(allFieldKeys.map((k) => [k, ""])) as Row;
@@ -392,6 +393,7 @@ export function MasterList({
           <p className="mt-1 text-sm text-muted-foreground">{config.emptyMsg}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {!isViewer ? (
           <CsvIO
             entityLabel={config.entityLabel}
             filename={config.table}
@@ -399,10 +401,11 @@ export function MasterList({
             rows={rowsForExport}
             onImport={onImport}
           />
-          <Button onClick={() => setEditing({ ...emptyRow })}>
+          ) : null}
+          {!isViewer ? <Button onClick={() => setEditing({ ...emptyRow })}>
             <Plus className="size-4" />
             New {config.singular}
-          </Button>
+          </Button> : null}
         </div>
       </div>
 
@@ -423,10 +426,12 @@ export function MasterList({
               ? "No records found for your assigned branches."
               : "Create one, or import a filled template."}
           </p>
-          <Button className="mt-5" onClick={() => setEditing({ ...emptyRow })}>
-            <Plus className="size-4" />
-            New {config.singular}
-          </Button>
+          {!isViewer ? (
+            <Button className="mt-5" onClick={() => setEditing({ ...emptyRow })}>
+              <Plus className="size-4" />
+              New {config.singular}
+            </Button>
+          ) : null}
         </div>
       ) : (
         <>
@@ -462,16 +467,20 @@ export function MasterList({
                     entityLabel={String(r[config.titleKey] ?? "")}
                   />
                 ) : null}
-                <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
-                  Edit
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => remove(r)}
-                >
-                  <Trash2 className="size-4 text-destructive" />
-                </Button>
+                {!isViewer ? (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => remove(r)}
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  </>
+                ) : null}
               </div>
             </li>
           ))}

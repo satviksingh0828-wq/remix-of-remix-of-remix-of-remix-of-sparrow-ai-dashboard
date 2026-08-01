@@ -1,5 +1,6 @@
 export const ADMIN_ROUTES = ["/home", "/operations", "/masters", "/dashboard", "/reports", "/users", "/settings"] as const;
 export const BASIC_ROUTES = ["/home", "/operations", "/masters"] as const;
+export const VIEWER_ROUTES = ["/home", "/operations", "/masters", "/dashboard", "/reports"] as const;
 
 export type CapabilityField = {
   label: string;
@@ -71,10 +72,11 @@ export const AI_CAPABILITY_MAP: CapabilityModule[] = [
 
 export function buildCapabilitySummary(role: string) {
   const isAdmin = role === "admin";
+  const isViewer = role === "viewer";
   return AI_CAPABILITY_MAP
-    .filter((m) => isAdmin || !m.adminOnly)
+    .filter((m) => isAdmin || isViewer || !m.adminOnly)
     .map((m) => {
-      const tabs = (m.tabs ?? []).filter((t) => isAdmin || !t.adminOnly);
+      const tabs = (m.tabs ?? []).filter((t) => isAdmin || isViewer || !t.adminOnly);
       const tabText = tabs.length ? ` tabs: ${tabs.map((t) => `${t.label}${t.openButton ? ` (button: ${t.openButton})` : ""}`).join(", ")}` : "";
       const fields = tabs.flatMap((t) => (t.fields ?? []).map((f) => `${t.label}.${f.label}:${f.type}${f.required ? ":required" : ""}`));
       return `${m.route}${tabText}${fields.length ? ` fields: ${fields.join("; ")}` : ""}`;

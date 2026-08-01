@@ -41,10 +41,10 @@ function DashboardPage() {
   const [navOpen, setNavOpen] = useState(true);
 
   useEffect(() => {
-    if (user && user.role !== "admin") navigate({ to: "/home", replace: true });
+    if (user && user.role !== "admin" && user.role !== "viewer") navigate({ to: "/home", replace: true });
   }, [user, navigate]);
 
-  if (user?.role !== "admin") return null;
+  if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
   const active = TABS.find(t => t.id === tab) ?? TABS[0];
 
