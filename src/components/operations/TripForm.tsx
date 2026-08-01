@@ -856,6 +856,7 @@ export function TripForm({
               startLocationId={trip.start_location_id ?? null}
               reload={(id) => loadChildren(id)}
               isAdmin={isAdmin}
+              isViewer={isViewer}
               otherIncomeTotal={otherIncomeTotal}
               expenseTotal={expenseTotal}
               totalWeight={totalWeight}
@@ -870,6 +871,7 @@ export function TripForm({
               setRows={setIncomes}
               total={otherIncomeTotal}
               onSave={() => saveLines("trip_other_income", incomes, "income_name")}
+              isViewer={isViewer}
             />
           ) : null}
           {activeTab === "expense" ? (
@@ -880,6 +882,7 @@ export function TripForm({
               setRows={setExpenses}
               total={expenseTotal}
               onSave={() => saveLines("trip_expenses", expenses, "expense_name")}
+              isViewer={isViewer}
             />
           ) : null}
           {activeTab === "vehicle" ? (
@@ -986,6 +989,7 @@ function ManifestTab({
   startLocationId,
   reload,
   isAdmin,
+  isViewer = false,
   otherIncomeTotal,
   expenseTotal,
   totalWeight,
@@ -1001,6 +1005,7 @@ function ManifestTab({
   startLocationId: string | null;
   reload: (tripId: string) => void;
   isAdmin: boolean;
+  isViewer?: boolean;
   otherIncomeTotal: number;
   expenseTotal: number;
   totalWeight: number;
@@ -1132,17 +1137,20 @@ function ManifestTab({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" onClick={openNew}>
-          <Plus className="size-4" />
-          Create manifest
-        </Button>
-        <div className="ml-auto">
+        {!isViewer && (
+          <Button type="button" size="sm" onClick={openNew}>
+            <Plus className="size-4" />
+            Create manifest
+          </Button>
+        )}
+        <div className={isViewer ? "" : "ml-auto"}>
           <CsvIO
             entityLabel="Manifests"
             filename="manifests"
             columns={csvColumns}
             rows={csvRows}
             onImport={onImport}
+            readOnly={isViewer}
           />
         </div>
       </div>
@@ -1208,22 +1216,26 @@ function ManifestTab({
                       </>
                     ) : null}
                     <td className="py-2 text-right">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditing(l.m)}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => l.m.id && remove(l.m.id)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+                      {!isViewer && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditing(l.m)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => l.m.id && remove(l.m.id)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 );
@@ -1348,6 +1360,7 @@ function LineTab({
   setRows,
   total,
   onSave,
+  isViewer = false,
 }: {
   title: string;
   nameLabel: string;
@@ -1355,6 +1368,7 @@ function LineTab({
   setRows: (r: LineRow[]) => void;
   total: number;
   onSave: () => void;
+  isViewer?: boolean;
 }) {
   const update = (i: number, p: Partial<LineRow>) =>
     setRows(rows.map((r, idx) => (idx === i ? { ...r, ...p } : r)));
@@ -1363,20 +1377,24 @@ function LineTab({
     <div className="space-y-4">
       <div className="flex items-center gap-2">
         <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          className="ml-auto"
-          onClick={() => setRows([...rows, { name: "", amount: "", note: "" }])}
-        >
-          <Plus className="size-4" />
-          Add field
-        </Button>
-        <Button type="button" size="sm" onClick={onSave}>
-          <Save className="size-4" />
-          Save
-        </Button>
+        {!isViewer && (
+          <>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="ml-auto"
+              onClick={() => setRows([...rows, { name: "", amount: "", note: "" }])}
+            >
+              <Plus className="size-4" />
+              Add field
+            </Button>
+            <Button type="button" size="sm" onClick={onSave}>
+              <Save className="size-4" />
+              Save
+            </Button>
+          </>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -1390,7 +1408,8 @@ function LineTab({
               <Input
                 className="h-10"
                 value={r.name}
-                onChange={(e) => update(i, { name: e.target.value })}
+                readOnly={isViewer}
+                onChange={(e) => !isViewer && update(i, { name: e.target.value })}
               />
             </div>
             <div className="space-y-1.5">
@@ -1399,7 +1418,8 @@ function LineTab({
                 className="h-10"
                 type="number"
                 value={r.amount}
-                onChange={(e) => update(i, { amount: e.target.value })}
+                readOnly={isViewer}
+                onChange={(e) => !isViewer && update(i, { amount: e.target.value })}
               />
             </div>
             <div className="space-y-1.5">
@@ -1407,17 +1427,20 @@ function LineTab({
               <Input
                 className="h-10"
                 value={r.note}
-                onChange={(e) => update(i, { note: e.target.value })}
+                readOnly={isViewer}
+                onChange={(e) => !isViewer && update(i, { note: e.target.value })}
               />
             </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setRows(rows.filter((_, idx) => idx !== i))}
-            >
-              <Trash2 className="size-4" />
-            </Button>
+            {!isViewer && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setRows(rows.filter((_, idx) => idx !== i))}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            )}
           </div>
         ))}
       </div>

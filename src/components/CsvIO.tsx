@@ -10,6 +10,8 @@ export type CsvIOProps<T extends Record<string, unknown>> = {
   columns: string[]; // csv column keys (must match db keys)
   rows: T[];
   onImport: (rows: Record<string, string>[]) => Promise<{ inserted: number; failed: number }>;
+  /** When true, hides the Import button (viewer / read-only users) */
+  readOnly?: boolean;
 };
 
 export function CsvIO<T extends Record<string, unknown>>({
@@ -18,6 +20,7 @@ export function CsvIO<T extends Record<string, unknown>>({
   columns,
   rows,
   onImport,
+  readOnly = false,
 }: CsvIOProps<T>) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<null | "import" | "export" | "template">(null);
@@ -77,20 +80,22 @@ export function CsvIO<T extends Record<string, unknown>>({
         <FileSpreadsheet className="size-4" />
         Template
       </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => fileRef.current?.click()}
-        disabled={busy !== null}
-      >
-        {busy === "import" ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : (
-          <Upload className="size-4" />
-        )}
-        Import
-      </Button>
+      {!readOnly && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy !== null}
+        >
+          {busy === "import" ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Upload className="size-4" />
+          )}
+          Import
+        </Button>
+      )}
       <Button
         type="button"
         variant="outline"

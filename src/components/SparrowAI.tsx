@@ -130,7 +130,7 @@ function wantsReadOnlyData(text: string) {
 async function buildReadOnlyDataContext(text: string, role: string, branchIds: string[] | undefined) {
   if (!wantsReadOnlyData(text)) return "";
 
-  const allowedBranchIds = role !== "admin" ? (branchIds ?? []) : null;
+  const allowedBranchIds = role === "basic" ? (branchIds ?? []) : null;
   if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
     return "READ-ONLY DATA: Basic user has no assigned branches, so no business rows are accessible.";
   }
@@ -173,22 +173,183 @@ async function buildReadOnlyDataContext(text: string, role: string, branchIds: s
 }
 
 
-function wantsCsv(text: string) {
-  return /csv|spreadsheet|download file/i.test(text);
+function wantsCsvReport(text: string) {
+  return /(csv|excel|spreadsheet|download|export|report).*(expense|expenditure|income|trip|branch|driver|vehicle)/i.test(text)
+    || /(expense|expenditure|income|trip|branch|driver|vehicle).*(csv|excel|spreadsheet|download|export|report)/i.test(text)
+    || /give me.*(report|file|data|list)/i.test(text)
+    || /download.*(data|file|report)/i.test(text);
 }
 
-function makeCsvDownload(text: string) {
-  const rows = /expense/i.test(text)
-    ? [["Expenditure name", "Amount", "Date", "Note", "Branch", "Vehicle", "Driver", "Transporter"], ["Fuel", "", new Date().toISOString().slice(0, 10), "", "", "", "", ""]]
-    : /income/i.test(text)
-      ? [["Income name", "Amount", "Date", "Note", "Branch", "Vehicle", "Driver", "Transporter"], ["Freight", "", new Date().toISOString().slice(0, 10), "", "", "", "", ""]]
-      : [["Name", "Amount", "Date", "Note"], ["", "", new Date().toISOString().slice(0, 10), ""]];
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+type CsvRow = Record<string, string | number>;
+
+function buildCsvBlob(headers: string[], rows: CsvRow[]): string {
+  const escape = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const lines = [
+    headers.map(escape).join(","),
+    ...rows.map((r) => headers.map((h) => escape(r[h])).join(",")),
+  ];
+  return lines.join("\n");
+}
+
+async function generateDataCsv(
+  text: string,
+  role: string,
+  branchIds: string[] | undefined,
+): Promise<{ name: string; url: string; summary: string }> {
+  const allowedBranchIds = role === "basic" ? (branchIds ?? []) : null;
+  if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
+    throw new Error("No branches assigned to your account.");
+  }
+
+  const { start, end, label } = requestedMonthRange(text);
+
+  // Fetch branch names for ID → name resolution
+  const branchRows = await fetchAll<{ id: string; branch_name: string }>(() =>
+    supabase.from("branches").select("id,branch_name"),
+  );
+  const branchMap = new Map(branchRows.map((b) => [b.id, b.branch_name]));
+
+  const isExpense = /expense|expenditure|spend/i.test(text);
+  const isIncome = /income|revenue|earning/i.test(text);
+  const isTrip = /trip/i.test(text) && !isExpense && !isIncome;
+  const isDriver = /driver|payroll|salary/i.test(text);
+
+  let headers: string[] = [];
+  let rows: CsvRow[] = [];
+  let filename = "report";
+
+  if (isExpense) {
+    const data = await fetchAll<ReadOnlyRow>(() => {
+      let q = supabase
+        .from("expenditures")
+        .select("expenditure_name,amount,entry_date,paid_date,branch_id,note,is_insurance,is_road_tax")
+        .gte("entry_date", start)
+        .lt("entry_date", end)
+        .order("entry_date", { ascending: false });
+      if (allowedBranchIds !== null) q = q.in("branch_id", allowedBranchIds) as typeof q;
+      return q;
+    });
+    headers = ["Date", "Branch", "Expense Name", "Amount (₹)", "Paid Date", "Note", "Type"];
+    rows = data.map((r) => ({
+      "Date": String(r.entry_date ?? ""),
+      "Branch": branchMap.get(String(r.branch_id ?? "")) ?? String(r.branch_id ?? ""),
+      "Expense Name": String(r.expenditure_name ?? ""),
+      "Amount (₹)": Number(r.amount ?? 0),
+      "Paid Date": String(r.paid_date ?? ""),
+      "Note": String(r.note ?? ""),
+      "Type": r.is_insurance ? "Insurance" : r.is_road_tax ? "Road Tax" : "General",
+    }));
+    filename = `expenses-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  } else if (isIncome) {
+    const data = await fetchAll<ReadOnlyRow>(() => {
+      let q = supabase
+        .from("incomes")
+        .select("income_name,amount,entry_date,received_date,branch_id,note")
+        .gte("entry_date", start)
+        .lt("entry_date", end)
+        .order("entry_date", { ascending: false });
+      if (allowedBranchIds !== null) q = q.in("branch_id", allowedBranchIds) as typeof q;
+      return q;
+    });
+    headers = ["Date", "Branch", "Income Name", "Amount (₹)", "Received Date", "Note"];
+    rows = data.map((r) => ({
+      "Date": String(r.entry_date ?? ""),
+      "Branch": branchMap.get(String(r.branch_id ?? "")) ?? String(r.branch_id ?? ""),
+      "Income Name": String(r.income_name ?? ""),
+      "Amount (₹)": Number(r.amount ?? 0),
+      "Received Date": String(r.received_date ?? ""),
+      "Note": String(r.note ?? ""),
+    }));
+    filename = `income-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  } else if (isDriver) {
+    const data = await fetchAll<ReadOnlyRow>(() => {
+      let q = supabase
+        .from("drivers")
+        .select("driver_code,full_name,branch_id,mobile_number,licence_number,date_of_birth")
+        .order("full_name");
+      if (allowedBranchIds !== null) q = q.in("branch_id", allowedBranchIds) as typeof q;
+      return q;
+    });
+    headers = ["Driver Code", "Full Name", "Branch", "Mobile", "Licence Number", "Date of Birth"];
+    rows = data.map((r) => ({
+      "Driver Code": String(r.driver_code ?? ""),
+      "Full Name": String(r.full_name ?? ""),
+      "Branch": branchMap.get(String(r.branch_id ?? "")) ?? String(r.branch_id ?? ""),
+      "Mobile": String(r.mobile_number ?? ""),
+      "Licence Number": String(r.licence_number ?? ""),
+      "Date of Birth": String(r.date_of_birth ?? ""),
+    }));
+    filename = "drivers";
+  } else if (isTrip) {
+    const data = await fetchAll<ReadOnlyRow>(() => {
+      let q = supabase
+        .from("closed_trips")
+        .select("trip_code,branch_name,branch_id,start_date,end_date,closed_at,total_income,total_expense,net_income")
+        .gte("closed_at", start)
+        .lt("closed_at", end)
+        .order("closed_at", { ascending: false });
+      if (allowedBranchIds !== null) q = q.in("branch_id", allowedBranchIds) as typeof q;
+      return q;
+    });
+    headers = ["Trip Code", "Branch", "Start Date", "End Date", "Closed At", "Total Income (₹)", "Total Expense (₹)", "Net Income (₹)"];
+    rows = data.map((r) => ({
+      "Trip Code": String(r.trip_code ?? ""),
+      "Branch": String(r.branch_name ?? branchMap.get(String(r.branch_id ?? "")) ?? ""),
+      "Start Date": String(r.start_date ?? ""),
+      "End Date": String(r.end_date ?? ""),
+      "Closed At": String(r.closed_at ?? "").slice(0, 10),
+      "Total Income (₹)": Number(r.total_income ?? 0),
+      "Total Expense (₹)": Number(r.total_expense ?? 0),
+      "Net Income (₹)": Number(r.net_income ?? 0),
+    }));
+    filename = `trips-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  } else {
+    // Combined financial report: expenses + income
+    const [expData, incData] = await Promise.all([
+      fetchAll<ReadOnlyRow>(() => {
+        let q = supabase
+          .from("expenditures")
+          .select("expenditure_name,amount,entry_date,branch_id,note")
+          .gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false });
+        if (allowedBranchIds !== null) q = q.in("branch_id", allowedBranchIds) as typeof q;
+        return q;
+      }),
+      fetchAll<ReadOnlyRow>(() => {
+        let q = supabase
+          .from("incomes")
+          .select("income_name,amount,entry_date,branch_id,note")
+          .gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false });
+        if (allowedBranchIds !== null) q = q.in("branch_id", allowedBranchIds) as typeof q;
+        return q;
+      }),
+    ]);
+    headers = ["Date", "Type", "Branch", "Name", "Amount (₹)", "Note"];
+    rows = [
+      ...expData.map((r) => ({
+        "Date": String(r.entry_date ?? ""),
+        "Type": "Expense",
+        "Branch": branchMap.get(String(r.branch_id ?? "")) ?? String(r.branch_id ?? ""),
+        "Name": String(r.expenditure_name ?? ""),
+        "Amount (₹)": Number(r.amount ?? 0),
+        "Note": String(r.note ?? ""),
+      })),
+      ...incData.map((r) => ({
+        "Date": String(r.entry_date ?? ""),
+        "Type": "Income",
+        "Branch": branchMap.get(String(r.branch_id ?? "")) ?? String(r.branch_id ?? ""),
+        "Name": String(r.income_name ?? ""),
+        "Amount (₹)": Number(r.amount ?? 0),
+        "Note": String(r.note ?? ""),
+      })),
+    ].sort((a, b) => String(a["Date"]).localeCompare(String(b["Date"])));
+    filename = `financial-report-${label.replace(/\s+/g, "-").toLowerCase()}`;
+  }
+
+  const csv = buildCsvBlob(headers, rows);
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  return {
-    name: /income/i.test(text) ? "income-template.csv" : /expense/i.test(text) ? "expense-template.csv" : "custom-template.csv",
-    url: URL.createObjectURL(blob),
-  };
+  const total = rows.reduce((s, r) => s + (typeof r["Amount (₹)"] === "number" ? r["Amount (₹)"] : 0), 0);
+  const summary = `Generated **${rows.length} rows** for **${label}**${total > 0 ? ` · Total: ${money(total)}` : ""}.`;
+  return { name: `${filename}.csv`, url: URL.createObjectURL(blob), summary };
 }
 
 // ── Puter.js + Speech Recognition type shims ─────────────────────────────────
@@ -644,11 +805,11 @@ function buildSystemPrompt(
 
   return `You are SPARROW AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
 
-USER: ${userName} | ROLE: ${isAdmin ? "Admin" : isViewer ? "Viewer (read-only)" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
+USER: ${userName} | ROLE: ${isAdmin ? "Admin" : isViewer ? "Manager (read-only)" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
 
 ━━━ CORE RULES ━━━
 - Be concise (under 80 words). State what you're doing, then do it.
-- ${isAdmin ? "Full admin access to all modules." : isViewer ? "Viewer: read-only access to Operations, Masters, Dashboard, and Reports only. Never create, edit, save, close, delete, or submit records." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
+- ${isAdmin ? "Full admin access to all modules." : isViewer ? "Manager: read-only access to Operations, Masters, Dashboard, and Reports. Never create, edit, save, close, delete, or submit records. You CAN generate CSV/Excel report downloads from live data." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
 - You CAN navigate, click safe buttons, fill text/date/number fields, choose dropdowns/pickers, check boxes, and prepare records. You CANNOT press Save, Delete, Submit, Close Trip, or destructive confirmation buttons; pause and ask the user to do those.
 - ALWAYS include <<SPARROW_ACTIONS>> whenever you interact with the app.
 - If information is missing or ambiguous, use an ask_user action and explain exactly what is needed.
@@ -968,9 +1129,14 @@ export function SparrowAIPanel() {
       setCurrentStep("");
 
       try {
-        if (wantsCsv(trimmed)) {
-          const download = makeCsvDownload(trimmed);
-          setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: `I created a custom CSV template for you: ${download.name}`, download }]);
+        if (wantsCsvReport(trimmed)) {
+          try {
+            const download = await generateDataCsv(trimmed, role, user?.branchIds);
+            setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: `✅ ${download.summary}\n\nYour file **${download.name}** is ready to download.`, download }]);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Could not generate report.";
+            setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: `❌ ${msg}` }]);
+          }
           setCurrentStep("");
           return;
         }
@@ -984,7 +1150,7 @@ export function SparrowAIPanel() {
 
         const readOnlyDataContext = await buildReadOnlyDataContext(trimmed, role, user?.branchIds);
         const systemPrompt = `${buildSystemPrompt(role, displayName, currentPath, pageContext)}${readOnlyDataContext ? `\n\n━━━ READ-ONLY DATA CONTEXT ━━━\n${readOnlyDataContext}` : ""}`;
-        const history = [...messages, userMsg].slice(-12).map((m) => ({
+        const history = [...messages, userMsg].slice(-20).map((m) => ({
           role: m.role, content: m.content,
         }));
 
@@ -1032,7 +1198,7 @@ export function SparrowAIPanel() {
           </div>
           <span className="text-sm font-semibold tracking-tight text-foreground">SPARROW AI</span>
           <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {isAdmin ? "Admin" : "User"}
+            {isAdmin ? "Admin" : role === "viewer" ? "Manager" : "User"}
           </span>
         </div>
         <div className="flex items-center gap-1">
