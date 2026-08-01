@@ -11,7 +11,7 @@ import { downloadCsv, toCsv } from "@/lib/csv";
 
 interface DriverRow {
   driver_id: string;
-  name: string;
+  full_name: string;
   total_bata: number;
   total_morning: number;
   total_night: number;
@@ -45,7 +45,7 @@ export function DriverExpenseReport() {
     setLoading(true);
     try {
       const drivers = await fetchAll<any>(() =>
-        supabase.from("drivers").select("id,name").order("name")
+        supabase.from("drivers").select("id,full_name").order("full_name")
       );
 
       let q = supabase.from("driver_expense_logs" as any).select("driver_id,driver_bata,morning_exp,night_exp");
