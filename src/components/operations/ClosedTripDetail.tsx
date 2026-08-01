@@ -412,7 +412,7 @@ function ManifestView({
       };
     });
     const csv = toCsv(rows, columns);
-    downloadCsv(`manifests-${tripCode}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    downloadCsv(csv, `manifests-${tripCode}-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
   // ── Trip details export ───────────────────────────────────────────────────
@@ -454,7 +454,7 @@ function ManifestView({
     });
 
     const csv = toCsv(rows, columns);
-    downloadCsv(`trip-details-${tripCode}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    downloadCsv(csv, `trip-details-${tripCode}-${new Date().toISOString().slice(0, 10)}.csv`);
   }
 
   if (lines.length === 0)

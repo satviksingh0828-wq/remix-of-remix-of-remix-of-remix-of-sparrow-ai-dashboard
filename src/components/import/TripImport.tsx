@@ -188,7 +188,7 @@ function FileCard({
         <button
           type="button"
           className="flex items-center gap-1 text-xs text-primary hover:underline"
-          onClick={() => { downloadCsv(`${filename}-template.csv`, toCsv([], cols)); }}
+          onClick={() => { downloadCsv(toCsv([], cols), `${filename}-template.csv`); }}
         >
           <Download className="size-3" /> template
         </button>

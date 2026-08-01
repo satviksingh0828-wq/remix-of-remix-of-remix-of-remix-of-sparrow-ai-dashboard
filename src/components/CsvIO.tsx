@@ -25,14 +25,14 @@ export function CsvIO<T extends Record<string, unknown>>({
   function handleTemplate() {
     setBusy("template");
     const csv = toCsv([], columns);
-    downloadCsv(`${filename}-template.csv`, csv);
+    downloadCsv(csv, `${filename}-template.csv`);
     setBusy(null);
   }
 
   function handleExport() {
     setBusy("export");
     const csv = toCsv(rows as Record<string, unknown>[], columns);
-    downloadCsv(`${filename}-${new Date().toISOString().slice(0, 10)}.csv`, csv);
+    downloadCsv(csv, `${filename}-${new Date().toISOString().slice(0, 10)}.csv`);
     setBusy(null);
   }
 

@@ -66,7 +66,7 @@ export function DriverExpenseReport() {
 
       setRows(drivers.map((d: any) => ({
         driver_id: d.id,
-        name: d.name,
+        full_name: d.full_name,
         total_bata:    agg[d.id].bata,
         total_morning: agg[d.id].morning,
         total_night:   agg[d.id].night,
@@ -100,13 +100,13 @@ export function DriverExpenseReport() {
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
-    return rows.filter(r => r.name.toLowerCase().includes(s));
+    return rows.filter(r => (r.full_name ?? "").toLowerCase().includes(s));
   }, [rows, search]);
 
   function handleExport() {
     const csv = toCsv(
       filtered.map(r => ({
-        Driver: r.name,
+        Driver: r.full_name,
         Trips: r.trip_count,
         "Driver Bata (₹)": r.total_bata,
         "Morning Exp. (₹)": r.total_morning,
@@ -175,7 +175,7 @@ export function DriverExpenseReport() {
                   return (
                     <Fragment key={row.driver_id}>
                       <tr className="transition-colors hover:bg-muted/30">
-                        <td className="px-4 py-3 font-medium">{row.name}</td>
+                        <td className="px-4 py-3 font-medium">{row.full_name}</td>
                         <td className="px-4 py-3 text-right text-muted-foreground">{row.trip_count}</td>
                         <td className="px-4 py-3 text-right text-purple-600 font-medium">{row.total_bata > 0 ? inr(row.total_bata) : "—"}</td>
                         <td className="px-4 py-3 text-right text-amber-600 font-medium">{row.total_morning > 0 ? inr(row.total_morning) : "—"}</td>
