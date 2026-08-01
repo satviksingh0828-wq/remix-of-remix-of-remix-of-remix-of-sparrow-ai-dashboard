@@ -8,6 +8,7 @@ import { CoverageLedger } from "@/components/reports/CoverageLedger";
 import { FastagLedger } from "@/components/reports/FastagLedger";
 import { VehicleExpenseReport } from "@/components/reports/VehicleExpenseReport";
 import { DriverExpenseReport } from "@/components/reports/DriverExpenseReport";
+import { TransporterExpenseReport } from "@/components/reports/TransporterExpenseReport";
 import { OtherExpenseReport } from "@/components/reports/OtherExpenseReport";
 import { useSession } from "@/lib/session";
 
@@ -28,13 +29,14 @@ export const Route = createFileRoute("/reports")({
 });
 
 const TABS = [
-  { id: "pnl-compare",      label: "P&L Comparison",          desc: "Compare two periods side-by-side",            icon: FileBarChart },
-  { id: "insurance",        label: "Insurance Premium Ledger", desc: "Vehicle insurance expenses",                  icon: Shield },
-  { id: "road-tax",         label: "Road Tax Ledger",          desc: "Vehicle road tax expenses",                   icon: FileText },
-  { id: "fastag",           label: "Fastag Balance",           desc: "Vehicle-wise fastag balance & recharges",     icon: CreditCard },
-  { id: "vehicle-expenses", label: "Vehicle Expenses",         desc: "Fuel, parking & distance per vehicle",        icon: Truck },
-  { id: "driver-expenses",  label: "Driver Expenses",          desc: "Bata, morning & night exp per driver",        icon: Users },
-  { id: "other-expenses",   label: "Other Expenses",           desc: "Dala, unloading, Sunday & other trip costs",  icon: BarChart3 },
+  { id: "pnl-compare",          label: "P&L Comparison",          desc: "Compare two periods side-by-side",            icon: FileBarChart },
+  { id: "insurance",            label: "Insurance Premium Ledger", desc: "Vehicle insurance expenses",                  icon: Shield },
+  { id: "road-tax",             label: "Road Tax Ledger",          desc: "Vehicle road tax expenses",                   icon: FileText },
+  { id: "fastag",               label: "Fastag Balance",           desc: "Vehicle-wise fastag balance & recharges",     icon: CreditCard },
+  { id: "vehicle-expenses",     label: "Vehicle Expenses",         desc: "Fuel, parking & distance per vehicle",        icon: Truck },
+  { id: "driver-expenses",      label: "Driver Expenses",          desc: "Bata, morning & night exp per driver",        icon: Users },
+  { id: "transporter-expenses", label: "TRANSPORTER Expenses",     desc: "Hire charges & approval charge per transporter", icon: Car },
+  { id: "other-expenses",       label: "Other Expenses",           desc: "Dala, unloading, Sunday & other trip costs",  icon: BarChart3 },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -144,8 +146,9 @@ function ReportsPage() {
           {tab === "road-tax"         && <CoverageLedger type="road_tax" />}
           {tab === "fastag"           && <FastagLedger />}
           {tab === "vehicle-expenses" && <VehicleExpenseReport />}
-          {tab === "driver-expenses"  && <DriverExpenseReport />}
-          {tab === "other-expenses"   && <OtherExpenseReport />}
+          {tab === "driver-expenses"      && <DriverExpenseReport />}
+          {tab === "transporter-expenses" && <TransporterExpenseReport />}
+          {tab === "other-expenses"       && <OtherExpenseReport />}
         </div>
       </div>
     </AppShell>

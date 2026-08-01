@@ -82,6 +82,8 @@ export async function reopenTrip(closedId: string) {
         .eq("trip_code", tripCode),
       supabase.from("other_expense_logs" as any).delete()
         .eq("trip_code", tripCode),
+      supabase.from("transporter_expense_logs" as any).delete()
+        .eq("trip_code", tripCode),
     ]);
   }
 

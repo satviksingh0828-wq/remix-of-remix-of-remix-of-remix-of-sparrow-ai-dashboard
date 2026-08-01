@@ -190,6 +190,22 @@ export async function closeTrip(tripId: string) {
     }
   }
 
+  // ── Transporter expense log (hire charges, approval charge) ───────────────────
+  if (t.transporter_id) {
+    const hireCharges = expSum("Hire Charges");
+    const approvalCharge = expSum("Approval Charge");
+    if (hireCharges > 0 || approvalCharge > 0) {
+      const { error: teErr } = await supabase.from("transporter_expense_logs" as any).insert({
+        trip_code: tripCode,
+        transporter_id: t.transporter_id,
+        trip_date: tripDate,
+        hire_charges: hireCharges,
+        approval_charge: approvalCharge,
+      });
+      if (teErr) throw new Error("Transporter log: " + teErr.message);
+    }
+  }
+
   // ── Other expense log (dala, unloading, sunday + any non-standard names) ────
   const dala      = expSum("Dala Charges");
   const unloading = expSum("Unloading");

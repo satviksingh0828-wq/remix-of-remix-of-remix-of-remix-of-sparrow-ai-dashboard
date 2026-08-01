@@ -96,6 +96,11 @@ const DEFAULT_EXPENSES = [
   "Unloading",
 ];
 
+const THIRD_PARTY_EXPENSES = [
+  "Hire Charges",
+  "Approval Charge",
+];
+
 function formatDateInput(date: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -196,8 +201,9 @@ export function TripForm({
 
   const [manifests, setManifests] = useState<ManifestRow[]>([]);
   const [incomes, setIncomes] = useState<LineRow[]>([]);
+  const defaultExpenseList = trip.ownership === "third_party" ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
   const [expenses, setExpenses] = useState<LineRow[]>(
-    DEFAULT_EXPENSES.map((name) => ({ name, amount: "", note: "" })),
+    defaultExpenseList.map((name) => ({ name, amount: "", note: "" })),
   );
 
   const { locations } = useLocations();
@@ -278,8 +284,9 @@ export function TripForm({
     const exp =
       ((e.data as unknown as { id: string; expense_name: string; amount: string; note: string }[]) ??
         []).map((r) => ({ id: r.id, name: r.expense_name, amount: r.amount ?? "", note: r.note ?? "" }));
+    const ownDefList = trip.ownership === "third_party" ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
     setExpenses(
-      exp.length > 0 ? exp : DEFAULT_EXPENSES.map((name) => ({ name, amount: "", note: "" })),
+      exp.length > 0 ? exp : ownDefList.map((name) => ({ name, amount: "", note: "" })),
     );
   }
   useEffect(() => {
@@ -661,14 +668,17 @@ export function TripForm({
             </Label>
             <Select
               value={trip.ownership}
-              onValueChange={(v) =>
+              onValueChange={(v) => {
+                const isThirdParty = v === "third_party";
+                const newDefaultExpenses = isThirdParty ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
+                setExpenses(newDefaultExpenses.map((name) => ({ name, amount: "", note: "" })));
                 patch({
                   ownership: v,
                   ...(v === "own"
                     ? { transporter_id: null }
                     : { vehicle_id: null, driver_id: null, odometer_start: "", odometer_end: "" }),
-                })
-              }
+                });
+              }}
             >
               <SelectTrigger className="h-10">
                 <SelectValue />
