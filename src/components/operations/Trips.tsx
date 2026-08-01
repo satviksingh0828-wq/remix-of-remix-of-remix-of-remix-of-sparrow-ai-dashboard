@@ -381,7 +381,7 @@ export function Trips() {
                   entityLabel={t.trip_code}
                 />
               ) : null}
-              {!isViewer && (
+              {!isViewer && !isBasic && (
                 <Button
                   variant="ghost"
                   size="sm"

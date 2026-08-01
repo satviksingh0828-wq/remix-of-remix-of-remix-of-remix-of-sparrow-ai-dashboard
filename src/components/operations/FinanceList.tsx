@@ -586,8 +586,9 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                   nameOf(transporterOpts, r.transporter_id) ||
                   "—";
                 // Payroll rows are read-only for basic users — only pay action allowed
+                // Basic users cannot edit or delete any finance entry
                 const isPayrollRow = r.is_payroll === true;
-                const canEditDelete = isAdmin || !isPayrollRow;
+                const canEditDelete = !isBasic && (isAdmin || !isPayrollRow);
                 return (
                   <tr key={r.id} className={`border-b border-border/60 ${isPayrollRow ? "bg-blue-50/40 dark:bg-blue-950/20" : ""}`}>
                     <td className="py-2 pr-3">{r.entry_date || "—"}</td>
