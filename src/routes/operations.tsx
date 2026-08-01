@@ -52,8 +52,9 @@ type TabId = (typeof ALL_TABS)[number]["id"];
 function OperationsPage() {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
+  const isViewer = user?.role === "viewer";
 
-  const TABS = ALL_TABS.filter(t => isAdmin || !t.adminOnly);
+  const TABS = ALL_TABS.filter(t => isViewer ? t.id === "trip" : isAdmin || !t.adminOnly);
   const [tab, setTab]     = useState<TabId>("trip");
   const [navOpen, setNavOpen] = useState(true);
 

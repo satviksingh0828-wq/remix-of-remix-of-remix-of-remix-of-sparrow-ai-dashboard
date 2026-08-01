@@ -210,7 +210,7 @@ export function UserList() {
               <Label className="text-xs font-medium text-muted-foreground">Role</Label>
               <Select
                 value={editing.role}
-                onValueChange={(v) => setEditing({ ...editing, role: v as "admin" | "basic" })}
+                onValueChange={(v) => setEditing({ ...editing, role: v as "admin" | "basic" | "viewer" })}
               >
                 <SelectTrigger className="h-10">
                   <SelectValue />
@@ -218,6 +218,7 @@ export function UserList() {
                 <SelectContent>
                   <SelectItem value="admin">Admin — full access</SelectItem>
                   <SelectItem value="basic">Basic user — branch-restricted</SelectItem>
+                  <SelectItem value="viewer">Viewer — read-only reports</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -241,8 +242,8 @@ export function UserList() {
           </div>
         </section>
 
-        {/* Branch access — only relevant for basic users */}
-        {editing.role === "basic" && (
+        {/* Branch access — relevant for basic and viewer users */}
+        {(editing.role === "basic" || editing.role === "viewer") && (
           <section className="surface-card p-6">
             <h3 className="text-sm font-semibold tracking-tight">Branch access</h3>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -408,7 +409,7 @@ export function UserList() {
                         : "text-muted-foreground"
                     }
                   >
-                    {u.role === "admin" ? "Admin" : "Basic user"}
+                    {u.role === "admin" ? "Admin" : u.role === "viewer" ? "Viewer" : "Basic user"}
                   </span>
                   {u.is_paused ? (
                     <span className="ml-2 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">

@@ -51,10 +51,11 @@ type TabId = (typeof ALL_TABS)[number]["id"];
 function MastersPage() {
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
+  const isViewer = user?.role === "viewer";
 
-  const TABS = isAdmin ? ALL_TABS : ALL_TABS.filter((t) => !t.adminOnly);
+  const TABS = isAdmin ? ALL_TABS : isViewer ? ALL_TABS.filter((t) => t.id !== "contract") : ALL_TABS.filter((t) => !t.adminOnly);
 
-  const [tab, setTab] = useState<TabId>(isAdmin ? "vehicle" : "driver");
+  const [tab, setTab] = useState<TabId>(isAdmin || isViewer ? "vehicle" : "driver");
   const [navOpen, setNavOpen] = useState(true);
 
   const active  = TABS.find((t) => t.id === tab) ?? TABS[0];

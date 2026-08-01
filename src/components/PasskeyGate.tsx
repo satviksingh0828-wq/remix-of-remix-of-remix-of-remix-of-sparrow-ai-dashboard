@@ -60,11 +60,21 @@ type GateState =
 
 function Screen({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background px-4">
-      <div className="flex flex-1 items-center justify-center">
-        <div className="w-full max-w-sm text-center">{children}</div>
+    <div
+      className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10 text-foreground"
+      style={{ backgroundImage: "var(--gradient-surface)" }}
+    >
+      <div className="pointer-events-none absolute -left-24 -top-24 size-80 rounded-full bg-primary/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -right-20 size-96 rounded-full bg-primary/10 blur-3xl" />
+
+      <div className="surface-card relative w-full max-w-md animate-fade-up px-6 py-8 text-center sm:px-8">
+        <div className="mx-auto mb-6 flex w-40 items-center justify-center rounded-2xl bg-background p-3 shadow-sm ring-1 ring-border">
+          <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-auto w-full" />
+        </div>
+        {children}
       </div>
-      <p className="py-6 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
+
+      <p className="absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-6 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/60">
         Powered by Sparrow AI Solutions
       </p>
     </div>

@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bot, ChevronRight, Loader2, Mic, MicOff, Paperclip, Play, Send, Trash2, X } from "lucide-react";
+import { Bot, ChevronRight, Download, Loader2, Mic, MicOff, Paperclip, Play, Send, Trash2, X } from "lucide-react";
 import { useSession } from "@/lib/session";
 import { useSparrowAI } from "@/lib/sparrow-context";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
-import { ADMIN_ROUTES, BASIC_ROUTES, buildCapabilitySummary } from "@/lib/ai/capability-map";
+import { ADMIN_ROUTES, BASIC_ROUTES, VIEWER_ROUTES, buildCapabilitySummary } from "@/lib/ai/capability-map";
 import { getCompactPageInventory } from "@/lib/ai/dom-inventory";
 import { classifyButtonAction } from "@/lib/ai/safety";
 import { parseExpenseFile, summarizeDrafts } from "@/lib/ai/file-ingestion";
@@ -29,10 +29,10 @@ function money(value: number) {
   }).format(value);
 }
 
-function currentMonthRange() {
+function monthRange(offset = 0) {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const start = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + offset + 1, 1);
   const fmt = (d: Date) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return {
@@ -40,6 +40,13 @@ function currentMonthRange() {
     end: fmt(end),
     label: start.toLocaleString("en-IN", { month: "long", year: "numeric" }),
   };
+}
+
+const currentMonthRange = () => monthRange(0);
+
+function requestedMonthRange(text: string) {
+  if (/last month|previous month/i.test(text)) return monthRange(-1);
+  return monthRange(0);
 }
 
 function sumAmounts(rows: ReadOnlyRow[]) {
@@ -61,13 +68,13 @@ function asksCurrentMonthInsurancePremium(text: string) {
   );
 }
 
-async function answerCurrentMonthInsurancePremium(role: string, branchIds: string[] | undefined) {
-  const allowedBranchIds = role === "basic" ? (branchIds ?? []) : null;
+async function answerCurrentMonthInsurancePremium(text: string, role: string, branchIds: string[] | undefined) {
+  const allowedBranchIds = role !== "admin" ? (branchIds ?? []) : null;
   if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
     return "No insurance premium data is accessible because your account has no assigned branches.";
   }
 
-  const { start, end, label } = currentMonthRange();
+  const { start, end, label } = requestedMonthRange(text);
   const rows = await fetchAll<ReadOnlyRow>(() => {
     let query = supabase
       .from("expenditures")
@@ -97,6 +104,23 @@ async function answerCurrentMonthInsurancePremium(role: string, branchIds: strin
   return `Insurance premium expenditure for ${label} is ${money(total)} across ${insuranceRows.length} row(s).${details ? `\n${details}` : ""}`;
 }
 
+const BUSINESS_TABLE_SCHEMAS = [
+  "branches(id, branch_name, branch_type, city, state, manager_name)",
+  "vehicles(id, registration_number, nickname, branch_id, owner_type, current_fastag_balance)",
+  "drivers(id, driver_code, full_name, branch_id, mobile_number)",
+  "transporters(id, name, branch_id, mobile_number)",
+  "locations(id, location_name, city, state)",
+  "contracts(id, source_name, branch_id, is_active) + contract_entries(rate fields)",
+  "trips(id, trip_code, branch_id, vehicle_id, driver_id, transporter_id, start_date, start_time, ownership)",
+  "closed_trips(id, trip_code, branch_id, start_date, end_date, closed_at, total_income, total_expense, net_income, snapshot)",
+  "trip_manifests(trip_id, manifest_number, weight_kg, quantity)",
+  "trip_other_income(trip_id, income_name, amount, created_at)",
+  "trip_expenses(trip_id, expense_name, amount, created_at, note)",
+  "incomes(id, income_name, amount, entry_date, received_date, branch_id, vehicle_id, driver_id, transporter_id)",
+  "expenditures(id, expenditure_name, amount, entry_date, paid_date, branch_id, vehicle_id, driver_id, transporter_id, is_insurance, is_road_tax)",
+  "driver_payrolls, driver_advances, driver_advance_deductions, fastag_transactions, emi_schedules/installments, vehicle_insurance, vehicle_road_tax, yearly_fixed_expenses",
+].join("\n");
+
 function wantsReadOnlyData(text: string) {
   return /(how much|total|sum|report|filter|find|show|list|count|insurance|premium|income|expenditure|expense|vehicle|driver|trip|closed trip|open trip)/i.test(
     text,
@@ -106,19 +130,22 @@ function wantsReadOnlyData(text: string) {
 async function buildReadOnlyDataContext(text: string, role: string, branchIds: string[] | undefined) {
   if (!wantsReadOnlyData(text)) return "";
 
-  const allowedBranchIds = role === "basic" ? (branchIds ?? []) : null;
+  const allowedBranchIds = role !== "admin" ? (branchIds ?? []) : null;
   if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
     return "READ-ONLY DATA: Basic user has no assigned branches, so no business rows are accessible.";
   }
 
-  const { start, end, label } = currentMonthRange();
-  const [expRows, incomeRows, openTripsRows, closedTripsRows, vehiclesRows, driversRows] = await Promise.all([
+  const { start, end, label } = requestedMonthRange(text);
+  const [expRows, incomeRows, openTripsRows, closedTripsRows, vehiclesRows, driversRows, tripIncomeRows, tripExpenseRows, manifestRows] = await Promise.all([
     fetchAll<ReadOnlyRow>(() => supabase.from("expenditures").select("id,expenditure_name,amount,entry_date,paid_date,branch_id,vehicle_id,driver_id,transporter_id,is_insurance,is_road_tax,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })),
     fetchAll<ReadOnlyRow>(() => supabase.from("incomes").select("id,income_name,amount,entry_date,received_date,branch_id,vehicle_id,driver_id,transporter_id,note").gte("entry_date", start).lt("entry_date", end).order("entry_date", { ascending: false })),
     fetchAll<ReadOnlyRow>(() => supabase.from("trips").select("id,trip_code,branch_id,vehicle_id,driver_id,transporter_id,start_date,start_time,ownership,created_at").order("created_at", { ascending: false })),
     fetchAll<ReadOnlyRow>(() => supabase.from("closed_trips").select("id,trip_code,branch_id,branch_name,start_date,end_date,closed_at,total_income,total_expense,net_income").gte("closed_at", start).lt("closed_at", end).order("closed_at", { ascending: false })),
     fetchAll<ReadOnlyRow>(() => supabase.from("vehicles").select("id,registration_number,nickname,branch_id").order("registration_number")),
     fetchAll<ReadOnlyRow>(() => supabase.from("drivers").select("id,driver_code,full_name,branch_id").order("full_name")),
+    fetchAll<ReadOnlyRow>(() => supabase.from("trip_other_income").select("id,trip_id,income_name,amount,created_at").gte("created_at", start).lt("created_at", end).order("created_at", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("trip_expenses").select("id,trip_id,expense_name,amount,created_at").gte("created_at", start).lt("created_at", end).order("created_at", { ascending: false })),
+    fetchAll<ReadOnlyRow>(() => supabase.from("trip_manifests").select("id,trip_id,manifest_number,weight_kg,quantity")),
   ]);
 
   const expenditures = applyBranchFilter(expRows, allowedBranchIds);
@@ -127,17 +154,41 @@ async function buildReadOnlyDataContext(text: string, role: string, branchIds: s
   const closedTrips = applyBranchFilter(closedTripsRows, allowedBranchIds);
   const vehicles = applyBranchFilter(vehiclesRows, allowedBranchIds);
   const drivers = applyBranchFilter(driversRows, allowedBranchIds);
+  const periodOpenTrips = openTrips.filter((row) => String(row.start_date ?? row.created_at ?? "") >= start && String(row.start_date ?? row.created_at ?? "") < end);
   const insuranceRows = expenditures.filter((row) => row.is_insurance === true || /insurance|premium/i.test(String(row.expenditure_name ?? "")));
+  const tripIncomeTotal = sumAmounts(tripIncomeRows) + closedTrips.reduce((sum, row) => sum + Number(row.total_income ?? 0), 0);
+  const tripExpenseTotal = sumAmounts(tripExpenseRows) + closedTrips.reduce((sum, row) => sum + Number(row.total_expense ?? 0), 0);
 
   return [
     `READ-ONLY DATA ACCESS: Use this live Supabase data to answer; do not say you cannot access financial data. Data is read-only and already role-filtered.`,
-    `Current month: ${label} (${start} to ${end}, end exclusive).`,
-    `This month insurance premium expenditure: ${money(sumAmounts(insuranceRows))} across ${insuranceRows.length} row(s).`,
-    `This month total expenditures: ${money(sumAmounts(expenditures))} across ${expenditures.length} row(s).`,
-    `This month total incomes: ${money(sumAmounts(incomes))} across ${incomes.length} row(s).`,
-    `Open trips: ${openTrips.length}; closed trips this month: ${closedTrips.length}; vehicles: ${vehicles.length}; drivers: ${drivers.length}.`,
+    `Requested period: ${label} (${start} to ${end}, end exclusive).`,
+    `Business table schemas available on demand (app/system tables excluded):\n${BUSINESS_TABLE_SCHEMAS}`,
+    `Insurance premium expenditure: ${money(sumAmounts(insuranceRows))} across ${insuranceRows.length} row(s).`,
+    `Standalone expenditures: ${money(sumAmounts(expenditures))} across ${expenditures.length} row(s).`,
+    `Standalone incomes: ${money(sumAmounts(incomes))} across ${incomes.length} row(s).`,
+    `Trip income for period (closed_trips.total_income + trip_other_income): ${money(tripIncomeTotal)}. Trip expenses: ${money(tripExpenseTotal)}.`,
+    `Open trips total now: ${openTrips.length}; open trips started in period: ${periodOpenTrips.length}; closed trips in period: ${closedTrips.length}; manifests loaded: ${manifestRows.length}; vehicles: ${vehicles.length}; drivers: ${drivers.length}.`,
     `Insurance premium rows: ${insuranceRows.slice(0, 10).map((r) => `${r.entry_date ?? "no date"} ${r.expenditure_name ?? "Insurance"} ${money(Number(r.amount ?? 0))}${r.note ? ` (${r.note})` : ""}`).join("; ") || "none"}.`,
   ].join("\n");
+}
+
+
+function wantsCsv(text: string) {
+  return /csv|spreadsheet|download file/i.test(text);
+}
+
+function makeCsvDownload(text: string) {
+  const rows = /expense/i.test(text)
+    ? [["Expenditure name", "Amount", "Date", "Note", "Branch", "Vehicle", "Driver", "Transporter"], ["Fuel", "", new Date().toISOString().slice(0, 10), "", "", "", "", ""]]
+    : /income/i.test(text)
+      ? [["Income name", "Amount", "Date", "Note", "Branch", "Vehicle", "Driver", "Transporter"], ["Freight", "", new Date().toISOString().slice(0, 10), "", "", "", "", ""]]
+      : [["Name", "Amount", "Date", "Note"], ["", "", new Date().toISOString().slice(0, 10), ""]];
+  const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  return {
+    name: /income/i.test(text) ? "income-template.csv" : /expense/i.test(text) ? "expense-template.csv" : "custom-template.csv",
+    url: URL.createObjectURL(blob),
+  };
 }
 
 // ── Puter.js + Speech Recognition type shims ─────────────────────────────────
@@ -588,15 +639,16 @@ function buildSystemPrompt(
   pageContext: string,
 ): string {
   const isAdmin = role === "admin";
-  const routes = isAdmin ? ADMIN_ROUTES : BASIC_ROUTES;
+  const isViewer = role === "viewer";
+  const routes = isAdmin ? ADMIN_ROUTES : isViewer ? VIEWER_ROUTES : BASIC_ROUTES;
 
   return `You are SPARROW AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
 
-USER: ${userName} | ROLE: ${isAdmin ? "Admin" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
+USER: ${userName} | ROLE: ${isAdmin ? "Admin" : isViewer ? "Viewer (read-only)" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
 
 ━━━ CORE RULES ━━━
 - Be concise (under 80 words). State what you're doing, then do it.
-- ${isAdmin ? "Full admin access to all modules." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
+- ${isAdmin ? "Full admin access to all modules." : isViewer ? "Viewer: read-only access to Operations, Masters, Dashboard, and Reports only. Never create, edit, save, close, delete, or submit records." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
 - You CAN navigate, click safe buttons, fill text/date/number fields, choose dropdowns/pickers, check boxes, and prepare records. You CANNOT press Save, Delete, Submit, Close Trip, or destructive confirmation buttons; pause and ask the user to do those.
 - ALWAYS include <<SPARROW_ACTIONS>> whenever you interact with the app.
 - If information is missing or ambiguous, use an ask_user action and explain exactly what is needed.
@@ -725,7 +777,7 @@ function renderMessage(text: string): React.ReactNode {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type Msg = { id: string; role: "user" | "assistant"; content: string; executing?: boolean };
+type Msg = { id: string; role: "user" | "assistant"; content: string; executing?: boolean; download?: { name: string; url: string } };
 type PendingPlan = { aiMsgId: string; actions: SparrowAction[]; steps: string[] };
 const uid = () => Math.random().toString(36).slice(2);
 
@@ -770,7 +822,7 @@ export function SparrowAIPanel() {
   const isAdmin = role === "admin";
   const displayName = (user?.fullName ?? user?.username ?? "there").split(" ")[0];
   const chips = isAdmin ? ADMIN_CHIPS : BASIC_CHIPS;
-  const allowedRoutes = isAdmin ? ADMIN_ROUTES : BASIC_ROUTES;
+  const allowedRoutes = isAdmin ? ADMIN_ROUTES : role === "viewer" ? VIEWER_ROUTES : BASIC_ROUTES;
 
   const STORAGE_KEY = `sparrow_history_${user?.id ?? "guest"}`;
   const MAX_STORED = 50;
@@ -916,8 +968,15 @@ export function SparrowAIPanel() {
       setCurrentStep("");
 
       try {
+        if (wantsCsv(trimmed)) {
+          const download = makeCsvDownload(trimmed);
+          setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: `I created a custom CSV template for you: ${download.name}`, download }]);
+          setCurrentStep("");
+          return;
+        }
+
         if (asksCurrentMonthInsurancePremium(trimmed)) {
-          const content = await answerCurrentMonthInsurancePremium(role, user?.branchIds);
+          const content = await answerCurrentMonthInsurancePremium(trimmed, role, user?.branchIds);
           setMessages((prev) => [...prev, { id: uid(), role: "assistant", content }]);
           setCurrentStep("");
           return;
@@ -1014,6 +1073,16 @@ export function SparrowAIPanel() {
               )}
             >
               {renderMessage(msg.content)}
+              {msg.download && (
+                <a
+                  href={msg.download.url}
+                  download={msg.download.name}
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-background px-2.5 py-1.5 text-xs font-medium text-primary hover:underline"
+                >
+                  <Download className="size-3" />
+                  Download {msg.download.name}
+                </a>
+              )}
               {msg.executing && (
                 <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Loader2 className="size-3 animate-spin shrink-0" />

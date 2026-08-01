@@ -18,7 +18,7 @@ export type SessionUser = {
   id: string;
   username: string;
   fullName: string;
-  role: "admin" | "basic";
+  role: "admin" | "basic" | "viewer";
   /** IDs of branches this user may access. Admin ignores this; basic users are filtered to these. */
   branchIds: string[];
   /**
@@ -34,7 +34,7 @@ export type AppUserPublic = {
   id: string;
   username: string;
   full_name: string;
-  role: "admin" | "basic";
+  role: "admin" | "basic" | "viewer";
   is_active: boolean;
   is_paused: boolean;
   failed_login_attempts: number;
@@ -46,7 +46,7 @@ export type SaveUserInput = {
   username: string;
   full_name: string;
   password: string; // blank = keep existing (update only)
-  role: "admin" | "basic";
+  role: "admin" | "basic" | "viewer";
   is_active: boolean;
   branchIds: string[];
 };
@@ -56,7 +56,7 @@ export type SaveUserInput = {
 export type SignInResult =
   | { ok: true; user: SessionUser }
   | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "already_logged_in"; message: string }
-  | { ok: false; reason: "account_paused"; message: string; role: "admin" | "basic" };
+  | { ok: false; reason: "account_paused"; message: string; role: "admin" | "basic" | "viewer" };
 
 export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: {
@@ -114,7 +114,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
         ok: false,
         reason: "account_paused",
         message: "Your account has been locked.",
-        role: user.role as "admin" | "basic",
+        role: user.role as "admin" | "basic" | "viewer",
       };
     }
 
@@ -318,7 +318,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
         id: user.id as string,
         username: user.username as string,
         fullName: (user.full_name as string) || (user.username as string),
-        role: user.role as "admin" | "basic",
+        role: user.role as "admin" | "basic" | "viewer",
         branchIds: ((branchData ?? []) as { branch_id: string }[]).map(
           (r) => r.branch_id,
         ),
