@@ -127,6 +127,9 @@ export async function closeTrip(tripId: string) {
   const tripCode  = String(t.trip_code ?? "");
   const tripDate  = String(t.end_date || new Date().toISOString().split("T")[0]);
 
+  // Debug: log what was loaded so name mismatches are visible in the browser console
+  console.log("[closeTrip] expenses loaded:", expenses.map((e: any) => ({ name: e.expense_name, amount: e.amount })));
+
   // All known standard expense names — anything else goes to "other"
   const ALL_KNOWN_EXPENSES = [
     "Fuel Expense", "Toll Charges", "Driver Bata",
