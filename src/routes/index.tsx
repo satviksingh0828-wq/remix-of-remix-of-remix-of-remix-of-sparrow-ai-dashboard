@@ -1,11 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Lock, Mail, Unlock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { usePasskeyContext } from "@/components/PasskeyGate";
-import { PowCaptcha } from "@/components/PowCaptcha";
-import type { PowToken } from "@/lib/pow-captcha";
+import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -65,14 +64,6 @@ function LiveClock({ dark = false }: { dark?: boolean }) {
   );
 }
 
-// ── Math CAPTCHA helpers ────────────────────────────────────────────────────
-
-function makeMathChallenge() {
-  const a = Math.floor(Math.random() * 9) + 1;
-  const b = Math.floor(Math.random() * 9) + 1;
-  return { a, b, answer: String(a + b) };
-}
-
 // ── Login page ─────────────────────────────────────────────────────────────────
 
 function LoginPage() {
@@ -87,18 +78,9 @@ function LoginPage() {
   const [error, setError]       = useState<string | null>(null);
   const [errorDialog, setErrorDialog] = useState<string | null>(null);
 
-  // PoW CAPTCHA state
-  const [powToken, setPowToken] = useState<PowToken | null>(null);
-  const powResetRef             = useRef<(() => void) | null>(null);
-
-  // Math CAPTCHA state
-  const [mathChallenge, setMathChallenge] = useState(() => makeMathChallenge());
-  const [mathInput, setMathInput]         = useState("");
-  const [mathError, setMathError]         = useState(false);
-  const mathPassed = useMemo(
-    () => mathInput.trim() === mathChallenge.answer,
-    [mathInput, mathChallenge.answer],
-  );
+  // Cloudflare Turnstile CAPTCHA state
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileResetRef                   = useRef<(() => void) | null>(null);
 
   // Honeypot
   const [honeypot, setHoneypot] = useState("");
@@ -198,11 +180,8 @@ function LoginPage() {
   }, [id]);
 
   function resetCaptcha() {
-    setPowToken(null);
-    powResetRef.current?.();
-    setMathChallenge(makeMathChallenge());
-    setMathInput("");
-    setMathError(false);
+    setTurnstileToken(null);
+    turnstileResetRef.current?.();
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -210,15 +189,8 @@ function LoginPage() {
 
     if (honeypot.trim() !== "") return;
 
-    if (!mathPassed) {
-      setMathError(true);
-      setMathChallenge(makeMathChallenge());
-      setMathInput("");
-      return;
-    }
-
-    if (!powToken) {
-      setError("Security check is still running — please wait a moment.");
+    if (!turnstileToken) {
+      setError("Please complete the Cloudflare security check before signing in.");
       return;
     }
 
@@ -232,7 +204,7 @@ function LoginPage() {
     setError(null);
     try {
       await new Promise((r) => setTimeout(r, 400));
-      const outcome = await signIn(id, password, powToken, credentialId ?? undefined);
+      const outcome = await signIn(id, password, turnstileToken, credentialId ?? undefined);
 
       if (outcome.ok) {
         clearRateLimit(id.trim());
@@ -265,7 +237,7 @@ function LoginPage() {
   }
 
   const isLocked  = lockedUntilMs > 0;
-  const canSubmit = !!powToken && mathPassed && !isLocked && !busy;
+  const canSubmit = !!turnstileToken && !isLocked && !busy;
 
   return (
     <>
@@ -506,43 +478,14 @@ function LoginPage() {
               </div>
             </div>
 
-            {/* ── Math CAPTCHA ───────────────────────────────────────── */}
-            <div className="space-y-1.5">
-              <Label className="text-sm">
-                Quick check — what is{" "}
-                <span className="font-bold text-foreground">
-                  {mathChallenge.a} + {mathChallenge.b}
-                </span>
-                ?
-              </Label>
-              <Input
-                type="number"
-                value={mathInput}
-                onChange={(e) => {
-                  setMathInput(e.target.value);
-                  setMathError(false);
-                }}
-                placeholder="Enter answer"
-                min={0}
-                max={18}
-                className={`h-11 text-center [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                  mathError ? "border-destructive ring-destructive/30" : ""
-                }`}
-                disabled={isLocked || busy}
-                autoComplete="off"
-              />
-              {mathError && (
-                <p className="text-xs text-destructive">Incorrect answer — please try again.</p>
-              )}
-            </div>
-
-            {/* PoW CAPTCHA — no registration, no keys, fully self-contained */}
+            {/* Cloudflare Turnstile CAPTCHA */}
             <div className="space-y-1.5">
               <Label className="text-sm">Security check</Label>
-              <PowCaptcha
-                onToken={setPowToken}
-                onExpire={() => setPowToken(null)}
-                resetRef={powResetRef}
+              <TurnstileWidget
+                onToken={setTurnstileToken}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+                resetRef={turnstileResetRef}
               />
             </div>
 

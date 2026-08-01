@@ -7,7 +7,7 @@
  *
  * For production, set:
  *   VITE_TURNSTILE_SITEKEY  (client)
- *   TURNSTILE_SECRET_KEY    (server, via Replit Secrets)
+ *   TURNSTILE_SECRET_KEY    (server, via Vercel Environment Variables)
  * and get real keys from dash.cloudflare.com → Turnstile (free, no CC required).
  */
 import { useEffect, useRef } from "react";

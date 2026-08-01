@@ -1,11 +1,18 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
-import { Bot, ChevronRight, Loader2, Mic, MicOff, Play, Send, Trash2, X } from "lucide-react";
+import { Bot, ChevronRight, Loader2, Mic, MicOff, Paperclip, Play, Send, Trash2, X } from "lucide-react";
 import { useSession } from "@/lib/session";
 import { useSparrowAI } from "@/lib/sparrow-context";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
+import { ADMIN_ROUTES, BASIC_ROUTES, buildCapabilitySummary } from "@/lib/ai/capability-map";
+import { getCompactPageInventory } from "@/lib/ai/dom-inventory";
+import { classifyButtonAction } from "@/lib/ai/safety";
+import { parseExpenseFile, summarizeDrafts } from "@/lib/ai/file-ingestion";
+import { buildExpenseImportActions } from "@/lib/ai/workflows/expense-import-workflow";
+import { validateActions } from "@/lib/ai/action-validator";
+import type { SparrowAction } from "@/lib/ai/types";
 
 type ReadOnlyRow = {
   id?: string;
@@ -162,21 +169,6 @@ declare global {
   }
 }
 
-// ── Routes (role-gated) ───────────────────────────────────────────────────────
-const ADMIN_ROUTES = ["/home", "/operations", "/masters", "/dashboard", "/reports", "/users", "/settings"];
-const BASIC_ROUTES = ["/home", "/operations", "/masters"];
-
-// ── DOM action types ──────────────────────────────────────────────────────────
-type SparrowAction =
-  | { type: "navigate"; path: string }
-  | { type: "wait"; ms: number }
-  | { type: "click_button"; text: string }
-  | { type: "click_tab"; text: string }
-  | { type: "fill_input"; label: string; value: string }
-  | { type: "fill_placeholder"; placeholder: string; value: string }
-  | { type: "open_picker"; label: string; search: string }
-  | { type: "scroll_to"; label: string };
-
 // ── DOM helpers ───────────────────────────────────────────────────────────────
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -251,8 +243,7 @@ async function findInputRetry(
   return null;
 }
 
-const BLOCKED = ["save", "delete", "remove record", "confirm delete", "submit trip"];
-const isBlocked = (text: string) => BLOCKED.some((w) => text.toLowerCase().includes(w));
+const isBlocked = (text: string) => classifyButtonAction(text) !== "allowed";
 
 /**
  * Find a button by text — robust to icon+text combos.
@@ -381,6 +372,7 @@ function getPageContext(): string {
   });
   if (filledFields.length > 0) parts.push(`FORM FIELDS: ${filledFields.slice(0, 4).join(", ")}`);
 
+  parts.push(`PAGE INVENTORY JSON: ${getCompactPageInventory()}`);
   return parts.join(" | ");
 }
 
@@ -388,7 +380,7 @@ function getPageContext(): string {
 async function executeActions(
   actions: SparrowAction[],
   navigateFn: (path: string) => void,
-  allowedRoutes: string[],
+  allowedRoutes: readonly string[],
   onLog: (msg: string) => void,
   onStep: (step: string) => void,
   cancelRef: React.MutableRefObject<boolean>,
@@ -475,6 +467,68 @@ async function executeActions(
         break;
       }
 
+      case "select_dropdown": {
+        onStep(`Selecting "${act.option}" in ${act.label}…`);
+        const result = await openPickerByLabel(act.label, act.option);
+        if (!result.ok) onLog(result.message);
+        break;
+      }
+
+      case "pick_date": {
+        onStep(`Picking date for "${act.label}"…`);
+        const el = await findInputRetry(act.label);
+        if (el) fillReactInput(el, act.value);
+        else onLog(`Date field "${act.label}" was not found.`);
+        break;
+      }
+
+      case "set_checkbox":
+      case "set_switch": {
+        onStep(`Setting "${act.label}"…`);
+        const el = findInputByLabel(act.label);
+        if (el instanceof HTMLInputElement && el.checked !== act.checked) el.click();
+        else onLog(`Toggle/checkbox "${act.label}" was not found.`);
+        break;
+      }
+
+      case "set_radio": {
+        onStep(`Selecting "${act.option}"…`);
+        const option = Array.from(document.querySelectorAll<HTMLElement>('[role="radio"], input[type="radio"], button'))
+          .find((el) => cleanText(el).includes(act.option.toLowerCase()));
+        if (option) option.click();
+        else onLog(`Radio option "${act.option}" was not found.`);
+        break;
+      }
+
+      case "ask_user": {
+        onLog(act.question);
+        onStep("Waiting for you…");
+        break;
+      }
+
+      case "wait_for_user_action": {
+        const timeout = Math.min(act.timeoutMs ?? 120000, 180000);
+        onStep(`Waiting for you to ${act.action}…`);
+        const start = Date.now();
+        const before = document.body.innerText;
+        while (!cancelRef.current && Date.now() - start < timeout) {
+          await sleep(1000);
+          const now = document.body.innerText;
+          if (now !== before && /(saved|created|updated|success|successfully)/i.test(now)) break;
+        }
+        break;
+      }
+
+      case "observe_screen": {
+        onLog(`Screen observed: ${getCompactPageInventory()}`);
+        break;
+      }
+
+      case "upload_file": {
+        onLog("File upload is handled from the paperclip button in the message box.");
+        break;
+      }
+
       case "scroll_to": {
         const el = findInputByLabel(act.label);
         if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -511,6 +565,15 @@ function summarizeAction(act: SparrowAction): string | null {
     case "fill_input": return `Fill ${act.label} → "${act.value}"`;
     case "fill_placeholder": return `Fill (placeholder "${act.placeholder}") → "${act.value}"`;
     case "open_picker": return `Select "${act.search}" in ${act.label}`;
+    case "select_dropdown": return `Select "${act.option}" in ${act.label}`;
+    case "set_checkbox": return `Set ${act.label} ${act.checked ? "on" : "off"}`;
+    case "set_switch": return `Set ${act.label} ${act.checked ? "on" : "off"}`;
+    case "set_radio": return `Choose ${act.option} for ${act.label}`;
+    case "pick_date": return `Pick ${act.label} → "${act.value}"`;
+    case "upload_file": return `Read attached file`;
+    case "ask_user": return `Ask user: ${act.question}`;
+    case "wait_for_user_action": return `Wait for user to ${act.action}`;
+    case "observe_screen": return `Observe current screen`;
     case "scroll_to": return `Scroll to ${act.label}`;
     case "wait": return null;
     default: return null;
@@ -534,12 +597,17 @@ USER: ${userName} | ROLE: ${isAdmin ? "Admin" : "Basic User"} | CURRENT PAGE: ${
 ━━━ CORE RULES ━━━
 - Be concise (under 80 words). State what you're doing, then do it.
 - ${isAdmin ? "Full admin access to all modules." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
-- You CAN navigate, click, fill text fields, open pickers. You CANNOT save, delete, submit.
+- You CAN navigate, click safe buttons, fill text/date/number fields, choose dropdowns/pickers, check boxes, and prepare records. You CANNOT press Save, Delete, Submit, Close Trip, or destructive confirmation buttons; pause and ask the user to do those.
 - ALWAYS include <<SPARROW_ACTIONS>> whenever you interact with the app.
+- If information is missing or ambiguous, use an ask_user action and explain exactly what is needed.
+- For bulk expenses from files: fill one expense, ask the user to review and press Save, wait_for_user_action save, then continue with the next row.
 - Never say "you can do it yourself" if you can do it via actions.
 - Use the CURRENT PAGE and OPEN FORM context above to understand what's already visible.
 
 ALLOWED ROUTES: ${routes.join(", ")}
+
+━━━ WEBSITE CAPABILITY MAP ━━━
+${buildCapabilitySummary(role)}
 
 ━━━ WHERE THINGS LIVE ━━━
 - Trips, Income, Expenditure, Driver Payroll → /operations (sidebar tabs)
@@ -588,9 +656,8 @@ Vehicle form (at /masters Vehicle tab):
 - "weight"                                → "Weight (kg)"
 
 ━━━ BRANCH PICKER — important ━━━
-Branch is a dropdown picker, not a text field. You CANNOT type it — the user must click it.
-When a task needs a branch: fill all text fields first, then tell the user:
-"Please select a branch from the Branch dropdown to complete the form."
+Branch is a dropdown picker, not a text field. If the user provides a branch name such as "Ludhiana", use open_picker with that exact value: {"type":"open_picker","label":"Branch (required)","search":"Ludhiana"}.
+Never output search "undefined" or an empty picker search. If the branch is not provided, fill all known fields and use ask_user to request the branch.
 
 ━━━ ACTION TIMING RULES ━━━
 - After navigate: wait 1500ms before any click
@@ -697,6 +764,7 @@ export function SparrowAIPanel() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const cancelRef = useRef(false);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const role = user?.role ?? "basic";
   const isAdmin = role === "admin";
@@ -812,6 +880,24 @@ export function SparrowAIPanel() {
     setMessages((prev) => prev.map((m) => m.executing ? { ...m, executing: false } : m));
   }, []);
 
+  const handleExpenseFile = useCallback(async (file: File) => {
+    setLoading(true);
+    try {
+      const drafts = await parseExpenseFile(file);
+      const content = `${summarizeDrafts(drafts)}\n\nI can start adding these one by one. I will fill each expense, stop before Save, and wait for you to press Save before continuing.`;
+      const aiMsgId = uid();
+      const actions = buildExpenseImportActions(drafts);
+      setMessages((prev) => [...prev, { id: aiMsgId, role: "assistant", content }]);
+      if (actions.length) setPendingPlan({ aiMsgId, actions, steps: actions.map(summarizeAction).filter(Boolean) as string[] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not read that file.";
+      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: msg }]);
+    } finally {
+      setLoading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }, []);
+
   // ── Send message ──────────────────────────────────────────────────────────
   const send = useCallback(
     async (text: string) => {
@@ -844,7 +930,10 @@ export function SparrowAIPanel() {
         }));
 
         const rawText = await callPuter([{ role: "system", content: systemPrompt }, ...history]);
-        const { actions, displayText } = parseActions(rawText);
+        const parsed = parseActions(rawText);
+        const validated = validateActions(parsed.actions, role);
+        const actions = validated.actions;
+        const displayText = [parsed.displayText, ...validated.warnings.map((w) => `⚠️ ${w}`)].filter(Boolean).join("\n");
 
         const aiMsgId = uid();
         setMessages((prev) => [...prev, {
@@ -1065,6 +1154,25 @@ export function SparrowAIPanel() {
               ↵ send · shift+↵ newline
             </span>
             <div className="flex items-center gap-1.5">
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".xlsx,.xls,.csv,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleExpenseFile(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                title="Attach expense Excel, CSV, or image"
+                disabled={loading}
+                className="flex size-8 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-muted hover:text-foreground disabled:opacity-40"
+              >
+                <Paperclip className="size-3.5" />
+              </button>
               {voiceSupported && (
                 <button
                   type="button"
