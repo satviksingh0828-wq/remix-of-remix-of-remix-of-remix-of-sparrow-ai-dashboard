@@ -57,9 +57,12 @@ function netColor(v: number) {
  *
  * Allocation rules:
  *  1. Rows whose branch_id matches a known branch → go to that branch directly.
- *  2. Rows with a null/unknown branch_id (unassigned) → distributed across all
- *     branches proportionally by that branch's trip count.
- *  3. Fixed income (contracts have no branch) → same proportional split by trip count.
+ *  2. Rows with a null/unknown branch_id (unassigned) → distributed only among
+ *     branches that already have at least one direct income or expenditure record,
+ *     proportionally by trip count. Falls back to all branches if none have records.
+ *  3. Fixed income (contracts have no branch) → same: only to branches with direct
+ *     records (same proportional fallback). A branch with no income/expenditure
+ *     at all receives zero distribution.
  *
  * @param data         TripAveragesData from the server
  * @param branchIds    ordered list of branch IDs that actually have trips
@@ -68,7 +71,7 @@ function netColor(v: number) {
 type BranchPnL = {
   /** Other income (non-fixed) allocated to this branch */
   otherIncome: number;
-  /** Fixed income allocated to this branch (trip-count-weighted) */
+  /** Fixed income allocated to this branch */
   fixedIncome: number;
   /** Expenditure allocated to this branch */
   expenditure: number;
@@ -88,45 +91,57 @@ function computeBranchOtherPnL(
 
   if (branchIds.length === 0) return result;
 
-  // Total trip count across all known branches (for proportional allocation)
-  const totalTrips = branchIds.reduce((s, bid) => s + (tripCounts.get(bid) ?? 0), 0);
-  /** Weight for proportional split — equal split fallback when all counts are 0. */
-  function weight(bid: string): number {
-    if (totalTrips === 0) return 1 / branchIds.length;
-    return (tripCounts.get(bid) ?? 0) / totalTrips;
+  // ── Pass 1: assign direct (branch-tagged) rows first ─────────────────────
+  for (const row of data.incomeRows) {
+    if (row.branch_id && result.has(row.branch_id)) {
+      const e = result.get(row.branch_id)!;
+      result.set(row.branch_id, { ...e, otherIncome: e.otherIncome + row.amount });
+    }
+  }
+  for (const row of data.expenditureRows) {
+    if (row.branch_id && result.has(row.branch_id)) {
+      const e = result.get(row.branch_id)!;
+      result.set(row.branch_id, { ...e, expenditure: e.expenditure + row.amount });
+    }
   }
 
-  // ── Other income rows ─────────────────────────────────────────────────────
+  // ── Determine which branches have at least one direct record ──────────────
+  // These are the only recipients of unassigned rows and fixed income.
+  const activeBranches = branchIds.filter(bid => {
+    const e = result.get(bid)!;
+    return e.otherIncome > 0 || e.expenditure > 0;
+  });
+  // Fallback: if no branch has any direct record, spread to all branches.
+  const recipients = activeBranches.length > 0 ? activeBranches : branchIds;
+
+  const totalRecipientTrips = recipients.reduce((s, bid) => s + (tripCounts.get(bid) ?? 0), 0);
+  function weight(bid: string): number {
+    if (totalRecipientTrips === 0) return 1 / recipients.length;
+    return (tripCounts.get(bid) ?? 0) / totalRecipientTrips;
+  }
+
+  // ── Pass 2: distribute unassigned income rows among recipients ────────────
   for (const row of data.incomeRows) {
-    const bid = row.branch_id && result.has(row.branch_id) ? row.branch_id : null;
-    if (bid) {
-      const e = result.get(bid)!;
-      result.set(bid, { ...e, otherIncome: e.otherIncome + row.amount });
-    } else {
-      // Unassigned → proportional split by trip count
-      for (const b of branchIds) {
+    if (!row.branch_id || !result.has(row.branch_id)) {
+      for (const b of recipients) {
         const e = result.get(b)!;
         result.set(b, { ...e, otherIncome: e.otherIncome + row.amount * weight(b) });
       }
     }
   }
 
-  // ── Expenditure rows ──────────────────────────────────────────────────────
+  // ── Pass 2: distribute unassigned expenditure rows among recipients ───────
   for (const row of data.expenditureRows) {
-    const bid = row.branch_id && result.has(row.branch_id) ? row.branch_id : null;
-    if (bid) {
-      const e = result.get(bid)!;
-      result.set(bid, { ...e, expenditure: e.expenditure + row.amount });
-    } else {
-      for (const b of branchIds) {
+    if (!row.branch_id || !result.has(row.branch_id)) {
+      for (const b of recipients) {
         const e = result.get(b)!;
         result.set(b, { ...e, expenditure: e.expenditure + row.amount * weight(b) });
       }
     }
   }
 
-  // ── Fixed income (contracts have no branch) → same trip-count-weighted split
-  for (const b of branchIds) {
+  // ── Fixed income → only to recipient branches (trip-count-weighted) ───────
+  for (const b of recipients) {
     const e = result.get(b)!;
     result.set(b, { ...e, fixedIncome: data.fixedIncome * weight(b) });
   }
