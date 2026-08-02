@@ -17,6 +17,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } from "@/lib/trip-calc";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -50,47 +51,6 @@ function addDays(base: Date, n: number) {
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 function daysUntil(s: string, today: Date) {
   return Math.ceil((new Date(s).getTime() - today.getTime()) / 86_400_000);
-}
-
-/** Replicates client-side findEntry: location-id match, then pin-code fallback. */
-function serverFindEntry(
-  entries: Array<{
-    contract_id: string;
-    from_location_id?: string | null;
-    to_location_id?: string | null;
-    from_pin_code?: string | null;
-    to_pin_code?: string | null;
-    freight_route_ranges?: unknown;
-    loading_route_ranges?: unknown;
-  }>,
-  m: {
-    source_id?: string | null;
-    from_location_id?: string | null;
-    to_location_id?: string | null;
-    from_pin_code?: string | null;
-    to_pin_code?: string | null;
-  },
-) {
-  if (!m.source_id) return undefined;
-  const pool = entries.filter((e) => e.contract_id === m.source_id);
-  const byLoc = pool.find(
-    (e) => e.from_location_id && e.to_location_id &&
-           e.from_location_id === m.from_location_id &&
-           e.to_location_id   === m.to_location_id,
-  );
-  if (byLoc) return byLoc;
-  const fp = (m.from_pin_code ?? "").trim();
-  const tp = (m.to_pin_code  ?? "").trim();
-  if (!fp || !tp) return undefined;
-  return pool.find(
-    (e) => (e.from_pin_code ?? "").trim() === fp && (e.to_pin_code ?? "").trim() === tp,
-  );
-}
-
-function hasNonZeroRates(entry: { freight_route_ranges?: unknown; loading_route_ranges?: unknown }) {
-  const check = (ranges: unknown) =>
-    Array.isArray(ranges) && ranges.some((r) => r && Number(r.value ?? 0) !== 0);
-  return check(entry.freight_route_ranges) || check(entry.loading_route_ranges);
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -163,59 +123,164 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
     });
   }
 
-  // 3 — open-trip manifests with ₹0 freight AND ₹0 loading ──────────────────
-  const { data: openTrips } = await db.from("trips").select("id,trip_code").is("closed_at", null);
-  const openIds = (openTrips ?? []).map((t: Record<string,unknown>) => t.id as string);
+  // 3 — open-trip manifests with ₹0 freight + ₹0 loading income ──────────────
+  //
+  // Strategy mirrors TripForm and PnL:
+  //   a) Load ALL open (live) trips from the trips table.
+  //   b) Load ALL contract entries (we need them for every manifest's source_id).
+  //   c) Load ALL contracts (for the per_manifest_amount fallback).
+  //   d) For each manifest, compute actual freight + loading + fixed using
+  //      manifestCharges() — the SAME function the trip UI uses.
+  //   e) If freight + loading == 0 (fixed is not an alert trigger), flag it.
+  //
+  // Open trips = all rows in the `trips` table (they are auto-archived to
+  // closed_trips by the deadline mechanism; there is no `closed_at` on trips).
+  const { data: openTrips } = await db
+    .from("trips")
+    .select("id,trip_code,contract_id");
+  const openTripIds = (openTrips ?? []).map((t: Record<string,unknown>) => t.id as string);
 
-  if (openIds.length) {
-    const { data: mfRows } = await db
+  if (openTripIds.length) {
+    // Load manifests for all open trips — include weight_kg, quantity, source_id
+    const { data: mfRows, error: mfError } = await db
       .from("trip_manifests")
-      .select("id,trip_id,manifest_number,source_id,from_location_id,to_location_id,from_pin_code,to_pin_code")
-      .in("trip_id", openIds);
+      .select("id,trip_id,manifest_number,source_id,from_location_id,to_location_id,from_pin_code,to_pin_code,weight_kg,quantity")
+      .in("trip_id", openTripIds);
+    if (mfError) throw new Error(`Failed to load manifests: ${mfError.message}`);
 
     const mfs = (mfRows ?? []) as Array<{
       id: string; trip_id: string; manifest_number: string | null;
       source_id: string | null; from_location_id: string | null;
       to_location_id: string | null; from_pin_code: string | null; to_pin_code: string | null;
+      weight_kg: string | null; quantity: string | null;
     }>;
 
     if (mfs.length) {
-      const srcIds = [...new Set(mfs.map((m) => m.source_id).filter(Boolean) as string[])];
+      // Collect all unique source_ids (per-manifest contracts) AND trip-level contract_ids
+      const sourceIds = [...new Set(
+        mfs.map((m) => m.source_id).filter(Boolean) as string[],
+      )];
+      const tripContractIds = [...new Set(
+        (openTrips ?? []).map((t: Record<string,unknown>) => t.contract_id as string | null).filter(Boolean) as string[],
+      )];
+
+      // Load ALL contract entries for the relevant contracts
+      const allContractIds = [...new Set([...sourceIds, ...tripContractIds])];
       type EntryRow = {
-        contract_id: string; from_location_id: string | null; to_location_id: string | null;
+        id: string; contract_id: string;
+        from_location_id: string | null; to_location_id: string | null;
         from_pin_code: string | null; to_pin_code: string | null;
-        freight_route_ranges: unknown; loading_route_ranges: unknown;
+        freight_route_range_type: string; freight_route_ranges: unknown;
+        loading_route_range_type: string; loading_route_ranges: unknown;
+        per_manifest_amount: string | null;
       };
-      const entries: EntryRow[] = srcIds.length
+      const allEntries: EntryRow[] = allContractIds.length
         ? ((await db.from("contract_entries")
-            .select("contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_route_ranges,loading_route_ranges")
-            .in("contract_id", srcIds)).data ?? [])
+            .select("id,contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_route_range_type,freight_route_ranges,loading_route_range_type,loading_route_ranges,per_manifest_amount")
+            .in("contract_id", allContractIds)).data ?? [])
         : [];
 
+      // Build contract map for manifestCharges (needs contract name for matched flag)
+      const contractMap = new Map<string, { id: string; contract_name: string }>();
+      if (allContractIds.length) {
+        const { data: contracts } = await db
+          .from("contracts")
+          .select("id,contract_name")
+          .in("id", allContractIds);
+        for (const c of contracts ?? []) contractMap.set(c.id as string, c as { id: string; contract_name: string });
+      }
+
+      // Build location name map
       const allLocIds = [...new Set(mfs.flatMap((m) => [m.from_location_id, m.to_location_id]).filter(Boolean) as string[])];
       const locMap = new Map<string, string>();
       if (allLocIds.length) {
         const { data: locs } = await db.from("locations").select("id,location_name").in("id", allLocIds);
         for (const l of locs ?? []) locMap.set(l.id as string, (l.location_name as string) ?? String(l.id));
       }
-      const tripCodeMap = new Map<string,string>((openTrips ?? []).map(
-        (t: Record<string,unknown>) => [t.id as string, t.trip_code as string],
-      ));
 
-      for (const m of mfs) {
-        const entry = serverFindEntry(entries, m);
-        if (entry && hasNonZeroRates(entry)) continue; // has valid rates → no alert
+      const tripCodeMap = new Map<string, string>(
+        (openTrips ?? []).map((t: Record<string, unknown>) => [t.id as string, t.trip_code as string]),
+      );
 
-        const tripCode = tripCodeMap.get(m.trip_id) ?? m.trip_id;
-        const from     = m.from_location_id ? (locMap.get(m.from_location_id) ?? m.from_location_id) : "?";
-        const to       = m.to_location_id   ? (locMap.get(m.to_location_id)   ?? m.to_location_id)   : "?";
-        const lr       = m.manifest_number ? `LR ${m.manifest_number}` : "Manifest";
-        items.push({
-          kind: "manifest_zero_income", ref_id: `mzi-${m.id}`,
-          title:  `₹0 Freight & Loading — Trip ${tripCode}`,
-          detail: `${lr}: ${from} → ${to} has no rates in source`,
-          days_left: null,
+      // Group entries by contract_id for fast lookup
+      const entriesByContract = new Map<string, EntryLite[]>();
+      for (const e of allEntries) {
+        if (!entriesByContract.has(e.contract_id)) entriesByContract.set(e.contract_id, []);
+        entriesByContract.get(e.contract_id)!.push({
+          id: e.id,
+          contract_id: e.contract_id,
+          from_location_id: e.from_location_id,
+          to_location_id: e.to_location_id,
+          from_pin_code: e.from_pin_code,
+          to_pin_code: e.to_pin_code,
+          freight_route_range_type: (e.freight_route_range_type as "weight" | "quantity") ?? "weight",
+          freight_route_ranges: (e.freight_route_ranges ?? []) as EntryLite["freight_route_ranges"],
+          loading_route_range_type: (e.loading_route_range_type as "weight" | "quantity") ?? "weight",
+          loading_route_ranges: (e.loading_route_ranges ?? []) as EntryLite["loading_route_ranges"],
+          per_manifest_amount: e.per_manifest_amount,
         });
+      }
+
+      // Check each manifest
+      for (const m of mfs) {
+        // Determine which contract to use: per-manifest source_id first, then trip-level contract_id
+        const contractId = m.source_id
+          ?? (openTrips ?? []).find((t: Record<string, unknown>) => t.id === m.trip_id)?.contract_id as string | null;
+
+        if (!contractId) {
+          // No contract at all — manifest definitely has zero income
+          const tripCode = tripCodeMap.get(m.trip_id) ?? m.trip_id;
+          const from = m.from_location_id ? (locMap.get(m.from_location_id) ?? m.from_location_id) : "?";
+          const to = m.to_location_id ? (locMap.get(m.to_location_id) ?? m.to_location_id) : "?";
+          const lr = m.manifest_number ? `LR ${m.manifest_number}` : "Manifest";
+          items.push({
+            kind: "manifest_zero_income", ref_id: `mzi-${m.id}`,
+            title: `₹0 Freight & Loading — Trip ${tripCode}`,
+            detail: `${lr}: ${from} → ${to} has no source/contract`,
+            days_left: null,
+          });
+          continue;
+        }
+
+        const contract = contractMap.get(contractId);
+        const entries = entriesByContract.get(contractId) ?? [];
+
+        // Use the same findEntry + manifestCharges as TripForm
+        const manifestLite: ManifestLite = {
+          from_location_id: m.from_location_id,
+          to_location_id: m.to_location_id,
+          from_pin_code: m.from_pin_code,
+          to_pin_code: m.to_pin_code,
+          weight_kg: m.weight_kg,
+          quantity: m.quantity,
+        };
+        const entry = findEntry(entries, manifestLite);
+        const charges = manifestCharges(contract, entry, manifestLite);
+
+        // Alert if freight + loading are both zero (fixed charge is a separate concern)
+        if (charges.freight === 0 && charges.loading === 0) {
+          const tripCode = tripCodeMap.get(m.trip_id) ?? m.trip_id;
+          const from = m.from_location_id ? (locMap.get(m.from_location_id) ?? m.from_location_id) : "?";
+          const to = m.to_location_id ? (locMap.get(m.to_location_id) ?? m.to_location_id) : "?";
+          const lr = m.manifest_number ? `LR ${m.manifest_number}` : "Manifest";
+          let reason = "has no matching rate entry";
+          if (entry && charges.freight === 0 && charges.loading === 0) {
+            // Entry was found but computed zero — likely no weight/quantity or rates are zero
+            const hasWeight = num(m.weight_kg) > 0;
+            const hasQty = num(m.quantity) > 0;
+            if (!hasWeight && !hasQty) {
+              reason = "has no weight or quantity";
+            } else {
+              reason = "has ₹0 freight & loading rates";
+            }
+          }
+          items.push({
+            kind: "manifest_zero_income", ref_id: `mzi-${m.id}`,
+            title: `₹0 Freight & Loading — Trip ${tripCode}`,
+            detail: `${lr}: ${from} → ${to} ${reason}`,
+            days_left: null,
+          });
+        }
       }
     }
   }
