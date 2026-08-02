@@ -23,6 +23,7 @@ export async function reopenTrip(closedId: string) {
   const manifests = (snap.manifests as Record<string, unknown>[]) ?? [];
   const otherIncome = (snap.other_income as Record<string, unknown>[]) ?? [];
   const expenses = (snap.expenses as Record<string, unknown>[]) ?? [];
+  const approvalAdvanceSnap = (snap.approval_charge_advance as Record<string, unknown> | null) ?? null;
 
   const strip = (r: Record<string, unknown>) => {
     const { id, created_at, updated_at, ...rest } = r;
@@ -63,6 +64,21 @@ export async function reopenTrip(closedId: string) {
     const res = await supabase
       .from("trip_expenses")
       .insert(rewire(expenses) as never);
+    if (res.error) throw new Error(res.error.message);
+  }
+
+  // Restore the advance/balance entry linked to Hire Charges (if any was recorded)
+  if (approvalAdvanceSnap) {
+    const { id, created_at, updated_at, trip_id, ...advanceRest } = approvalAdvanceSnap;
+    void id; void created_at; void updated_at; void trip_id;
+    // Delete any stale entry that may still reference the old trip_id
+    await supabase
+      .from("approval_charge_advances" as never)
+      .delete()
+      .eq("trip_code", String(advanceRest.trip_code ?? ""));
+    const res = await supabase
+      .from("approval_charge_advances" as never)
+      .insert({ ...advanceRest, trip_id: newTripId } as never);
     if (res.error) throw new Error(res.error.message);
   }
 
