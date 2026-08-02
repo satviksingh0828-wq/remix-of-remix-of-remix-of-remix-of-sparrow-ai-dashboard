@@ -24,8 +24,8 @@ CREATE POLICY "admin_select_notifications" ON public.notifications
   FOR SELECT TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM public.users
-      WHERE users.id = auth.uid() AND users.role = 'admin'
+      SELECT 1 FROM public.app_users
+      WHERE app_users.id = auth.uid() AND app_users.role = 'admin'
     )
   );
 
