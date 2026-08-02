@@ -192,7 +192,58 @@ export const serverGetDbStats = createServerFn({ method: "POST" })
     } as DbStats;
   });
 
-// ── Tab 3 – Project Stats ──────────────────────────────────────────────────────
+// ── Tab 3 – Security Stats ────────────────────────────────────────────────────
+
+export type SecurityStats = {
+  users: {
+    total: number;
+    active: number;
+    inactive: number;
+    paused: number;
+    admins: number;
+    basic: number;
+    viewers: number;
+    with_failed_attempts: number;
+  };
+  failed_users: Array<{
+    id: string;
+    username: string;
+    full_name: string;
+    role: string;
+    failed_login_attempts: number;
+    is_paused: boolean;
+    is_active: boolean;
+  }>;
+  devices: {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+  };
+  sessions: { active_sessions: number };
+  recent_events: Array<{
+    id: string;
+    username: string;
+    action: string;
+    entity_type: string;
+    details: Record<string, unknown>;
+    created_at: string;
+  }>;
+};
+
+export const serverGetSecurityStats = createServerFn({ method: "POST" })
+  .validator(z.object({ sessionToken: z.string() }))
+  .handler(async ({ data }) => {
+    await requireAdminToken(data.sessionToken);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabaseAdmin as any;
+    const { data: stats, error } = await db.rpc("get_security_stats");
+    if (error) throw new Error(error.message);
+    return stats as SecurityStats;
+  });
+
+// ── Tab 4 – Project Stats ──────────────────────────────────────────────────────
 
 export const serverGetProjectStats = createServerFn({ method: "POST" })
   .validator(z.object({ sessionToken: z.string() }))

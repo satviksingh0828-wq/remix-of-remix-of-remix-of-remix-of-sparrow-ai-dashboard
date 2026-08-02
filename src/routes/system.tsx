@@ -8,12 +8,14 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Server,
+  ShieldCheck,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { ErrorPanel } from "@/components/system/ErrorPanel";
 import { DatabaseStats } from "@/components/system/DatabaseStats";
 import { ProjectStats } from "@/components/system/ProjectStats";
+import { SecurityPanel } from "@/components/system/SecurityPanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/system")({
@@ -42,6 +44,12 @@ const TABS = [
     label: "Database Stats",
     desc:  "PostgreSQL system stats & storage",
     icon:  Database,
+  },
+  {
+    id:    "security",
+    label: "Security",
+    desc:  "Passkeys, sessions & failed logins",
+    icon:  ShieldCheck,
   },
   {
     id:    "project",
