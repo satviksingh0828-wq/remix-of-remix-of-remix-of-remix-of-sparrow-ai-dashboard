@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as SystemRouteImport } from './routes/system'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ReportsRouteImport } from './routes/reports'
@@ -24,6 +25,11 @@ import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemRoute = SystemRouteImport.update({
+  id: '/system',
+  path: '/system',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/system': typeof SystemRoute
   '/users': typeof UsersRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
 }
@@ -100,6 +107,7 @@ export interface FileRoutesByTo {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/system': typeof SystemRoute
   '/users': typeof UsersRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
 }
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/system': typeof SystemRoute
   '/users': typeof UsersRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
 }
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
+    | '/system'
     | '/users'
     | '/api/notify-expiry'
   fileRoutesByTo: FileRoutesByTo
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
+    | '/system'
     | '/users'
     | '/api/notify-expiry'
   id:
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
+    | '/system'
     | '/users'
     | '/api/notify-expiry'
   fileRoutesById: FileRoutesById
@@ -169,6 +181,7 @@ export interface RootRouteChildren {
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SystemRoute: typeof SystemRoute
   UsersRoute: typeof UsersRoute
   ApiNotifyExpiryRoute: typeof ApiNotifyExpiryRoute
 }
@@ -180,6 +193,13 @@ declare module '@tanstack/react-router' {
       path: '/users'
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system': {
+      id: '/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof SystemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -265,6 +285,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SystemRoute: SystemRoute,
   UsersRoute: UsersRoute,
   ApiNotifyExpiryRoute: ApiNotifyExpiryRoute,
 }

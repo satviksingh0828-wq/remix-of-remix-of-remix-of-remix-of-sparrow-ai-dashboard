@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, ShieldCheck, User } from "lucide-react";
+import { LogOut, Server, ShieldCheck, User } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/session";
 import { useSparrowAI } from "@/lib/sparrow-context";
@@ -34,6 +34,15 @@ export function AppShell({
           {breadcrumb && <div className="ml-2 hidden md:block shrink-0">{breadcrumb}</div>}
           {headerEnd && <div className="ml-2 hidden lg:block">{headerEnd}</div>}
           <div className="ml-auto flex items-center gap-2 sm:gap-3 min-w-0">
+            {user?.role === "admin" && (
+              <Link
+                to="/system"
+                title="System"
+                className="relative flex size-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <Server className="size-4" />
+              </Link>
+            )}
             {user?.role === "admin" && <NotificationBell />}
             {user?.role === "admin" && <SparrowAITrigger />}
             <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex min-w-0">
