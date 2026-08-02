@@ -232,16 +232,29 @@ export function Trips() {
 
   async function remove(trip: TripRow) {
     if (!window.confirm("Delete this trip? This cannot be undone.")) return;
-    // Remove the advance/balance entry first (FK cascade handles it once migration is applied,
-    // this explicit delete ensures correct behaviour in all environments).
+    // Delete advance/balance entry by trip_code (stable across open/close/reopen).
     await supabase
       .from("approval_charge_advances" as never)
       .delete()
-      .eq("trip_id", trip.id!);
+      .eq("trip_code", trip.trip_code);
     const { error } = await supabase.from("trips").delete().eq("id", trip.id!);
     if (error) return toast.error(error.message);
     logAction("deleted", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
     toast.success("Trip removed");
+    load();
+  }
+
+  async function removeClosed(c: ClosedTrip) {
+    if (!window.confirm("Permanently delete this closed trip? This cannot be undone.")) return;
+    // Delete advance/balance entry linked to this trip code.
+    await supabase
+      .from("approval_charge_advances" as never)
+      .delete()
+      .eq("trip_code", c.trip_code);
+    const { error } = await supabase.from("closed_trips").delete().eq("id", c.id);
+    if (error) return toast.error(error.message);
+    logAction("deleted", "trip", { entityId: c.id, entityLabel: c.trip_code });
+    toast.success("Closed trip deleted");
     load();
   }
 
@@ -451,18 +464,28 @@ export function Trips() {
                     <Eye className="size-4" />
                     Details
                   </Button>
-                  {/* Admin-only: reopen trips */}
+                  {/* Admin-only: reopen + delete closed trips */}
                   {isAdmin ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={reopeningId === c.id}
-                      onClick={() => reopen(c)}
-                      title="Move back to live trips (admin only)"
-                    >
-                      <RotateCcw className="size-4" />
-                      Reopen
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={reopeningId === c.id}
+                        onClick={() => reopen(c)}
+                        title="Move back to live trips (admin only)"
+                      >
+                        <RotateCcw className="size-4" />
+                        Reopen
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeClosed(c)}
+                        title="Permanently delete this closed trip"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    </>
                   ) : null}
                 </li>
               ))}
