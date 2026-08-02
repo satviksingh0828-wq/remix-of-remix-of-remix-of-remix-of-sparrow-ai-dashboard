@@ -24,11 +24,7 @@ import { LocationPinPair } from "@/components/LocationPinPair";
 import { LocationPicker } from "@/components/LocationPicker";
 import { CsvIO } from "@/components/CsvIO";
 import { TransporterQuickCreate } from "./TransporterQuickCreate";
-import {
-  DRIVER_CONFIG,
-  TRANSPORTER_CONFIG,
-  VEHICLE_CONFIG,
-} from "@/components/masters/configs";
+import { DRIVER_CONFIG, TRANSPORTER_CONFIG, VEHICLE_CONFIG } from "@/components/masters/configs";
 import { useLocations } from "@/lib/use-locations";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
@@ -82,7 +78,7 @@ export type ManifestRow = {
   quantity: string;
 };
 
-type LineRow = { id?: string; name: string; amount: string; note: string };
+type LineRow = { id?: string; name: string; amount: string; note: string; advance?: string };
 
 const DEFAULT_EXPENSES = [
   "Fuel Expense",
@@ -96,9 +92,7 @@ const DEFAULT_EXPENSES = [
   "Unloading",
 ];
 
-const THIRD_PARTY_EXPENSES = [
-  "Hire Charges",
-];
+const THIRD_PARTY_EXPENSES = ["Hire Charges"];
 
 const THIRD_PARTY_DEFAULT_INCOMES = ["Approval Charge"];
 
@@ -206,7 +200,8 @@ export function TripForm({
   const [incomes, setIncomes] = useState<LineRow[]>(
     defaultIncomeList.map((name) => ({ name, amount: "", note: "" })),
   );
-  const defaultExpenseList = trip.ownership === "third_party" ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
+  const defaultExpenseList =
+    trip.ownership === "third_party" ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
   const [expenses, setExpenses] = useState<LineRow[]>(
     defaultExpenseList.map((name) => ({ name, amount: "", note: "" })),
   );
@@ -272,30 +267,42 @@ export function TripForm({
   }, [allBranches, trip.branch_id, locationIdByPin]);
 
   async function loadChildren(tripId: string) {
-    const [m, i, e] = await Promise.all([
+    const [m, i, e, approvalAdvance] = await Promise.all([
       supabase.from("trip_manifests").select("*").eq("trip_id", tripId).order("created_at"),
-      supabase
-        .from("trip_other_income")
-        .select("*")
-        .eq("trip_id", tripId)
-        .order("created_at"),
+      supabase.from("trip_other_income").select("*").eq("trip_id", tripId).order("created_at"),
       supabase.from("trip_expenses").select("*").eq("trip_id", tripId).order("sort_order"),
+      supabase
+        .from("approval_charge_advances" as never)
+        .select("advance")
+        .eq("trip_id", tripId)
+        .maybeSingle(),
     ]);
     setManifests((m.data as unknown as ManifestRow[]) ?? []);
-    const incRows =
-      ((i.data as unknown as { id: string; income_name: string; amount: string; note: string }[]) ??
-        []).map((r) => ({ id: r.id, name: r.income_name, amount: r.amount ?? "", note: r.note ?? "" }));
+    const savedApprovalAdvance = String(
+      ((approvalAdvance.data as { advance?: string | number } | null)?.advance ?? "") || "",
+    );
+    const incRows = (
+      (i.data as unknown as { id: string; income_name: string; amount: string; note: string }[]) ??
+      []
+    ).map((r) => ({
+      id: r.id,
+      name: r.income_name,
+      amount: r.amount ?? "",
+      note: r.note ?? "",
+      ...(r.income_name?.trim().toLowerCase() === "approval charge"
+        ? { advance: savedApprovalAdvance }
+        : {}),
+    }));
     const incDefList = trip.ownership === "third_party" ? THIRD_PARTY_DEFAULT_INCOMES : [];
     setIncomes(
       incRows.length > 0 ? incRows : incDefList.map((name) => ({ name, amount: "", note: "" })),
     );
-    const exp =
-      ((e.data as unknown as { id: string; expense_name: string; amount: string; note: string }[]) ??
-        []).map((r) => ({ id: r.id, name: r.expense_name, amount: r.amount ?? "", note: r.note ?? "" }));
+    const exp = (
+      (e.data as unknown as { id: string; expense_name: string; amount: string; note: string }[]) ??
+      []
+    ).map((r) => ({ id: r.id, name: r.expense_name, amount: r.amount ?? "", note: r.note ?? "" }));
     const ownDefList = trip.ownership === "third_party" ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
-    setExpenses(
-      exp.length > 0 ? exp : ownDefList.map((name) => ({ name, amount: "", note: "" })),
-    );
+    setExpenses(exp.length > 0 ? exp : ownDefList.map((name) => ({ name, amount: "", note: "" })));
   }
   useEffect(() => {
     if (initial.id) loadChildren(initial.id);
@@ -314,23 +321,21 @@ export function TripForm({
       : null;
 
   const lines = manifests.map((m) => {
-    const mContract = contracts.find((c) => c.id === m.source_id) as (AnyRow & ContractLite) | undefined;
+    const mContract = contracts.find((c) => c.id === m.source_id) as
+      | (AnyRow & ContractLite)
+      | undefined;
     const mEntries = allEntries.filter((e) => e.contract_id === m.source_id);
     return {
       m,
       ...manifestCharges(mContract, findEntry(mEntries, m), m),
     };
   });
-  const manifestTotal = lines.reduce(
-    (s, l) => s + l.freight + l.loading + l.fixed,
-    0,
-  );
+  const manifestTotal = lines.reduce((s, l) => s + l.freight + l.loading + l.fixed, 0);
   const otherIncomeTotal = incomes.reduce((s, r) => s + num(r.amount), 0);
   const expenseTotal = expenses.reduce((s, r) => s + num(r.amount), 0);
   const totalWeight = manifests.reduce((s, m) => s + num(m.weight_kg), 0);
   const payload = vehicle ? num(vehicle.payload_capacity_kg) : 0;
-  const deadWeight =
-    isOwn && payload > 0 ? payload - totalWeight : null;
+  const deadWeight = isOwn && payload > 0 ? payload - totalWeight : null;
 
   async function saveTrip(e?: React.FormEvent) {
     e?.preventDefault();
@@ -376,8 +381,17 @@ export function TripForm({
     void created_at;
     void reopened_at;
     const res = id
-      ? await supabase.from("trips").update(rest as never).eq("id", id).select("id").single()
-      : await supabase.from("trips").insert(rest as never).select("id").single();
+      ? await supabase
+          .from("trips")
+          .update(rest as never)
+          .eq("id", id)
+          .select("id")
+          .single()
+      : await supabase
+          .from("trips")
+          .insert(rest as never)
+          .select("id")
+          .single();
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
     const newId = (res.data as { id: string }).id;
@@ -421,7 +435,33 @@ export function TripForm({
       const { error } = await supabase.from(table).insert(payloadRows as never);
       if (error) return toast.error(error.message);
     }
-    logAction("updated", "trip", { entityId: tripId, entityLabel: trip.trip_code, details: { section: table } });
+    if (table === "trip_other_income") {
+      const approvalRow = rows.find((r) => r.name.trim().toLowerCase() === "approval charge");
+      await supabase
+        .from("approval_charge_advances" as never)
+        .delete()
+        .eq("trip_id", tripId);
+      if (approvalRow && trip.transporter_id) {
+        const amount = num(approvalRow.amount);
+        const advance = num(approvalRow.advance ?? "");
+        const balance = Math.max(amount - advance, 0);
+        if (amount > 0 || advance > 0) {
+          const { error } = await supabase.from("approval_charge_advances" as never).insert({
+            trip_id: tripId,
+            trip_code: trip.trip_code,
+            transporter_id: trip.transporter_id,
+            advance,
+            balance,
+          });
+          if (error) return toast.error(error.message);
+        }
+      }
+    }
+    logAction("updated", "trip", {
+      entityId: tripId,
+      entityLabel: trip.trip_code,
+      details: { section: table },
+    });
     if (!silent) toast.success("Saved");
     loadChildren(tripId);
   }
@@ -567,8 +607,9 @@ export function TripForm({
           end_date: trip.end_date,
           start_time: trip.start_time,
           ownership: trip.ownership,
-          from_location: (fromLoc as Record<string, unknown>)?.location_name as string | null ?? null,
-          to_location: (toLoc as Record<string, unknown>)?.location_name as string | null ?? null,
+          from_location:
+            ((fromLoc as Record<string, unknown>)?.location_name as string | null) ?? null,
+          to_location: ((toLoc as Record<string, unknown>)?.location_name as string | null) ?? null,
         },
         vehicle: vehicle
           ? {
@@ -650,7 +691,11 @@ export function TripForm({
           disabled={generatingPdf}
           title="Generate Trip Note PDF"
         >
-          {generatingPdf ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+          {generatingPdf ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Printer className="size-4" />
+          )}
           Trip Note
         </Button>
         {!isViewer && (
@@ -757,8 +802,7 @@ export function TripForm({
                 !trip.vehicle_id ||
                 vehicles.find((v) => v.id === trip.vehicle_id)?.branch_id === id;
               const driverStillValid =
-                !trip.driver_id ||
-                drivers.find((d) => d.id === trip.driver_id)?.branch_id === id;
+                !trip.driver_id || drivers.find((d) => d.id === trip.driver_id)?.branch_id === id;
               patch({
                 branch_id: id,
                 // Regenerate trip code on new trips
@@ -886,6 +930,7 @@ export function TripForm({
               total={otherIncomeTotal}
               onSave={() => saveLines("trip_other_income", incomes, "income_name")}
               isViewer={isViewer}
+              showApprovalFields
             />
           ) : null}
           {activeTab === "expense" ? (
@@ -900,10 +945,18 @@ export function TripForm({
             />
           ) : null}
           {activeTab === "vehicle" ? (
-            <Details record={vehicle} sections={VEHICLE_CONFIG.sections} empty="No vehicle selected." />
+            <Details
+              record={vehicle}
+              sections={VEHICLE_CONFIG.sections}
+              empty="No vehicle selected."
+            />
           ) : null}
           {activeTab === "driver" ? (
-            <Details record={driver} sections={DRIVER_CONFIG.sections} empty="No driver selected." />
+            <Details
+              record={driver}
+              sections={DRIVER_CONFIG.sections}
+              empty="No driver selected."
+            />
           ) : null}
           {activeTab === "transporter" ? (
             <Details
@@ -1060,7 +1113,8 @@ function ManifestTab({
     [contracts],
   );
   const sourceIdByName = useMemo(
-    () => new Map(contracts.map((c) => [String(c.contract_name ?? "").toLowerCase(), c.id as string])),
+    () =>
+      new Map(contracts.map((c) => [String(c.contract_name ?? "").toLowerCase(), c.id as string])),
     [contracts],
   );
 
@@ -1080,9 +1134,7 @@ function ManifestTab({
     if (!id) return;
     // Pre-fill "From" with the trip's start location so the user doesn't have
     // to re-enter it for every manifest on the same trip.
-    const startLoc = startLocationId
-      ? locations.find((l) => l.id === startLocationId)
-      : null;
+    const startLoc = startLocationId ? locations.find((l) => l.id === startLocationId) : null;
     setEditing({
       ...emptyManifest(id),
       from_location_id: startLocationId ?? null,
@@ -1096,7 +1148,10 @@ function ManifestTab({
     setSaving(true);
     const { id, ...rest } = editing;
     const res = id
-      ? await supabase.from("trip_manifests").update(rest as never).eq("id", id)
+      ? await supabase
+          .from("trip_manifests")
+          .update(rest as never)
+          .eq("id", id)
       : await supabase.from("trip_manifests").insert(rest as never);
     setSaving(false);
     if (res.error) return toast.error(res.error.message);
@@ -1171,8 +1226,8 @@ function ManifestTab({
 
       {manifests.length === 0 ? (
         <p className="rounded-xl bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
-          No manifests yet. Freight, loading and fixed charges are calculated from the
-          source selected on each manifest line.
+          No manifests yet. Freight, loading and fixed charges are calculated from the source
+          selected on each manifest line.
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -1255,7 +1310,10 @@ function ManifestTab({
                 );
               })}
               <tr>
-                <td colSpan={6} className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <td
+                  colSpan={6}
+                  className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
                   Totals
                 </td>
                 <td className="py-3 pr-3 text-right font-semibold">{inr(otherIncomeTotal)}</td>
@@ -1265,7 +1323,9 @@ function ManifestTab({
                     <td />
                     <td />
                     <td className="py-3 pr-3 text-right font-semibold">{inr(total)}</td>
-                    <td className="py-3 pr-3 text-right font-semibold">{inr(total + otherIncomeTotal - expenseTotal)}</td>
+                    <td className="py-3 pr-3 text-right font-semibold">
+                      {inr(total + otherIncomeTotal - expenseTotal)}
+                    </td>
                   </>
                 ) : null}
                 <td />
@@ -1283,15 +1343,11 @@ function ManifestTab({
           {editing ? (
             <form onSubmit={save} className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
               <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Cnmt No.
-                </Label>
+                <Label className="text-xs font-medium text-muted-foreground">Cnmt No.</Label>
                 <Input
                   className="h-10"
                   value={editing.manifest_number}
-                  onChange={(e) =>
-                    setEditing({ ...editing, manifest_number: e.target.value })
-                  }
+                  onChange={(e) => setEditing({ ...editing, manifest_number: e.target.value })}
                 />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
@@ -1375,6 +1431,7 @@ function LineTab({
   total,
   onSave,
   isViewer = false,
+  showApprovalFields = false,
 }: {
   title: string;
   nameLabel: string;
@@ -1383,6 +1440,7 @@ function LineTab({
   total: number;
   onSave: () => void;
   isViewer?: boolean;
+  showApprovalFields?: boolean;
 }) {
   const update = (i: number, p: Partial<LineRow>) =>
     setRows(rows.map((r, idx) => (idx === i ? { ...r, ...p } : r)));
@@ -1412,51 +1470,74 @@ function LineTab({
       </div>
 
       <div className="space-y-3">
-        {rows.map((r, i) => (
-          <div
-            key={i}
-            className="grid grid-cols-1 items-end gap-3 rounded-xl bg-muted/50 p-3 sm:grid-cols-[1.2fr_0.8fr_1.4fr_auto]"
-          >
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">{nameLabel}</Label>
-              <Input
-                className="h-10"
-                value={r.name}
-                readOnly={isViewer}
-                onChange={(e) => !isViewer && update(i, { name: e.target.value })}
-              />
+        {rows.map((r, i) => {
+          const isApprovalCharge =
+            showApprovalFields && r.name.trim().toLowerCase() === "approval charge";
+          const balance = Math.max(num(r.amount) - num(r.advance ?? ""), 0);
+          return (
+            <div
+              key={i}
+              className="grid grid-cols-1 items-end gap-3 rounded-xl bg-muted/50 p-3 sm:grid-cols-[1.2fr_0.8fr_1.4fr_auto]"
+            >
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">{nameLabel}</Label>
+                <Input
+                  className="h-10"
+                  value={r.name}
+                  readOnly={isViewer}
+                  onChange={(e) => !isViewer && update(i, { name: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Amount (₹)</Label>
+                <Input
+                  className="h-10"
+                  type="number"
+                  value={r.amount}
+                  readOnly={isViewer}
+                  onChange={(e) => !isViewer && update(i, { amount: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Note</Label>
+                <Input
+                  className="h-10"
+                  value={r.note}
+                  readOnly={isViewer}
+                  onChange={(e) => !isViewer && update(i, { note: e.target.value })}
+                />
+              </div>
+              {!isViewer && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setRows(rows.filter((_, idx) => idx !== i))}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              )}
+              {isApprovalCharge ? (
+                <div className="grid grid-cols-1 gap-3 sm:col-span-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Advance (₹)</Label>
+                    <Input
+                      className="h-10"
+                      type="number"
+                      value={r.advance ?? ""}
+                      readOnly={isViewer}
+                      onChange={(e) => !isViewer && update(i, { advance: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-medium text-muted-foreground">Balance (₹)</Label>
+                    <Input className="h-10" value={balance} readOnly />
+                  </div>
+                </div>
+              ) : null}
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Amount (₹)</Label>
-              <Input
-                className="h-10"
-                type="number"
-                value={r.amount}
-                readOnly={isViewer}
-                onChange={(e) => !isViewer && update(i, { amount: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-medium text-muted-foreground">Note</Label>
-              <Input
-                className="h-10"
-                value={r.note}
-                readOnly={isViewer}
-                onChange={(e) => !isViewer && update(i, { note: e.target.value })}
-              />
-            </div>
-            {!isViewer && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setRows(rows.filter((_, idx) => idx !== i))}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="flex justify-end border-t border-border pt-3 text-sm font-semibold">
@@ -1477,8 +1558,7 @@ function Details({
   sections: { title: string; fields: { key: string; label: string }[] }[];
   empty: string;
 }) {
-  if (!record)
-    return <p className="text-sm text-muted-foreground">{empty}</p>;
+  if (!record) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
     <div className="space-y-5">
       {sections.map((s) => {
@@ -1571,7 +1651,10 @@ function Summary({
     { label: "Total expense", value: inr(expenseTotal) },
     { label: "Net income", value: inr(net), strong: true },
     { label: "Total weight", value: `${totalWeight.toLocaleString("en-IN")} kg` },
-    { label: "Vehicle payload", value: payload > 0 ? `${payload.toLocaleString("en-IN")} kg` : "—" },
+    {
+      label: "Vehicle payload",
+      value: payload > 0 ? `${payload.toLocaleString("en-IN")} kg` : "—",
+    },
     {
       label: "Dead weight",
       value: deadWeight === null ? "—" : `${deadWeight.toLocaleString("en-IN")} kg`,
@@ -1585,12 +1668,8 @@ function Summary({
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {cards.map((c) => (
         <div key={c.label} className="rounded-xl bg-muted/60 p-4">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            {c.label}
-          </p>
-          <p
-            className={`mt-1 ${c.strong ? "text-lg font-semibold" : "text-base font-medium"}`}
-          >
+          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{c.label}</p>
+          <p className={`mt-1 ${c.strong ? "text-lg font-semibold" : "text-base font-medium"}`}>
             {c.value}
           </p>
         </div>

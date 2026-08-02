@@ -8,7 +8,15 @@
  */
 
 import { useEffect, useState } from "react";
-import { Archive, ArrowLeft, Download, FileSpreadsheet, Loader2, Printer, RotateCcw } from "lucide-react";
+import {
+  Archive,
+  ArrowLeft,
+  Download,
+  FileSpreadsheet,
+  Loader2,
+  Printer,
+  RotateCcw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -43,6 +51,7 @@ type Snapshot = {
   manifests: Record<string, unknown>[];
   manifest_lines: ManifestLine[];
   other_income: Record<string, unknown>[];
+  approval_charge_advance?: Record<string, unknown> | null;
   expenses: Record<string, unknown>[];
   // New per-manifest source shape (written by current closeTrip)
   sources?: Record<string, Record<string, unknown>>;
@@ -114,6 +123,7 @@ export function ClosedTripDetail({
   const [tab, setTab] = useState<TabId>("manifest");
   const [reopening, setReopening] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [approvalAdvance, setApprovalAdvance] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -128,7 +138,17 @@ export function ClosedTripDetail({
         onBack();
         return;
       }
-      setRecord(data as unknown as FullClosedTrip);
+      const closedRecord = data as unknown as FullClosedTrip;
+      setRecord(closedRecord);
+      const snapshotAdvance = closedRecord.snapshot.approval_charge_advance ?? null;
+      const { data: liveAdvance } = await supabase
+        .from("approval_charge_advances" as never)
+        .select("advance,balance,trip_code,trip_id")
+        .eq("trip_code", closedRecord.trip_code)
+        .maybeSingle();
+      setApprovalAdvance(
+        (liveAdvance as unknown as Record<string, unknown> | null) ?? snapshotAdvance,
+      );
       setLoading(false);
     })();
   }, [closedId]);
@@ -166,8 +186,10 @@ export function ClosedTripDetail({
       const manifests = snap.manifests as Record<string, unknown>[];
       const firstM = manifests[0] ?? {};
       const lastM = manifests[manifests.length - 1] ?? {};
-      const firstName = locMap.get(firstM.from_location_id as string) || String(firstM.from_pin_code ?? "");
-      const lastName = locMap.get(lastM.to_location_id as string) || String(lastM.to_pin_code ?? "");
+      const firstName =
+        locMap.get(firstM.from_location_id as string) || String(firstM.from_pin_code ?? "");
+      const lastName =
+        locMap.get(lastM.to_location_id as string) || String(lastM.to_pin_code ?? "");
       await printTripNote({
         company,
         branch: snap.branch as TripNoteBranch | null,
@@ -187,8 +209,10 @@ export function ClosedTripDetail({
           manifest_number: String(m.manifest_number ?? ""),
           quantity: m.quantity as string | null,
           weight_kg: m.weight_kg as string | null,
-          from_location_name: locMap.get(m.from_location_id as string) || String(m.from_pin_code ?? "") || null,
-          to_location_name: locMap.get(m.to_location_id as string) || String(m.to_pin_code ?? "") || null,
+          from_location_name:
+            locMap.get(m.from_location_id as string) || String(m.from_pin_code ?? "") || null,
+          to_location_name:
+            locMap.get(m.to_location_id as string) || String(m.to_pin_code ?? "") || null,
         })),
       });
     } finally {
@@ -233,16 +257,15 @@ export function ClosedTripDetail({
           onClick={handleTripNote}
           title="Generate Trip Note PDF"
         >
-          {generatingPdf ? <Loader2 className="size-4 animate-spin" /> : <Printer className="size-4" />}
+          {generatingPdf ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Printer className="size-4" />
+          )}
           Trip Note
         </Button>
         {isAdmin ? (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={reopening}
-            onClick={handleReopen}
-          >
+          <Button variant="outline" size="sm" disabled={reopening} onClick={handleReopen}>
             {reopening ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
@@ -262,7 +285,10 @@ export function ClosedTripDetail({
             label="Ownership"
             value={trip.ownership === "own" ? "Own vehicle" : "Third party"}
           />
-          <InfoRow label="Branch" value={String(snap.branch?.branch_name ?? record.branch_name ?? "—")} />
+          <InfoRow
+            label="Branch"
+            value={String(snap.branch?.branch_name ?? record.branch_name ?? "—")}
+          />
           <InfoRow label="Start date" value={String(trip.start_date ?? "—")} />
           <InfoRow label="Start time" value={String(trip.start_time ?? "—")} />
           <InfoRow label="End date" value={String(trip.end_date ?? "—")} />
@@ -324,6 +350,7 @@ export function ClosedTripDetail({
               rows={snap.other_income}
               nameKey="income_name"
               total={snap.totals.other_income}
+              approvalAdvance={approvalAdvance ?? snap.approval_charge_advance ?? null}
             />
           )}
           {tab === "expense" && (
@@ -384,7 +411,9 @@ function ManifestView({
 
   // ── Weighted income / expense helpers ────────────────────────────────────
   const totalWeight = lines.reduce((s, l) => {
-    const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+    const m = (l.manifest ??
+      byId.get((l.manifest as Record<string, unknown>)?.id as string) ??
+      {}) as Record<string, unknown>;
     return s + num(m.weight_kg);
   }, 0);
 
@@ -402,7 +431,9 @@ function ManifestView({
   function exportManifestCsv() {
     const columns = ["manifest_number", "from_pin_code", "to_pin_code", "weight_kg", "quantity"];
     const rows = lines.map((l) => {
-      const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+      const m = (l.manifest ??
+        byId.get((l.manifest as Record<string, unknown>)?.id as string) ??
+        {}) as Record<string, unknown>;
       return {
         manifest_number: String(m.manifest_number ?? ""),
         from_pin_code: String(m.from_pin_code ?? ""),
@@ -418,18 +449,21 @@ function ManifestView({
   // ── Trip details export ───────────────────────────────────────────────────
   function exportTripDetails() {
     const basicCols = [
-      "trip_id", "start_date", "manifest_number",
-      "weight_kg", "qty",
-      "weighted_income", "weighted_expense",
+      "trip_id",
+      "start_date",
+      "manifest_number",
+      "weight_kg",
+      "qty",
+      "weighted_income",
+      "weighted_expense",
     ];
-    const adminCols = [
-      ...basicCols,
-      "freight", "loading", "gross", "net",
-    ];
+    const adminCols = [...basicCols, "freight", "loading", "gross", "net"];
     const columns = isAdmin ? adminCols : basicCols;
 
     const rows = lines.map((l) => {
-      const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+      const m = (l.manifest ??
+        byId.get((l.manifest as Record<string, unknown>)?.id as string) ??
+        {}) as Record<string, unknown>;
       const wt = num(m.weight_kg);
       const wi = weightedIncome(wt);
       const we = weightedExpense(wt);
@@ -511,7 +545,9 @@ function ManifestView({
           </thead>
           <tbody>
             {lines.map((l, i) => {
-              const m = (l.manifest ?? byId.get((l.manifest as Record<string, unknown>)?.id as string) ?? {}) as Record<string, unknown>;
+              const m = (l.manifest ??
+                byId.get((l.manifest as Record<string, unknown>)?.id as string) ??
+                {}) as Record<string, unknown>;
               const wt = num(m.weight_kg);
               const wi = weightedIncome(wt);
               const we = weightedExpense(wt);
@@ -519,9 +555,7 @@ function ManifestView({
               const net = gross + wi - we;
               return (
                 <tr key={i} className="border-b border-border/60">
-                  <td className="py-2 pr-3 font-medium">
-                    {String(m.manifest_number ?? "—")}
-                  </td>
+                  <td className="py-2 pr-3 font-medium">{String(m.manifest_number ?? "—")}</td>
                   <td className="py-2 pr-3">{String(m.from_pin_code || "—")}</td>
                   <td className="py-2 pr-3">{String(m.to_pin_code || "—")}</td>
                   <td className="py-2 pr-3 text-right">{String(m.weight_kg ?? "—")}</td>
@@ -540,7 +574,10 @@ function ManifestView({
               );
             })}
             <tr>
-              <td colSpan={5} className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <td
+                colSpan={5}
+                className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              >
                 Totals
               </td>
               <td className="py-3 pr-3 text-right font-semibold">{inr(totals.other_income)}</td>
@@ -550,7 +587,9 @@ function ManifestView({
                   <td />
                   <td />
                   <td className="py-3 pr-3 text-right font-semibold">{inr(grandTotal)}</td>
-                  <td className="py-3 pr-3 text-right font-semibold">{inr(grandTotal + totals.other_income - totals.total_expense)}</td>
+                  <td className="py-3 pr-3 text-right font-semibold">
+                    {inr(grandTotal + totals.other_income - totals.total_expense)}
+                  </td>
                 </>
               ) : null}
             </tr>
@@ -566,11 +605,13 @@ function LineView({
   rows,
   nameKey,
   total,
+  approvalAdvance = null,
 }: {
   title: string;
   rows: Record<string, unknown>[];
   nameKey: string;
   total: number;
+  approvalAdvance?: Record<string, unknown> | null;
 }) {
   const filled = rows.filter((r) => String(r[nameKey] ?? "").trim() !== "");
   if (filled.length === 0)
@@ -585,20 +626,40 @@ function LineView({
             <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
               <th className="py-2 pr-4">Name</th>
               <th className="py-2 pr-4 text-right">Amount</th>
+              {approvalAdvance ? <th className="py-2 pr-4 text-right">PAID AMOUNT</th> : null}
+              {approvalAdvance ? <th className="py-2 pr-4 text-right">Balance</th> : null}
               <th className="py-2">Note</th>
             </tr>
           </thead>
           <tbody>
-            {filled.map((r, i) => (
-              <tr key={i} className="border-b border-border/60">
-                <td className="py-2 pr-4">{String(r[nameKey] ?? "")}</td>
-                <td className="py-2 pr-4 text-right font-medium">{inr(num(r.amount))}</td>
-                <td className="py-2 text-muted-foreground">{String(r.note ?? "")}</td>
-              </tr>
-            ))}
+            {filled.map((r, i) => {
+              const isApprovalCharge =
+                String(r[nameKey] ?? "")
+                  .trim()
+                  .toLowerCase() === "approval charge";
+              return (
+                <tr key={i} className="border-b border-border/60">
+                  <td className="py-2 pr-4">{String(r[nameKey] ?? "")}</td>
+                  <td className="py-2 pr-4 text-right font-medium">{inr(num(r.amount))}</td>
+                  {approvalAdvance ? (
+                    <td className="py-2 pr-4 text-right text-blue-600">
+                      {isApprovalCharge ? inr(num(approvalAdvance.advance)) : "—"}
+                    </td>
+                  ) : null}
+                  {approvalAdvance ? (
+                    <td className="py-2 pr-4 text-right text-emerald-600">
+                      {isApprovalCharge ? inr(num(approvalAdvance.balance)) : "—"}
+                    </td>
+                  ) : null}
+                  <td className="py-2 text-muted-foreground">{String(r.note ?? "")}</td>
+                </tr>
+              );
+            })}
             <tr>
               <td className="py-3 font-semibold">Total</td>
               <td className="py-3 text-right font-semibold">{inr(total)}</td>
+              {approvalAdvance ? <td /> : null}
+              {approvalAdvance ? <td /> : null}
               <td />
             </tr>
           </tbody>
@@ -644,9 +705,7 @@ function MasterView({
   fields: [string, string][];
 }) {
   if (!record)
-    return (
-      <p className="text-sm text-muted-foreground">No {label} was linked to this trip.</p>
-    );
+    return <p className="text-sm text-muted-foreground">No {label} was linked to this trip.</p>;
 
   const filled = fields.filter(([key]) => String(record[key] ?? "").trim() !== "");
   if (filled.length === 0)
@@ -759,9 +818,7 @@ function SummaryView({
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
       {cards.map((c) => (
         <div key={c.label} className="rounded-xl bg-muted/60 p-4">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            {c.label}
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{c.label}</p>
           <p className={`mt-1 ${c.strong ? "text-lg font-semibold" : "text-base font-medium"}`}>
             {c.value}
           </p>
