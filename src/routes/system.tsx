@@ -9,6 +9,7 @@ import {
   PanelLeftOpen,
   Server,
   ShieldCheck,
+  ShieldHalf,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -16,6 +17,7 @@ import { ErrorPanel } from "@/components/system/ErrorPanel";
 import { DatabaseStats } from "@/components/system/DatabaseStats";
 import { ProjectStats } from "@/components/system/ProjectStats";
 import { SecurityPanel } from "@/components/system/SecurityPanel";
+import { TurnstilePanel } from "@/components/system/TurnstilePanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/system")({
@@ -50,6 +52,12 @@ const TABS = [
     label: "Security",
     desc:  "Passkeys, sessions & failed logins",
     icon:  ShieldCheck,
+  },
+  {
+    id:    "turnstile",
+    label: "Turnstile",
+    desc:  "Cloudflare CAPTCHA analytics",
+    icon:  ShieldHalf,
   },
   {
     id:    "project",
@@ -166,10 +174,11 @@ function SystemPage() {
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
 
-          {tab === "errors"   && <ErrorPanel />}
-          {tab === "db"       && <DatabaseStats />}
-          {tab === "security" && <SecurityPanel />}
-          {tab === "project"  && <ProjectStats />}
+          {tab === "errors"    && <ErrorPanel />}
+          {tab === "db"        && <DatabaseStats />}
+          {tab === "security"  && <SecurityPanel />}
+          {tab === "turnstile" && <TurnstilePanel />}
+          {tab === "project"   && <ProjectStats />}
         </div>
       </div>
     </AppShell>

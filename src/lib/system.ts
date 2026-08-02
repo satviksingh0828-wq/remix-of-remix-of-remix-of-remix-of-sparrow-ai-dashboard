@@ -243,6 +243,143 @@ export const serverGetSecurityStats = createServerFn({ method: "POST" })
     return stats as SecurityStats;
   });
 
+// ── Tab 5 – Cloudflare Turnstile Stats ────────────────────────────────────────
+
+export type TurnstileDay = {
+  date: string;           // "YYYY-MM-DD"
+  issued: number;
+  solved: number;
+  failed: number;
+};
+
+export type TurnstileStats = {
+  configured: boolean;        // false → env vars missing, show setup guide only
+  account_id_present: boolean;
+  api_token_present: boolean;
+  sitekey: string | null;
+  days: TurnstileDay[];
+  total_issued: number;
+  total_solved: number;
+  total_failed: number;
+  solve_rate: number;         // 0–100
+  error: string | null;
+};
+
+export const serverGetTurnstileStats = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      sessionToken: z.string(),
+      days:         z.number().min(1).max(90).default(30),
+    }),
+  )
+  .handler(async ({ data }): Promise<TurnstileStats> => {
+    await requireAdminToken(data.sessionToken);
+
+    const accountId   = process.env.CF_ACCOUNT_ID   ?? "";
+    const apiToken    = process.env.CF_API_TOKEN     ?? "";
+    // sitekey is public — readable server-side via the VITE_ prefix env var
+    const sitekey     = process.env.VITE_TURNSTILE_SITEKEY ?? null;
+
+    const base: TurnstileStats = {
+      configured:          !!(accountId && apiToken),
+      account_id_present:  !!accountId,
+      api_token_present:   !!apiToken,
+      sitekey,
+      days:                [],
+      total_issued:        0,
+      total_solved:        0,
+      total_failed:        0,
+      solve_rate:          0,
+      error:               null,
+    };
+
+    if (!accountId || !apiToken) {
+      return { ...base, error: "CF_ACCOUNT_ID and CF_API_TOKEN environment variables are not configured." };
+    }
+
+    // Date range: today back N days
+    const until = new Date();
+    const since = new Date();
+    since.setDate(since.getDate() - data.days + 1);
+    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+    // Build the siteKey filter conditionally
+    const sitekeyFilter = sitekey ? `, siteKey: "${sitekey}"` : "";
+
+    const query = `{
+      viewer {
+        accounts(filter: {accountTag: "${accountId}"}) {
+          turnstileAdaptiveGroups(
+            filter: {date_geq: "${fmt(since)}", date_leq: "${fmt(until)}"${sitekeyFilter}}
+            limit: 90
+            orderBy: [date_ASC]
+          ) {
+            sum {
+              tokensSolved
+              tokensIssued
+              tokensFailed
+            }
+            dimensions {
+              date
+            }
+          }
+        }
+      }
+    }`;
+
+    try {
+      const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+        method:  "POST",
+        headers: {
+          "Authorization": `Bearer ${apiToken}`,
+          "Content-Type":  "application/json",
+        },
+        body: JSON.stringify({ query }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Cloudflare API ${res.status}: ${txt || res.statusText}`);
+      }
+
+      const json = await res.json() as {
+        data?: {
+          viewer?: {
+            accounts?: Array<{
+              turnstileAdaptiveGroups?: Array<{
+                sum: { tokensSolved: number; tokensIssued: number; tokensFailed: number };
+                dimensions: { date: string };
+              }>;
+            }>;
+          };
+        };
+        errors?: Array<{ message: string }>;
+      };
+
+      if (json.errors?.length) {
+        throw new Error(json.errors.map(e => e.message).join("; "));
+      }
+
+      const groups = json.data?.viewer?.accounts?.[0]?.turnstileAdaptiveGroups ?? [];
+
+      const days: TurnstileDay[] = groups.map(g => ({
+        date:   g.dimensions.date,
+        issued: g.sum.tokensIssued ?? 0,
+        solved: g.sum.tokensSolved ?? 0,
+        failed: g.sum.tokensFailed ?? 0,
+      }));
+
+      const total_issued = days.reduce((s, d) => s + d.issued, 0);
+      const total_solved = days.reduce((s, d) => s + d.solved, 0);
+      const total_failed = days.reduce((s, d) => s + d.failed, 0);
+      const solve_rate   = total_issued > 0 ? Math.round((total_solved / total_issued) * 100) : 0;
+
+      return { ...base, days, total_issued, total_solved, total_failed, solve_rate, error: null };
+    } catch (err) {
+      return { ...base, error: err instanceof Error ? err.message : String(err) };
+    }
+  });
+
 // ── Tab 4 – Project Stats ──────────────────────────────────────────────────────
 
 export const serverGetProjectStats = createServerFn({ method: "POST" })
