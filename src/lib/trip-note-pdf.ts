@@ -421,22 +421,22 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
   <table class="tn-summary-table">
     <thead>
       <tr>
-        <th>PAN No.</th>
-        <th>GSTIN</th>
-        <th>Trip Number</th>
-        <th>Start Date</th>
-        <th>From</th>
-        <th>To</th>
+        <th style="vertical-align:middle;text-align:center;">PAN No.</th>
+        <th style="vertical-align:middle;text-align:center;">GSTIN</th>
+        <th style="vertical-align:middle;text-align:center;">Trip Number</th>
+        <th style="vertical-align:middle;text-align:center;">Start Date</th>
+        <th style="vertical-align:middle;text-align:center;">From</th>
+        <th style="vertical-align:middle;text-align:center;">To</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td>${sv((addr as Record<string, unknown>).pan) || sv(company.pan) || "—"}</td>
-        <td>${sv((addr as Record<string, unknown>).gstin) || sv(company.gstin) || "—"}</td>
-        <td>${trip.trip_code}</td>
-        <td>${sv(trip.start_date) || "—"}</td>
-        <td>${fromLoc || "—"}</td>
-        <td>${toLoc || "—"}</td>
+        <td style="vertical-align:middle;text-align:center;">${sv((addr as Record<string, unknown>).pan) || sv(company.pan) || "—"}</td>
+        <td style="vertical-align:middle;text-align:center;">${sv((addr as Record<string, unknown>).gstin) || sv(company.gstin) || "—"}</td>
+        <td style="vertical-align:middle;text-align:center;">${trip.trip_code}</td>
+        <td style="vertical-align:middle;text-align:center;">${sv(trip.start_date) || "—"}</td>
+        <td style="vertical-align:middle;text-align:center;">${fromLoc || "—"}</td>
+        <td style="vertical-align:middle;text-align:center;">${toLoc || "—"}</td>
       </tr>
     </tbody>
   </table>
