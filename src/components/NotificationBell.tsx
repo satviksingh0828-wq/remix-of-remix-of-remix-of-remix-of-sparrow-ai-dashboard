@@ -1,14 +1,18 @@
 /**
  * Admin-only notification bell.
- * Fetches live alerts (insurance expiry, road-tax expiry, manifest source
- * mismatches) from the server and shows them in a dropdown panel.
+ * Backed by Supabase — one admin dismissing a notification clears it for all.
  */
 
 import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, Bell, FileWarning, ShieldAlert, X } from "lucide-react";
-import { serverFetchNotifications, type NotificationItem } from "@/lib/notifications";
+import {
+  serverSyncNotifications,
+  serverDismissNotification,
+  type NotificationItem,
+} from "@/lib/notifications";
+import { useSession } from "@/lib/session";
 
-// ── icon per kind ─────────────────────────────────────────────────────────────
+// ── Icons per kind ────────────────────────────────────────────────────────────
 
 function KindIcon({ kind }: { kind: NotificationItem["kind"] }) {
   if (kind === "insurance")
@@ -18,63 +22,67 @@ function KindIcon({ kind }: { kind: NotificationItem["kind"] }) {
   return <FileWarning className="size-4 shrink-0 text-rose-500" />;
 }
 
-function urgencyClass(item: NotificationItem): string {
-  if (item.daysLeft !== undefined && item.daysLeft <= 7)
-    return "border-l-2 border-destructive";
-  if (item.daysLeft !== undefined && item.daysLeft <= 15)
-    return "border-l-2 border-amber-400";
-  if (item.kind === "manifest_mismatch")
-    return "border-l-2 border-rose-400";
+function borderClass(item: NotificationItem) {
+  if (item.days_left != null && item.days_left <= 7)  return "border-l-2 border-destructive";
+  if (item.days_left != null && item.days_left <= 15) return "border-l-2 border-amber-400";
+  if (item.kind === "manifest_zero_income")            return "border-l-2 border-rose-400";
   return "border-l-2 border-border";
 }
 
-// ── main component ────────────────────────────────────────────────────────────
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export function NotificationBell() {
-  const [open, setOpen]               = useState(false);
-  const [items, setItems]             = useState<NotificationItem[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [lastFetched, setLastFetched] = useState<number | null>(null);
-  const panelRef                      = useRef<HTMLDivElement>(null);
-  const buttonRef                     = useRef<HTMLButtonElement>(null);
+  const { user } = useSession();
+  const [open, setOpen]       = useState(false);
+  const [items, setItems]     = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [dismissing, setDismissing] = useState<Set<string>>(new Set());
+  const panelRef  = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Fetch notifications (cache 2 min)
-  async function load(force = false) {
-    if (!force && lastFetched && Date.now() - lastFetched < 120_000) return;
+  async function load() {
     setLoading(true);
     try {
-      const data = await serverFetchNotifications();
+      const data = await serverSyncNotifications();
       setItems(data);
-      setLastFetched(Date.now());
     } catch {
-      // silently ignore — non-critical
+      // non-critical — keep existing items
     } finally {
       setLoading(false);
     }
   }
 
-  // Load on first render and every 2 min
+  // Load on mount and every 2 minutes
   useEffect(() => {
     load();
-    const timer = setInterval(() => load(true), 120_000);
-    return () => clearInterval(timer);
+    const t = setInterval(load, 120_000);
+    return () => clearInterval(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Close dropdown on outside click
+  // Close on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node) &&
-        !buttonRef.current?.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
+        panelRef.current  && !panelRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) setOpen(false);
     }
     if (open) document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
+
+  async function dismiss(item: NotificationItem) {
+    setDismissing((s) => new Set(s).add(item.id));
+    try {
+      await serverDismissNotification({
+        data: { id: item.id, dismissedBy: user?.username ?? user?.fullName ?? "admin" },
+      });
+      setItems((prev) => prev.filter((i) => i.id !== item.id));
+    } finally {
+      setDismissing((s) => { const n = new Set(s); n.delete(item.id); return n; });
+    }
+  }
 
   const count = items.length;
 
@@ -96,11 +104,11 @@ export function NotificationBell() {
         )}
       </button>
 
-      {/* Dropdown panel */}
+      {/* Dropdown */}
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-10 z-50 w-[340px] rounded-xl border border-border bg-card shadow-xl"
+          className="absolute right-0 top-10 z-50 w-[360px] rounded-xl border border-border bg-card shadow-xl"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -126,35 +134,45 @@ export function NotificationBell() {
           <div className="max-h-[420px] overflow-y-auto">
             {loading && items.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
-                Loading…
+                Checking for alerts…
               </div>
             ) : items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-10 text-sm text-muted-foreground">
-                <Bell className="size-8 opacity-30" />
-                <span>All clear — no alerts</span>
+              <div className="flex flex-col items-center justify-center gap-2 py-10">
+                <Bell className="size-8 text-muted-foreground/30" />
+                <span className="text-sm text-muted-foreground">All clear — no alerts</span>
               </div>
             ) : (
               <ul className="divide-y divide-border">
                 {items.map((item) => (
-                  <li key={item.id} className={`flex gap-3 px-4 py-3 ${urgencyClass(item)}`}>
-                    <div className="mt-0.5">
+                  <li key={item.id} className={`flex items-start gap-3 px-4 py-3 ${borderClass(item)}`}>
+                    <div className="mt-0.5 shrink-0">
                       <KindIcon kind={item.kind} />
                     </div>
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium leading-snug">{item.title}</p>
                       <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                         {item.detail}
                       </p>
                     </div>
+                    {/* Dismiss button — clears for all admins */}
+                    <button
+                      type="button"
+                      disabled={dismissing.has(item.id)}
+                      onClick={() => dismiss(item)}
+                      title="Dismiss for all admins"
+                      className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                    >
+                      <X className="size-3.5" />
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
           </div>
 
-          {/* Footer: section counts */}
+          {/* Footer summary */}
           {items.length > 0 && (
-            <div className="flex items-center gap-3 border-t border-border px-4 py-2.5 text-[11px] text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-2.5 text-[11px] text-muted-foreground">
               {items.filter((i) => i.kind === "insurance").length > 0 && (
                 <span className="flex items-center gap-1">
                   <ShieldAlert className="size-3 text-amber-500" />
@@ -167,10 +185,10 @@ export function NotificationBell() {
                   {items.filter((i) => i.kind === "road_tax").length} road tax
                 </span>
               )}
-              {items.filter((i) => i.kind === "manifest_mismatch").length > 0 && (
+              {items.filter((i) => i.kind === "manifest_zero_income").length > 0 && (
                 <span className="flex items-center gap-1">
                   <FileWarning className="size-3 text-rose-500" />
-                  {items.filter((i) => i.kind === "manifest_mismatch").length} mismatch
+                  {items.filter((i) => i.kind === "manifest_zero_income").length} ₹0 income
                 </span>
               )}
             </div>
