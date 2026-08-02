@@ -1,0 +1,250 @@
+# Admin Dashboard – New "System" Page Specification
+
+Create a **new Admin-only page** in the dashboard. It should use the **same layout, sidebar, header, theme, spacing, components, and permissions** as the rest of the application.
+
+## Navigation
+
+* Add a **small icon** in the header.
+* Place it **to the left of the Notifications icon**.
+* The icon should only be visible to **Admin users**.
+* Clicking it opens the new **System** page.
+
+---
+
+# Layout
+
+Reuse the existing application layout.
+
+* Same sidebar
+* Same header
+* Same responsive behavior
+* Same loading states
+* Same design system
+
+This page will contain **4 tabs**.
+
+1. Error Panel
+2. Database Stats
+3. Auth Stats
+4. Project Stats
+
+---
+
+# Tab 1 – Error Panel
+
+This page is used to detect and fix timestamp inconsistencies inside the `closed_trips` table.
+
+All heavy operations must be executed inside **Supabase** (RPC/functions/SQL) so the frontend never loads unnecessary data.
+
+## Data Source
+
+Use:
+
+`public.closed_trips`
+
+Relevant columns:
+
+* trip_code
+* branch_name
+* start_date
+* end_date
+* closed_at
+* created_at
+* updated_at
+
+---
+
+## Default View
+
+Only load **error trips** by default.
+
+Do **not** load every correctly closed trip because the dataset may become extremely large.
+
+Provide a checkbox or toggle:
+
+**Show All Error Trips**
+
+This should display every trip containing timestamp inconsistencies.
+
+There should **NOT** be a "Show All Correct Trips" option.
+
+---
+
+## Filters
+
+Reuse the application's existing filter UI wherever possible.
+
+Include:
+
+### Search
+
+Search by:
+
+* Trip Code
+* Branch Name
+
+---
+
+### Month Filter
+
+Same month filter already used elsewhere in the app.
+
+---
+
+### Year Filter
+
+Same year filter already used elsewhere.
+
+---
+
+### Date Source Filter
+
+Choose which date is used for filtering:
+
+* Trip Start Date
+* closed_at Timestamp
+
+---
+
+### Error Type Filter
+
+Filter by:
+
+* Start Date month differs from closed_at month
+* End Date month differs from closed_at month
+* Either mismatch
+* All errors
+
+---
+
+## Trip List
+
+Display a table with:
+
+* Trip Code
+* Branch
+* Start Date
+* End Date
+* closed_at
+* created_at
+* updated_at
+* Error Type
+
+---
+
+## Selection
+
+Support:
+
+* Select individual trips
+* Select All
+* Multi-selection
+
+After selecting one or more trips, display bulk actions.
+
+---
+
+# Bulk Fix Actions
+
+Allow fixing selected trips by updating these columns:
+
+* closed_at
+* created_at
+* updated_at
+
+Two actions:
+
+### Fix Using Start Date
+
+Set all three timestamps equal to the trip's Start Date.
+
+---
+
+### Fix Using End Date
+
+Set all three timestamps equal to the trip's End Date.
+
+These updates should execute directly in Supabase as bulk operations rather than row-by-row requests from the frontend.
+
+---
+
+# Performance
+
+The frontend should never fetch the complete dataset.
+
+Filtering, searching, counting, pagination, and updates should all be executed server-side in Supabase.
+
+Use pagination or infinite loading where appropriate.
+
+---
+
+# Tab 2 – Database Stats
+
+Display useful PostgreSQL statistics, including:
+
+* Database Size
+* Number of Tables
+* Number of Rows
+* Largest Tables
+* Table Sizes
+* Index Sizes
+* Active Connections
+* Running Queries
+* Cache Hit Ratio
+* Storage Usage
+* Buckets
+* Files
+* Storage Per Bucket
+
+These statistics should be fetched from PostgreSQL system views or appropriate Supabase APIs.
+
+---
+
+# Tab 3 – Auth Stats
+
+Display authentication statistics such as:
+
+* Total Users
+* New Users Today
+* New Users This Month
+* Email Confirmed Users
+* OAuth Provider Breakdown
+* Last Login Activity
+* Recently Registered Users
+* Active Users (if available)
+
+Include search and pagination where appropriate.
+
+---
+
+# Tab 4 – Project Stats
+
+Display project-level information retrieved from the Supabase Management API where available.
+
+Examples:
+
+* Project Name
+* Project Status
+* Region
+* PostgreSQL Version
+* Project Reference
+* Organization
+* API URL
+* Database Host
+* SSL Status
+* Branch Information
+* Backup Status
+* PITR Status
+
+If additional statistics are available through the Management API, include them as well.
+
+---
+
+# General Requirements
+
+* Follow the existing UI/UX patterns used throughout the application.
+* Match typography, spacing, cards, tables, filters, buttons, and dialogs already used elsewhere.
+* Restrict the entire page to Admin users only.
+* Handle loading, empty, and error states consistently with the rest of the application.
+* Ensure all expensive operations are executed within Supabase rather than in the client to keep the UI responsive.
+* Build the page as a standalone admin module that integrates cleanly into the existing application architecture.
