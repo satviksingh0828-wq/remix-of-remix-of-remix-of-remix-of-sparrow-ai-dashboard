@@ -140,10 +140,10 @@ export function TransporterExpenseReport() {
         Transporter: r.transporter_name,
         Trips: r.trip_count,
         "Hire Charges (₹)": r.total_hire,
-        "Other Income / Approval (₹)": r.total_approval,
-        "Total (₹)": r.total_hire + r.total_approval,
+        "Approve Charges (₹)": r.total_approval,
+        "Total (₹)": r.total_approval - r.total_hire,
       })),
-      ["Transporter", "Trips", "Hire Charges (₹)", "Other Income / Approval (₹)", "Total (₹)"]
+      ["Transporter", "Trips", "Hire Charges (₹)", "Approve Charges (₹)", "Total (₹)"]
     );
     const label = month === "all" ? year : `${year}-${month}`;
     downloadCsv(csv, `transporter_expense_${label}.csv`);
@@ -192,7 +192,7 @@ export function TransporterExpenseReport() {
                 <th className="px-4 py-3">Transporter</th>
                 <th className="px-4 py-3 text-right">Trips</th>
                 <th className="px-4 py-3 text-right">Hire Charges</th>
-                <th className="px-4 py-3 text-right">Other Income</th>
+                <th className="px-4 py-3 text-right">Approve Charges</th>
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-center">Action</th>
               </tr>
@@ -205,8 +205,9 @@ export function TransporterExpenseReport() {
               ) : filtered.filter(r => r.trip_count > 0).length === 0 ? (
                 <tr><td colSpan={6} className="py-12 text-center text-muted-foreground">No trips found for this period.</td></tr>
               ) : (
-                filtered.filter(r => r.trip_count > 0).map(row => {
-                  const total = row.total_hire + row.total_approval;
+                <>
+                  {filtered.filter(r => r.trip_count > 0).map(row => {
+                  const total = row.total_approval - row.total_hire;
                   const isExpanded = selectedId === row.transporter_id;
                   return (
                     <Fragment key={row.transporter_id}>
@@ -240,13 +241,13 @@ export function TransporterExpenseReport() {
                                       <th className="pb-2 text-left font-semibold">Date</th>
                                       <th className="pb-2 text-left font-semibold">Trip</th>
                                       <th className="pb-2 text-right font-semibold">Hire Charges</th>
-                                      <th className="pb-2 text-right font-semibold">Other Income</th>
+                                      <th className="pb-2 text-right font-semibold">Approve Charges</th>
                                       <th className="pb-2 text-right font-semibold">Total</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border/50">
                                     {history.map((h: any) => {
-                                      const t = Number(h.hire_charges) + Number(h.approval_charge);
+                                      const t = Number(h.approval_charge) - Number(h.hire_charges);
                                       return (
                                         <tr key={h.id}>
                                           <td className="py-2">{h.trip_date}</td>
@@ -266,7 +267,23 @@ export function TransporterExpenseReport() {
                       )}
                     </Fragment>
                   );
-                })
+                })}
+                {/* Grand Total Row */}
+                <tr className="bg-muted/50 font-bold border-t-2 border-border">
+                  <td className="px-4 py-3">GRAND TOTAL</td>
+                  <td className="px-4 py-3 text-right">{filtered.filter(r => r.trip_count > 0).reduce((acc, r) => acc + r.trip_count, 0)}</td>
+                  <td className="px-4 py-3 text-right text-purple-700">
+                    {inr(filtered.filter(r => r.trip_count > 0).reduce((acc, r) => acc + r.total_hire, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-right text-emerald-700">
+                    {inr(filtered.filter(r => r.trip_count > 0).reduce((acc, r) => acc + r.total_approval, 0))}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {inr(filtered.filter(r => r.trip_count > 0).reduce((acc, r) => acc + (r.total_approval - r.total_hire), 0))}
+                  </td>
+                  <td className="px-4 py-3 text-center">—</td>
+                </tr>
+                </>
               )}
             </tbody>
           </table>
