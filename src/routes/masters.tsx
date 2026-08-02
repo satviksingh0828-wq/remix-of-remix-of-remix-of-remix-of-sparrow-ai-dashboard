@@ -53,10 +53,14 @@ function MastersPage() {
   const isAdmin = user?.role === "admin";
   const isViewer = user?.role === "viewer";
 
-  // viewer (Manager) does not see adminOnly tabs (Sources, Locations, Vehicle)
-  const TABS = isAdmin ? ALL_TABS : ALL_TABS.filter((t) => !t.adminOnly);
+  // viewer (Manager) sees all tabs except Sources; basic users see non-adminOnly tabs only
+  const TABS = isAdmin
+    ? ALL_TABS
+    : isViewer
+      ? ALL_TABS.filter((t) => t.id !== "contract")
+      : ALL_TABS.filter((t) => !t.adminOnly);
 
-  const [tab, setTab] = useState<TabId>(isAdmin ? "vehicle" : "driver");
+  const [tab, setTab] = useState<TabId>(isAdmin || isViewer ? "vehicle" : "driver");
   const [navOpen, setNavOpen] = useState(true);
 
   const active  = TABS.find((t) => t.id === tab) ?? TABS[0];
