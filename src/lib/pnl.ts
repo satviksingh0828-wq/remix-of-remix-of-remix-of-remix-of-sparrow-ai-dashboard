@@ -46,6 +46,11 @@ export type TripAveragesRow = {
   manifests: ManifestDetail[];
 };
 
+export type TripAveragesIncomeRow = {
+  branch_id: string | null;
+  amount: number;
+};
+
 export type TripAveragesData = {
   trips: TripAveragesRow[];
   otherIncome: number;
@@ -55,6 +60,10 @@ export type TripAveragesData = {
   year: number;
   month: number;
   financialYearStart?: number;
+  /** Raw income rows with branch_id for per-branch distribution */
+  incomeRows: TripAveragesIncomeRow[];
+  /** Raw expenditure rows with branch_id for per-branch distribution */
+  expenditureRows: TripAveragesIncomeRow[];
 };
 
 export type PnLIncomeRow = {
@@ -521,13 +530,13 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
       ),
       fetchAllAdmin<Record<string, unknown>>(() =>
         db.from("incomes")
-          .select("amount,entry_date")
+          .select("branch_id,amount,entry_date")
           .gte("entry_date", start)
           .lt("entry_date", end)
       ),
       fetchAllAdmin<Record<string, unknown>>(() =>
         db.from("expenditures")
-          .select("amount,entry_date")
+          .select("branch_id,amount,entry_date")
           .gte("entry_date", start)
           .lt("entry_date", end)
       ),
@@ -598,7 +607,16 @@ export const serverFetchTripAverages = createServerFn({ method: "POST" })
     }, 0);
     const otherNetPnL = otherIncome + fixedIncome - totalExpenditure;
 
-    return { trips, otherIncome, totalExpenditure, fixedIncome, otherNetPnL, year, month, financialYearStart };
+    const incomeRows = incomesRows.map((r: Record<string, unknown>) => ({
+      branch_id: (r.branch_id as string) ?? null,
+      amount: Number(r.amount ?? 0),
+    }));
+    const expenditureRows = expendituresRows.map((r: Record<string, unknown>) => ({
+      branch_id: (r.branch_id as string) ?? null,
+      amount: Number(r.amount ?? 0),
+    }));
+
+    return { trips, otherIncome, totalExpenditure, fixedIncome, otherNetPnL, year, month, financialYearStart, incomeRows, expenditureRows };
   });
 
 // ── Client-side computation helpers ───────────────────────────────────────────

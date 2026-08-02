@@ -1,10 +1,12 @@
 /**
  * TripAveragesPanel — Admin-only. Monthly trip P&L with distribution of
- * other income/expenses to each trip by weight or quantity.
+ * other income/expenses to each trip by weight or quantity, computed
+ * per-branch so each branch's own income/expenditure pool is distributed
+ * only among that branch's trips.
  * Supports expandable manifest breakdown per trip and Excel exports.
  */
 import { useState, useMemo } from "react";
-import { RefreshCw, Scale, Package, FileDown, ChevronDown, ChevronRight } from "lucide-react";
+import { RefreshCw, Scale, Package, FileDown, ChevronDown, ChevronRight, Building2 } from "lucide-react";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
@@ -49,6 +51,94 @@ function netColor(v: number) {
   return v >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
 }
 
+/**
+ * Compute per-branch other P&L so that every income/expenditure rupee is
+ * allocated to exactly one branch — and all branch nets sum to otherNetPnL.
+ *
+ * Allocation rules:
+ *  1. Rows whose branch_id matches a known branch → go to that branch directly.
+ *  2. Rows with a null/unknown branch_id (unassigned) → distributed across all
+ *     branches proportionally by that branch's trip count.
+ *  3. Fixed income (contracts have no branch) → same proportional split by trip count.
+ *
+ * @param data         TripAveragesData from the server
+ * @param branchIds    ordered list of branch IDs that actually have trips
+ * @param tripCounts   map of branch_id → number of trips in that branch
+ */
+type BranchPnL = {
+  /** Other income (non-fixed) allocated to this branch */
+  otherIncome: number;
+  /** Fixed income allocated to this branch (trip-count-weighted) */
+  fixedIncome: number;
+  /** Expenditure allocated to this branch */
+  expenditure: number;
+  /** net = otherIncome + fixedIncome - expenditure */
+  net: number;
+};
+
+function computeBranchOtherPnL(
+  data: TripAveragesData,
+  branchIds: string[],
+  tripCounts: Map<string, number>,
+): Map<string, BranchPnL> {
+  const result = new Map<string, BranchPnL>();
+  for (const bid of branchIds) {
+    result.set(bid, { otherIncome: 0, fixedIncome: 0, expenditure: 0, net: 0 });
+  }
+
+  if (branchIds.length === 0) return result;
+
+  // Total trip count across all known branches (for proportional allocation)
+  const totalTrips = branchIds.reduce((s, bid) => s + (tripCounts.get(bid) ?? 0), 0);
+  /** Weight for proportional split — equal split fallback when all counts are 0. */
+  function weight(bid: string): number {
+    if (totalTrips === 0) return 1 / branchIds.length;
+    return (tripCounts.get(bid) ?? 0) / totalTrips;
+  }
+
+  // ── Other income rows ─────────────────────────────────────────────────────
+  for (const row of data.incomeRows) {
+    const bid = row.branch_id && result.has(row.branch_id) ? row.branch_id : null;
+    if (bid) {
+      const e = result.get(bid)!;
+      result.set(bid, { ...e, otherIncome: e.otherIncome + row.amount });
+    } else {
+      // Unassigned → proportional split by trip count
+      for (const b of branchIds) {
+        const e = result.get(b)!;
+        result.set(b, { ...e, otherIncome: e.otherIncome + row.amount * weight(b) });
+      }
+    }
+  }
+
+  // ── Expenditure rows ──────────────────────────────────────────────────────
+  for (const row of data.expenditureRows) {
+    const bid = row.branch_id && result.has(row.branch_id) ? row.branch_id : null;
+    if (bid) {
+      const e = result.get(bid)!;
+      result.set(bid, { ...e, expenditure: e.expenditure + row.amount });
+    } else {
+      for (const b of branchIds) {
+        const e = result.get(b)!;
+        result.set(b, { ...e, expenditure: e.expenditure + row.amount * weight(b) });
+      }
+    }
+  }
+
+  // ── Fixed income (contracts have no branch) → same trip-count-weighted split
+  for (const b of branchIds) {
+    const e = result.get(b)!;
+    result.set(b, { ...e, fixedIncome: data.fixedIncome * weight(b) });
+  }
+
+  // ── Compute net ───────────────────────────────────────────────────────────
+  for (const [key, entry] of result) {
+    result.set(key, { ...entry, net: entry.otherIncome + entry.fixedIncome - entry.expenditure });
+  }
+
+  return result;
+}
+
 export function TripAveragesPanel() {
   const currentYear  = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -56,19 +146,21 @@ export function TripAveragesPanel() {
   const years = useMemo(() => Array.from({ length: 6 }, (_, i) => currentYear - 3 + i), [currentYear]);
   const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
-  const [year,        setYear]        = useState(String(currentYear));
-  const [month,       setMonth]       = useState(String(currentMonth));
+  const [year,          setYear]          = useState(String(currentYear));
+  const [month,         setMonth]         = useState(String(currentMonth));
   const [financialYear, setFinancialYear] = useState("none");
-  const [day,         setDay]         = useState<string>("");
-  const [method,      setMethod]      = useState<DistMethod>("weight");
-  const [data,        setData]        = useState<TripAveragesData | null>(null);
-  const [loading,     setLoading]     = useState(false);
-  const [expandedId,  setExpandedId]  = useState<string | null>(null);
+  const [day,           setDay]           = useState<string>("");
+  const [branchFilter,  setBranchFilter]  = useState<string>("all");
+  const [method,        setMethod]        = useState<DistMethod>("weight");
+  const [data,          setData]          = useState<TripAveragesData | null>(null);
+  const [loading,       setLoading]       = useState(false);
+  const [expandedId,    setExpandedId]    = useState<string | null>(null);
 
   async function load() {
     setLoading(true);
     setExpandedId(null);
     setDay("");
+    setBranchFilter("all");
     try {
       const result = await serverFetchTripAverages({
         data: financialYear !== "none"
@@ -82,84 +174,156 @@ export function TripAveragesPanel() {
     setLoading(false);
   }
 
-  // ── Compute distribution per trip ─────────────────────────────────────────
+  // ── Unique branches from the loaded trips ─────────────────────────────────
+  const branches = useMemo(() => {
+    if (!data) return [];
+    const seen = new Map<string, string>();
+    for (const t of data.trips) {
+      if (t.branch_id && !seen.has(t.branch_id)) {
+        seen.set(t.branch_id, t.branch_name || t.branch_id);
+      }
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [data]);
+
+  // ── Trip counts per branch (for proportional unassigned allocation) ──────
+  const tripCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    if (!data) return counts;
+    for (const t of data.trips) {
+      if (t.branch_id) counts.set(t.branch_id, (counts.get(t.branch_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [data]);
+
+  // ── Per-branch other P&L ──────────────────────────────────────────────────
+  const branchPnLMap = useMemo(() => {
+    if (!data) return new Map<string, BranchPnL>();
+    return computeBranchOtherPnL(data, branches.map(b => b.id), tripCounts);
+  }, [data, branches, tripCounts]);
+
+  // ── Compute distribution per trip (branch-wise) ───────────────────────────
   const rows = useMemo(() => {
     if (!data) return [];
     const trips = data.trips;
-    const totalBase = method === "weight"
-      ? trips.reduce((s, t) => s + t.total_weight, 0)
-      : trips.reduce((s, t) => s + t.total_quantity, 0);
+
+    // Group trips by branch_id (known or null/unassigned)
+    const byBranch = new Map<string | null, typeof trips>();
+    for (const t of trips) {
+      const bid = t.branch_id ?? null;
+      if (!byBranch.has(bid)) byBranch.set(bid, []);
+      byBranch.get(bid)!.push(t);
+    }
 
     return trips.map(t => {
-      const base       = method === "weight" ? t.total_weight : t.total_quantity;
-      const distRatio  = totalBase > 0 ? base / totalBase : 0;
-      const distAmount = distRatio * data.otherNetPnL;
-      const finalNet   = t.net_income + distAmount;
+      const bid = t.branch_id ?? null;
+      const branchTrips = byBranch.get(bid) ?? [t];
+      const branchTotalBase = method === "weight"
+        ? branchTrips.reduce((s, bt) => s + bt.total_weight, 0)
+        : branchTrips.reduce((s, bt) => s + bt.total_quantity, 0);
 
-      // Distribute finalNet + distAmount across manifests by weight
+      // This branch's other net P&L pool.
+      // Trips with no branch_id get a zero pool (their unassigned
+      // income/expenditure was already spread across known branches).
+      const branchPnL = (bid ? branchPnLMap.get(bid) : undefined) ?? { otherIncome: 0, fixedIncome: 0, expenditure: 0, net: 0 };
+
+      const base = method === "weight" ? t.total_weight : t.total_quantity;
+
+      // Zero-base fallback: when all trips in a branch have zero weight/quantity,
+      // distribute the branch P&L pool equally per trip so totals reconcile.
+      let distRatio: number;
+      let distAmount: number;
+      if (branchTotalBase > 0) {
+        distRatio  = base / branchTotalBase;
+        distAmount = distRatio * branchPnL.net;
+      } else {
+        // Equal-per-trip fallback
+        distRatio  = branchTrips.length > 0 ? 1 / branchTrips.length : 0;
+        distAmount = distRatio * branchPnL.net;
+      }
+      const finalNet = t.net_income + distAmount;
+
+      // Distribute finalNet across manifests by weight
       const tripTotalWeight = t.manifests.reduce((s, m) => s + m.weight_kg, 0);
       const manifestRows = t.manifests.map(m => {
         const mShare = tripTotalWeight > 0 ? m.weight_kg / tripTotalWeight : (t.manifests.length > 0 ? 1 / t.manifests.length : 0);
-        const mDist  = mShare * distAmount;   // manifest's portion of other P&L distribution
-        const mNet   = mShare * finalNet;     // manifest's final net (trip net share + mDist)
+        const mDist  = mShare * distAmount;
+        const mNet   = mShare * finalNet;
         return { ...m, mShare, mDist, mNet };
       });
 
-      return { ...t, base, distRatio, distAmount, finalNet, manifestRows };
+      return { ...t, base, distRatio, distAmount, finalNet, manifestRows, branchOtherNetPnL: branchPnL.net };
     });
-  }, [data, method]);
+  }, [data, method, branchPnLMap]);
 
-  // Day-wise filter — filter rows by the day of closed_at
+  // ── Branch filter ─────────────────────────────────────────────────────────
+  const branchFilteredRows = useMemo(() => {
+    if (branchFilter === "all") return rows;
+    return rows.filter(r => r.branch_id === branchFilter);
+  }, [rows, branchFilter]);
+
+  // ── Day-wise filter ───────────────────────────────────────────────────────
   const filteredRows = useMemo(() => {
-    if (!day) return rows;
+    if (!day) return branchFilteredRows;
     const d = Number(day);
-    return rows.filter(r => {
+    return branchFilteredRows.filter(r => {
       if (!r.closed_at) return false;
       return new Date(r.closed_at).getDate() === d;
     });
-  }, [rows, day]);
+  }, [branchFilteredRows, day]);
 
+  // totalBase for footer (within the currently filtered set)
   const totalBase = useMemo(() => {
-    if (!data) return 0;
-    const source = day ? filteredRows : rows;
-    return method === "weight"
-      ? source.reduce((s, r) => s + r.base, 0)
-      : source.reduce((s, r) => s + r.base, 0);
-  }, [data, method, rows, filteredRows, day]);
+    return filteredRows.reduce((s, r) => s + r.base, 0);
+  }, [filteredRows]);
 
   const monthLabel = financialYear !== "none" ? `FY ${financialYearLabel(Number(financialYear))}` : MONTHS.find(m => m.value === month)?.label ?? "";
+
+  // Summary values for the selected branch (or all).
+  // When a branch is selected, use the same trip-count-weighted allocation that
+  // drives the distribution — so the cards are always consistent with the table.
+  const selectedBranchPnL = branchFilter !== "all" ? branchPnLMap.get(branchFilter) : null;
+  const summaryOtherIncome  = selectedBranchPnL ? selectedBranchPnL.otherIncome  : (data?.otherIncome       ?? 0);
+  const summaryFixedIncome  = selectedBranchPnL ? selectedBranchPnL.fixedIncome  : (data?.fixedIncome       ?? 0);
+  const summaryExpenditure  = selectedBranchPnL ? selectedBranchPnL.expenditure  : (data?.totalExpenditure  ?? 0);
+  const summaryNet          = selectedBranchPnL ? selectedBranchPnL.net           : (data?.otherNetPnL       ?? 0);
 
   // ── Excel exports ─────────────────────────────────────────────────────────
   function exportTripWise() {
     if (!rows.length) return toast.error("No data to export");
+    const exportRows = branchFilter === "all" ? rows : rows.filter(r => r.branch_id === branchFilter);
+    const branchTotalBase = exportRows.reduce((s, r) => s + r.base, 0);
     const sheetData: (string | number)[][] = [
       ["Trip", "Branch", "Income (₹)", "Expense (₹)", "Trip Net (₹)",
        method === "weight" ? "Weight (kg)" : "Quantity",
-       "Share %", "Distribution (₹)", "Final Net (₹)"],
-      ...rows.map(r => [
+       "Share %", "Branch Other P&L (₹)", "Distribution (₹)", "Final Net (₹)"],
+      ...exportRows.map(r => [
         r.trip_code,
         r.branch_name,
         r.total_income,
         r.total_expense,
         r.net_income,
         r.base,
-        totalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
+        branchTotalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
+        parseFloat(r.branchOtherNetPnL.toFixed(2)),
         parseFloat(r.distAmount.toFixed(2)),
         parseFloat(r.finalNet.toFixed(2)),
       ]),
       // totals row
       ["TOTALS", "",
-        rows.reduce((s, r) => s + r.total_income, 0),
-        rows.reduce((s, r) => s + r.total_expense, 0),
-        rows.reduce((s, r) => s + r.net_income, 0),
-        totalBase,
+        exportRows.reduce((s, r) => s + r.total_income, 0),
+        exportRows.reduce((s, r) => s + r.total_expense, 0),
+        exportRows.reduce((s, r) => s + r.net_income, 0),
+        branchTotalBase,
         100,
-        parseFloat((data?.otherNetPnL ?? 0).toFixed(2)),
-        parseFloat(rows.reduce((s, r) => s + r.finalNet, 0).toFixed(2)),
+        "",
+        parseFloat(exportRows.reduce((s, r) => s + r.distAmount, 0).toFixed(2)),
+        parseFloat(exportRows.reduce((s, r) => s + r.finalNet, 0).toFixed(2)),
       ],
     ];
     const ws = XLSX.utils.aoa_to_sheet(sheetData);
-    ws["!cols"] = [18, 16, 14, 14, 14, 14, 10, 16, 14].map(w => ({ wch: w }));
+    ws["!cols"] = [18, 16, 14, 14, 14, 14, 10, 16, 16, 14].map(w => ({ wch: w }));
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Trip Wise");
     XLSX.writeFile(wb, financialYear !== "none" ? `trip-averages-trip-wise-fy-${financialYearLabel(Number(financialYear))}.xlsx` : `trip-averages-trip-wise-${year}-${month.padStart(2, "0")}.xlsx`);
@@ -167,21 +331,22 @@ export function TripAveragesPanel() {
 
   function exportManifestWise() {
     if (!rows.length) return toast.error("No data to export");
+    const exportRows = branchFilter === "all" ? rows : rows.filter(r => r.branch_id === branchFilter);
+    const branchTotalBase = exportRows.reduce((s, r) => s + r.base, 0);
     const sheetData: (string | number)[][] = [
       ["Trip", "Branch", "Trip Income (₹)", "Trip Expense (₹)", "Trip Net (₹)",
        "Trip " + (method === "weight" ? "Weight (kg)" : "Quantity"),
-       "Trip Share %", "Trip Distribution (₹)", "Trip Final Net (₹)",
+       "Trip Share %", "Distribution (₹)", "Trip Final Net (₹)",
        "Manifest No.", "From", "To", "Weight (kg)", "Quantity",
        "Manifest Income (₹)", "Manifest Weight Share %", "Manifest Distribution (₹)", "Manifest Net (₹)"],
     ];
-    for (const r of rows) {
+    for (const r of exportRows) {
       if (r.manifestRows.length === 0) {
-        // Trip with no manifests — still one row
         sheetData.push([
           r.trip_code, r.branch_name,
           r.total_income, r.total_expense, r.net_income,
           r.base,
-          totalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
+          branchTotalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
           parseFloat(r.distAmount.toFixed(2)),
           parseFloat(r.finalNet.toFixed(2)),
           "—", "—", "—", "", "", "", "", "", "",
@@ -192,7 +357,7 @@ export function TripAveragesPanel() {
             r.trip_code, r.branch_name,
             r.total_income, r.total_expense, r.net_income,
             r.base,
-            totalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
+            branchTotalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
             parseFloat(r.distAmount.toFixed(2)),
             parseFloat(r.finalNet.toFixed(2)),
             m.manifest_number || "—",
@@ -235,6 +400,22 @@ export function TripAveragesPanel() {
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           Load
         </Button>
+
+        {/* Branch filter — appears once data is loaded and has multiple branches */}
+        {data && branches.length > 1 && (
+          <Select value={branchFilter} onValueChange={v => { setBranchFilter(v); setDay(""); setExpandedId(null); }}>
+            <SelectTrigger className="h-9 w-44">
+              <Building2 className="mr-1.5 size-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Branches" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Branches</SelectItem>
+              {branches.map(b => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {/* Day filter — appears once data is loaded */}
         {data && (
@@ -309,21 +490,31 @@ export function TripAveragesPanel() {
 
       {data && !loading && (
         <>
-          {/* Other P&L summary */}
+          {/* Other P&L summary — scoped to selected branch */}
           <div className="rounded-xl border border-border bg-muted/20 p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Other P&amp;L — {monthLabel} {year} <span className="normal-case">(excluding trip income/expense)</span>
+              Other P&amp;L — {monthLabel}{financialYear === "none" ? ` ${year}` : ""}
+              {branchFilter !== "all" && branches.find(b => b.id === branchFilter) ? (
+                <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium normal-case text-primary">
+                  {branches.find(b => b.id === branchFilter)?.name}
+                </span>
+              ) : null}
+              <span className="ml-2 normal-case font-normal">(excluding trip income/expense)</span>
             </p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <SummaryCard label="Other Income" value={data.otherIncome} />
-              <SummaryCard label="Fixed Income" value={data.fixedIncome} />
-              <SummaryCard label="Expenditures" value={data.totalExpenditure} />
-              <SummaryCard label="Other Net P&L" value={data.otherNetPnL} highlight />
+              <SummaryCard label="Other Income" value={summaryOtherIncome} />
+              <SummaryCard label="Fixed Income" value={summaryFixedIncome} />
+              <SummaryCard label="Expenditures" value={summaryExpenditure} />
+              <SummaryCard label="Other Net P&L" value={summaryNet} highlight />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              This net is distributed across {data.trips.length} trip{data.trips.length !== 1 ? "s" : ""} by{" "}
-              <strong>{method}</strong>. Total month {method}: <strong>{totalBase.toLocaleString()}{method === "weight" ? " kg" : " units"}</strong>.
-              Click any trip row to see its manifest breakdown.
+              Distribution is <strong>branch-wise</strong> — each branch's own income &amp; expenditure pool is distributed only among that branch's trips by{" "}
+              <strong>{method}</strong>.
+              {branchFilter !== "all"
+                ? <> Showing <strong>{branchFilteredRows.length}</strong> trip{branchFilteredRows.length !== 1 ? "s" : ""} for the selected branch.</>
+                : <> Total {data.trips.length} trip{data.trips.length !== 1 ? "s" : ""} across {branches.length} branch{branches.length !== 1 ? "es" : ""}.</>
+              }
+              {" "}Click any trip row to see its manifest breakdown.
             </p>
           </div>
 
@@ -333,7 +524,11 @@ export function TripAveragesPanel() {
             </p>
           ) : filteredRows.length === 0 ? (
             <p className="rounded-xl bg-muted px-4 py-10 text-center text-sm text-muted-foreground">
-              No closed trips on Day {day} of {monthLabel} {year}.
+              {branchFilter !== "all" && day
+                ? `No closed trips on Day ${day} for the selected branch.`
+                : branchFilter !== "all"
+                  ? "No closed trips for the selected branch in this period."
+                  : `No closed trips on Day ${day} of ${monthLabel} ${year}.`}
             </p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
@@ -349,7 +544,7 @@ export function TripAveragesPanel() {
                     <th className="px-4 py-3 text-right">
                       {method === "weight" ? "Weight (kg)" : "Quantity"}
                     </th>
-                    <th className="px-4 py-3 text-right">Share %</th>
+                    <th className="px-4 py-3 text-right">Branch Share %</th>
                     <th className="px-4 py-3 text-right">Distribution</th>
                     <th className="px-4 py-3 text-right font-semibold text-foreground">Final Net</th>
                   </tr>
@@ -381,7 +576,7 @@ export function TripAveragesPanel() {
                             {row.base > 0 ? row.base.toLocaleString() : <span className="text-xs opacity-50">—</span>}
                           </td>
                           <td className="px-4 py-3 text-right text-muted-foreground">
-                            {totalBase > 0 ? `${(row.distRatio * 100).toFixed(1)}%` : "—"}
+                            {row.base > 0 ? `${(row.distRatio * 100).toFixed(1)}%` : "—"}
                           </td>
                           <td className={`px-4 py-3 text-right ${netColor(row.distAmount)}`}>
                             {inr(row.distAmount)}
@@ -481,7 +676,7 @@ export function TripAveragesPanel() {
                       {inr(filteredRows.reduce((s, r) => s + r.net_income, 0))}
                     </td>
                     <td className="px-4 py-3 text-right">{totalBase.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right">{day ? "—" : "100%"}</td>
+                    <td className="px-4 py-3 text-right">{branchFilter !== "all" && !day ? "100%" : "—"}</td>
                     <td className={`px-4 py-3 text-right ${netColor(filteredRows.reduce((s,r)=>s+r.distAmount,0))}`}>
                       {inr(filteredRows.reduce((s,r)=>s+r.distAmount,0))}
                     </td>

@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
-import { Archive, Clock, Eye, Plus, RotateCcw, Search, Trash2, Truck } from "lucide-react";
+import { useEffect, useState, useMemo } from "react";
+import { Archive, Building2, Clock, Eye, Plus, RotateCcw, Search, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
 import { reopenTrip } from "@/lib/reopen-trip";
@@ -18,12 +21,15 @@ import { ClosedTripDetail } from "./ClosedTripDetail";
 type ClosedTrip = {
   id: string;
   trip_code: string;
+  branch_id: string | null;
   branch_name: string | null;
   start_date: string | null;
   end_date: string | null;
   net_income: number;
   closed_at: string;
 };
+
+type BranchOption = { id: string; name: string };
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
@@ -109,6 +115,8 @@ export function Trips() {
   const [viewingClosedId, setViewingClosedId] = useState<string | null>(null);
   const [reopeningId, setReopeningId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [branches, setBranches] = useState<BranchOption[]>([]);
 
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
@@ -148,7 +156,7 @@ export function Trips() {
         fetchAll<ClosedTrip>(() => {
           let q = supabase
             .from("closed_trips")
-            .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
+            .select("id,trip_code,branch_id,branch_name,start_date,end_date,net_income,closed_at")
             .order("closed_at", { ascending: false });
           q = q.gte("closed_at", closedSince) as typeof q;
           if (allowedBranchIds !== null) {
@@ -204,7 +212,7 @@ export function Trips() {
           fetchAll<ClosedTrip>(() => {
             let q = supabase
               .from("closed_trips")
-              .select("id,trip_code,branch_name,start_date,end_date,net_income,closed_at")
+              .select("id,trip_code,branch_id,branch_name,start_date,end_date,net_income,closed_at")
               .order("closed_at", { ascending: false });
             q = q.gte("closed_at", closedSince) as typeof q;
             if (allowedBranchIds !== null) {
@@ -224,6 +232,22 @@ export function Trips() {
     }
     setLoading(false);
   }
+
+  // Fetch available branches for the filter (admin/viewer sees all; basic users see their allowed branches)
+  useEffect(() => {
+    async function loadBranches() {
+      let q = supabase.from("branches").select("id,branch_name").order("branch_name");
+      if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
+        q = q.in("id", allowedBranchIds) as typeof q;
+      }
+      const { data } = await q;
+      if (data) {
+        setBranches((data as { id: string; branch_name: string }[]).map(b => ({ id: b.id, name: b.branch_name })));
+      }
+    }
+    loadBranches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   useEffect(() => {
     load();
@@ -289,8 +313,23 @@ export function Trips() {
       (value ?? "").toLowerCase().includes(normalizedSearch),
     );
   };
-  const visibleTrips = trips.filter((t) => matchesTripSearch(t.id, t.trip_code));
-  const visibleClosed = closed.filter((c) => matchesTripSearch(c.id, c.trip_code));
+
+  const visibleTrips = useMemo(() =>
+    trips.filter((t) =>
+      matchesTripSearch(t.id, t.trip_code) &&
+      (branchFilter === "all" || t.branch_id === branchFilter)
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [trips, normalizedSearch, branchFilter]
+  );
+  const visibleClosed = useMemo(() =>
+    closed.filter((c) =>
+      matchesTripSearch(c.id, c.trip_code) &&
+      (branchFilter === "all" || c.branch_id === branchFilter)
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [closed, normalizedSearch, branchFilter]
+  );
 
   // ── Inline detail views (replace the list) ────────────────────────────────
 
@@ -325,7 +364,7 @@ export function Trips() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-wrap items-center gap-2">
         {!isViewer ? (
         <Button
           size="sm"
@@ -351,6 +390,21 @@ export function Trips() {
             aria-label="Search trips by trip ID or code"
           />
         </div>
+        {/* Branch filter — shown when there are multiple branches available */}
+        {branches.length > 1 && (
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="h-9 w-44">
+              <Building2 className="mr-1.5 size-3.5 text-muted-foreground" />
+              <SelectValue placeholder="All Branches" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Branches</SelectItem>
+              {branches.map(b => (
+                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {loading ? (
