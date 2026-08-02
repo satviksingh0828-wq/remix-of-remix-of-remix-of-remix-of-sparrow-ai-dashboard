@@ -1,24 +1,26 @@
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Download, RefreshCw, Search } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { inr } from "@/lib/trip-calc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
 import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
 
-interface ApprovalRow {
+interface TransporterRow {
   transporter_id: string;
   transporter_name: string;
-  total_advance: number;
+  total_paid: number;
   total_balance: number;
   trip_count: number;
 }
 
-interface ApprovalLog {
+interface AdvanceLog {
   id: string;
   trip_id: string;
+  trip_code: string | null;
+  transporter_id: string;
   created_at: string;
   advance: number;
   balance: number;
@@ -43,16 +45,23 @@ function nextDate(date: string) {
   return formatDateInput(d);
 }
 
+function logTripLabel(log: AdvanceLog) {
+  return log.trip_code?.trim() || log.trip_id;
+}
+
 export function ApprovalChargeAdvanceReport() {
   const defaults = currentMonthRange();
   const [startDate, setStartDate] = useState(defaults.start);
   const [endDate, setEndDate] = useState(defaults.end);
-  const [rows, setRows] = useState<ApprovalRow[]>([]);
+  const [rows, setRows] = useState<TransporterRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [history, setHistory] = useState<ApprovalLog[]>([]);
+  const [history, setHistory] = useState<AdvanceLog[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [selectedTripIds, setSelectedTripIds] = useState<string[]>([]);
+  const [payAmount, setPayAmount] = useState("");
+  const [paying, setPaying] = useState(false);
 
   function range() {
     return { start: startDate, endExclusive: nextDate(endDate) };
@@ -73,29 +82,30 @@ export function ApprovalChargeAdvanceReport() {
           .lt("created_at", endExclusive),
       );
 
-      const agg: Record<string, { advance: number; balance: number; trips: number }> = {};
-      transporters.forEach((t: Record<string, unknown>) => {
-        agg[String(t.id)] = { advance: 0, balance: 0, trips: 0 };
+      const agg: Record<string, { paid: number; balance: number; trips: number }> = {};
+      transporters.forEach((t) => {
+        agg[String(t.id)] = { paid: 0, balance: 0, trips: 0 };
       });
-      logs.forEach((l: Record<string, unknown>) => {
-        if (!l.transporter_id || !agg[l.transporter_id]) return;
-        agg[l.transporter_id].advance += Number(l.advance ?? 0);
-        agg[l.transporter_id].balance += Number(l.balance ?? 0);
-        agg[l.transporter_id].trips += 1;
+      logs.forEach((l) => {
+        const transporterId = String(l.transporter_id ?? "");
+        if (!transporterId || !agg[transporterId]) return;
+        agg[transporterId].paid += Number(l.advance ?? 0);
+        agg[transporterId].balance += Number(l.balance ?? 0);
+        agg[transporterId].trips += 1;
       });
 
       setRows(
-        transporters.map((t: Record<string, unknown>) => ({
+        transporters.map((t) => ({
           transporter_id: String(t.id),
           transporter_name: String(t.transporter_name ?? "—"),
-          total_advance: agg[String(t.id)].advance,
+          total_paid: agg[String(t.id)].paid,
           total_balance: agg[String(t.id)].balance,
           trip_count: agg[String(t.id)].trips,
         })),
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
-      toast.error("Failed to load approval advance report: " + message);
+      toast.error("Failed to load Transpoter advance report: " + message);
     } finally {
       setLoading(false);
     }
@@ -104,6 +114,8 @@ export function ApprovalChargeAdvanceReport() {
   async function loadHistory(transporterId: string) {
     setLoadingHistory(true);
     setSelectedId(transporterId);
+    setSelectedTripIds([]);
+    setPayAmount("");
     try {
       const { start, endExclusive } = range();
       const { data, error } = await supabase
@@ -114,7 +126,7 @@ export function ApprovalChargeAdvanceReport() {
         .lt("created_at", endExclusive)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setHistory((data as unknown as ApprovalLog[]) ?? []);
+      setHistory((data as unknown as AdvanceLog[]) ?? []);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to load history: " + message);
@@ -132,18 +144,74 @@ export function ApprovalChargeAdvanceReport() {
     return rows.filter((r) => (r.transporter_name ?? "").toLowerCase().includes(s));
   }, [rows, search]);
   const visible = filtered.filter((r) => r.trip_count > 0);
+  const payableHistory = history.filter((h) => Number(h.balance ?? 0) > 0);
+  const selectedLogs = history.filter((h) => selectedTripIds.includes(h.id));
+  const selectedPaidTotal = selectedLogs.reduce((sum, h) => sum + Number(h.advance ?? 0), 0);
+  const selectedBalanceTotal = selectedLogs.reduce((sum, h) => sum + Number(h.balance ?? 0), 0);
+
+  function toggleTrip(id: string) {
+    setSelectedTripIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  }
+
+  function toggleAllTrips() {
+    if (selectedTripIds.length === payableHistory.length) {
+      setSelectedTripIds([]);
+      return;
+    }
+    setSelectedTripIds(payableHistory.map((h) => h.id));
+  }
+
+  async function handlePay() {
+    const amount = Number(payAmount);
+    if (selectedLogs.length === 0) return toast.error("Select at least one trip to pay");
+    if (!Number.isFinite(amount) || amount <= 0) return toast.error("Enter a valid paid amount");
+    if (amount > selectedBalanceTotal)
+      return toast.error("Paid amount cannot exceed selected balance");
+
+    setPaying(true);
+    try {
+      let remaining = amount;
+      for (const log of selectedLogs) {
+        if (remaining <= 0) break;
+        const balance = Number(log.balance ?? 0);
+        if (balance <= 0) continue;
+        const applied = Math.min(balance, remaining);
+        remaining -= applied;
+        const { error } = await supabase
+          .from("approval_charge_advances" as never)
+          .update({
+            advance: Number(log.advance ?? 0) + applied,
+            balance: balance - applied,
+          })
+          .eq("id", log.id);
+        if (error) throw error;
+      }
+      toast.success("Paid amount updated");
+      setPayAmount("");
+      setSelectedTripIds([]);
+      await loadData();
+      if (selectedId) await loadHistory(selectedId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error("Could not update paid amount: " + message);
+    } finally {
+      setPaying(false);
+    }
+  }
 
   function handleExport() {
     const csv = toCsv(
       visible.map((r) => ({
         Transporter: r.transporter_name,
         Trips: r.trip_count,
-        "Advance (₹)": r.total_advance,
+        "PAID AMOUNT (₹)": r.total_paid,
         "Balance (₹)": r.total_balance,
       })),
-      ["Transporter", "Trips", "Advance (₹)", "Balance (₹)"],
+      ["Transporter", "Trips", "PAID AMOUNT (₹)", "Balance (₹)"],
     );
-    downloadCsv(csv, `approval_charge_advance_${startDate}_to_${endDate}.csv`);
+    downloadCsv(csv, `transpoter_advance_${startDate}_to_${endDate}.csv`);
   }
 
   return (
@@ -199,7 +267,7 @@ export function ApprovalChargeAdvanceReport() {
               <tr className="border-b border-border bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-3">Transporter</th>
                 <th className="px-4 py-3 text-right">Trips</th>
-                <th className="px-4 py-3 text-right">Advance</th>
+                <th className="px-4 py-3 text-right">PAID AMOUNT</th>
                 <th className="px-4 py-3 text-right">Balance</th>
                 <th className="px-4 py-3 text-center">Action</th>
               </tr>
@@ -215,7 +283,7 @@ export function ApprovalChargeAdvanceReport() {
               ) : visible.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-12 text-center text-muted-foreground">
-                    No approval advance entries found for this period.
+                    No transpoter advance entries found for this period.
                   </td>
                 </tr>
               ) : (
@@ -230,7 +298,7 @@ export function ApprovalChargeAdvanceReport() {
                             {row.trip_count}
                           </td>
                           <td className="px-4 py-3 text-right text-blue-600 font-medium">
-                            {row.total_advance > 0 ? inr(row.total_advance) : "—"}
+                            {row.total_paid > 0 ? inr(row.total_paid) : "—"}
                           </td>
                           <td className="px-4 py-3 text-right text-emerald-600 font-medium">
                             {row.total_balance > 0 ? inr(row.total_balance) : "—"}
@@ -249,17 +317,38 @@ export function ApprovalChargeAdvanceReport() {
                               ) : (
                                 <ChevronRight className="size-3" />
                               )}
-                              {isExpanded ? "Hide" : "History"}
+                              {isExpanded ? "Hide" : "Select Trips"}
                             </Button>
                           </td>
                         </tr>
                         {isExpanded && (
                           <tr className="bg-muted/10 border-b border-border">
                             <td colSpan={5} className="p-0">
-                              <div className="max-h-[300px] overflow-y-auto p-4">
-                                <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                  Trip History
-                                </h4>
+                              <div className="space-y-4 p-4">
+                                <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3">
+                                  <div>
+                                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                      Total paid amount selected
+                                    </p>
+                                    <p className="font-semibold">{inr(selectedPaidTotal)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                                      Total balance to pay
+                                    </p>
+                                    <p className="font-semibold">{inr(selectedBalanceTotal)}</p>
+                                  </div>
+                                  <Input
+                                    className="h-9 w-40"
+                                    type="number"
+                                    placeholder="Pay amount"
+                                    value={payAmount}
+                                    onChange={(e) => setPayAmount(e.target.value)}
+                                  />
+                                  <Button size="sm" onClick={handlePay} disabled={paying}>
+                                    {paying ? "Paying…" : "Pay"}
+                                  </Button>
+                                </div>
                                 {loadingHistory ? (
                                   <div className="py-4 text-center text-muted-foreground">
                                     Loading…
@@ -272,27 +361,53 @@ export function ApprovalChargeAdvanceReport() {
                                   <table className="w-full text-xs">
                                     <thead>
                                       <tr className="text-muted-foreground border-b border-border">
+                                        <th className="pb-2 text-left font-semibold">
+                                          <button
+                                            type="button"
+                                            className="rounded border border-border px-2 py-1 text-[11px] hover:bg-muted"
+                                            onClick={toggleAllTrips}
+                                            disabled={payableHistory.length === 0}
+                                          >
+                                            {selectedTripIds.length === payableHistory.length &&
+                                            payableHistory.length > 0
+                                              ? "Clear all"
+                                              : "Select all"}
+                                          </button>
+                                        </th>
                                         <th className="pb-2 text-left font-semibold">Saved Date</th>
                                         <th className="pb-2 text-left font-semibold">Trip ID</th>
-                                        <th className="pb-2 text-right font-semibold">Advance</th>
+                                        <th className="pb-2 text-right font-semibold">
+                                          PAID AMOUNT
+                                        </th>
                                         <th className="pb-2 text-right font-semibold">Balance</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-border/50">
-                                      {history.map((h) => (
-                                        <tr key={h.id}>
-                                          <td className="py-2">
-                                            {String(h.created_at).slice(0, 10)}
-                                          </td>
-                                          <td className="py-2 font-medium">{h.trip_id}</td>
-                                          <td className="py-2 text-right text-blue-600">
-                                            {Number(h.advance) > 0 ? inr(Number(h.advance)) : "—"}
-                                          </td>
-                                          <td className="py-2 text-right text-emerald-600">
-                                            {Number(h.balance) > 0 ? inr(Number(h.balance)) : "—"}
-                                          </td>
-                                        </tr>
-                                      ))}
+                                      {history.map((h) => {
+                                        const balance = Number(h.balance ?? 0);
+                                        return (
+                                          <tr key={h.id}>
+                                            <td className="py-2">
+                                              <input
+                                                type="checkbox"
+                                                checked={selectedTripIds.includes(h.id)}
+                                                disabled={balance <= 0}
+                                                onChange={() => toggleTrip(h.id)}
+                                              />
+                                            </td>
+                                            <td className="py-2">
+                                              {String(h.created_at).slice(0, 10)}
+                                            </td>
+                                            <td className="py-2 font-medium">{logTripLabel(h)}</td>
+                                            <td className="py-2 text-right text-blue-600">
+                                              {Number(h.advance) > 0 ? inr(Number(h.advance)) : "—"}
+                                            </td>
+                                            <td className="py-2 text-right text-emerald-600">
+                                              {balance > 0 ? inr(balance) : "—"}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
                                     </tbody>
                                   </table>
                                 )}
@@ -309,7 +424,7 @@ export function ApprovalChargeAdvanceReport() {
                       {visible.reduce((acc, r) => acc + r.trip_count, 0)}
                     </td>
                     <td className="px-4 py-3 text-right text-blue-700">
-                      {inr(visible.reduce((acc, r) => acc + r.total_advance, 0))}
+                      {inr(visible.reduce((acc, r) => acc + r.total_paid, 0))}
                     </td>
                     <td className="px-4 py-3 text-right text-emerald-700">
                       {inr(visible.reduce((acc, r) => acc + r.total_balance, 0))}

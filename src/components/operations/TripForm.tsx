@@ -448,6 +448,7 @@ export function TripForm({
         if (amount > 0 || advance > 0) {
           const { error } = await supabase.from("approval_charge_advances" as never).insert({
             trip_id: tripId,
+            trip_code: trip.trip_code,
             transporter_id: trip.transporter_id,
             advance,
             balance,

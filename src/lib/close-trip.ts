@@ -1,11 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import {
-  findEntry,
-  manifestCharges,
-  num,
-  type ContractLite,
-  type EntryLite,
-} from "./trip-calc";
+import { findEntry, manifestCharges, num, type ContractLite, type EntryLite } from "./trip-calc";
 // monthlyContractEffect removed with monthly/yearly change fields
 
 /**
@@ -24,18 +18,32 @@ export async function closeTrip(tripId: string) {
 
   const t = trip as Record<string, unknown>;
 
-  const [manifestsRes, incomeRes, expenseRes] = await Promise.all([
+  const [manifestsRes, incomeRes, expenseRes, approvalAdvanceRes] = await Promise.all([
     supabase.from("trip_manifests").select("*").eq("trip_id", tripId).order("created_at"),
     supabase.from("trip_other_income").select("*").eq("trip_id", tripId).order("created_at"),
     supabase.from("trip_expenses").select("*").eq("trip_id", tripId).order("sort_order"),
+    supabase
+      .from("approval_charge_advances" as never)
+      .select("*")
+      .eq("trip_id", tripId)
+      .maybeSingle(),
   ]);
   const manifests = (manifestsRes.data as unknown as Record<string, unknown>[]) ?? [];
   const otherIncome = (incomeRes.data as unknown as Record<string, unknown>[]) ?? [];
   const expenses = (expenseRes.data as unknown as Record<string, unknown>[]) ?? [];
+  const approvalAdvance =
+    (approvalAdvanceRes.data as unknown as Record<string, unknown> | null) ?? null;
 
-  const one = async (table: "vehicles" | "drivers" | "transporters" | "branches" | "contracts", id: unknown) => {
+  const one = async (
+    table: "vehicles" | "drivers" | "transporters" | "branches" | "contracts",
+    id: unknown,
+  ) => {
     if (!id) return null;
-    const { data } = await supabase.from(table).select("*").eq("id", id as string).single();
+    const { data } = await supabase
+      .from(table)
+      .select("*")
+      .eq("id", id as string)
+      .single();
     return (data as Record<string, unknown>) ?? null;
   };
 
@@ -73,11 +81,7 @@ export async function closeTrip(tripId: string) {
     const mSourceId = (m as Record<string, unknown>).source_id as string | null;
     const mContract = mSourceId ? sourcesMap.get(mSourceId) : undefined;
     const mEntries = mSourceId ? allEntries.filter((e) => e.contract_id === mSourceId) : [];
-    const charges = manifestCharges(
-      mContract,
-      findEntry(mEntries, m as never),
-      m as never,
-    );
+    const charges = manifestCharges(mContract, findEntry(mEntries, m as never), m as never);
     return { manifest: m, ...charges, total: charges.freight + charges.loading + charges.fixed };
   });
 
@@ -104,6 +108,7 @@ export async function closeTrip(tripId: string) {
       manifests,
       manifest_lines: manifestLines,
       other_income: otherIncome,
+      approval_charge_advance: approvalAdvance,
       expenses,
       sources: Object.fromEntries(sourcesMap),
       source_entries: allEntries,
@@ -124,29 +129,40 @@ export async function closeTrip(tripId: string) {
   } as never);
   if (insert.error) throw new Error(insert.error.message);
 
-  const tripCode  = String(t.trip_code ?? "");
-  const tripDate  = String(t.end_date || new Date().toISOString().split("T")[0]);
+  const tripCode = String(t.trip_code ?? "");
+  const tripDate = String(t.end_date || new Date().toISOString().split("T")[0]);
 
   // All known standard expense names — anything else goes to "other"
   // Hire Charges and Approval Charge are transporter-specific and handled separately
   // (Approval Charge is now stored in other income for rented trips, not expenses)
   const ALL_KNOWN_EXPENSES = [
-    "Fuel Expense", "Toll Charges", "Driver Bata",
-    "Morning Exp.", "Night Exp.", "Sunday",
-    "Parking Charges", "Dala Charges", "Unloading",
-    "Hire Charges", "Approval Charge",
+    "Fuel Expense",
+    "Toll Charges",
+    "Driver Bata",
+    "Morning Exp.",
+    "Night Exp.",
+    "Sunday",
+    "Parking Charges",
+    "Dala Charges",
+    "Unloading",
+    "Hire Charges",
+    "Approval Charge",
   ];
 
   const expSum = (name: string) =>
-    expenses.filter((e: any) => e.expense_name === name).reduce((s, e) => s + num(e.amount), 0);
+    expenses
+      .filter((e: Record<string, unknown>) => e.expense_name === name)
+      .reduce((s, e) => s + num(e.amount), 0);
   const incomeSum = (name: string) =>
-    otherIncome.filter((i: any) => i.income_name === name).reduce((s, i) => s + num(i.amount), 0);
+    otherIncome
+      .filter((i: Record<string, unknown>) => i.income_name === name)
+      .reduce((s, i) => s + num(i.amount), 0);
 
   // ── Fastag deduction ────────────────────────────────────────────────────────
   if (t.vehicle_id) {
     const totalToll = expSum("Toll Charges");
     if (totalToll > 0) {
-      await supabase.from("fastag_transactions" as any).insert({
+      await supabase.from("fastag_transactions" as never).insert({
         vehicle_id: t.vehicle_id,
         transaction_type: "deduction",
         amount: totalToll,
@@ -159,12 +175,14 @@ export async function closeTrip(tripId: string) {
 
   // ── Vehicle expense log (fuel, parking, odometer) ───────────────────────────
   if (t.vehicle_id) {
-    const fuel    = expSum("Fuel Expense");
+    const fuel = expSum("Fuel Expense");
     const parking = expSum("Parking Charges");
-    const odoStart = t.odometer_start != null && t.odometer_start !== "" ? num(t.odometer_start as string) : null;
-    const odoEnd   = t.odometer_end   != null && t.odometer_end   !== "" ? num(t.odometer_end   as string) : null;
+    const odoStart =
+      t.odometer_start != null && t.odometer_start !== "" ? num(t.odometer_start as string) : null;
+    const odoEnd =
+      t.odometer_end != null && t.odometer_end !== "" ? num(t.odometer_end as string) : null;
     if (fuel > 0 || parking > 0 || odoStart != null || odoEnd != null) {
-      const { error: vErr } = await supabase.from("vehicle_trip_logs" as any).insert({
+      const { error: vErr } = await supabase.from("vehicle_trip_logs" as never).insert({
         trip_code: tripCode,
         vehicle_id: t.vehicle_id,
         trip_date: tripDate,
@@ -179,11 +197,11 @@ export async function closeTrip(tripId: string) {
 
   // ── Driver expense log (bata, morning, night) ────────────────────────────────
   if (t.driver_id) {
-    const bata    = expSum("Driver Bata");
+    const bata = expSum("Driver Bata");
     const morning = expSum("Morning Exp.");
-    const night   = expSum("Night Exp.");
+    const night = expSum("Night Exp.");
     if (bata > 0 || morning > 0 || night > 0) {
-      const { error: dErr } = await supabase.from("driver_expense_logs" as any).insert({
+      const { error: dErr } = await supabase.from("driver_expense_logs" as never).insert({
         trip_code: tripCode,
         driver_id: t.driver_id,
         trip_date: tripDate,
@@ -201,7 +219,7 @@ export async function closeTrip(tripId: string) {
     const hireCharges = expSum("Hire Charges");
     const approvalCharge = incomeSum("Approval Charge");
     if (hireCharges > 0 || approvalCharge > 0) {
-      const { error: teErr } = await supabase.from("transporter_expense_logs" as any).insert({
+      const { error: teErr } = await supabase.from("transporter_expense_logs" as never).insert({
         trip_code: tripCode,
         transporter_id: t.transporter_id,
         trip_date: tripDate,
@@ -213,20 +231,25 @@ export async function closeTrip(tripId: string) {
   }
 
   // ── Other expense log (dala, unloading, sunday + any non-standard names) ────
-  const dala      = expSum("Dala Charges");
+  const dala = expSum("Dala Charges");
   const unloading = expSum("Unloading");
-  const sunday    = expSum("Sunday");
-  const otherExps = expenses.filter((e: any) => !ALL_KNOWN_EXPENSES.includes(e.expense_name));
-  const otherAmt  = otherExps.reduce((s, e) => s + num(e.amount), 0);
+  const sunday = expSum("Sunday");
+  const otherExps = expenses.filter(
+    (e: Record<string, unknown>) => !ALL_KNOWN_EXPENSES.includes(e.expense_name),
+  );
+  const otherAmt = otherExps.reduce((s, e) => s + num(e.amount), 0);
   if (dala > 0 || unloading > 0 || sunday > 0 || otherAmt > 0) {
-    const { error: oErr } = await supabase.from("other_expense_logs" as any).insert({
+    const { error: oErr } = await supabase.from("other_expense_logs" as never).insert({
       trip_code: tripCode,
       trip_date: tripDate,
       dala_charges: dala,
       unloading: unloading,
       sunday_exp: sunday,
       other_amount: otherAmt,
-      other_details: otherExps.map((e: any) => ({ name: e.expense_name, amount: num(e.amount) })),
+      other_details: otherExps.map((e: Record<string, unknown>) => ({
+        name: e.expense_name,
+        amount: num(e.amount),
+      })),
     });
     if (oErr) throw new Error("Other log: " + oErr.message);
   }

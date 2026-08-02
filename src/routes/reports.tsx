@@ -85,8 +85,8 @@ const TABS = [
   },
   {
     id: "approval-advances",
-    label: "Approval Advances",
-    desc: "Approval charge advance and balance by date",
+    label: "Transpoter advance",
+    desc: "Transporter paid amount and balance by date",
     icon: WalletCards,
   },
   {
