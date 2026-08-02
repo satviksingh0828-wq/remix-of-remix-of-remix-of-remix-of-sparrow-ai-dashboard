@@ -421,22 +421,22 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
   <table class="tn-summary-table">
     <thead>
       <tr>
-        <th style="vertical-align:middle;text-align:center;">PAN No.</th>
-        <th style="vertical-align:middle;text-align:center;">GSTIN</th>
-        <th style="vertical-align:middle;text-align:center;">Trip Number</th>
-        <th style="vertical-align:middle;text-align:center;">Start Date</th>
-        <th style="vertical-align:middle;text-align:center;">From</th>
-        <th style="vertical-align:middle;text-align:center;">To</th>
+        <th><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">PAN No.</div></th>
+        <th><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">GSTIN</div></th>
+        <th><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">Trip Number</div></th>
+        <th><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">Start Date</div></th>
+        <th><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">From</div></th>
+        <th><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">To</div></th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td style="vertical-align:middle;text-align:center;">${sv((addr as Record<string, unknown>).pan) || sv(company.pan) || "—"}</td>
-        <td style="vertical-align:middle;text-align:center;">${sv((addr as Record<string, unknown>).gstin) || sv(company.gstin) || "—"}</td>
-        <td style="vertical-align:middle;text-align:center;">${trip.trip_code}</td>
-        <td style="vertical-align:middle;text-align:center;">${sv(trip.start_date) || "—"}</td>
-        <td style="vertical-align:middle;text-align:center;">${fromLoc || "—"}</td>
-        <td style="vertical-align:middle;text-align:center;">${toLoc || "—"}</td>
+        <td><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">${sv((addr as Record<string, unknown>).pan) || sv(company.pan) || "—"}</div></td>
+        <td><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">${sv((addr as Record<string, unknown>).gstin) || sv(company.gstin) || "—"}</div></td>
+        <td><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">${trip.trip_code}</div></td>
+        <td><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">${sv(trip.start_date) || "—"}</div></td>
+        <td><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">${fromLoc || "—"}</div></td>
+        <td><div style="display:flex;align-items:center;justify-content:center;min-height:22px;">${toLoc || "—"}</div></td>
       </tr>
     </tbody>
   </table>
