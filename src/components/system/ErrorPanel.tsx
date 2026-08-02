@@ -65,7 +65,7 @@ const YEARS = Array.from({ length: 8 }, (_, i) => CURRENT_YEAR - i);
 const PAGE_SIZE = 50;
 
 type DateSource = "closed_at" | "start_date";
-type ErrorTypeFilter = "all" | "start_mismatch" | "end_mismatch" | "either";
+type ErrorTypeFilter = "all" | "start_mismatch";
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -86,8 +86,6 @@ function fmtTs(val: string | null): string {
 function ErrorBadge({ type }: { type: string }) {
   const colours: Record<string, string> = {
     "Start mismatch": "bg-amber-100 text-amber-700 border-amber-200",
-    "End mismatch":   "bg-violet-100 text-violet-700 border-violet-200",
-    "Both mismatch":  "bg-destructive/10 text-destructive border-destructive/20",
   };
   return (
     <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium ${colours[type] ?? "bg-muted text-muted-foreground border-border"}`}>
@@ -107,7 +105,6 @@ export function ErrorPanel() {
   const [month,      setMonth]      = useState<number | undefined>();
   const [year,       setYear]       = useState<number | undefined>();
   const [dateSource, setDateSource] = useState<DateSource>("closed_at");
-  const [errorType,  setErrorType]  = useState<ErrorTypeFilter>("all");
   const [page,       setPage]       = useState(0);
 
   // Data
@@ -137,7 +134,6 @@ export function ErrorPanel() {
           month,
           year,
           dateSource,
-          errorType,
           limit:        PAGE_SIZE,
           offset:       page * PAGE_SIZE,
         },
@@ -148,12 +144,12 @@ export function ErrorPanel() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, search, month, year, dateSource, errorType, page]);
+  }, [user?.id, search, month, year, dateSource, page]);
 
   // Reload whenever filters change (reset to page 0)
   useEffect(() => {
     setPage(0);
-  }, [search, month, year, dateSource, errorType]);
+  }, [search, month, year, dateSource]);
 
   useEffect(() => {
     load();
@@ -247,18 +243,6 @@ export function ErrorPanel() {
           <SelectContent>
             <SelectItem value="closed_at">Filter by closed_at</SelectItem>
             <SelectItem value="start_date">Filter by Start Date</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={errorType} onValueChange={v => setErrorType(v as ErrorTypeFilter)}>
-          <SelectTrigger className="h-9 w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All errors</SelectItem>
-            <SelectItem value="start_mismatch">Start mismatch only</SelectItem>
-            <SelectItem value="end_mismatch">End mismatch only</SelectItem>
-            <SelectItem value="either">Either mismatch</SelectItem>
           </SelectContent>
         </Select>
 
