@@ -232,6 +232,12 @@ export function Trips() {
 
   async function remove(trip: TripRow) {
     if (!window.confirm("Delete this trip? This cannot be undone.")) return;
+    // Remove the advance/balance entry first (FK cascade handles it once migration is applied,
+    // this explicit delete ensures correct behaviour in all environments).
+    await supabase
+      .from("approval_charge_advances" as never)
+      .delete()
+      .eq("trip_id", trip.id!);
     const { error } = await supabase.from("trips").delete().eq("id", trip.id!);
     if (error) return toast.error(error.message);
     logAction("deleted", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
