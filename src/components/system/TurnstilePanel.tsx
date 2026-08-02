@@ -106,7 +106,7 @@ function SetupGuide({ accountIdPresent, apiTokenPresent }: { accountIdPresent: b
             key:     "CF_API_TOKEN",
             done:    apiTokenPresent,
             label:   "Cloudflare API Token",
-            where:   "dash.cloudflare.com/profile/api-tokens → Create Token → use template "Read all resources" or custom with Account > Turnstile > Edit + Account Analytics > Read",
+            where:   "dash.cloudflare.com/profile/api-tokens → Create Token → use template 'Read all resources' or custom with Account > Turnstile > Edit + Account Analytics > Read",
             example: "abc123...",
           },
         ].map(v => (

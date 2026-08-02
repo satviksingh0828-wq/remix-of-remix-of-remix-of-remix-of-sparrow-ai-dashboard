@@ -1,0 +1,84 @@
+20:40:41.285 Running build in Washington, D.C., USA (East) – iad1
+20:40:41.286 Build machine configuration: 2 cores, 8 GB
+20:40:41.702 Cloning github.com/satviksingh0828-wq/remix-of-remix-of-remix-of-remix-of-sparrow-ai-dashboard (Branch: main, Commit: 85fe1f6)
+20:40:42.384 Cloning completed: 682.000ms
+20:40:42.937 Restored build cache from previous deployment (H6M5PEDvoCMXwHEMcUJ7gsuUr6DB)
+20:40:43.189 Running "vercel build"
+20:40:43.210 Vercel CLI 58.1.0
+20:40:43.728 Running "install" command: `npm install --legacy-peer-deps`...
+20:40:47.819 
+20:40:47.819 changed 5 packages, and audited 488 packages in 4s
+20:40:47.819 
+20:40:47.820 92 packages are looking for funding
+20:40:47.820   run `npm fund` for details
+20:40:47.829 
+20:40:47.829 5 vulnerabilities (1 low, 4 high)
+20:40:47.830 
+20:40:47.830 To address issues that do not require attention, run:
+20:40:47.831   npm audit fix
+20:40:47.831 
+20:40:47.831 Some issues need review, and may require choosing
+20:40:47.831 a different dependency.
+20:40:47.831 
+20:40:47.831 Run `npm audit` for details.
+20:40:48.089 
+20:40:48.092 > build:vercel
+20:40:48.092 > bun scripts/build-vercel.mjs
+20:40:48.092 
+20:40:48.200 ▶ vite build…
+20:40:49.422 The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+20:40:49.770 The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+20:40:49.914 The plugin "vite-tsconfig-paths" is detected. Vite now supports tsconfig paths resolution natively via the resolve.tsconfigPaths option. You can remove the plugin and set resolve.tsconfigPaths: true in your Vite config instead.
+20:40:50.049 vite v8.0.16 building client environment for production...
+20:40:53.704 
+transforming...✓ 2941 modules transformed.
+20:40:53.707 ✗ Build failed in 3.65s
+20:40:53.708 error during build:
+20:40:53.708 Build failed with 1 error:
+20:40:53.708 
+20:40:53.708 [builtin:vite-transform] Expected `,` or `}` but found `Identifier`
+20:40:53.708      ╭─[ src/components/system/TurnstilePanel.tsx:109:93 ]
+20:40:53.708      │
+20:40:53.708  105 │           {
+20:40:53.708      │           ┬  
+20:40:53.709      │           ╰── Opened here
+20:40:53.709      │ 
+20:40:53.710  109 │             where:   "dash.cloudflare.com/profile/api-tokens → Create Token → use template "Read all resources" or custom with Account > Turnstile > Edit + Account Analytics > Read",
+20:40:53.713      │                                                                                             ──┬─  
+20:40:53.713      │                                                                                               ╰─── `,` or `}` expected
+20:40:53.713 ─────╯
+20:40:53.714 
+20:40:53.715     at aggregateBindingErrorsIntoJsError (file:///vercel/path0/node_modules/vite/node_modules/rolldown/dist/shared/error-BuvQYXuZ.mjs:48:18)
+20:40:53.715     at unwrapBindingResult (file:///vercel/path0/node_modules/vite/node_modules/rolldown/dist/shared/error-BuvQYXuZ.mjs:18:128)
+20:40:53.715     at #build (file:///vercel/path0/node_modules/vite/node_modules/rolldown/dist/shared/rolldown-build-CrPk_lZe.mjs:3246:34)
+20:40:53.716     at async buildEnvironment (file:///vercel/path0/node_modules/vite/dist/node/chunks/node.js:33253:64)
+20:40:53.716     at async Object.build (file:///vercel/path0/node_modules/vite/dist/node/chunks/node.js:33675:19)
+20:40:53.716     at async buildStartViteEnvironments (file:///vercel/path0/node_modules/@tanstack/start-plugin-core/dist/esm/vite/planning.js:95:23)
+20:40:53.716     at async Object.buildApp (file:///vercel/path0/node_modules/@tanstack/start-plugin-core/dist/esm/vite/plugin.js:113:8)
+20:40:53.716     at async Object.buildApp (file:///vercel/path0/node_modules/vite/dist/node/chunks/node.js:33667:6)
+20:40:53.716     at async CAC.<anonymous> (file:///vercel/path0/node_modules/vite/dist/node/cli.js:777:3) {
+20:40:53.716   errors: [Getter/Setter]
+20:40:53.716 }
+20:40:53.790 18 | import fs from 'fs';
+20:40:53.790 19 | import path from 'path';
+20:40:53.790 20 | 
+20:40:53.790 21 | // ── 1. Vite build ────────────────────────────────────────────
+20:40:53.790 22 | console.log('▶ vite build…');
+20:40:53.790 23 | execSync('vite build', { stdio: 'inherit' });
+20:40:53.790      ^
+20:40:53.790 error: Command failed: vite build
+20:40:53.791  signal: null,
+20:40:53.791  status: 1,
+20:40:53.791  output: [ null, null, null ],
+20:40:53.791     pid: 135,
+20:40:53.791  stdout: null,
+20:40:53.791  stderr: null,
+20:40:53.791 
+20:40:53.791       at genericNodeError (node:child_process:998:13)
+20:40:53.791       at checkExecSyncError (node:child_process:458:27)
+20:40:53.791       at execSync (node:child_process:278:31)
+20:40:53.791       at /vercel/path0/scripts/build-vercel.mjs:23:1
+20:40:53.791       at loadAndEvaluateModule (2:1)
+20:40:53.791 
+20:40:53.791 Bun v1.3.12 (Linux x64 baseline)
+20:40:53.808 Error: Command "npm run build:vercel" exited with 1
