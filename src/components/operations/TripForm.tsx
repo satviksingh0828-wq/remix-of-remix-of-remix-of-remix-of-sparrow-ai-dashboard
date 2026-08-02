@@ -289,9 +289,6 @@ export function TripForm({
       name: r.income_name,
       amount: r.amount ?? "",
       note: r.note ?? "",
-      ...(r.income_name?.trim().toLowerCase() === "approval charge"
-        ? { advance: savedApprovalAdvance }
-        : {}),
     }));
     const incDefList = trip.ownership === "third_party" ? THIRD_PARTY_DEFAULT_INCOMES : [];
     setIncomes(
@@ -300,7 +297,15 @@ export function TripForm({
     const exp = (
       (e.data as unknown as { id: string; expense_name: string; amount: string; note: string }[]) ??
       []
-    ).map((r) => ({ id: r.id, name: r.expense_name, amount: r.amount ?? "", note: r.note ?? "" }));
+    ).map((r) => ({
+      id: r.id,
+      name: r.expense_name,
+      amount: r.amount ?? "",
+      note: r.note ?? "",
+      ...(r.expense_name?.trim().toLowerCase() === "hire charges"
+        ? { advance: savedApprovalAdvance }
+        : {}),
+    }));
     const ownDefList = trip.ownership === "third_party" ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
     setExpenses(exp.length > 0 ? exp : ownDefList.map((name) => ({ name, amount: "", note: "" })));
   }
@@ -435,15 +440,15 @@ export function TripForm({
       const { error } = await supabase.from(table).insert(payloadRows as never);
       if (error) return toast.error(error.message);
     }
-    if (table === "trip_other_income") {
-      const approvalRow = rows.find((r) => r.name.trim().toLowerCase() === "approval charge");
+    if (table === "trip_expenses") {
+      const hireChargeRow = rows.find((r) => r.name.trim().toLowerCase() === "hire charges");
       await supabase
         .from("approval_charge_advances" as never)
         .delete()
         .eq("trip_id", tripId);
-      if (approvalRow && trip.transporter_id) {
-        const amount = num(approvalRow.amount);
-        const advance = num(approvalRow.advance ?? "");
+      if (hireChargeRow && trip.transporter_id) {
+        const amount = num(hireChargeRow.amount);
+        const advance = num(hireChargeRow.advance ?? "");
         const balance = Math.max(amount - advance, 0);
         if (amount > 0 || advance > 0) {
           const { error } = await supabase.from("approval_charge_advances" as never).insert({
@@ -930,7 +935,6 @@ export function TripForm({
               total={otherIncomeTotal}
               onSave={() => saveLines("trip_other_income", incomes, "income_name")}
               isViewer={isViewer}
-              showApprovalFields
             />
           ) : null}
           {activeTab === "expense" ? (
@@ -942,6 +946,7 @@ export function TripForm({
               total={expenseTotal}
               onSave={() => saveLines("trip_expenses", expenses, "expense_name")}
               isViewer={isViewer}
+              showHireChargeFields={isRented}
             />
           ) : null}
           {activeTab === "vehicle" ? (
@@ -1431,7 +1436,7 @@ function LineTab({
   total,
   onSave,
   isViewer = false,
-  showApprovalFields = false,
+  showHireChargeFields = false,
 }: {
   title: string;
   nameLabel: string;
@@ -1440,7 +1445,7 @@ function LineTab({
   total: number;
   onSave: () => void;
   isViewer?: boolean;
-  showApprovalFields?: boolean;
+  showHireChargeFields?: boolean;
 }) {
   const update = (i: number, p: Partial<LineRow>) =>
     setRows(rows.map((r, idx) => (idx === i ? { ...r, ...p } : r)));
@@ -1471,8 +1476,8 @@ function LineTab({
 
       <div className="space-y-3">
         {rows.map((r, i) => {
-          const isApprovalCharge =
-            showApprovalFields && r.name.trim().toLowerCase() === "approval charge";
+          const isHireCharge =
+            showHireChargeFields && r.name.trim().toLowerCase() === "hire charges";
           const balance = Math.max(num(r.amount) - num(r.advance ?? ""), 0);
           return (
             <div
@@ -1517,7 +1522,7 @@ function LineTab({
                   <Trash2 className="size-4" />
                 </Button>
               )}
-              {isApprovalCharge ? (
+              {isHireCharge ? (
                 <div className="grid grid-cols-1 gap-3 sm:col-span-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label className="text-xs font-medium text-muted-foreground">Advance (₹)</Label>
