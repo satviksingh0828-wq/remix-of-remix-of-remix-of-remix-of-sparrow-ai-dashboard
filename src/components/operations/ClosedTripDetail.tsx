@@ -350,7 +350,6 @@ export function ClosedTripDetail({
               rows={snap.other_income}
               nameKey="income_name"
               total={snap.totals.other_income}
-              approvalAdvance={approvalAdvance ?? snap.approval_charge_advance ?? null}
             />
           )}
           {tab === "expense" && (
@@ -359,6 +358,7 @@ export function ClosedTripDetail({
               rows={snap.expenses}
               nameKey="expense_name"
               total={snap.totals.total_expense}
+              approvalAdvance={approvalAdvance ?? snap.approval_charge_advance ?? null}
             />
           )}
           {tab === "vehicle" && (
@@ -633,22 +633,22 @@ function LineView({
           </thead>
           <tbody>
             {filled.map((r, i) => {
-              const isApprovalCharge =
+              const isHireCharge =
                 String(r[nameKey] ?? "")
                   .trim()
-                  .toLowerCase() === "approval charge";
+                  .toLowerCase() === "hire charges";
               return (
                 <tr key={i} className="border-b border-border/60">
                   <td className="py-2 pr-4">{String(r[nameKey] ?? "")}</td>
                   <td className="py-2 pr-4 text-right font-medium">{inr(num(r.amount))}</td>
                   {approvalAdvance ? (
                     <td className="py-2 pr-4 text-right text-blue-600">
-                      {isApprovalCharge ? inr(num(approvalAdvance.advance)) : "—"}
+                      {isHireCharge ? inr(num(approvalAdvance.advance)) : "—"}
                     </td>
                   ) : null}
                   {approvalAdvance ? (
                     <td className="py-2 pr-4 text-right text-emerald-600">
-                      {isApprovalCharge ? inr(num(approvalAdvance.balance)) : "—"}
+                      {isHireCharge ? inr(num(approvalAdvance.balance)) : "—"}
                     </td>
                   ) : null}
                   <td className="py-2 text-muted-foreground">{String(r.note ?? "")}</td>
