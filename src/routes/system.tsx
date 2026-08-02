@@ -166,9 +166,10 @@ function SystemPage() {
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
 
-          {tab === "errors"  && <ErrorPanel />}
-          {tab === "db"      && <DatabaseStats />}
-          {tab === "project" && <ProjectStats />}
+          {tab === "errors"   && <ErrorPanel />}
+          {tab === "db"       && <DatabaseStats />}
+          {tab === "security" && <SecurityPanel />}
+          {tab === "project"  && <ProjectStats />}
         </div>
       </div>
     </AppShell>
