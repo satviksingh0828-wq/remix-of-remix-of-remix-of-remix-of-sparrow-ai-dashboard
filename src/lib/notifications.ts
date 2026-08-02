@@ -6,6 +6,13 @@
  *  - Sync upserts fresh data without touching `dismissed` (dismissed rows stay dismissed).
  *  - Non-dismissed rows whose issue is resolved are auto-deleted (e.g. insurance renewed).
  *  - Once any admin dismisses a notification it stays gone for everyone.
+ *
+ * SECURITY:
+ *  - All server functions use POST (TanStack Start CSRF protection works correctly
+ *    only with POST; GET server functions bypass some middleware protections).
+ *  - Every function calls requireAdmin() before touching data.
+ *  - Errors from Supabase are surfaced (thrown) so the caller can react instead
+ *    of silently swallowing them and showing a misleading "All clear" state.
  */
 
 import { createServerFn } from "@tanstack/react-start";
@@ -84,6 +91,27 @@ function hasNonZeroRates(entry: { freight_route_ranges?: unknown; loading_route_
   const check = (ranges: unknown) =>
     Array.isArray(ranges) && ranges.some((r) => r && Number(r.value ?? 0) !== 0);
   return check(entry.freight_route_ranges) || check(entry.loading_route_ranges);
+}
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Verifies that the caller is an active admin. Throws on any failure.
+ * Mirrors the pattern in vehicle-coverage.ts / requireAdmin().
+ */
+async function requireAdmin(userId: string): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabaseAdmin as any;
+  const { data, error } = await db
+    .from("app_users")
+    .select("role, is_active")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw new Error(`Auth check failed: ${error.message}`);
+  if (!data) throw new Error("Forbidden: user not found.");
+  if (!(data as { is_active: boolean }).is_active) throw new Error("Forbidden: account is inactive.");
+  if ((data as { role: string }).role !== "admin") throw new Error("Forbidden: admin access required.");
 }
 
 // ── Compute notifications from live data ──────────────────────────────────────
@@ -201,71 +229,84 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
  * Syncs computed notifications into the DB and returns all unread ones.
  *
  * Steps:
- *  1. Compute fresh items.
- *  2. Fetch existing dismissed ref_ids → skip upserting those (dismissed stays frozen).
- *  3. Upsert non-dismissed items (INSERT ... ON CONFLICT DO UPDATE title/detail/days_left).
- *  4. Delete non-dismissed rows whose ref_id is no longer in the current computed set.
- *  5. Return all non-dismissed rows.
+ *  1. Verify caller is an active admin.
+ *  2. Compute fresh items.
+ *  3. Fetch existing dismissed ref_ids → skip upserting those (dismissed stays frozen).
+ *  4. Upsert non-dismissed items (INSERT ... ON CONFLICT DO UPDATE title/detail/days_left).
+ *  5. Delete non-dismissed rows whose ref_id is no longer in the current computed set.
+ *  6. Return all non-dismissed rows.
  */
-export const serverSyncNotifications = createServerFn({ method: "GET" }).handler(async () => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabaseAdmin as any;
+export const serverSyncNotifications = createServerFn({ method: "POST" })
+  .validator(z.object({ userId: z.string() }))
+  .handler(async ({ data: { userId } }): Promise<NotificationItem[]> => {
+    await requireAdmin(userId);
 
-  const computed = await computeItems(db);
-  const now = new Date().toISOString();
-
-  // Fetch already-dismissed ref_ids so we never overwrite them
-  const { data: dismissed } = await db
-    .from("notifications").select("ref_id").eq("dismissed", true);
-  const dismissedSet = new Set<string>((dismissed ?? []).map((r: Record<string,unknown>) => r.ref_id as string));
-
-  // Upsert only non-dismissed items
-  const toUpsert = computed
-    .filter((c) => !dismissedSet.has(c.ref_id))
-    .map((c) => ({
-      kind: c.kind, ref_id: c.ref_id,
-      title: c.title, detail: c.detail, days_left: c.days_left,
-      updated_at: now,
-    }));
-
-  if (toUpsert.length) {
-    await db.from("notifications").upsert(toUpsert, { onConflict: "kind,ref_id", ignoreDuplicates: false });
-  }
-
-  // Delete non-dismissed rows that are no longer in the computed set (issue resolved)
-  const currentRefIds = computed.map((c) => c.ref_id);
-  const { data: existing } = await db
-    .from("notifications").select("id,ref_id").eq("dismissed", false);
-  const toDelete = (existing ?? [])
-    .filter((r: Record<string,unknown>) => !currentRefIds.includes(r.ref_id as string))
-    .map((r: Record<string,unknown>) => r.id as string);
-  if (toDelete.length) {
-    await db.from("notifications").delete().in("id", toDelete);
-  }
-
-  // Return all unread
-  const { data } = await db
-    .from("notifications")
-    .select("id,kind,ref_id,title,detail,days_left,created_at")
-    .eq("dismissed", false)
-    .order("days_left", { ascending: true, nullsFirst: false })
-    .order("created_at", { ascending: true });
-
-  return (data ?? []) as NotificationItem[];
-});
-
-/** Marks a notification dismissed for all admins. */
-export const serverDismissNotification = createServerFn({ method: "POST" })
-  .validator(z.object({ id: z.string(), dismissedBy: z.string() }))
-  .handler(async ({ data: { id, dismissedBy } }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const db = supabaseAdmin as any;
-    await db.from("notifications").update({
+
+    const computed = await computeItems(db);
+    const now = new Date().toISOString();
+
+    // Fetch already-dismissed ref_ids so we never overwrite them
+    const { data: dismissed, error: dismissedError } = await db
+      .from("notifications").select("ref_id").eq("dismissed", true);
+    if (dismissedError) throw new Error(`Failed to read dismissed notifications: ${dismissedError.message}`);
+    const dismissedSet = new Set<string>((dismissed ?? []).map((r: Record<string,unknown>) => r.ref_id as string));
+
+    // Upsert only non-dismissed items
+    const toUpsert = computed
+      .filter((c) => !dismissedSet.has(c.ref_id))
+      .map((c) => ({
+        kind: c.kind, ref_id: c.ref_id,
+        title: c.title, detail: c.detail, days_left: c.days_left,
+        updated_at: now,
+      }));
+
+    if (toUpsert.length) {
+      const { error: upsertError } = await db.from("notifications").upsert(toUpsert, { onConflict: "kind,ref_id", ignoreDuplicates: false });
+      if (upsertError) throw new Error(`Failed to upsert notifications: ${upsertError.message}`);
+    }
+
+    // Delete non-dismissed rows that are no longer in the computed set (issue resolved)
+    const currentRefIds = computed.map((c) => c.ref_id);
+    const { data: existing, error: existingError } = await db
+      .from("notifications").select("id,ref_id").eq("dismissed", false);
+    if (existingError) throw new Error(`Failed to read existing notifications: ${existingError.message}`);
+    const toDelete = (existing ?? [])
+      .filter((r: Record<string,unknown>) => !currentRefIds.includes(r.ref_id as string))
+      .map((r: Record<string,unknown>) => r.id as string);
+    if (toDelete.length) {
+      const { error: deleteError } = await db.from("notifications").delete().in("id", toDelete);
+      if (deleteError) throw new Error(`Failed to delete resolved notifications: ${deleteError.message}`);
+    }
+
+    // Return all unread
+    const { data, error: readError } = await db
+      .from("notifications")
+      .select("id,kind,ref_id,title,detail,days_left,created_at")
+      .eq("dismissed", false)
+      .order("days_left", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true });
+    if (readError) throw new Error(`Failed to read notifications: ${readError.message}`);
+
+    return (data ?? []) as NotificationItem[];
+  });
+
+/** Marks a notification dismissed for all admins. */
+export const serverDismissNotification = createServerFn({ method: "POST" })
+  .validator(z.object({ userId: z.string(), id: z.string(), dismissedBy: z.string() }))
+  .handler(async ({ data: { userId, id, dismissedBy } }) => {
+    await requireAdmin(userId);
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabaseAdmin as any;
+    const { error } = await db.from("notifications").update({
       dismissed: true,
       dismissed_at: new Date().toISOString(),
       dismissed_by: dismissedBy,
     }).eq("id", id);
+    if (error) throw new Error(`Failed to dismiss notification: ${error.message}`);
     return { ok: true };
   });

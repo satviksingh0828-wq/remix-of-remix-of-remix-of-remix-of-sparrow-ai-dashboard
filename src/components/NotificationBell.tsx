@@ -1,10 +1,15 @@
 /**
  * Admin-only notification bell.
  * Backed by Supabase — one admin dismissing a notification clears it for all.
+ *
+ * Error handling:
+ *  - If sync fails, the component shows an error state instead of silently
+ *    showing "All clear" (which would be misleading).
+ *  - The user can retry by clicking the bell again.
  */
 
 import { useEffect, useRef, useState } from "react";
-import { AlertTriangle, Bell, FileWarning, ShieldAlert, X } from "lucide-react";
+import { AlertTriangle, Bell, FileWarning, RefreshCw, ShieldAlert, X } from "lucide-react";
 import {
   serverSyncNotifications,
   serverDismissNotification,
@@ -36,17 +41,25 @@ export function NotificationBell() {
   const [open, setOpen]       = useState(false);
   const [items, setItems]     = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
   const [dismissing, setDismissing] = useState<Set<string>>(new Set());
   const panelRef  = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   async function load() {
+    if (!user?.id) return; // not logged in → skip
     setLoading(true);
+    setError(null);
     try {
-      const data = await serverSyncNotifications();
+      const data = await serverSyncNotifications({
+        data: { userId: user.id },
+      });
       setItems(data);
-    } catch {
-      // non-critical — keep existing items
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[NotificationBell] Sync failed:", msg);
+      setError(msg);
+      // Keep existing items so the UI doesn't flash empty
     } finally {
       setLoading(false);
     }
@@ -54,11 +67,15 @@ export function NotificationBell() {
 
   // Load on mount and every 2 minutes
   useEffect(() => {
-    load();
-    const t = setInterval(load, 120_000);
+    if (user?.role === "admin") {
+      load();
+    }
+    const t = setInterval(() => {
+      if (user?.role === "admin") load();
+    }, 120_000);
     return () => clearInterval(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [user?.id, user?.role]);
 
   // Close on outside click
   useEffect(() => {
@@ -73,12 +90,22 @@ export function NotificationBell() {
   }, [open]);
 
   async function dismiss(item: NotificationItem) {
+    if (!user?.id) return;
     setDismissing((s) => new Set(s).add(item.id));
     try {
       await serverDismissNotification({
-        data: { id: item.id, dismissedBy: user?.username ?? user?.fullName ?? "admin" },
+        data: {
+          userId: user.id,
+          id: item.id,
+          dismissedBy: user?.username ?? user?.fullName ?? "admin",
+        },
       });
       setItems((prev) => prev.filter((i) => i.id !== item.id));
+      setError(null); // clear any lingering error
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[NotificationBell] Dismiss failed:", msg);
+      setError(`Dismiss failed: ${msg}`);
     } finally {
       setDismissing((s) => { const n = new Set(s); n.delete(item.id); return n; });
     }
@@ -92,7 +119,7 @@ export function NotificationBell() {
       <button
         ref={buttonRef}
         type="button"
-        onClick={() => { setOpen((v) => !v); if (!open) load(); }}
+        onClick={() => { setOpen((v) => !v); if (!open && !error) load(); }}
         aria-label={`Notifications${count > 0 ? ` (${count})` : ""}`}
         className="relative flex size-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
@@ -100,6 +127,11 @@ export function NotificationBell() {
         {count > 0 && (
           <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[10px] font-bold leading-none text-white">
             {count > 99 ? "99+" : count}
+          </span>
+        )}
+        {error && (
+          <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-amber-500">
+            <AlertTriangle className="size-2 text-white" />
           </span>
         )}
       </button>
@@ -121,13 +153,25 @@ export function NotificationBell() {
                 </span>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
+            <div className="flex items-center gap-1">
+              {error && (
+                <button
+                  type="button"
+                  onClick={load}
+                  title="Retry"
+                  className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <RefreshCw className="size-3.5" />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Body */}
@@ -135,6 +179,20 @@ export function NotificationBell() {
             {loading && items.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
                 Checking for alerts…
+              </div>
+            ) : error ? (
+              <div className="flex flex-col items-center gap-3 py-10">
+                <AlertTriangle className="size-8 text-amber-500" />
+                <p className="text-sm text-muted-foreground">Failed to load notifications</p>
+                <p className="text-xs text-muted-foreground/70 max-w-[280px] text-center">{error}</p>
+                <button
+                  type="button"
+                  onClick={load}
+                  className="flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                >
+                  <RefreshCw className="size-3" />
+                  Retry
+                </button>
               </div>
             ) : items.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-10">
