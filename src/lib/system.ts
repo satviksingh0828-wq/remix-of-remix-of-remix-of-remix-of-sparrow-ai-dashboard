@@ -246,24 +246,49 @@ export const serverGetSecurityStats = createServerFn({ method: "POST" })
 // ── Tab 5 – Cloudflare Turnstile Stats ────────────────────────────────────────
 
 export type TurnstileDay = {
-  date: string;           // "YYYY-MM-DD"
-  issued: number;
-  solved: number;
-  failed: number;
+  date: string;   // "YYYY-MM-DD"
+  count: number;  // total challenges issued that day
+};
+
+export type TurnstileTopIP = {
+  ip:    string;
+  count: number;
+};
+
+export type TurnstileTopCountry = {
+  country: string;
+  count:   number;
 };
 
 export type TurnstileStats = {
-  configured: boolean;        // false → env vars missing, show setup guide only
-  account_id_present: boolean;
-  api_token_present: boolean;
-  sitekey: string | null;
-  days: TurnstileDay[];
-  total_issued: number;
-  total_solved: number;
-  total_failed: number;
-  solve_rate: number;         // 0–100
-  error: string | null;
+  configured:          boolean;
+  account_id_present:  boolean;
+  api_token_present:   boolean;
+  sitekey:             string | null;
+  days:                TurnstileDay[];
+  total_count:         number;
+  top_ips:             TurnstileTopIP[];
+  top_countries:       TurnstileTopCountry[];
+  ip_error:            string | null;
+  country_error:       string | null;
+  error:               string | null;
 };
+
+// Shared helper: POST one GraphQL query to the Cloudflare Analytics API
+async function cfGraphQL(apiToken: string, query: string): Promise<unknown> {
+  const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
+    method:  "POST",
+    headers: { "Authorization": `Bearer ${apiToken}`, "Content-Type": "application/json" },
+    body:    JSON.stringify({ query }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Cloudflare API ${res.status}: ${txt || res.statusText}`);
+  }
+  const json = await res.json() as { data?: unknown; errors?: Array<{ message: string }> };
+  if (json.errors?.length) throw new Error(json.errors.map(e => e.message).join("; "));
+  return json.data;
+}
 
 export const serverGetTurnstileStats = createServerFn({ method: "POST" })
   .validator(
@@ -275,109 +300,142 @@ export const serverGetTurnstileStats = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<TurnstileStats> => {
     await requireAdminToken(data.sessionToken);
 
-    const accountId   = process.env.CF_ACCOUNT_ID   ?? "";
-    const apiToken    = process.env.CF_API_TOKEN     ?? "";
-    // sitekey is public — readable server-side via the VITE_ prefix env var
-    const sitekey     = process.env.VITE_TURNSTILE_SITEKEY ?? null;
+    const accountId = process.env.CF_ACCOUNT_ID       ?? "";
+    const apiToken  = process.env.CF_API_TOKEN         ?? "";
+    const sitekey   = process.env.VITE_TURNSTILE_SITEKEY ?? null;
 
     const base: TurnstileStats = {
-      configured:          !!(accountId && apiToken),
-      account_id_present:  !!accountId,
-      api_token_present:   !!apiToken,
+      configured:         !!(accountId && apiToken),
+      account_id_present: !!accountId,
+      api_token_present:  !!apiToken,
       sitekey,
-      days:                [],
-      total_issued:        0,
-      total_solved:        0,
-      total_failed:        0,
-      solve_rate:          0,
-      error:               null,
+      days:               [],
+      total_count:        0,
+      top_ips:            [],
+      top_countries:      [],
+      ip_error:           null,
+      country_error:      null,
+      error:              null,
     };
 
     if (!accountId || !apiToken) {
-      return { ...base, error: "CF_ACCOUNT_ID and CF_API_TOKEN environment variables are not configured." };
+      return { ...base, error: "CF_ACCOUNT_ID and CF_API_TOKEN are not configured." };
     }
 
-    // Date range: today back N days
     const until = new Date();
-    const since = new Date();
+    const since  = new Date();
     since.setDate(since.getDate() - data.days + 1);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    const fmtDate = (d: Date) => d.toISOString().slice(0, 10);
 
-    // Build the siteKey filter conditionally
-    const sitekeyFilter = sitekey ? `, siteKey: "${sitekey}"` : "";
+    // siteKey filter string — omit if no sitekey configured
+    const skFilter = sitekey ? `, siteKey: "${sitekey}"` : "";
+    const dateFilter = `date_geq: "${fmtDate(since)}", date_leq: "${fmtDate(until)}"`;
 
-    const query = `{
+    // ── Three independent queries, run in parallel ─────────────────────────────
+    // Separate requests so one bad dimension name doesn't kill the others.
+
+    const dailyQuery = `{
       viewer {
         accounts(filter: {accountTag: "${accountId}"}) {
           turnstileAdaptiveGroups(
-            filter: {date_geq: "${fmt(since)}", date_leq: "${fmt(until)}"${sitekeyFilter}}
+            filter: {${dateFilter}${skFilter}}
             limit: 90
             orderBy: [date_ASC]
           ) {
-            sum {
-              tokensSolved
-              tokensIssued
-              tokensFailed
-            }
-            dimensions {
-              date
-            }
+            count
+            dimensions { date }
           }
         }
       }
     }`;
 
-    try {
-      const res = await fetch("https://api.cloudflare.com/client/v4/graphql", {
-        method:  "POST",
-        headers: {
-          "Authorization": `Bearer ${apiToken}`,
-          "Content-Type":  "application/json",
-        },
-        body: JSON.stringify({ query }),
-      });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`Cloudflare API ${res.status}: ${txt || res.statusText}`);
+    const ipQuery = `{
+      viewer {
+        accounts(filter: {accountTag: "${accountId}"}) {
+          turnstileAdaptiveGroups(
+            filter: {${dateFilter}${skFilter}}
+            limit: 20
+            orderBy: [count_DESC]
+          ) {
+            count
+            dimensions { clientIP }
+          }
+        }
       }
+    }`;
 
-      const json = await res.json() as {
-        data?: {
-          viewer?: {
-            accounts?: Array<{
-              turnstileAdaptiveGroups?: Array<{
-                sum: { tokensSolved: number; tokensIssued: number; tokensFailed: number };
-                dimensions: { date: string };
-              }>;
-            }>;
-          };
-        };
-        errors?: Array<{ message: string }>;
+    const countryQuery = `{
+      viewer {
+        accounts(filter: {accountTag: "${accountId}"}) {
+          turnstileAdaptiveGroups(
+            filter: {${dateFilter}${skFilter}}
+            limit: 15
+            orderBy: [count_DESC]
+          ) {
+            count
+            dimensions { clientCountryName }
+          }
+        }
+      }
+    }`;
+
+    type GroupResult = {
+      viewer?: {
+        accounts?: Array<{
+          turnstileAdaptiveGroups?: Array<{
+            count: number;
+            dimensions: Record<string, string | null>;
+          }>;
+        }>;
       };
+    };
 
-      if (json.errors?.length) {
-        throw new Error(json.errors.map(e => e.message).join("; "));
-      }
+    const [dailyResult, ipResult, countryResult] = await Promise.allSettled([
+      cfGraphQL(apiToken, dailyQuery),
+      cfGraphQL(apiToken, ipQuery),
+      cfGraphQL(apiToken, countryQuery),
+    ]);
 
-      const groups = json.data?.viewer?.accounts?.[0]?.turnstileAdaptiveGroups ?? [];
-
-      const days: TurnstileDay[] = groups.map(g => ({
-        date:   g.dimensions.date,
-        issued: g.sum.tokensIssued ?? 0,
-        solved: g.sum.tokensSolved ?? 0,
-        failed: g.sum.tokensFailed ?? 0,
-      }));
-
-      const total_issued = days.reduce((s, d) => s + d.issued, 0);
-      const total_solved = days.reduce((s, d) => s + d.solved, 0);
-      const total_failed = days.reduce((s, d) => s + d.failed, 0);
-      const solve_rate   = total_issued > 0 ? Math.round((total_solved / total_issued) * 100) : 0;
-
-      return { ...base, days, total_issued, total_solved, total_failed, solve_rate, error: null };
-    } catch (err) {
-      return { ...base, error: err instanceof Error ? err.message : String(err) };
+    // ── Process daily ──────────────────────────────────────────────────────────
+    if (dailyResult.status === "rejected") {
+      return { ...base, error: String(dailyResult.reason) };
     }
+    const dailyGroups =
+      (dailyResult.value as GroupResult)?.viewer?.accounts?.[0]?.turnstileAdaptiveGroups ?? [];
+
+    const days: TurnstileDay[] = dailyGroups.map(g => ({
+      date:  g.dimensions.date ?? "",
+      count: g.count ?? 0,
+    }));
+    const total_count = days.reduce((s, d) => s + d.count, 0);
+
+    // ── Process top IPs ───────────────────────────────────────────────────────
+    let top_ips: TurnstileTopIP[] = [];
+    let ip_error: string | null   = null;
+    if (ipResult.status === "fulfilled") {
+      const ipGroups =
+        (ipResult.value as GroupResult)?.viewer?.accounts?.[0]?.turnstileAdaptiveGroups ?? [];
+      top_ips = ipGroups
+        .filter(g => g.dimensions.clientIP)
+        .map(g => ({ ip: g.dimensions.clientIP!, count: g.count }));
+    } else {
+      ip_error = String(ipResult.reason);
+    }
+
+    // ── Process top countries ─────────────────────────────────────────────────
+    let top_countries: TurnstileTopCountry[] = [];
+    let country_error: string | null          = null;
+    if (countryResult.status === "fulfilled") {
+      const cGroups =
+        (countryResult.value as GroupResult)?.viewer?.accounts?.[0]?.turnstileAdaptiveGroups ?? [];
+      top_countries = cGroups
+        .filter(g => g.dimensions.clientCountryName)
+        .map(g => ({ country: g.dimensions.clientCountryName!, count: g.count }));
+    } else {
+      country_error = String(countryResult.reason);
+    }
+
+    return { ...base, days, total_count, top_ips, top_countries, ip_error, country_error, error: null };
   });
 
 // ── Tab 4 – Project Stats ──────────────────────────────────────────────────────
