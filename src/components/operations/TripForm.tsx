@@ -98,8 +98,9 @@ const DEFAULT_EXPENSES = [
 
 const THIRD_PARTY_EXPENSES = [
   "Hire Charges",
-  "Approval Charge",
 ];
+
+const THIRD_PARTY_DEFAULT_INCOMES = ["Approval Charge"];
 
 function formatDateInput(date: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -201,7 +202,10 @@ export function TripForm({
   const [showTransporterForm, setShowTransporterForm] = useState(false);
 
   const [manifests, setManifests] = useState<ManifestRow[]>([]);
-  const [incomes, setIncomes] = useState<LineRow[]>([]);
+  const defaultIncomeList = trip.ownership === "third_party" ? THIRD_PARTY_DEFAULT_INCOMES : [];
+  const [incomes, setIncomes] = useState<LineRow[]>(
+    defaultIncomeList.map((name) => ({ name, amount: "", note: "" })),
+  );
   const defaultExpenseList = trip.ownership === "third_party" ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
   const [expenses, setExpenses] = useState<LineRow[]>(
     defaultExpenseList.map((name) => ({ name, amount: "", note: "" })),
@@ -278,9 +282,12 @@ export function TripForm({
       supabase.from("trip_expenses").select("*").eq("trip_id", tripId).order("sort_order"),
     ]);
     setManifests((m.data as unknown as ManifestRow[]) ?? []);
-    setIncomes(
+    const incRows =
       ((i.data as unknown as { id: string; income_name: string; amount: string; note: string }[]) ??
-        []).map((r) => ({ id: r.id, name: r.income_name, amount: r.amount ?? "", note: r.note ?? "" })),
+        []).map((r) => ({ id: r.id, name: r.income_name, amount: r.amount ?? "", note: r.note ?? "" }));
+    const incDefList = trip.ownership === "third_party" ? THIRD_PARTY_DEFAULT_INCOMES : [];
+    setIncomes(
+      incRows.length > 0 ? incRows : incDefList.map((name) => ({ name, amount: "", note: "" })),
     );
     const exp =
       ((e.data as unknown as { id: string; expense_name: string; amount: string; note: string }[]) ??
@@ -423,11 +430,11 @@ export function TripForm({
     if (!trip.id) return toast.error("Save the trip before closing it");
 
     // ── Close validation ─────────────────────────────────────────────────────
-    if (!trip.end_date) {
+    if (!isRented && !trip.end_date) {
       toast.error("End date is required to close the trip");
       return;
     }
-    if (!trip.end_time) {
+    if (!isRented && !trip.end_time) {
       toast.error("End time is required to close the trip");
       return;
     }
@@ -442,7 +449,8 @@ export function TripForm({
 
     // Save any unsaved changes first (e.g. end_date/end_time just entered)
     await saveTrip();
-    // Silently flush expense lines to DB so closeTrip reads the latest values
+    // Silently flush both income and expense lines so closeTrip reads the latest values
+    await saveLines("trip_other_income", incomes, "income_name", true);
     await saveLines("trip_expenses", expenses, "expense_name", true);
 
     if (
@@ -681,6 +689,8 @@ export function TripForm({
                 const isThirdParty = v === "third_party";
                 const newDefaultExpenses = isThirdParty ? THIRD_PARTY_EXPENSES : DEFAULT_EXPENSES;
                 setExpenses(newDefaultExpenses.map((name) => ({ name, amount: "", note: "" })));
+                const newDefaultIncomes = isThirdParty ? THIRD_PARTY_DEFAULT_INCOMES : [];
+                setIncomes(newDefaultIncomes.map((name) => ({ name, amount: "", note: "" })));
                 patch({
                   ownership: v,
                   ...(v === "own"
@@ -787,19 +797,23 @@ export function TripForm({
             onChange={(v) => patch({ start_time: v })}
           />
 
-          {/* End date & time — required to close */}
-          <Field
-            label="End Date (required to close)"
-            type="date"
-            value={trip.end_date}
-            onChange={(v) => patch({ end_date: v })}
-          />
-          <Field
-            label="End Time (required to close)"
-            type="time"
-            value={trip.end_time}
-            onChange={(v) => patch({ end_time: v })}
-          />
+          {/* End date & time — required to close (own vehicle only) */}
+          {!isRented ? (
+            <>
+              <Field
+                label="End Date (required to close)"
+                type="date"
+                value={trip.end_date}
+                onChange={(v) => patch({ end_date: v })}
+              />
+              <Field
+                label="End Time (required to close)"
+                type="time"
+                value={trip.end_time}
+                onChange={(v) => patch({ end_time: v })}
+              />
+            </>
+          ) : null}
 
           {/* Odometer — only shown & required for own vehicle */}
           {isOwn ? (

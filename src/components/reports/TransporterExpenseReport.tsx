@@ -22,7 +22,7 @@ interface TransporterRow {
   transporter_id: string;
   transporter_name: string;
   total_hire: number;
-  total_approval: number;
+  total_approval: number; // stored from other income (Approval Charge)
   trip_count: number;
 }
 
@@ -140,10 +140,10 @@ export function TransporterExpenseReport() {
         Transporter: r.transporter_name,
         Trips: r.trip_count,
         "Hire Charges (₹)": r.total_hire,
-        "Approval Charge (₹)": r.total_approval,
+        "Other Income / Approval (₹)": r.total_approval,
         "Total (₹)": r.total_hire + r.total_approval,
       })),
-      ["Transporter", "Trips", "Hire Charges (₹)", "Approval Charge (₹)", "Total (₹)"]
+      ["Transporter", "Trips", "Hire Charges (₹)", "Other Income / Approval (₹)", "Total (₹)"]
     );
     const label = month === "all" ? year : `${year}-${month}`;
     downloadCsv(csv, `transporter_expense_${label}.csv`);
@@ -192,7 +192,7 @@ export function TransporterExpenseReport() {
                 <th className="px-4 py-3">Transporter</th>
                 <th className="px-4 py-3 text-right">Trips</th>
                 <th className="px-4 py-3 text-right">Hire Charges</th>
-                <th className="px-4 py-3 text-right">Approval Charge</th>
+                <th className="px-4 py-3 text-right">Other Income</th>
                 <th className="px-4 py-3 text-right">Total</th>
                 <th className="px-4 py-3 text-center">Action</th>
               </tr>
@@ -214,7 +214,7 @@ export function TransporterExpenseReport() {
                         <td className="px-4 py-3 font-medium">{row.transporter_name}</td>
                         <td className="px-4 py-3 text-right text-muted-foreground">{row.trip_count}</td>
                         <td className="px-4 py-3 text-right text-purple-600 font-medium">{row.total_hire > 0 ? inr(row.total_hire) : "—"}</td>
-                        <td className="px-4 py-3 text-right text-amber-600 font-medium">{row.total_approval > 0 ? inr(row.total_approval) : "—"}</td>
+                        <td className="px-4 py-3 text-right text-emerald-600 font-medium">{row.total_approval > 0 ? inr(row.total_approval) : "—"}</td>
                         <td className="px-4 py-3 text-right font-bold">{total > 0 ? inr(total) : "—"}</td>
                         <td className="px-4 py-3 text-center">
                           <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs"
@@ -240,7 +240,7 @@ export function TransporterExpenseReport() {
                                       <th className="pb-2 text-left font-semibold">Date</th>
                                       <th className="pb-2 text-left font-semibold">Trip</th>
                                       <th className="pb-2 text-right font-semibold">Hire Charges</th>
-                                      <th className="pb-2 text-right font-semibold">Approval Charge</th>
+                                      <th className="pb-2 text-right font-semibold">Other Income</th>
                                       <th className="pb-2 text-right font-semibold">Total</th>
                                     </tr>
                                   </thead>
@@ -252,7 +252,7 @@ export function TransporterExpenseReport() {
                                           <td className="py-2">{h.trip_date}</td>
                                           <td className="py-2 font-medium">{h.trip_code}</td>
                                           <td className="py-2 text-right text-purple-600">{Number(h.hire_charges) > 0 ? inr(Number(h.hire_charges)) : "—"}</td>
-                                          <td className="py-2 text-right text-amber-600">{Number(h.approval_charge) > 0 ? inr(Number(h.approval_charge)) : "—"}</td>
+                                          <td className="py-2 text-right text-emerald-600">{Number(h.approval_charge) > 0 ? inr(Number(h.approval_charge)) : "—"}</td>
                                           <td className="py-2 text-right font-semibold">{t > 0 ? inr(t) : "—"}</td>
                                         </tr>
                                       );

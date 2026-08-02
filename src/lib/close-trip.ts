@@ -128,14 +128,19 @@ export async function closeTrip(tripId: string) {
   const tripDate  = String(t.end_date || new Date().toISOString().split("T")[0]);
 
   // All known standard expense names — anything else goes to "other"
+  // Hire Charges and Approval Charge are transporter-specific and handled separately
+  // (Approval Charge is now stored in other income for rented trips, not expenses)
   const ALL_KNOWN_EXPENSES = [
     "Fuel Expense", "Toll Charges", "Driver Bata",
     "Morning Exp.", "Night Exp.", "Sunday",
     "Parking Charges", "Dala Charges", "Unloading",
+    "Hire Charges", "Approval Charge",
   ];
 
   const expSum = (name: string) =>
     expenses.filter((e: any) => e.expense_name === name).reduce((s, e) => s + num(e.amount), 0);
+  const incomeSum = (name: string) =>
+    otherIncome.filter((i: any) => i.income_name === name).reduce((s, i) => s + num(i.amount), 0);
 
   // ── Fastag deduction ────────────────────────────────────────────────────────
   if (t.vehicle_id) {
@@ -191,9 +196,10 @@ export async function closeTrip(tripId: string) {
   }
 
   // ── Transporter expense log (hire charges, approval charge) ───────────────────
+  // Hire Charges come from expenses; Approval Charge comes from other income (rented trips).
   if (t.transporter_id) {
     const hireCharges = expSum("Hire Charges");
-    const approvalCharge = expSum("Approval Charge");
+    const approvalCharge = incomeSum("Approval Charge");
     if (hireCharges > 0 || approvalCharge > 0) {
       const { error: teErr } = await supabase.from("transporter_expense_logs" as any).insert({
         trip_code: tripCode,

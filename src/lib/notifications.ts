@@ -137,8 +137,10 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
   // closed_trips by the deadline mechanism; there is no `closed_at` on trips).
   const { data: openTrips } = await db
     .from("trips")
-    .select("id,trip_code,contract_id");
-  const openTripIds = (openTrips ?? []).map((t: Record<string,unknown>) => t.id as string);
+    .select("id,trip_code,contract_id,ownership");
+  // Zero-income checks only apply to own-vehicle trips; rented trips have no freight income
+  const ownTrips = (openTrips ?? []).filter((t: Record<string,unknown>) => t.ownership !== "third_party");
+  const openTripIds = ownTrips.map((t: Record<string,unknown>) => t.id as string);
 
   if (openTripIds.length) {
     // Load manifests for all open trips — include weight_kg, quantity, source_id
