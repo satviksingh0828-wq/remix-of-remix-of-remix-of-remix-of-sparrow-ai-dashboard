@@ -268,19 +268,7 @@ export function Trips() {
     load();
   }
 
-  async function removeClosed(c: ClosedTrip) {
-    if (!window.confirm("Permanently delete this closed trip? This cannot be undone.")) return;
-    // Delete advance/balance entry linked to this trip code.
-    await supabase
-      .from("approval_charge_advances" as never)
-      .delete()
-      .eq("trip_code", c.trip_code);
-    const { error } = await supabase.from("closed_trips").delete().eq("id", c.id);
-    if (error) return toast.error(error.message);
-    logAction("deleted", "trip", { entityId: c.id, entityLabel: c.trip_code });
-    toast.success("Closed trip deleted");
-    load();
-  }
+
 
   async function reopen(c: ClosedTrip) {
     if (!isAdmin) {
@@ -531,14 +519,7 @@ export function Trips() {
                         <RotateCcw className="size-4" />
                         Reopen
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeClosed(c)}
-                        title="Permanently delete this closed trip"
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
+
                     </>
                   ) : null}
                 </li>
