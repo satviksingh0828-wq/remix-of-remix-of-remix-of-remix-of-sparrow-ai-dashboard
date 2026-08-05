@@ -24,6 +24,7 @@ import { OrcaAIProvider } from "../lib/orca-context";
 import { OrcaAIPanel } from "../components/OrcaAI";
 import { useOrcaAI } from "../lib/orca-context";
 import { useSession } from "../lib/session";
+import { SplashScreen } from "../components/SplashScreen";
 
 function NotFoundComponent() {
   return (
@@ -196,6 +197,7 @@ function RootComponent() {
       <SessionProvider>
         <ThemeProvider>
           <OrcaAIProvider>
+            <SplashScreen />
             <SecurityInit />
             <SessionExpiredListener />
             {/* MobileBlock: desktop-only wall before anything else */}
