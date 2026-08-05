@@ -1,28 +1,28 @@
 import { createContext, useContext, useState } from "react";
 import type { ReactNode } from "react";
 
-interface SparrowAIContextValue {
+interface OrcaAIContextValue {
   open: boolean;
   setOpen: (v: boolean) => void;
   toggle: () => void;
 }
 
-const SparrowAIContext = createContext<SparrowAIContextValue>({
+const OrcaAIContext = createContext<OrcaAIContextValue>({
   open: false,
   setOpen: () => {},
   toggle: () => {},
 });
 
-export function SparrowAIProvider({ children }: { children: ReactNode }) {
+export function OrcaAIProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const toggle = () => setOpen((v) => !v);
   return (
-    <SparrowAIContext.Provider value={{ open, setOpen, toggle }}>
+    <OrcaAIContext.Provider value={{ open, setOpen, toggle }}>
       {children}
-    </SparrowAIContext.Provider>
+    </OrcaAIContext.Provider>
   );
 }
 
-export function useSparrowAI() {
-  return useContext(SparrowAIContext);
+export function useOrcaAI() {
+  return useContext(OrcaAIContext);
 }

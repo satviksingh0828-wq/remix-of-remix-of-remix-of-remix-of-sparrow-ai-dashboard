@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { Bot, ChevronRight, Download, Loader2, Mic, MicOff, Paperclip, Play, Send, Trash2, X } from "lucide-react";
 import { useSession } from "@/lib/session";
-import { useSparrowAI } from "@/lib/sparrow-context";
+import { useOrcaAI } from "@/lib/orca-context";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -13,6 +13,7 @@ import { parseExpenseFile, summarizeDrafts } from "@/lib/ai/file-ingestion";
 import { buildExpenseImportActions } from "@/lib/ai/workflows/expense-import-workflow";
 import { validateActions } from "@/lib/ai/action-validator";
 import type { SparrowAction } from "@/lib/ai/types";
+import { PoweredBy } from "./PoweredBy";
 
 type ReadOnlyRow = {
   id?: string;
@@ -754,7 +755,7 @@ async function executeActions(
 
 // ── Parse action block ────────────────────────────────────────────────────────
 function parseActions(text: string): { actions: SparrowAction[]; displayText: string } {
-  const S = "<<SPARROW_ACTIONS>>";
+  const S = "<<ORCA_ACTIONS>>";
   const E = "<<END_ACTIONS>>";
   const s = text.indexOf(S);
   const e = text.indexOf(E);
@@ -803,7 +804,7 @@ function buildSystemPrompt(
   const isViewer = role === "viewer";
   const routes = isAdmin ? ADMIN_ROUTES : isViewer ? VIEWER_ROUTES : BASIC_ROUTES;
 
-  return `You are SPARROW AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
+  return `You are ORCA AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
 
 USER: ${userName} | ROLE: ${isAdmin ? "Admin" : isViewer ? "Manager (read-only)" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
 
@@ -811,7 +812,7 @@ USER: ${userName} | ROLE: ${isAdmin ? "Admin" : isViewer ? "Manager (read-only)"
 - Be concise (under 80 words). State what you're doing, then do it.
 - ${isAdmin ? "Full admin access to all modules." : isViewer ? "Manager: read-only access to Operations, Masters, Dashboard, and Reports. Never create, edit, save, close, delete, or submit records. You CAN generate CSV/Excel report downloads from live data." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
 - You CAN navigate, click safe buttons, fill text/date/number fields, choose dropdowns/pickers, check boxes, and prepare records. You CANNOT press Save, Delete, Submit, Close Trip, or destructive confirmation buttons; pause and ask the user to do those.
-- ALWAYS include <<SPARROW_ACTIONS>> whenever you interact with the app.
+- ALWAYS include <<ORCA_ACTIONS>> whenever you interact with the app.
 - If information is missing or ambiguous, use an ask_user action and explain exactly what is needed.
 - For bulk expenses from files: fill one expense, ask the user to review and press Save, wait_for_user_action save, then continue with the next row.
 - Never say "you can do it yourself" if you can do it via actions.
@@ -880,7 +881,7 @@ Never output search "undefined" or an empty picker search. If the branch is not 
 - Use fill_input only on text/number/date inputs with a matching Label
 
 ━━━ ACTION FORMAT ━━━
-<<SPARROW_ACTIONS>>
+<<ORCA_ACTIONS>>
 [
   {"type":"navigate","path":"/masters"},
   {"type":"wait","ms":1500},
@@ -959,8 +960,8 @@ async function callPuter(messages: { role: string; content: string }[]): Promise
 }
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
-export function SparrowAIPanel() {
-  const { open, setOpen } = useSparrowAI();
+export function OrcaAIPanel() {
+  const { open, setOpen } = useOrcaAI();
   const { user } = useSession();
   const navigate = useNavigate();
   const routerState = useRouterState();
@@ -1188,7 +1189,7 @@ export function SparrowAIPanel() {
   const isExecuting = messages.some((m) => m.executing);
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border" role="complementary" aria-label="SPARROW AI">
+    <div className="flex flex-col h-full bg-card border-l border-border" role="complementary" aria-label="ORCA AI">
 
       {/* ── Header ── */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
@@ -1196,7 +1197,7 @@ export function SparrowAIPanel() {
           <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
             <Bot className="size-4 text-primary" />
           </div>
-          <span className="text-sm font-semibold tracking-tight text-foreground">SPARROW AI</span>
+          <span className="text-sm font-semibold tracking-tight text-foreground">ORCA AI</span>
           <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
             {isAdmin ? "Admin" : role === "viewer" ? "Manager" : "User"}
           </span>
@@ -1223,7 +1224,7 @@ export function SparrowAIPanel() {
       </div>
 
       {/* ── Messages ── */}
-      <div className="sparrow-scroll flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">
+      <div className="orca-scroll flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">
 
         {messages.map((msg) => (
           <div
@@ -1375,7 +1376,7 @@ export function SparrowAIPanel() {
                 send(input);
               }
             }}
-            placeholder={isListening ? "Listening…" : "Message SPARROW AI…"}
+            placeholder={isListening ? "Listening…" : "Message ORCA AI…"}
             rows={1}
             disabled={loading}
             className={cn(
@@ -1439,17 +1440,15 @@ export function SparrowAIPanel() {
             </div>
           </div>
         </div>
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground/40">
-          POWERED BY SPARROW AI SOLUTIONS
-        </p>
+        <PoweredBy className="mt-1.5 text-[10px] text-muted-foreground/40" />
       </div>
     </div>
   );
 }
 
 // ── Trigger button ─────────────────────────────────────────────────────────────
-export function SparrowAITrigger() {
-  const { open, toggle } = useSparrowAI();
+export function OrcaAITrigger() {
+  const { open, toggle } = useOrcaAI();
   return (
     <button
       type="button"
@@ -1462,7 +1461,7 @@ export function SparrowAITrigger() {
       )}
     >
       <Bot className="size-3.5" />
-      SPARROW AI
+      ORCA AI
     </button>
   );
 }

@@ -2,9 +2,9 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut, Server, ShieldCheck, User } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSession } from "@/lib/session";
-import { useSparrowAI } from "@/lib/sparrow-context";
+import { useOrcaAI } from "@/lib/orca-context";
 import { Button } from "@/components/ui/button";
-import { SparrowAITrigger } from "@/components/SparrowAI";
+import { OrcaAITrigger } from "@/components/OrcaAI";
 import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ export function AppShell({
 }) {
   const { signOut, user } = useSession();
   const navigate = useNavigate();
-  const { open } = useSparrowAI();
+  const { open } = useOrcaAI();
   const isAdmin = user?.role === "admin";
   const isViewer = user?.role === "viewer";
 
@@ -44,7 +44,7 @@ export function AppShell({
               </Link>
             )}
             {user?.role === "admin" && <NotificationBell />}
-            {user?.role === "admin" && <SparrowAITrigger />}
+            {user?.role === "admin" && <OrcaAITrigger />}
             <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex min-w-0">
               {user?.role === "admin" ? (
                 <ShieldCheck className="size-3.5 text-primary shrink-0" />

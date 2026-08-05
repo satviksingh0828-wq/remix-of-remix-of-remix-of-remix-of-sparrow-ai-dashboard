@@ -14,11 +14,12 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "@/lib/session";
+import { PoweredBy } from "@/components/PoweredBy";
 
 export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
-      { title: "Workspace — Garuda Logistics Solutions | Sparrow AI Solutions" },
+      { title: "Workspace — Garuda Logistics Solutions | Orca Solutions" },
       {
         name: "description",
         content:
@@ -165,9 +166,7 @@ function HomePage() {
             })}
       </div>
 
-      <p className="mt-12 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
-        Powered by Sparrow AI Solutions
-      </p>
+      <PoweredBy className="mt-12 text-[10px] uppercase tracking-[0.22em] text-muted-foreground/50" />
     </AppShell>
   );
 }

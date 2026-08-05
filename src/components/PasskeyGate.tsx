@@ -18,6 +18,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { startRegistration, startAuthentication } from "@simplewebauthn/browser";
 import { Shield, ShieldAlert, ShieldCheck, Clock, XCircle, Fingerprint, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PoweredBy } from "./PoweredBy";
 import { secureStorage, secureSession } from "@/lib/storage";
 import {
   serverStartRegistration,
@@ -74,9 +75,7 @@ function Screen({ children }: { children: ReactNode }) {
         {children}
       </div>
 
-      <p className="absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-6 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/60">
-        Powered by Sparrow AI Solutions
-      </p>
+      <PoweredBy className="absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-6 text-[10px] uppercase tracking-[0.22em] text-muted-foreground/60" />
     </div>
   );
 }

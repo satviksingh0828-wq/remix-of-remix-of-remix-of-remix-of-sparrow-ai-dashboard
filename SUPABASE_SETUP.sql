@@ -1,5 +1,5 @@
 -- ============================================================
--- Supabase Setup SQL — Project TMS (Sparrow AI Solutions)
+-- Supabase Setup SQL — Project TMS (Orca Solutions)
 -- Run this once in the Supabase SQL Editor:
 --   Dashboard → SQL Editor → New Query → paste all → Run
 --

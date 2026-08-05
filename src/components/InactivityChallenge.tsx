@@ -5,6 +5,7 @@
  */
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Shield } from "lucide-react";
+import { PoweredBy } from "./PoweredBy";
 
 const INACTIVITY_MS   = 5 * 60 * 1000; // 5 minutes
 const BOT_CLICK_LIMIT = 20;              // >20 clicks in 2 s = suspicious
@@ -120,9 +121,7 @@ export function InactivityChallenge() {
           </button>
         </form>
 
-        <p className="mt-4 text-[10px] text-muted-foreground/60 uppercase tracking-widest">
-          Powered by Sparrow AI Solutions
-        </p>
+        <PoweredBy className="mt-4 text-[10px] text-muted-foreground/60 uppercase tracking-widest" />
       </div>
 
       <style>{`

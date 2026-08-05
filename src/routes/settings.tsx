@@ -10,7 +10,7 @@ import { THEMES, useTheme, type ThemeId } from "@/lib/theme";
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Garuda Logistics Solutions | Sparrow AI Solutions" },
+      { title: "Settings — Garuda Logistics Solutions | Orca Solutions" },
       {
         name: "description",
         content:

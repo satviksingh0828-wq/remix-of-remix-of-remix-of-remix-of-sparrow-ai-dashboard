@@ -20,9 +20,9 @@ import { Toaster } from "../components/ui/sonner";
 import { PasskeyGate } from "../components/PasskeyGate";
 import { InactivityChallenge } from "../components/InactivityChallenge";
 import { MobileBlock } from "../components/MobileBlock";
-import { SparrowAIProvider } from "../lib/sparrow-context";
-import { SparrowAIPanel } from "../components/SparrowAI";
-import { useSparrowAI } from "../lib/sparrow-context";
+import { OrcaAIProvider } from "../lib/orca-context";
+import { OrcaAIPanel } from "../components/OrcaAI";
+import { useOrcaAI } from "../lib/orca-context";
 import { useSession } from "../lib/session";
 
 function NotFoundComponent() {
@@ -163,13 +163,13 @@ function SessionExpiredListener() {
 }
 
 /** Renders the SPARROW AI panel — admin only, persists across route changes */
-function SparrowAIPanelMount() {
-  const { open } = useSparrowAI();
+function OrcaAIPanelMount() {
+  const { open } = useOrcaAI();
   const { user } = useSession();
   if (!open || user?.role !== "admin") return null;
   return (
     <div className="fixed right-0 top-0 z-[60] h-screen w-[360px] shadow-[-4px_0_32px_rgba(0,0,0,0.12)]">
-      <SparrowAIPanel />
+      <OrcaAIPanel />
     </div>
   );
 }
@@ -195,7 +195,7 @@ function RootComponent() {
     >
       <SessionProvider>
         <ThemeProvider>
-          <SparrowAIProvider>
+          <OrcaAIProvider>
             <SecurityInit />
             <SessionExpiredListener />
             {/* MobileBlock: desktop-only wall before anything else */}
@@ -207,8 +207,8 @@ function RootComponent() {
             </MobileBlock>
             <InactivityChallenge />
             <Toaster position="top-right" />
-            <SparrowAIPanelMount />
-          </SparrowAIProvider>
+            <OrcaAIPanelMount />
+          </OrcaAIProvider>
         </ThemeProvider>
       </SessionProvider>
     </PersistQueryClientProvider>

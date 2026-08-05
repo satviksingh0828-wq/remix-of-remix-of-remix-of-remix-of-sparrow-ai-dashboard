@@ -666,26 +666,26 @@
   animation: fade-in 380ms ease both;
 }
 
-/* ── SPARROW AI chat scroll area ───────────────────────────────────────────── */
-.sparrow-scroll {
+/* ── ORCA AI chat scroll area ───────────────────────────────────────────── */
+.orca-scroll {
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
   transition: scrollbar-color 0.2s;
 }
-.sparrow-scroll:hover {
+.orca-scroll:hover {
   scrollbar-color: oklch(var(--border) / 0.8) transparent;
 }
-.sparrow-scroll::-webkit-scrollbar {
+.orca-scroll::-webkit-scrollbar {
   width: 4px;
 }
-.sparrow-scroll::-webkit-scrollbar-track {
+.orca-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-.sparrow-scroll::-webkit-scrollbar-thumb {
+.orca-scroll::-webkit-scrollbar-thumb {
   background: transparent;
   border-radius: 99px;
   transition: background 0.2s;
 }
-.sparrow-scroll:hover::-webkit-scrollbar-thumb {
+.orca-scroll:hover::-webkit-scrollbar-thumb {
   background: oklch(from var(--border) l c h / 0.7);
 }

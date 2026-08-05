@@ -26,11 +26,12 @@ import {
 import { logAction } from "@/lib/log-actions";
 import { useTheme } from "@/lib/theme";
 import { serverRequestUnpauseOtp, serverSubmitUnpauseOtp } from "@/lib/user-auth";
+import { PoweredBy } from "@/components/PoweredBy";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sign in — Garuda Logistics Solutions | Sparrow AI Solutions" },
+      { title: "Sign in — Garuda Logistics Solutions | Orca Solutions" },
       { name: "description", content: "Secure operator sign-in for Garuda Logistics Solutions." },
       { name: "robots", content: "noindex, nofollow, noarchive" },
     ],
@@ -513,9 +514,7 @@ function LoginPage() {
         </div>
 
         {/* Powered by branding */}
-        <p className="absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-6 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
-          Powered by Sparrow AI Solutions
-        </p>
+        <PoweredBy className="absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-6 text-[10px] uppercase tracking-[0.22em] text-muted-foreground/50" />
       </section>
     </div>
     </>

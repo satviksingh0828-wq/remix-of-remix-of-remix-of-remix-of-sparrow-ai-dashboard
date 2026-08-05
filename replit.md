@@ -1,4 +1,4 @@
-# Project TMS — Sparrow AI Solutions
+# Project TMS — Orca Solutions
 
 A Transport Management System built with TanStack Start, React, TypeScript, Tailwind CSS and Supabase.
 

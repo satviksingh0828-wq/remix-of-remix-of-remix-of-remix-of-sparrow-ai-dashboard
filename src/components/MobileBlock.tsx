@@ -9,6 +9,7 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { MonitorX } from "lucide-react";
+import { PoweredBy } from "./PoweredBy";
 
 function isMobileUA(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -54,9 +55,7 @@ export function MobileBlock({ children }: { children: ReactNode }) {
           Access from a Windows / Mac desktop browser (Chrome or Edge recommended).
         </div>
 
-        <p className="mt-10 text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/50">
-          Powered by Sparrow AI Solutions
-        </p>
+        <PoweredBy className="mt-10 text-[10px] uppercase tracking-[0.22em] text-muted-foreground/50" />
       </div>
     );
   }

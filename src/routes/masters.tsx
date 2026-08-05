@@ -18,7 +18,7 @@ import {
 export const Route = createFileRoute("/masters")({
   head: () => ({
     meta: [
-      { title: "Masters — Garuda Logistics Solutions | Sparrow AI Solutions" },
+      { title: "Masters — Garuda Logistics Solutions | Orca Solutions" },
       {
         name: "description",
         content:

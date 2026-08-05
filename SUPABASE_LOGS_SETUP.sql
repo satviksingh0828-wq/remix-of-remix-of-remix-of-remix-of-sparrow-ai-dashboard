@@ -1,5 +1,5 @@
 -- ============================================================
--- Supabase Logs Setup — Project TMS (Sparrow AI Solutions)
+-- Supabase Logs Setup — Project TMS (Orca Solutions)
 -- Run this in the Supabase SQL Editor AFTER the main
 -- SUPABASE_SETUP.sql has been applied.
 --

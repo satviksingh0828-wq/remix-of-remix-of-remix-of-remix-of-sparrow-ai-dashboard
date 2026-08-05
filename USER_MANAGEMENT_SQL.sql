@@ -1,5 +1,5 @@
 -- ============================================================
--- User Management SQL — Project TMS (Sparrow AI Solutions)
+-- User Management SQL — Project TMS (Orca Solutions)
 -- Run this in the Supabase SQL Editor AFTER the main
 -- SUPABASE_SETUP.sql has been executed.
 --
