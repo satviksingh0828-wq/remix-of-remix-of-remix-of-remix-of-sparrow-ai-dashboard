@@ -6,8 +6,10 @@ export function SplashScreen() {
   const [phase, setPhase] = useState<"visible" | "fading" | "gone">("visible");
 
   useEffect(() => {
-    const fadeTimer = setTimeout(() => setPhase("fading"), 1500);
-    const doneTimer = setTimeout(() => setPhase("gone"), 1900);
+    // Animation fully completes ~2.25 s (caption: delay 1.55s + 0.7s duration).
+    // Wait 0.2 s after that, then fade out over 0.4 s.
+    const fadeTimer = setTimeout(() => setPhase("fading"), 2450);
+    const doneTimer = setTimeout(() => setPhase("gone"), 2850);
     return () => {
       clearTimeout(fadeTimer);
       clearTimeout(doneTimer);

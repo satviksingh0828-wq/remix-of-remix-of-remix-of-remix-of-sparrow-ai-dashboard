@@ -25,11 +25,13 @@ import { OrcaAIPanel } from "../components/OrcaAI";
 import { useOrcaAI } from "../lib/orca-context";
 import { useSession } from "../lib/session";
 import { SplashScreen } from "../components/SplashScreen";
+import { OrcaLogo } from "../components/OrcaLogo";
 
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
+        <OrcaLogo className="mx-auto mb-6 h-20 w-20 text-foreground opacity-80" />
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
         <p className="mt-2 text-sm text-muted-foreground">
@@ -55,6 +57,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-xl text-center">
+        <OrcaLogo className="mx-auto mb-6 h-20 w-20 text-foreground opacity-80" />
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
