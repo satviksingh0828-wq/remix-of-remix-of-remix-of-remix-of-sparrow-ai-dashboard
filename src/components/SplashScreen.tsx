@@ -27,6 +27,23 @@ export function SplashScreen() {
         rel="stylesheet"
       />
       <style>{`
+        /* ── colour tokens: dark mode (default) ── */
+        .orca-splash-overlay {
+          --orca-bg:      #060b12;
+          --orca-ink:     #f2f5f8;
+          --orca-mist:    #93a8bd;
+          --orca-glow:    rgba(255,255,255,0.45);
+        }
+        /* ── colour tokens: light mode ── */
+        @media (prefers-color-scheme: light) {
+          .orca-splash-overlay {
+            --orca-bg:    #ffffff;
+            --orca-ink:   #060b12;
+            --orca-mist:  #4a6680;
+            --orca-glow:  rgba(0,0,0,0.18);
+          }
+        }
+
         @keyframes orca-ring-out {
           0%   { width: 8%;   height: 8%;   opacity: .9; }
           100% { width: 112%; height: 112%; opacity: 0; }
@@ -37,12 +54,23 @@ export function SplashScreen() {
           100% { opacity: 1; transform: scale(1); }
         }
         @keyframes orca-breathe {
-          0%, 100% { filter: drop-shadow(0 0 0px rgba(255,255,255,0)); }
-          50%       { filter: drop-shadow(0 0 22px rgba(255,255,255,0.45)); }
+          0%, 100% { filter: drop-shadow(0 0 0px transparent); }
+          50%       { filter: drop-shadow(0 0 22px var(--orca-glow)); }
         }
         @keyframes orca-word-in {
           from { opacity: 0; transform: translateY(6px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        .orca-splash-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: var(--orca-bg);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+          transition: opacity 0.4s ease;
         }
         .orca-splash-stage {
           position: relative;
@@ -55,7 +83,7 @@ export function SplashScreen() {
         .orca-splash-ring {
           position: absolute;
           border-radius: 50%;
-          border: 1px solid #f2f5f8;
+          border: 1px solid var(--orca-ink);
           opacity: 0;
           animation: orca-ring-out 1.6s cubic-bezier(.16,.84,.44,1) forwards;
         }
@@ -65,7 +93,7 @@ export function SplashScreen() {
           position: relative;
           width: 100%;
           height: 100%;
-          color: #f2f5f8;
+          color: var(--orca-ink);
           animation: orca-breathe 3.2s ease-in-out 1.9s infinite;
         }
         .orca-splash-mark svg {
@@ -90,7 +118,7 @@ export function SplashScreen() {
           font-size: 10px;
           letter-spacing: 0.22em;
           text-transform: uppercase;
-          color: #93a8bd;
+          color: var(--orca-mist);
           opacity: 0;
           animation: orca-word-in .7s ease forwards;
           animation-delay: 1.55s;
@@ -104,18 +132,8 @@ export function SplashScreen() {
         }
       `}</style>
       <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 9999,
-          background: "#060b12",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          transition: "opacity 0.4s ease",
-          opacity: phase === "fading" ? 0 : 1,
-        }}
+        className="orca-splash-overlay"
+        style={{ opacity: phase === "fading" ? 0 : 1 }}
       >
         <div className="orca-splash-stage">
           <div className="orca-splash-ring r1" />
