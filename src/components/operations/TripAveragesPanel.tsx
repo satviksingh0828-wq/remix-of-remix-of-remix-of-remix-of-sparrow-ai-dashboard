@@ -305,11 +305,11 @@ export function TripAveragesPanel() {
   const summaryNet          = selectedBranchPnL ? selectedBranchPnL.net           : (data?.otherNetPnL       ?? 0);
 
   // ── Excel exports ─────────────────────────────────────────────────────────
-  function exportTripWise() {
+  function exportExcel() {
     if (!rows.length) return toast.error("No data to export");
-    const exportRows = branchFilter === "all" ? rows : rows.filter(r => r.branch_id === branchFilter);
+    const exportRows = filteredRows;
     const branchTotalBase = exportRows.reduce((s, r) => s + r.base, 0);
-    const sheetData: (string | number)[][] = [
+    const tripSheetData: (string | number)[][] = [
       ["Trip", "Branch", "Income (₹)", "Expense (₹)", "Trip Net (₹)",
        method === "weight" ? "Weight (kg)" : "Quantity",
        "Share %", "Branch Other P&L (₹)", "Distribution (₹)", "Final Net (₹)"],
@@ -337,18 +337,8 @@ export function TripAveragesPanel() {
         parseFloat(exportRows.reduce((s, r) => s + r.finalNet, 0).toFixed(2)),
       ],
     ];
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-    ws["!cols"] = [18, 16, 14, 14, 14, 14, 10, 16, 16, 14].map(w => ({ wch: w }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Trip Wise");
-    XLSX.writeFile(wb, financialYear !== "none" ? `trip-averages-trip-wise-fy-${financialYearLabel(Number(financialYear))}.xlsx` : `trip-averages-trip-wise-${year}-${month.padStart(2, "0")}.xlsx`);
-  }
 
-  function exportManifestWise() {
-    if (!rows.length) return toast.error("No data to export");
-    const exportRows = branchFilter === "all" ? rows : rows.filter(r => r.branch_id === branchFilter);
-    const branchTotalBase = exportRows.reduce((s, r) => s + r.base, 0);
-    const sheetData: (string | number)[][] = [
+    const manifestSheetData: (string | number)[][] = [
       ["Trip", "Branch", "Trip Income (₹)", "Trip Expense (₹)", "Trip Net (₹)",
        "Trip " + (method === "weight" ? "Weight (kg)" : "Quantity"),
        "Trip Share %", "Distribution (₹)", "Trip Final Net (₹)",
@@ -357,7 +347,7 @@ export function TripAveragesPanel() {
     ];
     for (const r of exportRows) {
       if (r.manifestRows.length === 0) {
-        sheetData.push([
+        manifestSheetData.push([
           r.trip_code, r.branch_name,
           r.total_income, r.total_expense, r.net_income,
           r.base,
@@ -368,7 +358,7 @@ export function TripAveragesPanel() {
         ]);
       } else {
         for (const m of r.manifestRows) {
-          sheetData.push([
+          manifestSheetData.push([
             r.trip_code, r.branch_name,
             r.total_income, r.total_expense, r.net_income,
             r.base,
@@ -388,11 +378,21 @@ export function TripAveragesPanel() {
         }
       }
     }
-    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-    ws["!cols"] = [16,14,14,14,14,14,10,14,14,14,16,16,12,10,16,14,14].map(w => ({ wch: w }));
+
+    const tripSheet = XLSX.utils.aoa_to_sheet(tripSheetData);
+    tripSheet["!cols"] = [18, 16, 14, 14, 14, 14, 10, 16, 16, 14].map(w => ({ wch: w }));
+    const manifestSheet = XLSX.utils.aoa_to_sheet(manifestSheetData);
+    manifestSheet["!cols"] = [16,14,14,14,14,14,10,14,14,14,16,16,12,10,16,14,14].map(w => ({ wch: w }));
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Manifest Wise");
-    XLSX.writeFile(wb, financialYear !== "none" ? `trip-averages-manifest-wise-fy-${financialYearLabel(Number(financialYear))}.xlsx` : `trip-averages-manifest-wise-${year}-${month.padStart(2, "0")}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, tripSheet, "Trip Wise");
+    XLSX.utils.book_append_sheet(wb, manifestSheet, "Manifest Wise");
+    XLSX.writeFile(
+      wb,
+      financialYear !== "none"
+        ? `trip-averages-fy-${financialYearLabel(Number(financialYear))}.xlsx`
+        : `trip-averages-${year}-${month.padStart(2, "0")}.xlsx`,
+    );
   }
 
   return (
@@ -479,11 +479,8 @@ export function TripAveragesPanel() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={exportTripWise}>
-                Export Trip Wise
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={exportManifestWise}>
-                Export Manifest Wise
+              <DropdownMenuItem onClick={exportExcel}>
+                Export Trip Wise + Manifest Wise tabs
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
