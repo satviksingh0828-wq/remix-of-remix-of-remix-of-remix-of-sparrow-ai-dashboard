@@ -285,7 +285,7 @@ export function TripDetailsPanel() {
           "Final Profit (₹)",
         ]
       : canSeeExpense
-        ? ["Trip", "Branch", "Trip Expense (₹)", "Expense Dist. (₹)"]
+        ? ["Trip", "Branch", "Trip Expense (₹)"]
         : ["Trip", "Branch"];
     const tripRows: (string | number)[][] = [
       tripHeaders,
@@ -300,7 +300,7 @@ export function TripDetailsPanel() {
               row.distributedProfit,
             ]
           : canSeeExpense
-            ? [row.trip_code || "—", row.branch_name || "—", row.total_expense, row.expenseDistribution]
+            ? [row.trip_code || "—", row.branch_name || "—", row.total_expense]
             : [row.trip_code || "—", row.branch_name || "—"],
       ),
     ];
@@ -314,12 +314,7 @@ export function TripDetailsPanel() {
         total("distributedProfit"),
       ]);
     } else if (canSeeExpense) {
-      tripRows.push([
-        "TOTALS",
-        "",
-        total("total_expense"),
-        total("expenseDistribution"),
-      ]);
+      tripRows.push(["TOTALS", "", total("total_expense")]);
     } else {
       tripRows.push(["TOTALS", ""]);
     }
@@ -338,15 +333,26 @@ export function TripDetailsPanel() {
           "Distributed Expense (₹)",
           "Profit (₹)",
         ]
-      : [
-          "Trip",
-          "Branch",
-          "Manifest No.",
-          "From Location",
-          "To Location",
-          "Weight (kg)",
-          "Quantity",
-        ];
+      : canSeeExpense
+        ? [
+            "Trip",
+            "Branch",
+            "Manifest No.",
+            "From Location",
+            "To Location",
+            "Weight (kg)",
+            "Quantity",
+            "Expense Dist. (₹)",
+          ]
+        : [
+            "Trip",
+            "Branch",
+            "Manifest No.",
+            "From Location",
+            "To Location",
+            "Weight (kg)",
+            "Quantity",
+          ];
     const manifestRows: (string | number)[][] = [manifestHeaders];
     let manifestIncomeTotal = 0;
     let distributedIncomeTotal = 0;
@@ -355,7 +361,11 @@ export function TripDetailsPanel() {
 
     for (const row of filteredRows) {
       if (row.manifestRows.length === 0) {
-        manifestRows.push([row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", ""]);
+        manifestRows.push(
+          canSeeExpense
+            ? [row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", "", ""]
+            : [row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", ""],
+        );
         continue;
       }
 
@@ -382,7 +392,9 @@ export function TripDetailsPanel() {
                 manifest.allocatedExpense,
                 manifest.manifestProfit,
               ]
-            : base,
+            : canSeeExpense
+              ? [...base, manifest.allocatedExpense]
+              : base,
         );
       }
     }
@@ -394,6 +406,8 @@ export function TripDetailsPanel() {
         distributedExpenseTotal,
         manifestProfitTotal,
       );
+    } else if (canSeeExpense) {
+      manifestTotals.push(distributedExpenseTotal);
     }
     manifestRows.push(manifestTotals);
 
@@ -402,14 +416,16 @@ export function TripDetailsPanel() {
       canSeeMoney
         ? [18, 18, 16, 16, 16, 16]
         : canSeeExpense
-          ? [18, 18, 16, 18]
+          ? [18, 18, 16]
           : [18, 18]
     ).map((wch) => ({ wch }));
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
       canSeeMoney
         ? [18, 18, 16, 20, 20, 12, 12, 18, 20, 20, 16]
-        : [18, 18, 16, 20, 20, 12, 12]
+        : canSeeExpense
+          ? [18, 18, 16, 20, 20, 12, 12, 18]
+          : [18, 18, 16, 20, 20, 12, 12]
     ).map((wch) => ({ wch }));
 
     const workbook = XLSX.utils.book_new();
@@ -570,8 +586,8 @@ export function TripDetailsPanel() {
                 </>
               ) : canSeeExpense ? (
                 <>
-                  Trip expenses and expense distributions are shown trip-wise. Income and profit
-                  amounts are hidden for basic users.
+                  Trip expenses are shown trip-wise and expense distributions are shown
+                  manifest-wise. Income and profit amounts are hidden for basic users.
                 </>
               ) : (
                 <>
@@ -602,10 +618,7 @@ export function TripDetailsPanel() {
                       </>
                     )}
                     {!canSeeMoney && canSeeExpense && (
-                      <>
-                        <th className="px-4 py-3 text-right">Trip Expense</th>
-                        <th className="px-4 py-3 text-right">Expense Dist.</th>
-                      </>
+                      <th className="px-4 py-3 text-right">Trip Expense</th>
                     )}
                   </tr>
                 </thead>
@@ -649,14 +662,9 @@ export function TripDetailsPanel() {
                             </>
                           )}
                           {!canSeeMoney && canSeeExpense && (
-                            <>
-                              <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
-                                {inr(row.total_expense)}
-                              </td>
-                              <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
-                                {inr(row.expenseDistribution)}
-                              </td>
-                            </>
+                            <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
+                              {inr(row.total_expense)}
+                            </td>
                           )}
                         </tr>
                         {open && (
@@ -665,7 +673,7 @@ export function TripDetailsPanel() {
                             className="border-b border-border bg-muted/10"
                           >
                             <td
-                              colSpan={canSeeMoney ? 7 : canSeeExpense ? 5 : 3}
+                              colSpan={canSeeMoney ? 7 : canSeeExpense ? 4 : 3}
                               className="px-6 py-3"
                             >
                               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -694,6 +702,9 @@ export function TripDetailsPanel() {
                                             </th>
                                             <th className="py-1.5 text-right">Profit</th>
                                           </>
+                                        )}
+                                        {!canSeeMoney && canSeeExpense && (
+                                          <th className="py-1.5 text-right">Expense Dist.</th>
                                         )}
                                       </tr>
                                     </thead>
@@ -731,6 +742,11 @@ export function TripDetailsPanel() {
                                                 {inr(manifest.manifestProfit)}
                                               </td>
                                             </>
+                                          )}
+                                          {!canSeeMoney && canSeeExpense && (
+                                            <td className="py-1.5 text-right text-red-600 dark:text-red-400">
+                                              {inr(manifest.allocatedExpense)}
+                                            </td>
                                           )}
                                         </tr>
                                       ))}
@@ -776,9 +792,6 @@ export function TripDetailsPanel() {
                       </td>
                       <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
                         {inr(total("total_expense"))}
-                      </td>
-                      <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
-                        {inr(total("expenseDistribution"))}
                       </td>
                     </tr>
                   </tfoot>
