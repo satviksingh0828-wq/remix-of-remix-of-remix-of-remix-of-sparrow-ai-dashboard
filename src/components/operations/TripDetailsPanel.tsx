@@ -118,6 +118,7 @@ function buildBranchPools(
 export function TripDetailsPanel() {
   const { user } = useSession();
   const canSeeMoney = user?.role === "admin" || user?.role === "viewer";
+  const canSeeExpense = canSeeMoney || user?.role === "basic";
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
   const years = useMemo(
@@ -275,8 +276,17 @@ export function TripDetailsPanel() {
     }
 
     const tripHeaders = canSeeMoney
-      ? ["Trip", "Branch", "Trip Income (₹)", "Trip Expense (₹)", "Trip Profit (₹)", "Final Profit (₹)"]
-      : ["Trip", "Branch"];
+      ? [
+          "Trip",
+          "Branch",
+          "Trip Income (₹)",
+          "Trip Expense (₹)",
+          "Trip Profit (₹)",
+          "Final Profit (₹)",
+        ]
+      : canSeeExpense
+        ? ["Trip", "Branch", "Trip Expense (₹)", "Expense Dist. (₹)"]
+        : ["Trip", "Branch"];
     const tripRows: (string | number)[][] = [
       tripHeaders,
       ...filteredRows.map((row) =>
@@ -289,7 +299,9 @@ export function TripDetailsPanel() {
               row.net_income,
               row.distributedProfit,
             ]
-          : [row.trip_code || "—", row.branch_name || "—"],
+          : canSeeExpense
+            ? [row.trip_code || "—", row.branch_name || "—", row.total_expense, row.expenseDistribution]
+            : [row.trip_code || "—", row.branch_name || "—"],
       ),
     ];
     if (canSeeMoney) {
@@ -300,6 +312,13 @@ export function TripDetailsPanel() {
         total("total_expense"),
         total("net_income"),
         total("distributedProfit"),
+      ]);
+    } else if (canSeeExpense) {
+      tripRows.push([
+        "TOTALS",
+        "",
+        total("total_expense"),
+        total("expenseDistribution"),
       ]);
     } else {
       tripRows.push(["TOTALS", ""]);
@@ -379,9 +398,13 @@ export function TripDetailsPanel() {
     manifestRows.push(manifestTotals);
 
     const tripSheet = XLSX.utils.aoa_to_sheet(tripRows);
-    tripSheet["!cols"] = (canSeeMoney ? [18, 18, 16, 16, 16, 16] : [18, 18]).map((wch) => ({
-      wch,
-    }));
+    tripSheet["!cols"] = (
+      canSeeMoney
+        ? [18, 18, 16, 16, 16, 16]
+        : canSeeExpense
+          ? [18, 18, 16, 18]
+          : [18, 18]
+    ).map((wch) => ({ wch }));
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
       canSeeMoney
@@ -545,10 +568,14 @@ export function TripDetailsPanel() {
                   Income and expense pools are distributed branch-wise by <strong>{method}</strong>.
                   Click a trip to see its manifest details and distribution.
                 </>
+              ) : canSeeExpense ? (
+                <>
+                  Trip expenses and expense distributions are shown trip-wise. Income and profit
+                  amounts are hidden for basic users.
+                </>
               ) : (
                 <>
-                  Showing trips only from your assigned branches. Financial amounts and
-                  distributions are hidden for basic users.
+                  Showing trips only from your assigned branches. Financial amounts are hidden.
                 </>
               )}
             </p>
@@ -572,6 +599,12 @@ export function TripDetailsPanel() {
                         <th className="px-4 py-3 text-right">Trip Expense</th>
                         <th className="px-4 py-3 text-right">Trip Profit</th>
                         <th className="px-4 py-3 text-right">Final Profit</th>
+                      </>
+                    )}
+                    {!canSeeMoney && canSeeExpense && (
+                      <>
+                        <th className="px-4 py-3 text-right">Trip Expense</th>
+                        <th className="px-4 py-3 text-right">Expense Dist.</th>
                       </>
                     )}
                   </tr>
@@ -615,13 +648,26 @@ export function TripDetailsPanel() {
                               </td>
                             </>
                           )}
+                          {!canSeeMoney && canSeeExpense && (
+                            <>
+                              <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
+                                {inr(row.total_expense)}
+                              </td>
+                              <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
+                                {inr(row.expenseDistribution)}
+                              </td>
+                            </>
+                          )}
                         </tr>
                         {open && (
                           <tr
                             key={`${row.id}-details`}
                             className="border-b border-border bg-muted/10"
                           >
-                            <td colSpan={canSeeMoney ? 7 : 3} className="px-6 py-3">
+                            <td
+                              colSpan={canSeeMoney ? 7 : canSeeExpense ? 5 : 3}
+                              className="px-6 py-3"
+                            >
                               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 Manifest details — {row.trip_code}
                               </p>
@@ -717,6 +763,22 @@ export function TripDetailsPanel() {
                         className={`px-4 py-3 text-right ${moneyColor(total("distributedProfit"))}`}
                       >
                         {inr(total("distributedProfit"))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                )}
+                {!canSeeMoney && canSeeExpense && (
+                  <tfoot>
+                    <tr className="border-t-2 border-border bg-muted/40 font-semibold">
+                      <td className="px-2 py-3" />
+                      <td className="px-4 py-3" colSpan={2}>
+                        Totals
+                      </td>
+                      <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
+                        {inr(total("total_expense"))}
+                      </td>
+                      <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
+                        {inr(total("expenseDistribution"))}
                       </td>
                     </tr>
                   </tfoot>

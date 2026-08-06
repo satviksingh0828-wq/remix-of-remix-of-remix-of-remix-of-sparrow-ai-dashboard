@@ -676,7 +676,8 @@ async function fetchTripAveragesData(
       : scopedTrips.map((trip) => ({
           ...trip,
           total_income: 0,
-          total_expense: 0,
+          // Basic users are allowed to see trip expense and its allocated
+          // expense distribution, but not income or profit figures.
           net_income: 0,
           manifests: trip.manifests.map((manifest) => ({
             ...manifest,
