@@ -7,10 +7,25 @@
  * manager (viewer) users.
  */
 import { useMemo, useState } from "react";
-import { Building2, ChevronDown, ChevronRight, Package, RefreshCw, Scale } from "lucide-react";
+import {
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  FileDown,
+  Package,
+  RefreshCw,
+  Scale,
+} from "lucide-react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -253,6 +268,137 @@ export function TripDetailsPanel() {
       | "distributedProfit",
   ) => filteredRows.reduce((sum, row) => sum + row[field], 0);
 
+  function exportExcel() {
+    if (!filteredRows.length) {
+      toast.error("No trip details to export");
+      return;
+    }
+
+    const tripHeaders = canSeeMoney
+      ? ["Trip", "Branch", "Trip Income (₹)", "Trip Expense (₹)", "Trip Profit (₹)", "Final Profit (₹)"]
+      : ["Trip", "Branch"];
+    const tripRows: (string | number)[][] = [
+      tripHeaders,
+      ...filteredRows.map((row) =>
+        canSeeMoney
+          ? [
+              row.trip_code || "—",
+              row.branch_name || "—",
+              row.total_income,
+              row.total_expense,
+              row.net_income,
+              row.distributedProfit,
+            ]
+          : [row.trip_code || "—", row.branch_name || "—"],
+      ),
+    ];
+    if (canSeeMoney) {
+      tripRows.push([
+        "TOTALS",
+        "",
+        total("total_income"),
+        total("total_expense"),
+        total("net_income"),
+        total("distributedProfit"),
+      ]);
+    } else {
+      tripRows.push(["TOTALS", ""]);
+    }
+
+    const manifestHeaders = canSeeMoney
+      ? [
+          "Trip",
+          "Branch",
+          "Manifest No.",
+          "From Location",
+          "To Location",
+          "Weight (kg)",
+          "Quantity",
+          "Manifest Income (₹)",
+          "Distributed Income (₹)",
+          "Distributed Expense (₹)",
+          "Profit (₹)",
+        ]
+      : [
+          "Trip",
+          "Branch",
+          "Manifest No.",
+          "From Location",
+          "To Location",
+          "Weight (kg)",
+          "Quantity",
+        ];
+    const manifestRows: (string | number)[][] = [manifestHeaders];
+    let manifestIncomeTotal = 0;
+    let distributedIncomeTotal = 0;
+    let distributedExpenseTotal = 0;
+    let manifestProfitTotal = 0;
+
+    for (const row of filteredRows) {
+      if (row.manifestRows.length === 0) {
+        manifestRows.push([row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", ""]);
+        continue;
+      }
+
+      for (const manifest of row.manifestRows) {
+        manifestIncomeTotal += manifest.manifest_income;
+        distributedIncomeTotal += manifest.allocatedIncome;
+        distributedExpenseTotal += manifest.allocatedExpense;
+        manifestProfitTotal += manifest.manifestProfit;
+        const base: (string | number)[] = [
+          row.trip_code || "—",
+          row.branch_name || "—",
+          manifest.manifest_number || "—",
+          manifest.from_location || "—",
+          manifest.to_location || "—",
+          manifest.weight_kg,
+          manifest.quantity,
+        ];
+        manifestRows.push(
+          canSeeMoney
+            ? [
+                ...base,
+                manifest.manifest_income,
+                manifest.allocatedIncome,
+                manifest.allocatedExpense,
+                manifest.manifestProfit,
+              ]
+            : base,
+        );
+      }
+    }
+    const manifestTotals = ["TOTALS", "", "", "", "", "", ""];
+    if (canSeeMoney) {
+      manifestTotals.push(
+        manifestIncomeTotal,
+        distributedIncomeTotal,
+        distributedExpenseTotal,
+        manifestProfitTotal,
+      );
+    }
+    manifestRows.push(manifestTotals);
+
+    const tripSheet = XLSX.utils.aoa_to_sheet(tripRows);
+    tripSheet["!cols"] = (canSeeMoney ? [18, 18, 16, 16, 16, 16] : [18, 18]).map((wch) => ({
+      wch,
+    }));
+    const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
+    manifestSheet["!cols"] = (
+      canSeeMoney
+        ? [18, 18, 16, 20, 20, 12, 12, 18, 20, 20, 16]
+        : [18, 18, 16, 20, 20, 12, 12]
+    ).map((wch) => ({ wch }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, tripSheet, "Trip Wise");
+    XLSX.utils.book_append_sheet(workbook, manifestSheet, "Manifest Wise");
+    const filename =
+      financialYear !== "none"
+        ? `trip-details-fy-${financialYearLabel(Number(financialYear))}.xlsx`
+        : `trip-details-${year}-${month.padStart(2, "0")}.xlsx`;
+    XLSX.writeFile(workbook, filename);
+  }
+
   return (
     <div className="animate-fade-up space-y-6">
       <div className="flex flex-wrap items-center gap-3">
@@ -353,6 +499,18 @@ export function TripDetailsPanel() {
                 <Package className="size-3.5" /> By Quantity
               </button>
             </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="ml-auto">
+                  <FileDown className="size-4" /> Export Excel
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={exportExcel}>
+                  Export Trip Wise + Manifest Wise tabs
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </>
         )}
       </div>
@@ -402,7 +560,7 @@ export function TripDetailsPanel() {
             </p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
-              <table className="w-full min-w-[980px] text-sm">
+               <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="w-8 px-2 py-3" />
@@ -413,15 +571,9 @@ export function TripDetailsPanel() {
                         <th className="px-4 py-3 text-right">Trip Income</th>
                         <th className="px-4 py-3 text-right">Trip Expense</th>
                         <th className="px-4 py-3 text-right">Trip Profit</th>
-                        <th className="px-4 py-3 text-right">Income Dist.</th>
-                        <th className="px-4 py-3 text-right">Expense Dist.</th>
                         <th className="px-4 py-3 text-right">Final Profit</th>
                       </>
                     )}
-                    <th className="px-4 py-3 text-right">
-                      {method === "weight" ? "Weight (kg)" : "Quantity"}
-                    </th>
-                    <th className="px-4 py-3 text-right">Share %</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -456,12 +608,6 @@ export function TripDetailsPanel() {
                               >
                                 {inr(row.net_income)}
                               </td>
-                              <td className="px-4 py-3 text-right text-green-600 dark:text-green-400">
-                                {inr(row.incomeDistribution)}
-                              </td>
-                              <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
-                                {inr(row.expenseDistribution)}
-                              </td>
                               <td
                                 className={`px-4 py-3 text-right font-semibold ${moneyColor(row.distributedProfit)}`}
                               >
@@ -469,19 +615,13 @@ export function TripDetailsPanel() {
                               </td>
                             </>
                           )}
-                          <td className="px-4 py-3 text-right text-muted-foreground">
-                            {row.base > 0 ? row.base.toLocaleString() : "—"}
-                          </td>
-                          <td className="px-4 py-3 text-right text-muted-foreground">
-                            {(row.tripShare * 100).toFixed(1)}%
-                          </td>
                         </tr>
                         {open && (
                           <tr
                             key={`${row.id}-details`}
                             className="border-b border-border bg-muted/10"
                           >
-                            <td colSpan={canSeeMoney ? 11 : 6} className="px-6 py-3">
+                            <td colSpan={canSeeMoney ? 7 : 3} className="px-6 py-3">
                               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                 Manifest details — {row.trip_code}
                               </p>
@@ -496,9 +636,7 @@ export function TripDetailsPanel() {
                                       <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
                                         <th className="py-1.5 pr-4">Manifest No.</th>
                                         <th className="py-1.5 pr-4">From Location</th>
-                                        <th className="py-1.5 pr-4">From PIN</th>
                                         <th className="py-1.5 pr-4">To Location</th>
-                                        <th className="py-1.5 pr-4">To PIN</th>
                                         <th className="py-1.5 pr-4 text-right">Weight</th>
                                         <th className="py-1.5 pr-4 text-right">Qty</th>
                                         {canSeeMoney && (
@@ -523,13 +661,7 @@ export function TripDetailsPanel() {
                                             {manifest.manifest_number || "—"}
                                           </td>
                                           <td className="py-1.5 pr-4">{manifest.from_location}</td>
-                                          <td className="py-1.5 pr-4 text-muted-foreground">
-                                            {manifest.from_pin_code || "—"}
-                                          </td>
                                           <td className="py-1.5 pr-4">{manifest.to_location}</td>
-                                          <td className="py-1.5 pr-4 text-muted-foreground">
-                                            {manifest.to_pin_code || "—"}
-                                          </td>
                                           <td className="py-1.5 pr-4 text-right">
                                             {manifest.weight_kg || "—"}
                                           </td>
@@ -581,19 +713,10 @@ export function TripDetailsPanel() {
                       <td className={`px-4 py-3 text-right ${moneyColor(total("net_income"))}`}>
                         {inr(total("net_income"))}
                       </td>
-                      <td className="px-4 py-3 text-right text-green-600 dark:text-green-400">
-                        {inr(total("incomeDistribution"))}
-                      </td>
-                      <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
-                        {inr(total("expenseDistribution"))}
-                      </td>
                       <td
                         className={`px-4 py-3 text-right ${moneyColor(total("distributedProfit"))}`}
                       >
                         {inr(total("distributedProfit"))}
-                      </td>
-                      <td className="px-4 py-3 text-right" colSpan={2}>
-                        {filteredRows.length} trip{filteredRows.length === 1 ? "" : "s"}
                       </td>
                     </tr>
                   </tfoot>
