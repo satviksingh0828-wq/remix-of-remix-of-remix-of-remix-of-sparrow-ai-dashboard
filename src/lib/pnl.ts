@@ -26,7 +26,9 @@ export type PnLClosedTrip = {
 export type ManifestDetail = {
   manifest_number: string;
   from_location: string;
+  from_pin_code: string;
   to_location: string;
+  to_pin_code: string;
   weight_kg: number;
   quantity: number;
   manifest_income: number; // freight + loading + fixed from manifest_lines
@@ -258,11 +260,14 @@ async function fetchActiveTrips(db: any, start: string, end: string): Promise<Pn
 
   const tripIds = trips.map((t) => t.id as string);
   const contractIds = [...new Set(trips.map((t) => t.contract_id as string).filter(Boolean))];
-  const branchIds   = [...new Set(trips.map((t) => t.branch_id   as string).filter(Boolean))];
+  const branchIds = [...new Set(trips.map((t) => t.branch_id as string).filter(Boolean))];
 
   const [manifRes, incRes, expRes, branchRes, contractRes, entryRes] = await Promise.all([
-    db.from("trip_manifests")
-      .select("trip_id,weight_kg,quantity,from_location_id,to_location_id,from_pin_code,to_pin_code")
+    db
+      .from("trip_manifests")
+      .select(
+        "trip_id,weight_kg,quantity,from_location_id,to_location_id,from_pin_code,to_pin_code",
+      )
       .in("trip_id", tripIds),
     db.from("trip_other_income").select("trip_id,amount").in("trip_id", tripIds),
     db.from("trip_expenses").select("trip_id,amount").in("trip_id", tripIds),
@@ -270,19 +275,23 @@ async function fetchActiveTrips(db: any, start: string, end: string): Promise<Pn
       ? db.from("branches").select("id,branch_name").in("id", branchIds)
       : Promise.resolve({ data: [] }),
     contractIds.length > 0
-      ? db.from("contracts")
+      ? db
+          .from("contracts")
           .select("id,contract_name,company_name,gstin,fixed_monthly_charge,fixed_yearly_charge")
           .in("id", contractIds)
       : Promise.resolve({ data: [] }),
     contractIds.length > 0
-      ? db.from("contract_entries")
-          .select("contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_route_range_type,freight_route_ranges,loading_route_range_type,loading_route_ranges,per_manifest_amount")
+      ? db
+          .from("contract_entries")
+          .select(
+            "contract_id,from_location_id,to_location_id,from_pin_code,to_pin_code,freight_route_range_type,freight_route_ranges,loading_route_range_type,loading_route_ranges,per_manifest_amount",
+          )
           .in("contract_id", contractIds)
       : Promise.resolve({ data: [] }),
   ]);
 
   // Build lookup maps
-  const manifestsByTrip  = new Map<string, Record<string, unknown>[]>();
+  const manifestsByTrip = new Map<string, Record<string, unknown>[]>();
   for (const m of manifRes.data ?? []) {
     const tid = m.trip_id as string;
     if (!manifestsByTrip.has(tid)) manifestsByTrip.set(tid, []);
@@ -301,7 +310,8 @@ async function fetchActiveTrips(db: any, start: string, end: string): Promise<Pn
     expenseByTrip.get(tid)!.push(e);
   }
   const branchNameMap = new Map<string, string>();
-  for (const b of branchRes.data ?? []) branchNameMap.set(b.id as string, String(b.branch_name ?? ""));
+  for (const b of branchRes.data ?? [])
+    branchNameMap.set(b.id as string, String(b.branch_name ?? ""));
 
   const contractMap = new Map<string, ContractLite>();
   for (const c of contractRes.data ?? []) contractMap.set(c.id as string, c as ContractLite);
@@ -314,19 +324,19 @@ async function fetchActiveTrips(db: any, start: string, end: string): Promise<Pn
   }
 
   return trips.map((t): PnLClosedTrip => {
-    const manifests  = manifestsByTrip.get(t.id as string)  ?? [];
-    const otherIncs  = incomeByTrip.get(t.id as string)     ?? [];
-    const expenses   = expenseByTrip.get(t.id as string)    ?? [];
-    const contract   = t.contract_id ? contractMap.get(t.contract_id as string) : undefined;
-    const entries    = t.contract_id ? (entriesByContract.get(t.contract_id as string) ?? []) : [];
+    const manifests = manifestsByTrip.get(t.id as string) ?? [];
+    const otherIncs = incomeByTrip.get(t.id as string) ?? [];
+    const expenses = expenseByTrip.get(t.id as string) ?? [];
+    const contract = t.contract_id ? contractMap.get(t.contract_id as string) : undefined;
+    const entries = t.contract_id ? (entriesByContract.get(t.contract_id as string) ?? []) : [];
 
     const manifestIncome = manifests.reduce((s, m) => {
       const ch = manifestCharges(contract, findEntry(entries, m as never), m as never);
       return s + ch.freight + ch.loading + ch.fixed;
     }, 0);
-    const otherIncomeTotal = otherIncs.reduce((s, r)  => s + num(r.amount), 0);
-    const expenseTotal     = expenses.reduce((s, r)   => s + num(r.amount), 0);
-    const totalIncome      = manifestIncome + otherIncomeTotal;
+    const otherIncomeTotal = otherIncs.reduce((s, r) => s + num(r.amount), 0);
+    const expenseTotal = expenses.reduce((s, r) => s + num(r.amount), 0);
+    const totalIncome = manifestIncome + otherIncomeTotal;
 
     return {
       id: t.id as string,
@@ -357,43 +367,63 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
     const start = `${y}-01-01`;
     const end = `${y + 1}-01-01`;
 
-    const [closedTripsRows, activeTrips, incomesRows, expendituresRows, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
-      await Promise.all([
-        // fetchAllAdmin so >1000 trips/year are never silently truncated
-        fetchAllAdmin<Record<string, unknown>>(() =>
-          db.from("closed_trips")
-            .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
-            .gte("closed_at", start)
-            .lt("closed_at", end)
-        ),
-        fetchActiveTrips(db, start, end),
-        fetchAllAdmin<Record<string, unknown>>(() =>
-          db.from("incomes")
-            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-            .gte("entry_date", start)
-            .lt("entry_date", end)
-        ),
-        fetchAllAdmin<Record<string, unknown>>(() =>
-          db.from("expenditures")
-            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-            .gte("entry_date", start)
-            .lt("entry_date", end)
-        ),
-        db.from("contracts")
-          .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note")
-          .eq("status", "active"),
-        db.from("branches").select("id,branch_name"),
-        db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
-        db.from("drivers").select("id,full_name,driver_code").order("full_name"),
-        db.from("transporters").select("id,transporter_name").order("transporter_name"),
-      ]);
+    const [
+      closedTripsRows,
+      activeTrips,
+      incomesRows,
+      expendituresRows,
+      contractsRes,
+      branchesRes,
+      vehiclesRes,
+      driversRes,
+      transportersRes,
+    ] = await Promise.all([
+      // fetchAllAdmin so >1000 trips/year are never silently truncated
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db
+          .from("closed_trips")
+          .select(
+            "id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot",
+          )
+          .gte("closed_at", start)
+          .lt("closed_at", end),
+      ),
+      fetchActiveTrips(db, start, end),
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db
+          .from("incomes")
+          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+          .gte("entry_date", start)
+          .lt("entry_date", end),
+      ),
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db
+          .from("expenditures")
+          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+          .gte("entry_date", start)
+          .lt("entry_date", end),
+      ),
+      db
+        .from("contracts")
+        .select(
+          "id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note",
+        )
+        .eq("status", "active"),
+      db.from("branches").select("id,branch_name"),
+      db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
+      db.from("drivers").select("id,full_name,driver_code").order("full_name"),
+      db.from("transporters").select("id,transporter_name").order("transporter_name"),
+    ]);
 
     return {
       closedTrips: [...closedTripsRows.map(mapTrip), ...activeTrips],
       incomes: incomesRows.map(mapIncome),
       expenditures: expendituresRows.map(mapExpenditure),
       contracts: (contractsRes.data ?? []).map(mapContract),
-      branches: (branchesRes.data ?? []).map((b: Record<string, unknown>) => ({ id: b.id as string, branch_name: String(b.branch_name ?? "") })),
+      branches: (branchesRes.data ?? []).map((b: Record<string, unknown>) => ({
+        id: b.id as string,
+        branch_name: String(b.branch_name ?? ""),
+      })),
       vehicles: (vehiclesRes.data ?? []).map((v: Record<string, unknown>) => ({
         id: v.id as string,
         registration_number: String(v.registration_number ?? ""),
@@ -440,35 +470,52 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
 
     const months = month !== undefined ? 1 : 12;
 
-    const [closedTripsRows, activeTrips, incomesRows, expendituresRows, contractsRes, branchesRes, vehiclesRes, driversRes, transportersRes] =
-      await Promise.all([
-        fetchAllAdmin<Record<string, unknown>>(() =>
-          db.from("closed_trips")
-            .select("id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot")
-            .gte("closed_at", start)
-            .lt("closed_at", end)
-        ),
-        fetchActiveTrips(db, start, end),
-        fetchAllAdmin<Record<string, unknown>>(() =>
-          db.from("incomes")
-            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-            .gte("entry_date", start)
-            .lt("entry_date", end)
-        ),
-        fetchAllAdmin<Record<string, unknown>>(() =>
-          db.from("expenditures")
-            .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
-            .gte("entry_date", start)
-            .lt("entry_date", end)
-        ),
-        db.from("contracts")
-          .select("id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note")
-          .eq("status", "active"),
-        db.from("branches").select("id,branch_name"),
-        db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
-        db.from("drivers").select("id,full_name,driver_code").order("full_name"),
-        db.from("transporters").select("id,transporter_name").order("transporter_name"),
-      ]);
+    const [
+      closedTripsRows,
+      activeTrips,
+      incomesRows,
+      expendituresRows,
+      contractsRes,
+      branchesRes,
+      vehiclesRes,
+      driversRes,
+      transportersRes,
+    ] = await Promise.all([
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db
+          .from("closed_trips")
+          .select(
+            "id,trip_code,branch_id,branch_name,vehicle_id,driver_id,transporter_id,total_income,total_expense,net_income,closed_at,snapshot",
+          )
+          .gte("closed_at", start)
+          .lt("closed_at", end),
+      ),
+      fetchActiveTrips(db, start, end),
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db
+          .from("incomes")
+          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+          .gte("entry_date", start)
+          .lt("entry_date", end),
+      ),
+      fetchAllAdmin<Record<string, unknown>>(() =>
+        db
+          .from("expenditures")
+          .select("id,branch_id,vehicle_id,driver_id,transporter_id,amount,entry_date")
+          .gte("entry_date", start)
+          .lt("entry_date", end),
+      ),
+      db
+        .from("contracts")
+        .select(
+          "id,contract_name,fixed_monthly_charge,fixed_yearly_charge,fixed_monthly_charge_note,fixed_yearly_charge_note",
+        )
+        .eq("status", "active"),
+      db.from("branches").select("id,branch_name"),
+      db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
+      db.from("drivers").select("id,full_name,driver_code").order("full_name"),
+      db.from("transporters").select("id,transporter_name").order("transporter_name"),
+    ]);
 
     return {
       closedTrips: [...closedTripsRows.map(mapTrip), ...activeTrips],
@@ -480,7 +527,10 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
         fixed_monthly_charge: Number(c.fixed_monthly_charge ?? 0) * months,
         fixed_yearly_charge: (Number(c.fixed_yearly_charge ?? 0) / 12) * months,
       })),
-      branches: (branchesRes.data ?? []).map((b: Record<string, unknown>) => ({ id: b.id as string, branch_name: String(b.branch_name ?? "") })),
+      branches: (branchesRes.data ?? []).map((b: Record<string, unknown>) => ({
+        id: b.id as string,
+        branch_name: String(b.branch_name ?? ""),
+      })),
       vehicles: (vehiclesRes.data ?? []).map((v: Record<string, unknown>) => ({
         id: v.id as string,
         registration_number: String(v.registration_number ?? ""),
@@ -499,124 +549,252 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
     };
   });
 
+async function fetchTripAveragesData(
+  data: { year?: number; month?: number; financialYearStart?: number },
+  allowedBranchIds?: string[],
+): Promise<TripAveragesData> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabaseAdmin as any;
+
+  const { financialYearStart } = data;
+  const year = data.year ?? financialYearStart ?? new Date().getFullYear();
+  const month = data.month ?? 1;
+  let start: string;
+  let end: string;
+  const months = financialYearStart !== undefined ? 12 : 1;
+  if (financialYearStart !== undefined) {
+    ({ start, end } = financialYearRange(financialYearStart));
+  } else {
+    const m = String(month).padStart(2, "0");
+    start = `${year}-${m}-01`;
+    end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  }
+
+  const [tripsRows, incomesRows, expendituresRows, contractsRes, locationsRes] = await Promise.all([
+    fetchAllAdmin<Record<string, unknown>>(() =>
+      db
+        .from("closed_trips")
+        .select(
+          "id,trip_code,branch_id,branch_name,total_income,total_expense,net_income,closed_at,snapshot",
+        )
+        .gte("closed_at", start)
+        .lt("closed_at", end)
+        .order("closed_at"),
+    ),
+    fetchAllAdmin<Record<string, unknown>>(() =>
+      db
+        .from("incomes")
+        .select("branch_id,amount,entry_date")
+        .gte("entry_date", start)
+        .lt("entry_date", end),
+    ),
+    fetchAllAdmin<Record<string, unknown>>(() =>
+      db
+        .from("expenditures")
+        .select("branch_id,amount,entry_date")
+        .gte("entry_date", start)
+        .lt("entry_date", end),
+    ),
+    db.from("contracts").select("fixed_monthly_charge,fixed_yearly_charge").eq("status", "active"),
+    db.from("locations").select("id,location_name,pin_code"),
+  ]);
+
+  // Build location id → name map
+  const locMap = new Map<string, { name: string; pin: string }>();
+  for (const l of locationsRes.data ?? []) {
+    locMap.set(String(l.id), {
+      name: String(l.location_name ?? l.pin_code ?? ""),
+      pin: String(l.pin_code ?? ""),
+    });
+  }
+
+  function resolveLocation(id: unknown, pin: unknown): { name: string; pin: string } {
+    if (id && locMap.has(String(id))) return locMap.get(String(id))!;
+    const fallbackPin = String(pin ?? "").trim();
+    return { name: fallbackPin || "—", pin: fallbackPin };
+  }
+
+  function extractManifests(snapshot: unknown): ManifestDetail[] {
+    try {
+      const s = snapshot as Record<string, unknown>;
+      const rawManifests = (s?.manifests as Record<string, unknown>[]) ?? [];
+      const manifestLines = (s?.manifest_lines as Record<string, unknown>[]) ?? [];
+
+      return rawManifests.map((m, i) => {
+        const line = manifestLines[i] as Record<string, unknown> | undefined;
+        const income = line
+          ? Number(line.freight ?? 0) + Number(line.loading ?? 0) + Number(line.fixed ?? 0)
+          : 0;
+        const from = resolveLocation(m.from_location_id, m.from_pin_code);
+        const to = resolveLocation(m.to_location_id, m.to_pin_code);
+        return {
+          manifest_number: String(m.manifest_number ?? ""),
+          from_location: from.name,
+          from_pin_code: from.pin,
+          to_location: to.name,
+          to_pin_code: to.pin,
+          weight_kg: Number(m.weight_kg ?? 0),
+          quantity: Number(m.quantity ?? 0),
+          manifest_income: income,
+        };
+      });
+    } catch {
+      return [];
+    }
+  }
+
+  const allTrips: TripAveragesRow[] = tripsRows.map((r: Record<string, unknown>) => {
+    const { weight, quantity } = extractWeightQty(r.snapshot);
+    return {
+      id: r.id as string,
+      trip_code: String(r.trip_code ?? ""),
+      branch_id: (r.branch_id as string) ?? null,
+      branch_name: String(r.branch_name ?? ""),
+      total_income: Number(r.total_income ?? 0),
+      total_expense: Number(r.total_expense ?? 0),
+      net_income: Number(r.net_income ?? 0),
+      total_weight: weight,
+      total_quantity: quantity,
+      closed_at: r.closed_at as string,
+      manifests: extractManifests(r.snapshot),
+    };
+  });
+
+  // Basic users are scoped on the server, not just in the UI. Unassigned
+  // branch pools are excluded because they cannot be safely attributed to an
+  // assigned branch.
+  const scopedTrips =
+    allowedBranchIds === undefined
+      ? allTrips
+      : allTrips.filter(
+          (trip) => trip.branch_id !== null && allowedBranchIds.includes(trip.branch_id),
+        );
+  const trips =
+    allowedBranchIds === undefined
+      ? scopedTrips
+      : scopedTrips.map((trip) => ({
+          ...trip,
+          total_income: 0,
+          total_expense: 0,
+          net_income: 0,
+          manifests: trip.manifests.map((manifest) => ({
+            ...manifest,
+            manifest_income: 0,
+          })),
+        }));
+  const scopedIncomeRows =
+    allowedBranchIds === undefined
+      ? incomesRows
+      : incomesRows.filter((r: Record<string, unknown>) => {
+          const branchId = (r.branch_id as string | null) ?? null;
+          return branchId !== null && allowedBranchIds.includes(branchId);
+        });
+  const scopedExpenditureRows =
+    allowedBranchIds === undefined
+      ? expendituresRows
+      : expendituresRows.filter((r: Record<string, unknown>) => {
+          const branchId = (r.branch_id as string | null) ?? null;
+          return branchId !== null && allowedBranchIds.includes(branchId);
+        });
+
+  const otherIncome = scopedIncomeRows.reduce(
+    (s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0),
+    0,
+  );
+  const totalExpenditure = scopedExpenditureRows.reduce(
+    (s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0),
+    0,
+  );
+  const fixedIncome =
+    allowedBranchIds === undefined
+      ? (contractsRes.data ?? []).reduce((s: number, c: Record<string, unknown>) => {
+          return (
+            s +
+            (Number(c.fixed_monthly_charge ?? 0) + Number(c.fixed_yearly_charge ?? 0) / 12) * months
+          );
+        }, 0)
+      : 0;
+  const otherNetPnL = otherIncome + fixedIncome - totalExpenditure;
+
+  const incomeRows = scopedIncomeRows.map((r: Record<string, unknown>) => ({
+    branch_id: (r.branch_id as string) ?? null,
+    amount: Number(r.amount ?? 0),
+  }));
+  const expenditureRows = scopedExpenditureRows.map((r: Record<string, unknown>) => ({
+    branch_id: (r.branch_id as string) ?? null,
+    amount: Number(r.amount ?? 0),
+  }));
+
+  return {
+    trips,
+    otherIncome,
+    totalExpenditure,
+    fixedIncome,
+    otherNetPnL,
+    year,
+    month,
+    financialYearStart,
+    incomeRows,
+    expenditureRows,
+  };
+}
+
 export const serverFetchTripAverages = createServerFn({ method: "POST" })
   .validator((input: { year?: number; month?: number; financialYearStart?: number }) => input)
+  .handler(async ({ data }): Promise<TripAveragesData> => fetchTripAveragesData(data));
+
+/**
+ * Trip Details is available to every signed-in role. Basic users are scoped
+ * from the server to their assigned branches; admin and manager/viewer users
+ * receive the complete period dataset.
+ */
+export const serverFetchTripDetails = createServerFn({ method: "POST" })
+  .validator(
+    (input: { year?: number; month?: number; financialYearStart?: number; sessionToken: string }) =>
+      input,
+  )
   .handler(async ({ data }): Promise<TripAveragesData> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabaseAdmin as any;
+    const token = data.sessionToken;
+    const lastColon = token.lastIndexOf(":");
+    if (lastColon === -1) throw new Error("Forbidden: invalid session.");
 
-    const { financialYearStart } = data;
-    const year = data.year ?? financialYearStart ?? new Date().getFullYear();
-    const month = data.month ?? 1;
-    let start: string;
-    let end: string;
-    const months = financialYearStart !== undefined ? 12 : 1;
-    if (financialYearStart !== undefined) {
-      ({ start, end } = financialYearRange(financialYearStart));
-    } else {
-      const m = String(month).padStart(2, "0");
-      start = `${year}-${m}-01`;
-      end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const payload = token.slice(0, lastColon);
+    const suppliedSig = token.slice(lastColon + 1);
+    const parts = payload.split(":");
+    if (parts.length !== 3) throw new Error("Forbidden: invalid session.");
+    const [uid, role, expiresStr] = parts;
+    const expiresMs = Number(expiresStr);
+    if (!uid || !Number.isFinite(expiresMs) || Date.now() > expiresMs) {
+      throw new Error("Forbidden: session expired.");
     }
 
-    const [tripsRows, incomesRows, expendituresRows, contractsRes, locationsRes] = await Promise.all([
-      fetchAllAdmin<Record<string, unknown>>(() =>
-        db.from("closed_trips")
-          .select("id,trip_code,branch_id,branch_name,total_income,total_expense,net_income,closed_at,snapshot")
-          .gte("closed_at", start)
-          .lt("closed_at", end)
-          .order("closed_at")
-      ),
-      fetchAllAdmin<Record<string, unknown>>(() =>
-        db.from("incomes")
-          .select("branch_id,amount,entry_date")
-          .gte("entry_date", start)
-          .lt("entry_date", end)
-      ),
-      fetchAllAdmin<Record<string, unknown>>(() =>
-        db.from("expenditures")
-          .select("branch_id,amount,entry_date")
-          .gte("entry_date", start)
-          .lt("entry_date", end)
-      ),
-      db.from("contracts")
-        .select("fixed_monthly_charge,fixed_yearly_charge")
-        .eq("status", "active"),
-      db.from("locations").select("id,location_name,pin_code"),
-    ]);
-
-    // Build location id → name map
-    const locMap = new Map<string, string>();
-    for (const l of locationsRes.data ?? []) {
-      locMap.set(String(l.id), String(l.location_name ?? l.pin_code ?? ""));
+    const { createHmac, timingSafeEqual } = await import("crypto");
+    const secret = process.env.SESSION_SECRET ?? "dev-fallback-secret";
+    const expected = createHmac("sha256", secret).update(payload).digest("hex");
+    if (suppliedSig.length !== expected.length) throw new Error("Forbidden: invalid session.");
+    if (!timingSafeEqual(Buffer.from(suppliedSig), Buffer.from(expected))) {
+      throw new Error("Forbidden: invalid session.");
+    }
+    if (role !== "admin" && role !== "viewer" && role !== "basic") {
+      throw new Error("Forbidden: invalid role.");
     }
 
-    function resolveLocation(id: unknown, pin: unknown): string {
-      if (id && locMap.has(String(id))) return locMap.get(String(id))!;
-      if (pin && String(pin).trim()) return String(pin);
-      return "—";
+    let allowedBranchIds: string[] | undefined;
+    if (role === "basic") {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const accessQuery = supabaseAdmin
+        .from("user_branch_access")
+        .select("branch_id")
+        .eq("user_id", uid);
+      const { data: accessRows, error } = await accessQuery;
+      if (error) throw new Error(`Could not load branch access: ${error.message}`);
+      allowedBranchIds = ((accessRows ?? []) as { branch_id: string }[]).map(
+        (row) => row.branch_id,
+      );
     }
 
-    function extractManifests(snapshot: unknown): ManifestDetail[] {
-      try {
-        const s = snapshot as Record<string, unknown>;
-        const rawManifests = (s?.manifests as Record<string, unknown>[]) ?? [];
-        const manifestLines = (s?.manifest_lines as Record<string, unknown>[]) ?? [];
-
-        return rawManifests.map((m, i) => {
-          const line = manifestLines[i] as Record<string, unknown> | undefined;
-          const income = line
-            ? Number(line.freight ?? 0) + Number(line.loading ?? 0) + Number(line.fixed ?? 0)
-            : 0;
-          return {
-            manifest_number: String(m.manifest_number ?? ""),
-            from_location: resolveLocation(m.from_location_id, m.from_pin_code),
-            to_location: resolveLocation(m.to_location_id, m.to_pin_code),
-            weight_kg: Number(m.weight_kg ?? 0),
-            quantity: Number(m.quantity ?? 0),
-            manifest_income: income,
-          };
-        });
-      } catch {
-        return [];
-      }
-    }
-
-    const trips: TripAveragesRow[] = tripsRows.map((r: Record<string, unknown>) => {
-      const { weight, quantity } = extractWeightQty(r.snapshot);
-      return {
-        id: r.id as string,
-        trip_code: String(r.trip_code ?? ""),
-        branch_id: (r.branch_id as string) ?? null,
-        branch_name: String(r.branch_name ?? ""),
-        total_income: Number(r.total_income ?? 0),
-        total_expense: Number(r.total_expense ?? 0),
-        net_income: Number(r.net_income ?? 0),
-        total_weight: weight,
-        total_quantity: quantity,
-        closed_at: r.closed_at as string,
-        manifests: extractManifests(r.snapshot),
-      };
-    });
-
-    const otherIncome = incomesRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
-    const totalExpenditure = expendituresRows.reduce((s: number, r: Record<string, unknown>) => s + Number(r.amount ?? 0), 0);
-    const fixedIncome = (contractsRes.data ?? []).reduce((s: number, c: Record<string, unknown>) => {
-      return s + (Number(c.fixed_monthly_charge ?? 0) + Number(c.fixed_yearly_charge ?? 0) / 12) * months;
-    }, 0);
-    const otherNetPnL = otherIncome + fixedIncome - totalExpenditure;
-
-    const incomeRows = incomesRows.map((r: Record<string, unknown>) => ({
-      branch_id: (r.branch_id as string) ?? null,
-      amount: Number(r.amount ?? 0),
-    }));
-    const expenditureRows = expendituresRows.map((r: Record<string, unknown>) => ({
-      branch_id: (r.branch_id as string) ?? null,
-      amount: Number(r.amount ?? 0),
-    }));
-
-    return { trips, otherIncome, totalExpenditure, fixedIncome, otherNetPnL, year, month, financialYearStart, incomeRows, expenditureRows };
+    return fetchTripAveragesData(data, allowedBranchIds);
   });
 
 // ── Client-side computation helpers ───────────────────────────────────────────
@@ -648,16 +826,39 @@ export function computePnL(data: PnLRawData, branchId: string | null): PnLStats 
   const totalExpense = tripExpense + totalExpenditure;
   const netPnL = totalIncome - totalExpense;
 
-  return { tripIncome, tripExpense, tripGrossProfit, otherIncome, fixedIncome, totalExpenditure, totalIncome, totalExpense, netPnL, tripCount: trips.length };
+  return {
+    tripIncome,
+    tripExpense,
+    tripGrossProfit,
+    otherIncome,
+    fixedIncome,
+    totalExpenditure,
+    totalIncome,
+    totalExpense,
+    netPnL,
+    tripCount: trips.length,
+  };
 }
 
 /** Filter trips/income/expenditure by a specific entity (vehicle/driver/transporter).
  *  entityId=null means all entities combined. Fixed income is excluded from entity views. */
-export function computePnLForEntity(data: PnLRawData, kind: EntityKind, entityId: string | null): PnLStats {
-  const field = kind === "vehicle" ? "vehicle_id" : kind === "driver" ? "driver_id" : "transporter_id";
+export function computePnLForEntity(
+  data: PnLRawData,
+  kind: EntityKind,
+  entityId: string | null,
+): PnLStats {
+  const field =
+    kind === "vehicle" ? "vehicle_id" : kind === "driver" ? "driver_id" : "transporter_id";
 
-  const filterEntity = <T extends { vehicle_id: string | null; driver_id: string | null; transporter_id: string | null }>(arr: T[]) =>
-    entityId ? arr.filter((r) => r[field] === entityId) : arr;
+  const filterEntity = <
+    T extends {
+      vehicle_id: string | null;
+      driver_id: string | null;
+      transporter_id: string | null;
+    },
+  >(
+    arr: T[],
+  ) => (entityId ? arr.filter((r) => r[field] === entityId) : arr);
 
   const trips = filterEntity(data.closedTrips);
   const incomes = filterEntity(data.incomes);
@@ -673,16 +874,47 @@ export function computePnLForEntity(data: PnLRawData, kind: EntityKind, entityId
   const totalExpense = tripExpense + totalExpenditure;
   const netPnL = totalIncome - totalExpense;
 
-  return { tripIncome, tripExpense, tripGrossProfit, otherIncome, fixedIncome: 0, totalExpenditure, totalIncome, totalExpense, netPnL, tripCount: trips.length };
+  return {
+    tripIncome,
+    tripExpense,
+    tripGrossProfit,
+    otherIncome,
+    fixedIncome: 0,
+    totalExpenditure,
+    totalIncome,
+    totalExpense,
+    netPnL,
+    tripCount: trips.length,
+  };
 }
 
-const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const SHORT_MONTHS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 /** Compute monthly P&L for a branch view (full-year dataset). */
 export function computeMonthlyPnL(
   data: PnLRawData,
   branchId: string | null,
-): Array<{ month: string; tripIncome: number; otherIncome: number; fixedIncome: number; expenditures: number; netPnL: number }> {
+): Array<{
+  month: string;
+  tripIncome: number;
+  otherIncome: number;
+  fixedIncome: number;
+  expenditures: number;
+  netPnL: number;
+}> {
   const numBranches = Math.max(data.branches.length, 1);
   const perMonthFixed = data.contracts.reduce((s, c) => {
     const monthly = c.fixed_monthly_charge;
@@ -711,7 +943,14 @@ export function computeMonthlyPnL(
     const fixedIncome = perMonthFixed;
     const netPnL = tripIncome + otherIncome + fixedIncome - tripExpense - totalExpenditure;
 
-    return { month: m, tripIncome, otherIncome, fixedIncome, expenditures: tripExpense + totalExpenditure, netPnL };
+    return {
+      month: m,
+      tripIncome,
+      otherIncome,
+      fixedIncome,
+      expenditures: tripExpense + totalExpenditure,
+      netPnL,
+    };
   });
 }
 
@@ -720,23 +959,34 @@ export function computeMonthlyPnLForEntity(
   data: PnLRawData,
   kind: EntityKind,
   entityId: string | null,
-): Array<{ month: string; tripIncome: number; otherIncome: number; expenditures: number; netPnL: number }> {
-  const field = kind === "vehicle" ? "vehicle_id" : kind === "driver" ? "driver_id" : "transporter_id";
+): Array<{
+  month: string;
+  tripIncome: number;
+  otherIncome: number;
+  expenditures: number;
+  netPnL: number;
+}> {
+  const field =
+    kind === "vehicle" ? "vehicle_id" : kind === "driver" ? "driver_id" : "transporter_id";
 
   return SHORT_MONTHS.map((m, idx) => {
     const monthStr = `${data.year}-${String(idx + 1).padStart(2, "0")}`;
 
     const filter = (r: Record<string, unknown>) =>
-      (!entityId || r[field] === entityId) && String(r.closed_at ?? r.entry_date ?? "").startsWith(monthStr);
+      (!entityId || r[field] === entityId) &&
+      String(r.closed_at ?? r.entry_date ?? "").startsWith(monthStr);
 
     const trips = data.closedTrips.filter(
-      (t) => (!entityId || t[field as keyof typeof t] === entityId) && t.closed_at.startsWith(monthStr),
+      (t) =>
+        (!entityId || t[field as keyof typeof t] === entityId) && t.closed_at.startsWith(monthStr),
     );
     const incomes = data.incomes.filter(
-      (r) => (!entityId || r[field as keyof typeof r] === entityId) && r.entry_date.startsWith(monthStr),
+      (r) =>
+        (!entityId || r[field as keyof typeof r] === entityId) && r.entry_date.startsWith(monthStr),
     );
     const expenditures = data.expenditures.filter(
-      (r) => (!entityId || r[field as keyof typeof r] === entityId) && r.entry_date.startsWith(monthStr),
+      (r) =>
+        (!entityId || r[field as keyof typeof r] === entityId) && r.entry_date.startsWith(monthStr),
     );
 
     const tripIncome = trips.reduce((s, t) => s + t.total_income, 0);
@@ -745,6 +995,12 @@ export function computeMonthlyPnLForEntity(
     const totalExpenditure = expenditures.reduce((s, r) => s + num(r.amount), 0);
     const netPnL = tripIncome + otherIncome - tripExpense - totalExpenditure;
 
-    return { month: m, tripIncome, otherIncome, expenditures: tripExpense + totalExpenditure, netPnL };
+    return {
+      month: m,
+      tripIncome,
+      otherIncome,
+      expenditures: tripExpense + totalExpenditure,
+      netPnL,
+    };
   });
 }
