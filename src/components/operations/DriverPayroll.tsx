@@ -364,7 +364,10 @@ export function DriverPayroll() {
         .from("expenditures")
         .insert({
           expenditure_name: expName,
-          amount: String(net),
+          // Record the full salary as the expenditure. The advance deduction
+          // remains tracked separately on payroll and reduces the net amount
+          // payable to the driver.
+          amount: String(salary),
           entry_date: `${pMonth}-01`,
           driver_id: selectedDriverId,
           branch_id: driver.branch_id ?? null,
