@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Loader2, MapPin, Plus, Save, Trash2, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  Loader2,
+  MapPin,
+  Plus,
+  Save,
+  Trash2,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
 import { lookupIndiaPin } from "@/lib/india-post";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +36,7 @@ export type FieldDef = {
   key: string;
   label: string;
   required?: boolean;
-  type?: "text" | "email" | "date" | "number";
+  type?: "text" | "email" | "date" | "number" | "file";
   options?: string[]; // if present → Select
   full?: boolean;
 };
@@ -47,6 +56,75 @@ export type MasterConfig = {
 
 type Row = Record<string, unknown> & { id?: string; branch_id?: string | null };
 
+function DriverPhotoField({
+  field,
+  objectPath,
+  uploading,
+  onFile,
+}: {
+  field: FieldDef;
+  objectPath: string;
+  uploading: boolean;
+  onFile: (file: File) => void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    if (!objectPath) {
+      setPreviewUrl("");
+      return;
+    }
+    void supabase.storage
+      .from("driver-documents")
+      .createSignedUrl(objectPath, 60 * 60)
+      .then(({ data }) => {
+        if (active) setPreviewUrl(data?.signedUrl ?? "");
+      });
+    return () => {
+      active = false;
+    };
+  }, [objectPath]);
+
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">
+        {field.label}
+        <span className="text-destructive"> *</span>
+      </Label>
+      <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+        <div className="flex h-40 items-center justify-center overflow-hidden bg-muted/40">
+          {previewUrl ? (
+            <img src={previewUrl} alt={field.label} className="h-full w-full object-contain" />
+          ) : uploading ? (
+            <Loader2 className="size-6 animate-spin text-primary" />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+              <Upload className="size-6" />
+              <span className="text-xs">No photo uploaded</span>
+            </div>
+          )}
+        </div>
+        <label className="flex h-11 cursor-pointer items-center justify-center gap-2 border-t border-border px-3 text-sm font-medium transition-colors hover:bg-muted/60">
+          {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          <span>{objectPath ? "Replace photo" : "Upload photo"}</span>
+          <input
+            className="sr-only"
+            type="file"
+            accept="image/*"
+            required={field.required && !objectPath}
+            disabled={uploading}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onFile(file);
+            }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export function MasterList({
   config,
   renderExtraEditSections,
@@ -59,6 +137,7 @@ export function MasterList({
   const [editing, setEditing] = useState<Row | null>(null);
   const [saving, setSaving] = useState(false);
   const [pinLooking, setPinLooking] = useState(false);
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
   const pinDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isLocations = config.table === "locations";
@@ -79,8 +158,7 @@ export function MasterList({
   const emptyRow: Row = Object.fromEntries(allFieldKeys.map((k) => [k, ""])) as Row;
   // Auto-fill branch when user has exactly one allowed branch
   if (config.hasBranch) {
-    emptyRow.branch_id =
-      allowedBranchIds?.length === 1 ? allowedBranchIds[0] : null;
+    emptyRow.branch_id = allowedBranchIds?.length === 1 ? allowedBranchIds[0] : null;
   }
 
   const columns = [...allFieldKeys, ...(config.hasBranch ? ["branch_name"] : [])];
@@ -103,9 +181,9 @@ export function MasterList({
           .select("*")
           .order("created_at", { ascending: true })
           .range(0, PAGE_SIZE - 1) as unknown as Promise<{
-            data: Row[] | null;
-            error: { message: string } | null;
-          }>);
+          data: Row[] | null;
+          error: { message: string } | null;
+        }>);
         if (res.error) throw new Error(res.error.message);
         const rows = res.data ?? [];
         setItems(rows);
@@ -113,10 +191,7 @@ export function MasterList({
         setLocationOffset(rows.length);
       } else {
         const rows = await fetchAll<Row>(() => {
-          let q = supabase
-            .from(config.table)
-            .select("*")
-            .order("created_at", { ascending: true });
+          let q = supabase.from(config.table).select("*").order("created_at", { ascending: true });
           // Filter by allowed branches for basic users (only applies to branch-linked tables)
           if (allowedBranchIds !== null && config.hasBranch) {
             q = q.in("branch_id", allowedBranchIds) as typeof q;
@@ -139,9 +214,9 @@ export function MasterList({
         .select("*")
         .order("created_at", { ascending: true })
         .range(locationOffset, locationOffset + PAGE_SIZE - 1) as unknown as Promise<{
-          data: Row[] | null;
-          error: { message: string } | null;
-        }>);
+        data: Row[] | null;
+        error: { message: string } | null;
+      }>);
       if (res.error) throw new Error(res.error.message);
       const rows = res.data ?? [];
       setItems((prev) => [...prev, ...rows]);
@@ -160,11 +235,38 @@ export function MasterList({
 
   const set = (k: string) => (v: string) => setEditing((f) => (f ? { ...f, [k]: v } : f));
 
+  async function uploadDriverDocument(fieldKey: string, file: File) {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setUploadingField(fieldKey);
+    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const objectPath = `${crypto.randomUUID()}/${fieldKey}-${Date.now()}.${extension}`;
+    const { error } = await supabase.storage.from("driver-documents").upload(objectPath, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+    setUploadingField(null);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    set(fieldKey)(objectPath);
+    toast.success("Photo uploaded");
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
     setSaving(true);
-    const { id, created_at: _c, updated_at: _u, branch_name: _bn, ...rest } = editing as Row & {
+    const {
+      id,
+      created_at: _c,
+      updated_at: _u,
+      branch_name: _bn,
+      ...rest
+    } = editing as Row & {
       created_at?: unknown;
       updated_at?: unknown;
       branch_name?: unknown;
@@ -199,9 +301,7 @@ export function MasterList({
   }
 
   async function onImport(rows: Record<string, string>[]) {
-    const nameToId = new Map(
-      branches.map((b) => [b.branch_name.toLowerCase(), b.id] as const),
-    );
+    const nameToId = new Map(branches.map((b) => [b.branch_name.toLowerCase(), b.id] as const));
     const payload = rows
       .filter((r) => (r[config.titleKey] || "").trim() !== "")
       .map((r) => {
@@ -209,7 +309,7 @@ export function MasterList({
         for (const k of allFieldKeys) o[k] = r[k] ?? "";
         if (config.hasBranch) {
           const n = (r.branch_name || "").trim().toLowerCase();
-          o.branch_id = n ? nameToId.get(n) ?? null : null;
+          o.branch_id = n ? (nameToId.get(n) ?? null) : null;
         }
         return o;
       });
@@ -237,7 +337,10 @@ export function MasterList({
 
   if (editing) {
     return (
-      <form onSubmit={onSubmit} className="animate-fade-up space-y-5">
+      <form
+        onSubmit={onSubmit}
+        className="animate-fade-up min-w-0 max-w-full space-y-5 overflow-x-hidden"
+      >
         <div className="flex items-center gap-3">
           <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(null)}>
             <ArrowLeft className="size-4" />
@@ -249,7 +352,7 @@ export function MasterList({
         </div>
 
         {config.sections.map((sec) => (
-          <section key={sec.title} className="surface-card p-6">
+          <section key={sec.title} className="surface-card min-w-0 overflow-hidden p-4 sm:p-6">
             <h3 className="text-sm font-semibold tracking-tight">{sec.title}</h3>
             <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
               {sec.fields.map((f) => {
@@ -274,6 +377,17 @@ export function MasterList({
                         </SelectContent>
                       </Select>
                     </div>
+                  );
+                }
+                if (f.type === "file") {
+                  return (
+                    <DriverPhotoField
+                      key={f.key}
+                      field={f}
+                      objectPath={val}
+                      uploading={uploadingField === f.key}
+                      onFile={(file) => void uploadDriverDocument(f.key, file)}
+                    />
                   );
                 }
                 // PIN code field on locations table — auto-fill city/district/state/country
@@ -302,14 +416,18 @@ export function MasterList({
                                 const result = await lookupIndiaPin(pin);
                                 setPinLooking(false);
                                 if (result) {
-                                  setEditing((prev) => prev ? {
-                                    ...prev,
-                                    pin_code: pin,
-                                    city: (prev.city as string) || result.district,
-                                    district: result.district,
-                                    state: (prev.state as string) || result.state,
-                                    country: (prev.country as string) || result.country,
-                                  } : prev);
+                                  setEditing((prev) =>
+                                    prev
+                                      ? {
+                                          ...prev,
+                                          pin_code: pin,
+                                          city: (prev.city as string) || result.district,
+                                          district: result.district,
+                                          state: (prev.state as string) || result.state,
+                                          country: (prev.country as string) || result.country,
+                                        }
+                                      : prev,
+                                  );
                                 }
                               }, 400);
                             }
@@ -395,18 +513,20 @@ export function MasterList({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {!isViewer ? (
-          <CsvIO
-            entityLabel={config.entityLabel}
-            filename={config.table}
-            columns={columns}
-            rows={rowsForExport}
-            onImport={onImport}
-          />
+            <CsvIO
+              entityLabel={config.entityLabel}
+              filename={config.table}
+              columns={columns}
+              rows={rowsForExport}
+              onImport={onImport}
+            />
           ) : null}
-          {!isViewer ? <Button onClick={() => setEditing({ ...emptyRow })}>
-            <Plus className="size-4" />
-            New {config.singular}
-          </Button> : null}
+          {!isViewer ? (
+            <Button onClick={() => setEditing({ ...emptyRow })}>
+              <Plus className="size-4" />
+              New {config.singular}
+            </Button>
+          ) : null}
         </div>
       </div>
 
@@ -436,77 +556,75 @@ export function MasterList({
         </div>
       ) : (
         <>
-        <ul className="space-y-3">
-          {items.map((r, i) => (
-            <li
-              key={r.id as string}
-              style={{ animationDelay: `${i * 40}ms` }}
-              className="surface-card animate-fade-up flex items-center gap-4 p-4 transition-shadow hover:shadow-[var(--shadow-lift)]"
-            >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                <Icon className="size-5" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">
-                  {String(r[config.titleKey] ?? "—")}
-                  {config.table === "drivers" && !isDriverActive(r) ? (
-                    <span className="ml-2 inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
-                      Inactive
-                    </span>
+          <ul className="space-y-3">
+            {items.map((r, i) => (
+              <li
+                key={r.id as string}
+                style={{ animationDelay: `${i * 40}ms` }}
+                className="surface-card animate-fade-up flex items-center gap-4 p-4 transition-shadow hover:shadow-[var(--shadow-lift)]"
+              >
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  <Icon className="size-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold">
+                    {String(r[config.titleKey] ?? "—")}
+                    {config.table === "drivers" && !isDriverActive(r) ? (
+                      <span className="ml-2 inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                        Inactive
+                      </span>
+                    ) : null}
+                  </p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {config.subtitleKeys
+                      .map((k) =>
+                        k === "branch_name"
+                          ? branchName(branches, r.branch_id as string | null | undefined)
+                          : String(r[k] ?? ""),
+                      )
+                      .filter(Boolean)
+                      .join(" · ") || "No details"}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  {/* Admin-only: per-row logs button */}
+                  {isAdmin && r.id ? (
+                    <ItemLogsButton
+                      entityType={config.singular}
+                      entityId={String(r.id)}
+                      entityLabel={String(r[config.titleKey] ?? "")}
+                    />
                   ) : null}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {config.subtitleKeys
-                    .map((k) => (k === "branch_name"
-                      ? branchName(branches, r.branch_id as string | null | undefined)
-                      : String(r[k] ?? "")))
-                    .filter(Boolean)
-                    .join(" · ") || "No details"}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
-                {/* Admin-only: per-row logs button */}
-                {isAdmin && r.id ? (
-                  <ItemLogsButton
-                    entityType={config.singular}
-                    entityId={String(r.id)}
-                    entityLabel={String(r[config.titleKey] ?? "")}
-                  />
-                ) : null}
-                {!isViewer ? (
-                  <>
-                    <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
-                      Edit
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => remove(r)}
-                    >
-                      <Trash2 className="size-4 text-destructive" />
-                    </Button>
-                  </>
-                ) : null}
-              </div>
-            </li>
-          ))}
-        </ul>
-        {isLocations && hasMore && (
-          <button
-            type="button"
-            className="mt-2 w-full rounded-xl border border-dashed border-border py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
-            onClick={loadMore}
-            disabled={loadingMore}
-          >
-            {loadingMore ? (
-              <span className="flex items-center justify-center gap-1.5">
-                <Loader2 className="size-3.5 animate-spin" /> Loading…
-              </span>
-            ) : (
-              `Load more locations (showing ${items.length} so far)`
-            )}
-          </button>
-        )}
+                  {!isViewer ? (
+                    <>
+                      <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
+                        Edit
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => remove(r)}>
+                        <Trash2 className="size-4 text-destructive" />
+                      </Button>
+                    </>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {isLocations && hasMore && (
+            <button
+              type="button"
+              className="mt-2 w-full rounded-xl border border-dashed border-border py-2.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+              onClick={loadMore}
+              disabled={loadingMore}
+            >
+              {loadingMore ? (
+                <span className="flex items-center justify-center gap-1.5">
+                  <Loader2 className="size-3.5 animate-spin" /> Loading…
+                </span>
+              ) : (
+                `Load more locations (showing ${items.length} so far)`
+              )}
+            </button>
+          )}
         </>
       )}
     </div>
