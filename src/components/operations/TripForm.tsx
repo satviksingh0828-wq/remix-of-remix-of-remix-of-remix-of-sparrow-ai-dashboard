@@ -569,7 +569,13 @@ export function TripForm({
     label: String(d.full_name ?? ""),
     sub: String(d.mobile_number ?? "") || undefined,
   }));
-  const transporterOpts: PickerOption[] = transporters.map((t) => ({
+  const filteredTransporters = isBasic
+    ? transporters.filter((t) => {
+        if (trip.branch_id) return t.branch_id === trip.branch_id;
+        return typeof t.branch_id === "string" && (allowedBranchIds ?? []).includes(t.branch_id);
+      })
+    : transporters;
+  const transporterOpts: PickerOption[] = filteredTransporters.map((t) => ({
     id: t.id,
     label: String(t.transporter_name ?? ""),
     sub: String(t.city ?? "") || undefined,
