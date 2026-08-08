@@ -17,9 +17,11 @@ import {
   type EntryRow,
 } from "./ContractEntryForm";
 import { useSession } from "@/lib/session";
+import { useBranches } from "@/lib/use-branches";
 
 const CONTRACT_COLUMNS = [
   "contract_name",
+  "branch_id",
   "fixed_monthly_charge",
   "fixed_monthly_charge_note",
   "fixed_yearly_charge",
@@ -61,6 +63,7 @@ export function Contracts() {
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
+  const branches = useBranches();
 
   async function load() {
     setLoading(true);
@@ -289,6 +292,9 @@ export function Contracts() {
                     : ""}
                   {c.start_date ? ` · From ${c.start_date}` : ""}
                   {c.end_date   ? ` · To ${c.end_date}` : ""}
+                  {c.branch_id
+                    ? ` · ${branches.find((branch) => branch.id === c.branch_id)?.branch_name ?? "Unknown branch"}`
+                    : " · No branch"}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
