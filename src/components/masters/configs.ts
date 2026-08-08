@@ -129,6 +129,8 @@ export const DRIVER_CONFIG: MasterConfig = {
     {
       title: "Salary",
       fields: [
+        { key: "joining_date", label: "Joining Date", type: "date" },
+        { key: "ending_date", label: "Ending Date", type: "date" },
         {
           key: "salary_type",
           label: "Salary Type",

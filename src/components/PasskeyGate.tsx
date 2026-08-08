@@ -5,7 +5,6 @@
  *
  * States:
  *   loading       → checking storage + session
- *   no-credential → never registered on this device → Access Restricted page
  *   registering   → in-progress registration flow
  *   pending       → registered, awaiting admin approval
  *   rejected      → admin rejected this device
@@ -47,7 +46,6 @@ export function usePasskeyContext() {
 
 type GateState =
   | "loading"
-  | "no-credential"
   | "registering"
   | "reg-success"
   | "pending"
@@ -95,10 +93,8 @@ function LoadingScreen() {
 
 function RegisterForm({
   onRegistered,
-  onBack,
 }: {
   onRegistered: (credId: string) => void;
-  onBack: () => void;
 }) {
   const [name, setName]       = useState("");
   const [step, setStep]       = useState<"form" | "waiting" | "error">("form");
@@ -190,46 +186,6 @@ function RegisterForm({
         </Button>
       </form>
 
-      <button
-        type="button"
-        onClick={onBack}
-        className="mt-4 text-xs text-muted-foreground hover:text-foreground"
-      >
-        ← Back
-      </button>
-    </Screen>
-  );
-}
-
-// ── Access Restricted page ────────────────────────────────────────────────────
-
-function AccessRestrictedPage({ onRequest }: { onRequest: () => void }) {
-  return (
-    <Screen>
-      {/* Icon */}
-      <div className="mx-auto flex size-20 items-center justify-center rounded-full bg-red-50 dark:bg-red-950">
-        <ShieldAlert className="size-10 text-red-500" />
-      </div>
-
-      {/* Heading */}
-      <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
-        Access Restricted
-      </h1>
-      <p className="mt-3 text-sm text-muted-foreground">
-        This device is not registered to access this application.
-      </p>
-
-      {/* Note card */}
-      <div className="mt-6 rounded-xl border border-border bg-muted/40 px-4 py-3 text-left text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Note: </span>
-        This is a personal management panel. If you want access, ask the admin.
-      </div>
-
-      {/* CTA */}
-      <Button className="mt-6 w-full" size="lg" onClick={onRequest}>
-        <Fingerprint className="size-4" />
-        Request Access
-      </Button>
     </Screen>
   );
 }
@@ -247,10 +203,6 @@ function PendingPage() {
         Your access request has been submitted. Please wait for the admin to approve
         this device before you can sign in.
       </p>
-      <div className="mt-6 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Note: </span>
-        This is a personal management panel. If you want access, ask the admin.
-      </div>
     </Screen>
   );
 }
@@ -336,10 +288,6 @@ function RegSuccessScreen() {
         Your device has been registered. Once the admin approves it, you can access
         this application.
       </p>
-      <div className="mt-6 rounded-xl border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-        <span className="font-medium text-foreground">Note: </span>
-        This is a personal management panel. If you want access, ask the admin.
-      </div>
     </Screen>
   );
 }
@@ -408,7 +356,7 @@ export function PasskeyGate({ children }: { children: ReactNode }) {
       // 3. Check stored credential ID
       const credId = secureStorage.getItem(CRED_KEY);
       if (!credId) {
-        setState("no-credential");
+        setState("registering");
         return;
       }
 
@@ -418,7 +366,7 @@ export function PasskeyGate({ children }: { children: ReactNode }) {
         if (status === "not_found") {
           // Orphaned local key — clear it
           secureStorage.removeItem(CRED_KEY);
-          setState("no-credential");
+          setState("registering");
           return;
         }
         if (status === "pending")  { setState("pending");  return; }
@@ -453,17 +401,10 @@ export function PasskeyGate({ children }: { children: ReactNode }) {
   // Gate screens
   if (state === "unsupported") return <UnsupportedScreen />;
 
-  if (state === "no-credential") {
-    return (
-      <AccessRestrictedPage onRequest={() => setState("registering")} />
-    );
-  }
-
   if (state === "registering") {
     return (
       <RegisterForm
         onRegistered={() => setState("reg-success")}
-        onBack={() => setState("no-credential")}
       />
     );
   }
@@ -476,7 +417,7 @@ export function PasskeyGate({ children }: { children: ReactNode }) {
       <RejectedPage
         onClear={() => {
           secureStorage.removeItem(CRED_KEY);
-          setState("no-credential");
+          setState("registering");
         }}
       />
     );

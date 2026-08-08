@@ -26,6 +26,7 @@ import { CsvIO } from "@/components/CsvIO";
 import { TransporterQuickCreate } from "./TransporterQuickCreate";
 import { DRIVER_CONFIG, TRANSPORTER_CONFIG, VEHICLE_CONFIG } from "@/components/masters/configs";
 import { useLocations } from "@/lib/use-locations";
+import { isDriverActive } from "@/lib/drivers";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
@@ -228,7 +229,7 @@ export function TripForm({
       supabase.from("contract_entries").select("*"),
     ]);
     setVehicles((v.data as AnyRow[]) ?? []);
-    setDrivers((d.data as AnyRow[]) ?? []);
+    setDrivers(((d.data as AnyRow[]) ?? []).filter(isDriverActive));
     setTransporters((t.data as AnyRow[]) ?? []);
     setContracts((c.data as AnyRow[]) ?? []);
     setAllEntries((e.data as unknown as EntryLite[]) ?? []);
