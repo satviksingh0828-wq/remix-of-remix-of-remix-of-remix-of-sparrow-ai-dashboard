@@ -524,6 +524,8 @@ export type Database = {
           gender: string | null
           guardian_name: string | null
           id: string
+          joining_date: string | null
+          ending_date: string | null
           licence_authority: string | null
           licence_expiry_date: string | null
           licence_issue_date: string | null
@@ -571,6 +573,8 @@ export type Database = {
           gender?: string | null
           guardian_name?: string | null
           id?: string
+          joining_date?: string | null
+          ending_date?: string | null
           licence_authority?: string | null
           licence_expiry_date?: string | null
           licence_issue_date?: string | null
@@ -618,6 +622,8 @@ export type Database = {
           gender?: string | null
           guardian_name?: string | null
           id?: string
+          joining_date?: string | null
+          ending_date?: string | null
           licence_authority?: string | null
           licence_expiry_date?: string | null
           licence_issue_date?: string | null

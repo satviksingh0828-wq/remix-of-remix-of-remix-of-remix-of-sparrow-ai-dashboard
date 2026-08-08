@@ -3,7 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Loader2, Lock, Mail, Unlock, User } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
-import { usePasskeyContext } from "@/components/PasskeyGate";
 import { TurnstileWidget } from "@/components/TurnstileWidget";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,7 +71,6 @@ function LiveClock({ dark = false }: { dark?: boolean }) {
 
 function LoginPage() {
   const { signIn, user, ready } = useSession();
-  const { credentialId }        = usePasskeyContext();
   const navigate                = useNavigate();
   const { loginUi }             = useTheme();
 
@@ -208,7 +206,7 @@ function LoginPage() {
     setError(null);
     try {
       await new Promise((r) => setTimeout(r, 400));
-      const outcome = await signIn(id, password, turnstileToken, credentialId ?? undefined);
+      const outcome = await signIn(id, password, turnstileToken);
 
       if (outcome.ok) {
         clearRateLimit(id.trim());

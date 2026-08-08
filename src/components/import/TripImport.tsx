@@ -15,6 +15,7 @@ import { CheckCircle2, Download, Loader2, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { isDriverActive } from "@/lib/drivers";
 import { readCsvFile, downloadCsv, toCsv } from "@/lib/csv";
 import { ensureLocationsForPins } from "@/lib/ensure-location";
 import { newTripCode } from "@/lib/trip-calc";
@@ -434,7 +435,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
     Promise.all([
       supabase.from("branches").select("id,branch_name"),
       supabase.from("vehicles").select("id,registration_number"),
-      supabase.from("drivers").select("id,full_name"),
+      supabase.from("drivers").select("id,full_name,ending_date"),
       supabase.from("transporters").select("id,transporter_name"),
       supabase.from("contracts").select("id,contract_name").eq("status", "active"),
       supabase.from("locations").select("id,pin_code"),
@@ -442,7 +443,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
       setMasters({
         branches:     new Map((b.data ?? []).map(r => [norm(r.branch_name), r.id])),
         vehicles:     new Map((v.data ?? []).map(r => [norm(r.registration_number), r.id])),
-        drivers:      new Map((d.data ?? []).map(r => [norm(r.full_name), r.id])),
+        drivers:      new Map((d.data ?? []).filter(isDriverActive).map(r => [norm(r.full_name), r.id])),
         transporters: new Map((t.data ?? []).map(r => [norm(r.transporter_name), r.id])),
         sources:      new Map((c.data ?? []).map(r => [norm(r.contract_name), r.id])),
         locationsByPin: new Map((l.data ?? []).filter(r => (r.pin_code ?? "").trim()).map(r => [(r.pin_code ?? "").trim(), r.id])),

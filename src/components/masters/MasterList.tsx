@@ -21,6 +21,7 @@ import { useSession } from "@/lib/session";
 import { fetchAll } from "@/lib/fetch-all";
 import { logAction } from "@/lib/log-actions";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
+import { isDriverActive } from "@/lib/drivers";
 
 export type FieldDef = {
   key: string;
@@ -448,6 +449,11 @@ export function MasterList({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">
                   {String(r[config.titleKey] ?? "—")}
+                  {config.table === "drivers" && !isDriverActive(r) ? (
+                    <span className="ml-2 inline-flex rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                      Inactive
+                    </span>
+                  ) : null}
                 </p>
                 <p className="truncate text-xs text-muted-foreground">
                   {config.subtitleKeys

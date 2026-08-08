@@ -22,6 +22,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { logAction } from "@/lib/log-actions";
 import { financialYearOptions, financialYearRange, dateInFinancialYear } from "@/lib/financial-year";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
+import { isDriverActive } from "@/lib/drivers";
 import {
   emptyFinanceRow,
   FINANCE_CONFIG,
@@ -160,7 +161,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
         return q;
       }),
       fetchAll<AnyRow>(() => {
-        let q = supabase.from("drivers").select("id,full_name,branch_id").order("full_name");
+        let q = supabase.from("drivers").select("id,full_name,branch_id,ending_date").order("full_name");
         if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
@@ -175,7 +176,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
       }),
     ]);
     setVehicles(v);
-    setDrivers(d);
+    setDrivers(d.filter(isDriverActive));
     setTransporters(t);
   }
 
