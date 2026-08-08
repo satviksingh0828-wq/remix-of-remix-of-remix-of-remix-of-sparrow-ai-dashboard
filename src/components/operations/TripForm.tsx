@@ -544,6 +544,20 @@ export function TripForm({
     return list;
   }, [drivers, trip.branch_id, allowedBranchIds]);
 
+  // A basic user may only choose sources belonging to the trip's branch (or,
+  // before a branch is selected, one of the branches assigned to the user).
+  const selectableContracts = useMemo(() => {
+    if (!isBasic) return contracts;
+    if (trip.branch_id) {
+      return contracts.filter((contract) => contract.branch_id === trip.branch_id);
+    }
+    return contracts.filter(
+      (contract) =>
+        typeof contract.branch_id === "string" &&
+        (allowedBranchIds ?? []).includes(contract.branch_id),
+    );
+  }, [contracts, isBasic, trip.branch_id, allowedBranchIds]);
+
   const vehicleOpts: PickerOption[] = filteredVehicles.map((v) => ({
     id: v.id,
     label: String(v.registration_number ?? ""),
@@ -923,7 +937,7 @@ export function TripForm({
               otherIncomeTotal={otherIncomeTotal}
               expenseTotal={expenseTotal}
               totalWeight={totalWeight}
-              contracts={contracts}
+              contracts={selectableContracts}
             />
           ) : null}
           {activeTab === "income" ? (

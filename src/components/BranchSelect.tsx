@@ -19,10 +19,12 @@ export function BranchSelect({
   value,
   onChange,
   label = "Controlling Branch",
+  disabled = false,
 }: {
   value: string | null | undefined;
   onChange: (id: string | null) => void;
   label?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const allBranches = useBranches();
@@ -37,7 +39,7 @@ export function BranchSelect({
   // Auto-fill: if the user has exactly one allowed branch and none is selected, apply it
   const singleBranch = branches.length === 1 ? branches[0] : null;
   useEffect(() => {
-    if (singleBranch && !value) {
+    if (singleBranch && !value && !disabled) {
       onChange(singleBranch.id);
     }
   }, [singleBranch?.id, value]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -80,6 +82,7 @@ export function BranchSelect({
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            disabled={disabled}
             className="h-10 w-full justify-between font-normal"
           >
             <span className="flex min-w-0 items-center gap-2 truncate">

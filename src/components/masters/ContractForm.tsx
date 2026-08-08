@@ -13,10 +13,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { logAction } from "@/lib/log-actions";
+import { BranchSelect } from "@/components/BranchSelect";
 
 export type ContractRow = {
   id?: string;
   contract_name: string;
+  branch_id?: string | null;
   // Contract period & status
   start_date?: string;
   end_date?: string;
@@ -51,6 +53,7 @@ export type ContractRow = {
 
 export const EMPTY_CONTRACT: ContractRow = {
   contract_name: "",
+  branch_id: null,
   start_date: "",
   end_date: "",
   status: "active",
@@ -205,6 +208,12 @@ export function ContractForm({
             full
             value={form.contract_name}
             onChange={(v) => patch({ contract_name: v })}
+            disabled={isInactive}
+          />
+          <BranchSelect
+            value={form.branch_id}
+            onChange={(branch_id) => patch({ branch_id })}
+            label="Source Branch"
             disabled={isInactive}
           />
         </div>
