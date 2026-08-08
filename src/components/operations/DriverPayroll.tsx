@@ -15,6 +15,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Download,
   Loader2,
   Plus,
   Wallet,
@@ -45,10 +46,11 @@ import { useSession } from "@/lib/session";
 import { fetchAll } from "@/lib/fetch-all";
 import { isDriverActive } from "@/lib/drivers";
 import { inr, num } from "@/lib/trip-calc";
+import { downloadDriverPaymentReceipt } from "@/lib/driver-payment-pdf";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type DriverRow = {
+type DriverRow = Record<string, unknown> & {
   id: string;
   full_name: string;
   driver_code: string;
@@ -99,7 +101,20 @@ type Deduction = {
 
 function monthLabel(ym: string): string {
   const [y, m] = ym.split("-");
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const months = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   return `${months[(parseInt(m) - 1) % 12]} ${y}`;
 }
 
@@ -148,43 +163,43 @@ export function DriverPayroll() {
   const [loadingDrivers, setLoadingDrivers] = useState(true);
 
   const [selectedDriverId, setSelectedDriverId] = useState<string>("");
-  const [payrolls, setPayrolls]     = useState<Payroll[]>([]);
-  const [advances, setAdvances]     = useState<Advance[]>([]);
+  const [payrolls, setPayrolls] = useState<Payroll[]>([]);
+  const [advances, setAdvances] = useState<Advance[]>([]);
   const [deductions, setDeductions] = useState<Deduction[]>([]);
   const [loadingData, setLoadingData] = useState(false);
 
   const [subTab, setSubTab] = useState<"payrolls" | "advances">("payrolls");
 
   // Filters
-  const [filterYear,  setFilterYear]  = useState("all");
+  const [filterYear, setFilterYear] = useState("all");
   const [filterMonth, setFilterMonth] = useState("all");
   const [filterStatus, setFilterStatus] = useState<"all" | "paid" | "unpaid">("all");
 
   // Dialogs
   const [showPayrollDialog, setShowPayrollDialog] = useState(false);
   const [showAdvanceDialog, setShowAdvanceDialog] = useState(false);
-  const [expandedAdvances, setExpandedAdvances]   = useState<Set<string>>(new Set());
+  const [expandedAdvances, setExpandedAdvances] = useState<Set<string>>(new Set());
 
   // Payroll form
-  const [pMonth,     setPMonth]     = useState(currentMonth());
-  const [pSalary,    setPSalary]    = useState("");
+  const [pMonth, setPMonth] = useState(currentMonth());
+  const [pSalary, setPSalary] = useState("");
   const [pDeduction, setPDeduction] = useState("");
-  const [pNote,      setPNote]      = useState("");
-  const [pSaving,    setPSaving]    = useState(false);
+  const [pNote, setPNote] = useState("");
+  const [pSaving, setPSaving] = useState(false);
 
   // Advance form
-  const [aAmount,    setAAmount]    = useState("");
-  const [aDate,      setADate]      = useState(today());
-  const [aMonthly,   setAMonthly]   = useState("");
-  const [aNote,      setANote]      = useState("");
-  const [aSaving,    setASaving]    = useState(false);
+  const [aAmount, setAAmount] = useState("");
+  const [aDate, setADate] = useState(today());
+  const [aMonthly, setAMonthly] = useState("");
+  const [aNote, setANote] = useState("");
+  const [aSaving, setASaving] = useState(false);
 
   // Paying
   const [payingId, setPayingId] = useState<string | null>(null);
 
   // ── derived ────────────────────────────────────────────────────────────────
   const selectedDriver = useMemo(
-    () => drivers.find(d => d.id === selectedDriverId) ?? null,
+    () => drivers.find((d) => d.id === selectedDriverId) ?? null,
     [drivers, selectedDriverId],
   );
 
@@ -196,28 +211,41 @@ export function DriverPayroll() {
   /** Sum of pending scheduled deductions for a given month. */
   const scheduledDeductionForMonth = (month: string) =>
     deductions
-      .filter(d => d.month === month && !d.is_applied)
+      .filter((d) => d.month === month && !d.is_applied)
       .reduce((s, d) => s + Number(d.deduction_amount), 0);
 
   const years = useMemo(() => {
-    const set = new Set(payrolls.map(p => p.month.slice(0, 4)));
+    const set = new Set(payrolls.map((p) => p.month.slice(0, 4)));
     set.add(String(new Date().getFullYear()));
     return Array.from(set).sort().reverse();
   }, [payrolls]);
 
-  const MONTHS_LIST = ["01","02","03","04","05","06","07","08","09","10","11","12"];
-  const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  const MONTHS_LIST = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+  const MONTH_NAMES = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
 
-  const filteredPayrolls = payrolls.filter(p => {
-    if (filterYear  !== "all" && p.month.slice(0, 4) !== filterYear)  return false;
+  const filteredPayrolls = payrolls.filter((p) => {
+    if (filterYear !== "all" && p.month.slice(0, 4) !== filterYear) return false;
     if (filterMonth !== "all" && p.month.slice(5, 7) !== filterMonth) return false;
-    if (filterStatus === "paid"   && !p.is_paid) return false;
-    if (filterStatus === "unpaid" &&  p.is_paid) return false;
+    if (filterStatus === "paid" && !p.is_paid) return false;
+    if (filterStatus === "unpaid" && p.is_paid) return false;
     return true;
   });
 
   // Payroll months already generated (to prevent duplicates)
-  const usedMonths = new Set(payrolls.map(p => p.month));
+  const usedMonths = new Set(payrolls.map((p) => p.month));
 
   // Advance schedule preview (used in advance dialog)
   const advanceSchedulePreview = useMemo(() => {
@@ -245,10 +273,7 @@ export function DriverPayroll() {
     setLoadingDrivers(true);
     try {
       const data = await fetchAll<DriverRow>(() => {
-        let q = supabase
-          .from("drivers")
-          .select("id,full_name,driver_code,branch_id,salary_amount,salary_type,ending_date")
-          .order("full_name");
+        let q = supabase.from("drivers").select("*").order("full_name");
         if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
@@ -296,7 +321,9 @@ export function DriverPayroll() {
     setLoadingData(false);
   }
 
-  useEffect(() => { loadDrivers(); }, [user?.id]);
+  useEffect(() => {
+    loadDrivers();
+  }, [user?.id]);
 
   useEffect(() => {
     if (selectedDriverId) {
@@ -329,13 +356,19 @@ export function DriverPayroll() {
   // ── create payroll ─────────────────────────────────────────────────────────
   async function createPayroll() {
     if (!selectedDriverId || !selectedDriver) return;
-    if (!pMonth) { toast.error("Select a month"); return; }
+    if (!pMonth) {
+      toast.error("Select a month");
+      return;
+    }
     if (usedMonths.has(pMonth)) {
       toast.error(`Payroll for ${monthLabel(pMonth)} already exists`);
       return;
     }
     const salary = num(pSalary);
-    if (salary <= 0) { toast.error("Enter salary amount"); return; }
+    if (salary <= 0) {
+      toast.error("Enter salary amount");
+      return;
+    }
     const deduction = Math.min(num(pDeduction), totalAdvanceBalance);
     const net = Math.max(0, salary - deduction);
 
@@ -383,10 +416,7 @@ export function DriverPayroll() {
       if (expErr || !exp) throw expErr ?? new Error("Expenditure insert failed");
 
       // 3. Back-link
-      await supabase
-        .from("driver_payrolls")
-        .update({ expenditure_id: exp.id })
-        .eq("id", pr.id);
+      await supabase.from("driver_payrolls").update({ expenditure_id: exp.id }).eq("id", pr.id);
 
       // 4. Apply advance deductions
       if (deduction > 0) {
@@ -412,7 +442,7 @@ export function DriverPayroll() {
   ) {
     // Get advances with remaining balance (oldest first)
     const activeAdvances = advances
-      .filter(a => Number(a.remaining_balance) > 0)
+      .filter((a) => Number(a.remaining_balance) > 0)
       .sort((a, b) => a.created_at.localeCompare(b.created_at));
 
     let rem = totalDeduction;
@@ -424,10 +454,7 @@ export function DriverPayroll() {
       const newBal = Number(adv.remaining_balance) - take;
 
       // Update remaining balance
-      await supabase
-        .from("driver_advances")
-        .update({ remaining_balance: newBal })
-        .eq("id", adv.id);
+      await supabase.from("driver_advances").update({ remaining_balance: newBal }).eq("id", adv.id);
 
       // Delete any pending deduction for this advance this month (replace with actual)
       await supabase
@@ -438,16 +465,14 @@ export function DriverPayroll() {
         .eq("is_applied", false);
 
       // Insert applied deduction record
-      await supabase
-        .from("driver_advance_deductions")
-        .insert({
-          advance_id: adv.id,
-          driver_id: driverId,
-          month,
-          deduction_amount: take,
-          is_applied: true,
-          payroll_id: payrollId,
-        });
+      await supabase.from("driver_advance_deductions").insert({
+        advance_id: adv.id,
+        driver_id: driverId,
+        month,
+        deduction_amount: take,
+        is_applied: true,
+        payroll_id: payrollId,
+      });
 
       // Rebuild future schedule for this advance
       await supabase
@@ -459,8 +484,8 @@ export function DriverPayroll() {
 
       if (newBal > 0) {
         const monthlyRate = Number(adv.monthly_deduction);
-        const numFuture   = Math.ceil(newBal / monthlyRate);
-        const futMonths   = futureMonths(month, numFuture);
+        const numFuture = Math.ceil(newBal / monthlyRate);
+        const futMonths = futureMonths(month, numFuture);
         let remaining = newBal;
         for (const fm of futMonths) {
           const d = Math.min(monthlyRate, remaining);
@@ -481,12 +506,24 @@ export function DriverPayroll() {
   // ── give advance ───────────────────────────────────────────────────────────
   async function giveAdvance() {
     if (!selectedDriverId || !selectedDriver) return;
-    const amount  = num(aAmount);
+    const amount = num(aAmount);
     const monthly = num(aMonthly);
-    if (amount  <= 0) { toast.error("Enter advance amount"); return; }
-    if (monthly <= 0) { toast.error("Enter monthly deduction amount"); return; }
-    if (monthly > amount) { toast.error("Monthly deduction cannot exceed advance amount"); return; }
-    if (!aDate) { toast.error("Enter payment date"); return; }
+    if (amount <= 0) {
+      toast.error("Enter advance amount");
+      return;
+    }
+    if (monthly <= 0) {
+      toast.error("Enter monthly deduction amount");
+      return;
+    }
+    if (monthly > amount) {
+      toast.error("Monthly deduction cannot exceed advance amount");
+      return;
+    }
+    if (!aDate) {
+      toast.error("Enter payment date");
+      return;
+    }
 
     setASaving(true);
     try {
@@ -524,7 +561,10 @@ export function DriverPayroll() {
 
       toast.success(`Advance of ${inr(amount)} recorded`);
       setShowAdvanceDialog(false);
-      setAAmount(""); setADate(today()); setAMonthly(""); setANote("");
+      setAAmount("");
+      setADate(today());
+      setAMonthly("");
+      setANote("");
       await loadPayrollData(selectedDriverId);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not record advance");
@@ -560,7 +600,7 @@ export function DriverPayroll() {
   // ── edit schedule entry ────────────────────────────────────────────────────
   async function updateScheduleEntry(d: Deduction, newAmount: number) {
     if (newAmount <= 0) return;
-    const adv = advances.find(a => a.id === d.advance_id);
+    const adv = advances.find((a) => a.id === d.advance_id);
     if (!adv) return;
 
     const oldAmount = Number(d.deduction_amount);
@@ -583,8 +623,8 @@ export function DriverPayroll() {
 
       if (newRemaining > 0) {
         const monthlyRate = Number(adv.monthly_deduction);
-        const numFut      = Math.ceil(newRemaining / monthlyRate);
-        const fMonths     = futureMonths(d.month, numFut);
+        const numFut = Math.ceil(newRemaining / monthlyRate);
+        const fMonths = futureMonths(d.month, numFut);
         let rem = newRemaining;
         for (const fm of fMonths) {
           const amount = Math.min(monthlyRate, rem);
@@ -611,7 +651,9 @@ export function DriverPayroll() {
   if (loadingDrivers) {
     return (
       <div className="space-y-3">
-        {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
       </div>
     );
   }
@@ -627,7 +669,7 @@ export function DriverPayroll() {
               <SelectValue placeholder="Choose a driver…" />
             </SelectTrigger>
             <SelectContent>
-              {drivers.map(d => (
+              {drivers.map((d) => (
                 <SelectItem key={d.id} value={d.id}>
                   {d.full_name}
                   <span className="ml-1.5 text-xs text-muted-foreground">({d.driver_code})</span>
@@ -639,11 +681,7 @@ export function DriverPayroll() {
 
         {selectedDriverId && (
           <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => setShowPayrollDialog(true)}
-              className="gap-1.5"
-            >
+            <Button size="sm" onClick={() => setShowPayrollDialog(true)} className="gap-1.5">
               <Plus className="size-3.5" /> Generate Payroll
             </Button>
             <Button
@@ -667,7 +705,9 @@ export function DriverPayroll() {
 
       {selectedDriverId && loadingData && (
         <div className="space-y-3">
-          {[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
         </div>
       )}
 
@@ -686,7 +726,7 @@ export function DriverPayroll() {
 
           {/* ── Sub-tabs ── */}
           <div className="flex gap-1 border-b border-border">
-            {(["payrolls", "advances"] as const).map(t => (
+            {(["payrolls", "advances"] as const).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -718,7 +758,11 @@ export function DriverPayroll() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All years</SelectItem>
-                    {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+                    {years.map((y) => (
+                      <SelectItem key={y} value={y}>
+                        {y}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
 
@@ -729,12 +773,17 @@ export function DriverPayroll() {
                   <SelectContent>
                     <SelectItem value="all">All months</SelectItem>
                     {MONTHS_LIST.map((m, i) => (
-                      <SelectItem key={m} value={m}>{MONTH_NAMES[i]}</SelectItem>
+                      <SelectItem key={m} value={m}>
+                        {MONTH_NAMES[i]}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
 
-                <Select value={filterStatus} onValueChange={v => setFilterStatus(v as "all"|"paid"|"unpaid")}>
+                <Select
+                  value={filterStatus}
+                  onValueChange={(v) => setFilterStatus(v as "all" | "paid" | "unpaid")}
+                >
                   <SelectTrigger className="h-8 w-[110px] text-xs">
                     <SelectValue />
                   </SelectTrigger>
@@ -748,7 +797,11 @@ export function DriverPayroll() {
 
               {filteredPayrolls.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
-                  No payrolls{filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all" ? " matching filters" : " yet"}.
+                  No payrolls
+                  {filterYear !== "all" || filterMonth !== "all" || filterStatus !== "all"
+                    ? " matching filters"
+                    : " yet"}
+                  .
                   <br />
                   <button
                     className="mt-2 text-primary hover:underline"
@@ -772,29 +825,46 @@ export function DriverPayroll() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredPayrolls.map(p => (
-                        <tr key={p.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                      {filteredPayrolls.map((p) => (
+                        <tr
+                          key={p.id}
+                          className="border-b border-border last:border-0 hover:bg-muted/20"
+                        >
                           <td className="px-4 py-3 font-medium">
                             <span className="flex items-center gap-1.5">
                               <CalendarDays className="size-3.5 text-muted-foreground" />
                               {monthLabel(p.month)}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-right tabular-nums">{inr(p.salary_amount)}</td>
                           <td className="px-4 py-3 text-right tabular-nums">
-                            {p.advance_deduction > 0
-                              ? <span className="text-amber-600">−{inr(p.advance_deduction)}</span>
-                              : <span className="text-muted-foreground">—</span>}
+                            {inr(p.salary_amount)}
                           </td>
-                          <td className="px-4 py-3 text-right font-semibold tabular-nums">{inr(p.net_amount)}</td>
+                          <td className="px-4 py-3 text-right tabular-nums">
+                            {p.advance_deduction > 0 ? (
+                              <span className="text-amber-600">−{inr(p.advance_deduction)}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right font-semibold tabular-nums">
+                            {inr(p.net_amount)}
+                          </td>
                           <td className="px-4 py-3">
                             {p.is_paid ? (
-                              <Badge variant="outline" className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                              <Badge
+                                variant="outline"
+                                className="gap-1 border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                              >
                                 <Check className="size-3" /> Paid
-                                {p.paid_date && <span className="ml-0.5 opacity-70">{p.paid_date}</span>}
+                                {p.paid_date && (
+                                  <span className="ml-0.5 opacity-70">{p.paid_date}</span>
+                                )}
                               </Badge>
                             ) : (
-                              <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400">
+                              <Badge
+                                variant="outline"
+                                className="border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400"
+                              >
                                 Unpaid
                               </Badge>
                             )}
@@ -803,6 +873,25 @@ export function DriverPayroll() {
                             {p.note || "—"}
                           </td>
                           <td className="px-4 py-3 text-right">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="mr-1 h-7 gap-1.5 text-xs"
+                              title="Download salary receipt PDF"
+                              onClick={() =>
+                                selectedDriver &&
+                                downloadDriverPaymentReceipt(selectedDriver, {
+                                  kind: "Salary",
+                                  amount: p.net_amount,
+                                  date: p.paid_date || p.created_at.slice(0, 10),
+                                  month: monthLabel(p.month),
+                                  advanceDeduction: p.advance_deduction,
+                                  note: p.note,
+                                })
+                              }
+                            >
+                              <Download className="size-3" /> PDF
+                            </Button>
                             {!p.is_paid && (
                               <Button
                                 size="sm"
@@ -811,9 +900,11 @@ export function DriverPayroll() {
                                 disabled={payingId === p.id}
                                 onClick={() => markPaid(p)}
                               >
-                                {payingId === p.id
-                                  ? <Loader2 className="size-3 animate-spin" />
-                                  : <Check className="size-3" />}
+                                {payingId === p.id ? (
+                                  <Loader2 className="size-3 animate-spin" />
+                                ) : (
+                                  <Check className="size-3" />
+                                )}
                                 Mark Paid
                               </Button>
                             )}
@@ -824,13 +915,14 @@ export function DriverPayroll() {
                     <tfoot>
                       <tr className="border-t border-border bg-muted/30 text-xs font-semibold">
                         <td className="px-4 py-2 text-muted-foreground">
-                          {filteredPayrolls.length} payroll{filteredPayrolls.length !== 1 ? "s" : ""}
+                          {filteredPayrolls.length} payroll
+                          {filteredPayrolls.length !== 1 ? "s" : ""}
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums">
                           {inr(filteredPayrolls.reduce((s, p) => s + p.salary_amount, 0))}
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums text-amber-600">
-                          {filteredPayrolls.some(p => p.advance_deduction > 0)
+                          {filteredPayrolls.some((p) => p.advance_deduction > 0)
                             ? `−${inr(filteredPayrolls.reduce((s, p) => s + p.advance_deduction, 0))}`
                             : "—"}
                         </td>
@@ -862,48 +954,76 @@ export function DriverPayroll() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {advances.map(adv => {
-                    const pendingDeds = deductions.filter(d => d.advance_id === adv.id);
-                    const isExpanded  = expandedAdvances.has(adv.id);
+                  {advances.map((adv) => {
+                    const pendingDeds = deductions.filter((d) => d.advance_id === adv.id);
+                    const isExpanded = expandedAdvances.has(adv.id);
                     return (
                       <div key={adv.id} className="rounded-xl border border-border bg-card">
                         {/* Advance summary row */}
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-4 px-4 py-3 text-left"
-                          onClick={() =>
-                            setExpandedAdvances(prev => {
-                              const next = new Set(prev);
-                              next.has(adv.id) ? next.delete(adv.id) : next.add(adv.id);
-                              return next;
-                            })
-                          }
-                        >
-                          <div className="flex-1 space-y-0.5">
-                            <div className="flex flex-wrap items-center gap-3 text-sm">
-                              <span className="font-semibold">{inr(adv.amount)}</span>
-                              <span className="text-muted-foreground text-xs">given on {adv.payment_date}</span>
-                              {Number(adv.remaining_balance) > 0 ? (
-                                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-[10px]">
-                                  Balance: {inr(adv.remaining_balance)}
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px]">
-                                  <Check className="size-2.5 mr-0.5" /> Fully recovered
-                                </Badge>
+                        <div className="flex w-full items-center gap-2 px-4 py-3">
+                          <button
+                            type="button"
+                            className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                            onClick={() =>
+                              setExpandedAdvances((prev) => {
+                                const next = new Set(prev);
+                                next.has(adv.id) ? next.delete(adv.id) : next.add(adv.id);
+                                return next;
+                              })
+                            }
+                          >
+                            <div className="flex-1 space-y-0.5">
+                              <div className="flex flex-wrap items-center gap-3 text-sm">
+                                <span className="font-semibold">{inr(adv.amount)}</span>
+                                <span className="text-muted-foreground text-xs">
+                                  given on {adv.payment_date}
+                                </span>
+                                {Number(adv.remaining_balance) > 0 ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-amber-300 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 text-[10px]"
+                                  >
+                                    Balance: {inr(adv.remaining_balance)}
+                                  </Badge>
+                                ) : (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-emerald-300 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 text-[10px]"
+                                  >
+                                    <Check className="size-2.5 mr-0.5" /> Fully recovered
+                                  </Badge>
+                                )}
+                                <span className="text-xs text-muted-foreground">
+                                  {inr(adv.monthly_deduction)}/month
+                                </span>
+                              </div>
+                              {adv.note && (
+                                <p className="text-xs text-muted-foreground">{adv.note}</p>
                               )}
-                              <span className="text-xs text-muted-foreground">
-                                {inr(adv.monthly_deduction)}/month
-                              </span>
                             </div>
-                            {adv.note && (
-                              <p className="text-xs text-muted-foreground">{adv.note}</p>
+                            {isExpanded ? (
+                              <ChevronDown className="size-4 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronRight className="size-4 text-muted-foreground shrink-0" />
                             )}
-                          </div>
-                          {isExpanded
-                            ? <ChevronDown className="size-4 text-muted-foreground shrink-0" />
-                            : <ChevronRight className="size-4 text-muted-foreground shrink-0" />}
-                        </button>
+                          </button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 shrink-0 gap-1.5 text-xs"
+                            onClick={() =>
+                              selectedDriver &&
+                              downloadDriverPaymentReceipt(selectedDriver, {
+                                kind: "Advance",
+                                amount: adv.amount,
+                                date: adv.payment_date,
+                                note: adv.note,
+                              })
+                            }
+                          >
+                            <Download className="size-3" /> PDF
+                          </Button>
+                        </div>
 
                         {/* Deduction schedule */}
                         {isExpanded && (
@@ -915,7 +1035,7 @@ export function DriverPayroll() {
                               <p className="text-xs text-muted-foreground">No schedule entries.</p>
                             ) : (
                               <div className="space-y-1">
-                                {pendingDeds.map(d => (
+                                {pendingDeds.map((d) => (
                                   <ScheduleRow
                                     key={d.id}
                                     deduction={d}
@@ -944,17 +1064,14 @@ export function DriverPayroll() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-              Driver: <span className="font-medium text-foreground">{selectedDriver?.full_name}</span>
+              Driver:{" "}
+              <span className="font-medium text-foreground">{selectedDriver?.full_name}</span>
             </div>
 
             {/* Month */}
             <div className="space-y-1.5">
               <Label>Month</Label>
-              <Input
-                type="month"
-                value={pMonth}
-                onChange={e => setPMonth(e.target.value)}
-              />
+              <Input type="month" value={pMonth} onChange={(e) => setPMonth(e.target.value)} />
               {usedMonths.has(pMonth) && (
                 <p className="text-xs text-destructive">
                   Payroll for {monthLabel(pMonth)} already exists.
@@ -977,7 +1094,7 @@ export function DriverPayroll() {
                 min="0"
                 placeholder="0.00"
                 value={pSalary}
-                onChange={e => setPSalary(e.target.value)}
+                onChange={(e) => setPSalary(e.target.value)}
               />
             </div>
 
@@ -989,7 +1106,8 @@ export function DriverPayroll() {
                 </p>
                 {scheduledDeductionForMonth(pMonth) > 0 && (
                   <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
-                    Scheduled deduction for {monthLabel(pMonth)}: {inr(scheduledDeductionForMonth(pMonth))}
+                    Scheduled deduction for {monthLabel(pMonth)}:{" "}
+                    {inr(scheduledDeductionForMonth(pMonth))}
                   </p>
                 )}
               </div>
@@ -1004,7 +1122,7 @@ export function DriverPayroll() {
                 max={totalAdvanceBalance}
                 placeholder="0.00"
                 value={pDeduction}
-                onChange={e => setPDeduction(e.target.value)}
+                onChange={(e) => setPDeduction(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
                 Max: {inr(totalAdvanceBalance)}. Capped automatically.
@@ -1023,7 +1141,7 @@ export function DriverPayroll() {
               <Input
                 placeholder="Add a note…"
                 value={pNote}
-                onChange={e => setPNote(e.target.value)}
+                onChange={(e) => setPNote(e.target.value)}
               />
             </div>
           </div>
@@ -1031,10 +1149,7 @@ export function DriverPayroll() {
             <Button variant="outline" onClick={() => setShowPayrollDialog(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={createPayroll}
-              disabled={pSaving || usedMonths.has(pMonth)}
-            >
+            <Button onClick={createPayroll} disabled={pSaving || usedMonths.has(pMonth)}>
               {pSaving && <Loader2 className="mr-1.5 size-3.5 animate-spin" />}
               Generate Payroll
             </Button>
@@ -1050,7 +1165,8 @@ export function DriverPayroll() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-              Driver: <span className="font-medium text-foreground">{selectedDriver?.full_name}</span>
+              Driver:{" "}
+              <span className="font-medium text-foreground">{selectedDriver?.full_name}</span>
             </div>
 
             <div className="space-y-1.5">
@@ -1060,17 +1176,13 @@ export function DriverPayroll() {
                 min="0"
                 placeholder="0.00"
                 value={aAmount}
-                onChange={e => setAAmount(e.target.value)}
+                onChange={(e) => setAAmount(e.target.value)}
               />
             </div>
 
             <div className="space-y-1.5">
               <Label>Payment Date</Label>
-              <Input
-                type="date"
-                value={aDate}
-                onChange={e => setADate(e.target.value)}
-              />
+              <Input type="date" value={aDate} onChange={(e) => setADate(e.target.value)} />
             </div>
 
             <div className="space-y-1.5">
@@ -1080,7 +1192,7 @@ export function DriverPayroll() {
                 min="0"
                 placeholder="0.00"
                 value={aMonthly}
-                onChange={e => setAMonthly(e.target.value)}
+                onChange={(e) => setAMonthly(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
                 How much to deduct from payroll each month until recovered.
@@ -1102,7 +1214,10 @@ export function DriverPayroll() {
                   ))}
                 </div>
                 <div className="mt-2 border-t border-border pt-2 flex justify-between text-xs font-semibold">
-                  <span>{advanceSchedulePreview.length} month{advanceSchedulePreview.length !== 1 ? "s" : ""}</span>
+                  <span>
+                    {advanceSchedulePreview.length} month
+                    {advanceSchedulePreview.length !== 1 ? "s" : ""}
+                  </span>
                   <span>{inr(advanceSchedulePreview.reduce((s, r) => s + r.amount, 0))}</span>
                 </div>
               </div>
@@ -1113,7 +1228,7 @@ export function DriverPayroll() {
               <Input
                 placeholder="Add a note…"
                 value={aNote}
-                onChange={e => setANote(e.target.value)}
+                onChange={(e) => setANote(e.target.value)}
               />
             </div>
           </div>
@@ -1141,9 +1256,9 @@ function ScheduleRow({
   deduction: Deduction;
   onUpdate: (amount: number) => Promise<void>;
 }) {
-  const [editing, setEditing]   = useState(false);
-  const [val,     setVal]       = useState(String(deduction.deduction_amount));
-  const [saving,  setSaving]    = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [val, setVal] = useState(String(deduction.deduction_amount));
+  const [saving, setSaving] = useState(false);
 
   async function save() {
     const n = parseFloat(val);
@@ -1155,11 +1270,13 @@ function ScheduleRow({
   }
 
   return (
-    <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${
-      deduction.is_applied
-        ? "bg-emerald-50 dark:bg-emerald-950/20"
-        : "bg-muted/40 hover:bg-muted/60"
-    }`}>
+    <div
+      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs ${
+        deduction.is_applied
+          ? "bg-emerald-50 dark:bg-emerald-950/20"
+          : "bg-muted/40 hover:bg-muted/60"
+      }`}
+    >
       <span className="w-16 shrink-0 text-muted-foreground">{monthLabel(deduction.month)}</span>
 
       {editing && !deduction.is_applied ? (
@@ -1169,26 +1286,42 @@ function ScheduleRow({
             type="number"
             min="0"
             value={val}
-            onChange={e => setVal(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
+            onChange={(e) => setVal(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") setEditing(false);
+            }}
             autoFocus
           />
           <Button size="sm" className="h-6 px-2 text-[10px]" disabled={saving} onClick={save}>
             {saving ? <Loader2 className="size-2.5 animate-spin" /> : "Save"}
           </Button>
-          <button className="text-muted-foreground hover:text-foreground" onClick={() => setEditing(false)}>✕</button>
+          <button
+            className="text-muted-foreground hover:text-foreground"
+            onClick={() => setEditing(false)}
+          >
+            ✕
+          </button>
         </>
       ) : (
         <>
-          <span className="flex-1 font-medium tabular-nums">−{inr(deduction.deduction_amount)}</span>
+          <span className="flex-1 font-medium tabular-nums">
+            −{inr(deduction.deduction_amount)}
+          </span>
           {deduction.is_applied ? (
-            <Badge variant="outline" className="h-4 border-emerald-300 bg-transparent text-emerald-700 dark:text-emerald-400 text-[9px] px-1">
+            <Badge
+              variant="outline"
+              className="h-4 border-emerald-300 bg-transparent text-emerald-700 dark:text-emerald-400 text-[9px] px-1"
+            >
               Applied
             </Badge>
           ) : (
             <button
               className="text-primary hover:underline"
-              onClick={() => { setVal(String(deduction.deduction_amount)); setEditing(true); }}
+              onClick={() => {
+                setVal(String(deduction.deduction_amount));
+                setEditing(true);
+              }}
             >
               Edit
             </button>

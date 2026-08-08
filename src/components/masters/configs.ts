@@ -14,7 +14,11 @@ export const VEHICLE_CONFIG: MasterConfig = {
     {
       title: "Identification",
       fields: [
-        { key: "registration_number", label: "Vehicle Number (Registration Number)", required: true },
+        {
+          key: "registration_number",
+          label: "Vehicle Number (Registration Number)",
+          required: true,
+        },
         { key: "internal_code", label: "Internal Vehicle Code" },
         { key: "nickname", label: "Vehicle Name / Nickname", full: true },
       ],
@@ -155,6 +159,14 @@ export const DRIVER_CONFIG: MasterConfig = {
       fields: [
         { key: "aadhaar_number", label: "Aadhaar Number", required: true },
         { key: "pan_number", label: "PAN Number", required: true },
+      ],
+    },
+    {
+      title: "Compulsory photos",
+      fields: [
+        { key: "driver_photo_path", label: "Driver Photo", type: "file", required: true },
+        { key: "aadhaar_photo_path", label: "Aadhaar Photo", type: "file", required: true },
+        { key: "licence_photo_path", label: "Driving Licence Photo", type: "file", required: true },
       ],
     },
   ],
