@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
-  FileCheck2,
   Loader2,
   MapPin,
   Plus,
@@ -56,6 +55,75 @@ export type MasterConfig = {
 };
 
 type Row = Record<string, unknown> & { id?: string; branch_id?: string | null };
+
+function DriverPhotoField({
+  field,
+  objectPath,
+  uploading,
+  onFile,
+}: {
+  field: FieldDef;
+  objectPath: string;
+  uploading: boolean;
+  onFile: (file: File) => void;
+}) {
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+
+  useEffect(() => {
+    let active = true;
+    if (!objectPath) {
+      setPreviewUrl("");
+      return;
+    }
+    void supabase.storage
+      .from("driver-documents")
+      .createSignedUrl(objectPath, 60 * 60)
+      .then(({ data }) => {
+        if (active) setPreviewUrl(data?.signedUrl ?? "");
+      });
+    return () => {
+      active = false;
+    };
+  }, [objectPath]);
+
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <Label className="text-xs font-medium text-muted-foreground">
+        {field.label}
+        <span className="text-destructive"> *</span>
+      </Label>
+      <div className="overflow-hidden rounded-lg border border-border bg-muted/20">
+        <div className="flex h-40 items-center justify-center overflow-hidden bg-muted/40">
+          {previewUrl ? (
+            <img src={previewUrl} alt={field.label} className="h-full w-full object-contain" />
+          ) : uploading ? (
+            <Loader2 className="size-6 animate-spin text-primary" />
+          ) : (
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+              <Upload className="size-6" />
+              <span className="text-xs">No photo uploaded</span>
+            </div>
+          )}
+        </div>
+        <label className="flex h-11 cursor-pointer items-center justify-center gap-2 border-t border-border px-3 text-sm font-medium transition-colors hover:bg-muted/60">
+          {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+          <span>{objectPath ? "Replace photo" : "Upload photo"}</span>
+          <input
+            className="sr-only"
+            type="file"
+            accept="image/*"
+            required={field.required && !objectPath}
+            disabled={uploading}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) onFile(file);
+            }}
+          />
+        </label>
+      </div>
+    </div>
+  );
+}
 
 export function MasterList({
   config,
@@ -269,7 +337,10 @@ export function MasterList({
 
   if (editing) {
     return (
-      <form onSubmit={onSubmit} className="animate-fade-up space-y-5">
+      <form
+        onSubmit={onSubmit}
+        className="animate-fade-up min-w-0 max-w-full space-y-5 overflow-x-hidden"
+      >
         <div className="flex items-center gap-3">
           <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(null)}>
             <ArrowLeft className="size-4" />
@@ -281,7 +352,7 @@ export function MasterList({
         </div>
 
         {config.sections.map((sec) => (
-          <section key={sec.title} className="surface-card p-6">
+          <section key={sec.title} className="surface-card min-w-0 overflow-hidden p-4 sm:p-6">
             <h3 className="text-sm font-semibold tracking-tight">{sec.title}</h3>
             <div className="mt-5 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
               {sec.fields.map((f) => {
@@ -310,35 +381,13 @@ export function MasterList({
                 }
                 if (f.type === "file") {
                   return (
-                    <div key={f.key} className={`space-y-1.5 ${f.full ? "sm:col-span-2" : ""}`}>
-                      <Label className="text-xs font-medium text-muted-foreground">
-                        {f.label}
-                        <span className="text-destructive"> *</span>
-                      </Label>
-                      <label className="flex h-11 cursor-pointer items-center gap-3 rounded-md border border-dashed border-border px-3 transition-colors hover:border-primary/60">
-                        {uploadingField === f.key ? (
-                          <Loader2 className="size-4 animate-spin text-primary" />
-                        ) : val ? (
-                          <FileCheck2 className="size-4 text-emerald-600" />
-                        ) : (
-                          <Upload className="size-4 text-muted-foreground" />
-                        )}
-                        <span className="min-w-0 flex-1 truncate text-sm">
-                          {val ? "Photo uploaded — click to replace" : "Choose an image to upload"}
-                        </span>
-                        <Input
-                          className="sr-only"
-                          type="file"
-                          accept="image/*"
-                          required={f.required && !val}
-                          disabled={uploadingField !== null}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) void uploadDriverDocument(f.key, file);
-                          }}
-                        />
-                      </label>
-                    </div>
+                    <DriverPhotoField
+                      key={f.key}
+                      field={f}
+                      objectPath={val}
+                      uploading={uploadingField === f.key}
+                      onFile={(file) => void uploadDriverDocument(f.key, file)}
+                    />
                   );
                 }
                 // PIN code field on locations table — auto-fill city/district/state/country
