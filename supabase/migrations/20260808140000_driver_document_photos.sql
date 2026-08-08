@@ -34,12 +34,21 @@ with check (bucket_id = 'driver-documents');
 drop policy if exists "Authenticated users can update driver documents" on storage.objects;
 create policy "Authenticated users can update driver documents"
 on storage.objects for update to authenticated
-using (bucket_id = 'driver-documents') with check (bucket_id = 'driver-documents');
+using (
+  bucket_id = 'driver-documents' and
+  not exists (select 1 from public.app_users where id = auth.uid() and role = 'basic')
+) with check (
+  bucket_id = 'driver-documents' and
+  not exists (select 1 from public.app_users where id = auth.uid() and role = 'basic')
+);
 
 drop policy if exists "Authenticated users can delete driver documents" on storage.objects;
 create policy "Authenticated users can delete driver documents"
 on storage.objects for delete to authenticated
-using (bucket_id = 'driver-documents');
+using (
+  bucket_id = 'driver-documents' and
+  not exists (select 1 from public.app_users where id = auth.uid() and role = 'basic')
+);
 
 comment on column public.drivers.driver_photo_path is 'Private driver-documents bucket object path';
 comment on column public.drivers.aadhaar_photo_path is 'Private driver-documents bucket object path';

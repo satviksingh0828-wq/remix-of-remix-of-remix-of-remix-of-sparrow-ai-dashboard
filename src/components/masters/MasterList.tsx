@@ -60,11 +60,13 @@ function DriverPhotoField({
   field,
   objectPath,
   uploading,
+  locked,
   onFile,
 }: {
   field: FieldDef;
   objectPath: string;
   uploading: boolean;
+  locked: boolean;
   onFile: (file: File) => void;
 }) {
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -105,21 +107,31 @@ function DriverPhotoField({
             </div>
           )}
         </div>
-        <label className="flex h-11 cursor-pointer items-center justify-center gap-2 border-t border-border px-3 text-sm font-medium transition-colors hover:bg-muted/60">
-          {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-          <span>{objectPath ? "Replace photo" : "Upload photo"}</span>
-          <input
-            className="sr-only"
-            type="file"
-            accept="image/*"
-            required={field.required && !objectPath}
-            disabled={uploading}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) onFile(file);
-            }}
-          />
-        </label>
+        {locked ? (
+          <div className="flex h-11 items-center justify-center border-t border-border px-3 text-xs font-medium text-muted-foreground">
+            Uploaded photo cannot be replaced
+          </div>
+        ) : (
+          <label className="flex h-11 cursor-pointer items-center justify-center gap-2 border-t border-border px-3 text-sm font-medium transition-colors hover:bg-muted/60">
+            {uploading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Upload className="size-4" />
+            )}
+            <span>{objectPath ? "Replace photo" : "Upload photo"}</span>
+            <input
+              className="sr-only"
+              type="file"
+              accept="image/*"
+              required={field.required && !objectPath}
+              disabled={uploading}
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) onFile(file);
+              }}
+            />
+          </label>
+        )}
       </div>
     </div>
   );
@@ -236,6 +248,11 @@ export function MasterList({
   const set = (k: string) => (v: string) => setEditing((f) => (f ? { ...f, [k]: v } : f));
 
   async function uploadDriverDocument(fieldKey: string, file: File) {
+    const existingPath = String(editing?.[fieldKey] ?? "");
+    if (isBasic && existingPath) {
+      toast.error("Basic users cannot replace or delete an uploaded driver photo");
+      return;
+    }
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return;
@@ -386,6 +403,7 @@ export function MasterList({
                       field={f}
                       objectPath={val}
                       uploading={uploadingField === f.key}
+                      locked={isBasic && Boolean(val)}
                       onFile={(file) => void uploadDriverDocument(f.key, file)}
                     />
                   );
