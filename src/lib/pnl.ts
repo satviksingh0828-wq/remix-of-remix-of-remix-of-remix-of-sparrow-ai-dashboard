@@ -6,6 +6,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { num, manifestCharges, findEntry, type ContractLite, type EntryLite } from "./trip-calc";
 import { financialYearRange } from "./financial-year";
+import { isDriverActive } from "./drivers";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -411,7 +412,7 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
         .eq("status", "active"),
       db.from("branches").select("id,branch_name"),
       db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
-      db.from("drivers").select("id,full_name,driver_code").order("full_name"),
+      db.from("drivers").select("id,full_name,driver_code,ending_date").order("full_name"),
       db.from("transporters").select("id,transporter_name").order("transporter_name"),
     ]);
 
@@ -429,7 +430,7 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
         registration_number: String(v.registration_number ?? ""),
         label: [v.registration_number, v.nickname].filter(Boolean).join(" — "),
       })),
-      drivers: (driversRes.data ?? []).map((d: Record<string, unknown>) => ({
+      drivers: (driversRes.data ?? []).filter(isDriverActive).map((d: Record<string, unknown>) => ({
         id: d.id as string,
         full_name: String(d.full_name ?? ""),
         label: [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),
@@ -513,7 +514,7 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
         .eq("status", "active"),
       db.from("branches").select("id,branch_name"),
       db.from("vehicles").select("id,registration_number,nickname").order("registration_number"),
-      db.from("drivers").select("id,full_name,driver_code").order("full_name"),
+      db.from("drivers").select("id,full_name,driver_code,ending_date").order("full_name"),
       db.from("transporters").select("id,transporter_name").order("transporter_name"),
     ]);
 
@@ -536,7 +537,7 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
         registration_number: String(v.registration_number ?? ""),
         label: [v.registration_number, v.nickname].filter(Boolean).join(" — "),
       })),
-      drivers: (driversRes.data ?? []).map((d: Record<string, unknown>) => ({
+      drivers: (driversRes.data ?? []).filter(isDriverActive).map((d: Record<string, unknown>) => ({
         id: d.id as string,
         full_name: String(d.full_name ?? ""),
         label: [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),

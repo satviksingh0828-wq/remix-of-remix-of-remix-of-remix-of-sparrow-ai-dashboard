@@ -43,6 +43,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { fetchAll } from "@/lib/fetch-all";
+import { isDriverActive } from "@/lib/drivers";
 import { inr, num } from "@/lib/trip-calc";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -54,6 +55,7 @@ type DriverRow = {
   branch_id: string | null;
   salary_amount: string | null;
   salary_type: string | null;
+  ending_date: string | null;
 };
 
 type Payroll = {
@@ -245,14 +247,14 @@ export function DriverPayroll() {
       const data = await fetchAll<DriverRow>(() => {
         let q = supabase
           .from("drivers")
-          .select("id,full_name,driver_code,branch_id,salary_amount,salary_type")
+          .select("id,full_name,driver_code,branch_id,salary_amount,salary_type,ending_date")
           .order("full_name");
         if (allowedBranchIds !== null && allowedBranchIds.length > 0) {
           q = q.in("branch_id", allowedBranchIds) as typeof q;
         }
         return q;
       });
-      setDrivers(data);
+      setDrivers(data.filter(isDriverActive));
     } catch {
       toast.error("Could not load drivers");
     }
