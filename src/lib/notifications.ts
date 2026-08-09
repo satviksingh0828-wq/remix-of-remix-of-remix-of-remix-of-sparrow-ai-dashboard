@@ -21,7 +21,7 @@ import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } fr
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
-export type NotificationKind = "insurance" | "road_tax" | "manifest_zero_income";
+export type NotificationKind = "insurance" | "road_tax" | "manifest_zero_income" | "monthly_mis";
 
 export type NotificationItem = {
   id: string;
@@ -338,10 +338,13 @@ export const serverSyncNotifications = createServerFn({ method: "POST" })
     // Delete non-dismissed rows that are no longer in the computed set (issue resolved)
     const currentRefIds = computed.map((c) => c.ref_id);
     const { data: existing, error: existingError } = await db
-      .from("notifications").select("id,ref_id").eq("dismissed", false);
+      .from("notifications").select("id,kind,ref_id").eq("dismissed", false);
     if (existingError) throw new Error(`Failed to read existing notifications: ${existingError.message}`);
+    const computedKinds = new Set<NotificationKind>(["insurance", "road_tax", "manifest_zero_income"]);
     const toDelete = (existing ?? [])
-      .filter((r: Record<string,unknown>) => !currentRefIds.includes(r.ref_id as string))
+      .filter((r: Record<string,unknown>) =>
+        computedKinds.has(r.kind as NotificationKind) && !currentRefIds.includes(r.ref_id as string),
+      )
       .map((r: Record<string,unknown>) => r.id as string);
     if (toDelete.length) {
       const { error: deleteError } = await db.from("notifications").delete().in("id", toDelete);
