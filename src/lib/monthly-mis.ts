@@ -2,12 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { verifyAppToken } from "@/lib/user-auth";
 
-export type MisScheduleType = "daily" | "weekly" | "day_of_month";
+export type MisScheduleType = "daily" | "weekly" | "day_of_month" | "twice_monthly";
 export type MisActivity = {
   id: string;
   activity_name: string;
   schedule_type: MisScheduleType;
   schedule_value: number | null;
+  schedule_value_2: number | null;
   sort_order: number;
 };
 export type MisEntry = { activity_id: string; due_date: string; completed: boolean; note: string };
@@ -74,10 +75,13 @@ function datesForActivity(activity: MisActivity, month: string) {
   const result: string[] = [];
   for (let day = 1; day <= days; day += 1) {
     const date = new Date(Date.UTC(year, monthNumber - 1, day));
+    if (date.getUTCDay() === 0) continue;
     const due =
       activity.schedule_type === "daily" ||
       (activity.schedule_type === "weekly" && date.getUTCDay() === activity.schedule_value) ||
-      (activity.schedule_type === "day_of_month" && day === activity.schedule_value);
+      (activity.schedule_type === "day_of_month" && day === activity.schedule_value) ||
+      (activity.schedule_type === "twice_monthly" &&
+        (day === activity.schedule_value || day === activity.schedule_value_2));
     if (due) result.push(`${month}-${String(day).padStart(2, "0")}`);
   }
   return result;
@@ -273,8 +277,9 @@ export const serverSaveMisActivities = createServerFn({ method: "POST" })
         z.object({
           id: z.string().uuid().optional(),
           activity_name: z.string().trim().min(1).max(200),
-          schedule_type: z.enum(["daily", "weekly", "day_of_month"]),
+          schedule_type: z.enum(["daily", "weekly", "day_of_month", "twice_monthly"]),
           schedule_value: z.number().int().min(0).max(31).nullable(),
+          schedule_value_2: z.number().int().min(1).max(31).nullable(),
         }),
       ),
     }),
@@ -298,11 +303,18 @@ export const serverSaveMisActivities = createServerFn({ method: "POST" })
         .in("id", remove);
     for (let index = 0; index < data.activities.length; index += 1) {
       const activity = data.activities[index];
+      if (
+        activity.schedule_type === "twice_monthly" &&
+        activity.schedule_value === activity.schedule_value_2
+      )
+        throw new Error("Twice-a-month activities require two different dates.");
       const row = {
         branch_id: data.branchId,
         activity_name: activity.activity_name,
         schedule_type: activity.schedule_type,
         schedule_value: activity.schedule_type === "daily" ? null : activity.schedule_value,
+        schedule_value_2:
+          activity.schedule_type === "twice_monthly" ? activity.schedule_value_2 : null,
         sort_order: index,
         is_active: true,
         updated_by: auth.userId,
@@ -317,6 +329,42 @@ export const serverSaveMisActivities = createServerFn({ method: "POST" })
       const { error } = await query;
       if (error) throw new Error(`Unable to save activity: ${error.message}`);
     }
+    return { ok: true };
+  });
+
+export const serverReopenMisForm = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      token: tokenSchema,
+      branchId: z.string().uuid(),
+      month: z.string().regex(/^\d{4}-\d{2}$/),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const auth = await caller(data.token);
+    if (auth.role !== "admin") throw new Error("Admin access required.");
+    const { data: instance } = await auth.db
+      .from("monthly_mis_instances")
+      .select("id,status,snapshot")
+      .eq("branch_id", data.branchId)
+      .eq("mis_month", `${data.month}-01`)
+      .maybeSingle();
+    if (!instance || instance.status !== "submitted")
+      throw new Error("Only a submitted Monthly MIS can be reopened.");
+    const snapshot = instance.snapshot as { entries?: MisEntry[] } | null;
+    const { error } = await auth.db
+      .from("monthly_mis_instances")
+      .update({
+        status: "draft",
+        draft_data: { entries: snapshot?.entries ?? [] },
+        snapshot: null,
+        submitted_at: null,
+        submitted_by: null,
+        updated_by: auth.userId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", instance.id);
+    if (error) throw new Error(`Unable to reopen Monthly MIS: ${error.message}`);
     return { ok: true };
   });
 

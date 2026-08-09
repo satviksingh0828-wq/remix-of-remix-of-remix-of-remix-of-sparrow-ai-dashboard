@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, Lock, Save, Send } from "lucide-react";
+import { CheckCircle2, Download, Lock, LockOpen, Save, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { useBranches } from "@/lib/use-branches";
-import { serverLoadMisForm, serverSaveMisForm, type MisForm } from "@/lib/monthly-mis";
+import {
+  serverLoadMisForm,
+  serverReopenMisForm,
+  serverSaveMisForm,
+  type MisForm,
+} from "@/lib/monthly-mis";
 import { exportMisFormExcel, misScheduleLabel } from "@/lib/monthly-mis-excel";
 import { Button } from "@/components/ui/button";
 import {
@@ -76,7 +81,7 @@ export function MonthlyMIS() {
     if (
       submit &&
       !window.confirm(
-        "Submit this Monthly MIS? It will be permanently locked and cannot be edited.",
+        "Submit this Monthly MIS? It will be locked unless an admin reopens it for correction.",
       )
     )
       return;
@@ -90,6 +95,20 @@ export function MonthlyMIS() {
         data: { token: user.sessionToken, branchId, month },
       });
       setForm(refreshed);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : String(error));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function reopen() {
+    if (!user?.sessionToken || !form || !window.confirm("Reopen this MIS for corrections?")) return;
+    setSaving(true);
+    try {
+      await serverReopenMisForm({ data: { token: user.sessionToken, branchId, month } });
+      setForm(await serverLoadMisForm({ data: { token: user.sessionToken, branchId, month } }));
+      toast.success("Monthly MIS reopened for editing");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : String(error));
     } finally {
@@ -132,10 +151,18 @@ export function MonthlyMIS() {
             </Button>
           )}
           {form?.status === "submitted" && (
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600">
-              <Lock className="size-3.5" />
-              Submitted & locked
-            </span>
+            <>
+              <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600">
+                <Lock className="size-3.5" />
+                Submitted & locked
+              </span>
+              {user?.role === "admin" && (
+                <Button variant="outline" disabled={saving} onClick={reopen}>
+                  <LockOpen className="size-4" />
+                  Reopen MIS
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

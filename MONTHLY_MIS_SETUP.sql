@@ -8,17 +8,20 @@ create table if not exists public.monthly_mis_activities (
   id uuid primary key default gen_random_uuid(),
   branch_id uuid not null references public.branches(id) on delete cascade,
   activity_name text not null check (length(trim(activity_name)) between 1 and 200),
-  schedule_type text not null check (schedule_type in ('daily', 'weekly', 'day_of_month')),
+  schedule_type text not null check (schedule_type in ('daily', 'weekly', 'day_of_month', 'twice_monthly')),
   schedule_value smallint,
+  schedule_value_2 smallint,
   sort_order integer not null default 0,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   updated_by uuid references public.app_users(id) on delete set null,
   constraint monthly_mis_schedule_value_check check (
-    (schedule_type = 'daily' and schedule_value is null) or
-    (schedule_type = 'weekly' and schedule_value between 0 and 6) or
-    (schedule_type = 'day_of_month' and schedule_value between 1 and 31)
+    (schedule_type = 'daily' and schedule_value is null and schedule_value_2 is null) or
+    (schedule_type = 'weekly' and schedule_value between 1 and 6 and schedule_value_2 is null) or
+    (schedule_type = 'day_of_month' and schedule_value between 1 and 31 and schedule_value_2 is null) or
+    (schedule_type = 'twice_monthly' and schedule_value between 1 and 31
+      and schedule_value_2 between 1 and 31 and schedule_value <> schedule_value_2)
   )
 );
 
@@ -52,7 +55,14 @@ create index if not exists monthly_mis_instances_month_status_idx
 create or replace function public.protect_submitted_monthly_mis()
 returns trigger language plpgsql security invoker set search_path = public as $$
 begin
-  if old.status = 'submitted' then
+  if old.status = 'submitted' and not (
+    tg_op = 'UPDATE'
+    and new.status = 'draft'
+    and new.snapshot is null
+    and new.submitted_at is null
+    and new.submitted_by is null
+    and new.draft_data is not null
+  ) then
     raise exception 'Submitted Monthly MIS records are immutable';
   end if;
   return case when tg_op = 'DELETE' then old else new end;
