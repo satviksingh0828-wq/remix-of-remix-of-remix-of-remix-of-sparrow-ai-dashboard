@@ -5,17 +5,30 @@ import { inr } from "@/lib/trip-calc";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
+import { reportDateRange, tripCodesForBranch, useReportFilters } from "@/lib/report-filters";
 
 const MONTHS = [
-  { v: "01", l: "January" }, { v: "02", l: "February" }, { v: "03", l: "March" },
-  { v: "04", l: "April" },   { v: "05", l: "May" },       { v: "06", l: "June" },
-  { v: "07", l: "July" },    { v: "08", l: "August" },    { v: "09", l: "September" },
-  { v: "10", l: "October" }, { v: "11", l: "November" },  { v: "12", l: "December" },
+  { v: "01", l: "January" },
+  { v: "02", l: "February" },
+  { v: "03", l: "March" },
+  { v: "04", l: "April" },
+  { v: "05", l: "May" },
+  { v: "06", l: "June" },
+  { v: "07", l: "July" },
+  { v: "08", l: "August" },
+  { v: "09", l: "September" },
+  { v: "10", l: "October" },
+  { v: "11", l: "November" },
+  { v: "12", l: "December" },
 ];
 
 interface DriverRow {
@@ -37,11 +50,12 @@ interface TripLog {
 }
 
 export function DriverExpenseReport() {
+  const { branchId, financialYear } = useReportFilters();
   const now = new Date();
   const currentYear = String(now.getFullYear());
   const currentMonth = String(now.getMonth() + 1).padStart(2, "0");
 
-  const [year, setYear]   = useState(currentYear);
+  const [year, setYear] = useState(currentYear);
   const [month, setMonth] = useState(currentMonth);
   const years = useMemo(() => {
     const arr: string[] = [];
@@ -56,7 +70,7 @@ export function DriverExpenseReport() {
   const [history, setHistory] = useState<TripLog[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  function dateRange() {
+  function calendarDateRange() {
     const start = `${year}-${month === "all" ? "01" : month}-01`;
     let end: string;
     if (month === "all") {
@@ -68,41 +82,56 @@ export function DriverExpenseReport() {
     return { start, end };
   }
 
+  function dateRange() {
+    return reportDateRange(financialYear, calendarDateRange);
+  }
+
   async function loadData() {
     setLoading(true);
     try {
       const { start, end } = dateRange();
 
       const drivers = await fetchAll<any>(() =>
-        supabase.from("drivers").select("id,full_name").order("full_name")
+        supabase.from("drivers").select("id,full_name").order("full_name"),
       );
 
-      const logs = await fetchAll<any>(() =>
-        supabase.from("driver_expense_logs" as any)
-          .select("driver_id,driver_bata,morning_exp,night_exp,trip_date")
+      const branchTripCodes = await tripCodesForBranch(branchId);
+      const allLogs = await fetchAll<any>(() =>
+        supabase
+          .from("driver_expense_logs" as any)
+          .select("trip_code,driver_id,driver_bata,morning_exp,night_exp,trip_date")
           .gte("trip_date", start)
-          .lt("trip_date", end)
+          .lt("trip_date", end),
       );
 
-      const agg: Record<string, { bata: number; morning: number; night: number; trips: number }> = {};
-      drivers.forEach((d: any) => { agg[d.id] = { bata: 0, morning: 0, night: 0, trips: 0 }; });
+      const logs = branchTripCodes
+        ? allLogs.filter((log: any) => branchTripCodes.has(log.trip_code))
+        : allLogs;
+
+      const agg: Record<string, { bata: number; morning: number; night: number; trips: number }> =
+        {};
+      drivers.forEach((d: any) => {
+        agg[d.id] = { bata: 0, morning: 0, night: 0, trips: 0 };
+      });
 
       logs.forEach((l: any) => {
         if (!l.driver_id || !agg[l.driver_id]) return;
-        agg[l.driver_id].bata    += Number(l.driver_bata ?? 0);
+        agg[l.driver_id].bata += Number(l.driver_bata ?? 0);
         agg[l.driver_id].morning += Number(l.morning_exp ?? 0);
-        agg[l.driver_id].night   += Number(l.night_exp   ?? 0);
-        agg[l.driver_id].trips   += 1;
+        agg[l.driver_id].night += Number(l.night_exp ?? 0);
+        agg[l.driver_id].trips += 1;
       });
 
-      setRows(drivers.map((d: any) => ({
-        driver_id: d.id,
-        full_name: d.full_name ?? "—",
-        total_bata:    agg[d.id].bata,
-        total_morning: agg[d.id].morning,
-        total_night:   agg[d.id].night,
-        trip_count:    agg[d.id].trips,
-      })));
+      setRows(
+        drivers.map((d: any) => ({
+          driver_id: d.id,
+          full_name: d.full_name ?? "—",
+          total_bata: agg[d.id].bata,
+          total_morning: agg[d.id].morning,
+          total_night: agg[d.id].night,
+          trip_count: agg[d.id].trips,
+        })),
+      );
     } catch (err: any) {
       toast.error("Failed to load driver report: " + err.message);
     } finally {
@@ -131,26 +160,35 @@ export function DriverExpenseReport() {
     }
   }
 
-  useEffect(() => { loadData(); }, [year, month]);
+  useEffect(() => {
+    loadData();
+  }, [year, month, financialYear, branchId]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
-    return rows.filter(r => (r.full_name ?? "").toLowerCase().includes(s));
+    return rows.filter((r) => (r.full_name ?? "").toLowerCase().includes(s));
   }, [rows, search]);
 
   function handleExport() {
     const csv = toCsv(
-      filtered.filter(r => r.trip_count > 0).map(r => ({
-        Driver: r.full_name,
-        Trips: r.trip_count,
-        "Driver Bata (₹)": r.total_bata,
-        "Morning Exp. (₹)": r.total_morning,
-        "Night Exp. (₹)": r.total_night,
-        "Total (₹)": r.total_bata + r.total_morning + r.total_night,
-      })),
-      ["Driver", "Trips", "Driver Bata (₹)", "Morning Exp. (₹)", "Night Exp. (₹)", "Total (₹)"]
+      filtered
+        .filter((r) => r.trip_count > 0)
+        .map((r) => ({
+          Driver: r.full_name,
+          Trips: r.trip_count,
+          "Driver Bata (₹)": r.total_bata,
+          "Morning Exp. (₹)": r.total_morning,
+          "Night Exp. (₹)": r.total_night,
+          "Total (₹)": r.total_bata + r.total_morning + r.total_night,
+        })),
+      ["Driver", "Trips", "Driver Bata (₹)", "Morning Exp. (₹)", "Night Exp. (₹)", "Total (₹)"],
     );
-    const label = month === "all" ? year : `${year}-${month}`;
+    const label =
+      financialYear !== "none"
+        ? `FY-${financialYear}-${Number(financialYear) + 1}`
+        : month === "all"
+          ? year
+          : `${year}-${month}`;
     downloadCsv(csv, `driver_expense_${label}.csv`);
   }
 
@@ -160,21 +198,50 @@ export function DriverExpenseReport() {
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/30 p-3">
         <div className="relative w-full sm:w-56">
           <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
-          <Input placeholder="Search driver…" className="h-9 pl-9" value={search} onChange={e => setSearch(e.target.value)} />
+          <Input
+            placeholder="Search driver…"
+            className="h-9 pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-        <Select value={year} onValueChange={v => { setYear(v); setSelectedId(null); }}>
-          <SelectTrigger className="h-9 w-28"><SelectValue /></SelectTrigger>
+        <Select
+          value={year}
+          onValueChange={(v) => {
+            setYear(v);
+            setSelectedId(null);
+          }}
+        >
+          <SelectTrigger className="h-9 w-28">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+            {years.map((y) => (
+              <SelectItem key={y} value={y}>
+                {y}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
-        <Select value={month} onValueChange={v => { setMonth(v); setSelectedId(null); }}>
-          <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
+        <Select
+          value={month}
+          onValueChange={(v) => {
+            setMonth(v);
+            setSelectedId(null);
+          }}
+        >
+          <SelectTrigger className="h-9 w-36">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Months</SelectItem>
-            {MONTHS.map(m => <SelectItem key={m.v} value={m.v}>{m.l}</SelectItem>)}
+            {MONTHS.map((m) => (
+              <SelectItem key={m.v} value={m.v}>
+                {m.l}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -182,7 +249,13 @@ export function DriverExpenseReport() {
           <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-2">
             <Download className="size-4" /> Export
           </Button>
-          <Button variant="ghost" size="icon" onClick={loadData} disabled={loading} className="h-9 w-9">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={loadData}
+            disabled={loading}
+            className="h-9 w-9"
+          >
             <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
@@ -205,77 +278,129 @@ export function DriverExpenseReport() {
             </thead>
             <tbody className="divide-y divide-border">
               {loading ? (
-                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">
-                  <RefreshCw className="mx-auto mb-2 size-6 animate-spin opacity-20" />Loading…
-                </td></tr>
-              ) : filtered.filter(r => r.trip_count > 0).length === 0 ? (
-                <tr><td colSpan={7} className="py-12 text-center text-muted-foreground">No trips found for this period.</td></tr>
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                    <RefreshCw className="mx-auto mb-2 size-6 animate-spin opacity-20" />
+                    Loading…
+                  </td>
+                </tr>
+              ) : filtered.filter((r) => r.trip_count > 0).length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-muted-foreground">
+                    No trips found for this period.
+                  </td>
+                </tr>
               ) : (
-                filtered.filter(r => r.trip_count > 0).map(row => {
-                  const total = row.total_bata + row.total_morning + row.total_night;
-                  const isExpanded = selectedId === row.driver_id;
-                  return (
-                    <Fragment key={row.driver_id}>
-                      <tr className="transition-colors hover:bg-muted/30">
-                        <td className="px-4 py-3 font-medium">{row.full_name}</td>
-                        <td className="px-4 py-3 text-right text-muted-foreground">{row.trip_count}</td>
-                        <td className="px-4 py-3 text-right text-purple-600 font-medium">{row.total_bata > 0 ? inr(row.total_bata) : "—"}</td>
-                        <td className="px-4 py-3 text-right text-amber-600 font-medium">{row.total_morning > 0 ? inr(row.total_morning) : "—"}</td>
-                        <td className="px-4 py-3 text-right text-blue-600 font-medium">{row.total_night > 0 ? inr(row.total_night) : "—"}</td>
-                        <td className="px-4 py-3 text-right font-bold">{total > 0 ? inr(total) : "—"}</td>
-                        <td className="px-4 py-3 text-center">
-                          <Button variant="ghost" size="sm" className="h-8 gap-1 text-xs"
-                            onClick={() => isExpanded ? setSelectedId(null) : loadHistory(row.driver_id)}>
-                            {isExpanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-                            {isExpanded ? "Hide" : "History"}
-                          </Button>
-                        </td>
-                      </tr>
-                      {isExpanded && (
-                        <tr className="bg-muted/10 border-b border-border">
-                          <td colSpan={7} className="p-0">
-                            <div className="max-h-[300px] overflow-y-auto p-4">
-                              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Trip History</h4>
-                              {loadingHistory ? (
-                                <div className="py-4 text-center text-muted-foreground">Loading…</div>
-                              ) : history.length === 0 ? (
-                                <div className="py-4 text-center text-muted-foreground">No trips in this period.</div>
+                filtered
+                  .filter((r) => r.trip_count > 0)
+                  .map((row) => {
+                    const total = row.total_bata + row.total_morning + row.total_night;
+                    const isExpanded = selectedId === row.driver_id;
+                    return (
+                      <Fragment key={row.driver_id}>
+                        <tr className="transition-colors hover:bg-muted/30">
+                          <td className="px-4 py-3 font-medium">{row.full_name}</td>
+                          <td className="px-4 py-3 text-right text-muted-foreground">
+                            {row.trip_count}
+                          </td>
+                          <td className="px-4 py-3 text-right text-purple-600 font-medium">
+                            {row.total_bata > 0 ? inr(row.total_bata) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right text-amber-600 font-medium">
+                            {row.total_morning > 0 ? inr(row.total_morning) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right text-blue-600 font-medium">
+                            {row.total_night > 0 ? inr(row.total_night) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-right font-bold">
+                            {total > 0 ? inr(total) : "—"}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 text-xs"
+                              onClick={() =>
+                                isExpanded ? setSelectedId(null) : loadHistory(row.driver_id)
+                              }
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="size-3" />
                               ) : (
-                                <table className="w-full text-xs">
-                                  <thead>
-                                    <tr className="text-muted-foreground border-b border-border">
-                                      <th className="pb-2 text-left font-semibold">Date</th>
-                                      <th className="pb-2 text-left font-semibold">Trip</th>
-                                      <th className="pb-2 text-right font-semibold">Bata</th>
-                                      <th className="pb-2 text-right font-semibold">Morning</th>
-                                      <th className="pb-2 text-right font-semibold">Night</th>
-                                      <th className="pb-2 text-right font-semibold">Total</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-border/50">
-                                    {history.map((h: any) => {
-                                      const t = Number(h.driver_bata) + Number(h.morning_exp) + Number(h.night_exp);
-                                      return (
-                                        <tr key={h.id}>
-                                          <td className="py-2">{h.trip_date}</td>
-                                          <td className="py-2 font-medium">{h.trip_code}</td>
-                                          <td className="py-2 text-right text-purple-600">{Number(h.driver_bata) > 0 ? inr(Number(h.driver_bata)) : "—"}</td>
-                                          <td className="py-2 text-right text-amber-600">{Number(h.morning_exp) > 0 ? inr(Number(h.morning_exp)) : "—"}</td>
-                                          <td className="py-2 text-right text-blue-600">{Number(h.night_exp) > 0 ? inr(Number(h.night_exp)) : "—"}</td>
-                                          <td className="py-2 text-right font-semibold">{t > 0 ? inr(t) : "—"}</td>
-                                        </tr>
-                                      );
-                                    })}
-                                  </tbody>
-                                </table>
+                                <ChevronRight className="size-3" />
                               )}
-                            </div>
+                              {isExpanded ? "Hide" : "History"}
+                            </Button>
                           </td>
                         </tr>
-                      )}
-                    </Fragment>
-                  );
-                })
+                        {isExpanded && (
+                          <tr className="bg-muted/10 border-b border-border">
+                            <td colSpan={7} className="p-0">
+                              <div className="max-h-[300px] overflow-y-auto p-4">
+                                <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                  Trip History
+                                </h4>
+                                {loadingHistory ? (
+                                  <div className="py-4 text-center text-muted-foreground">
+                                    Loading…
+                                  </div>
+                                ) : history.length === 0 ? (
+                                  <div className="py-4 text-center text-muted-foreground">
+                                    No trips in this period.
+                                  </div>
+                                ) : (
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="text-muted-foreground border-b border-border">
+                                        <th className="pb-2 text-left font-semibold">Date</th>
+                                        <th className="pb-2 text-left font-semibold">Trip</th>
+                                        <th className="pb-2 text-right font-semibold">Bata</th>
+                                        <th className="pb-2 text-right font-semibold">Morning</th>
+                                        <th className="pb-2 text-right font-semibold">Night</th>
+                                        <th className="pb-2 text-right font-semibold">Total</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border/50">
+                                      {history.map((h: any) => {
+                                        const t =
+                                          Number(h.driver_bata) +
+                                          Number(h.morning_exp) +
+                                          Number(h.night_exp);
+                                        return (
+                                          <tr key={h.id}>
+                                            <td className="py-2">{h.trip_date}</td>
+                                            <td className="py-2 font-medium">{h.trip_code}</td>
+                                            <td className="py-2 text-right text-purple-600">
+                                              {Number(h.driver_bata) > 0
+                                                ? inr(Number(h.driver_bata))
+                                                : "—"}
+                                            </td>
+                                            <td className="py-2 text-right text-amber-600">
+                                              {Number(h.morning_exp) > 0
+                                                ? inr(Number(h.morning_exp))
+                                                : "—"}
+                                            </td>
+                                            <td className="py-2 text-right text-blue-600">
+                                              {Number(h.night_exp) > 0
+                                                ? inr(Number(h.night_exp))
+                                                : "—"}
+                                            </td>
+                                            <td className="py-2 text-right font-semibold">
+                                              {t > 0 ? inr(t) : "—"}
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })
               )}
             </tbody>
           </table>
