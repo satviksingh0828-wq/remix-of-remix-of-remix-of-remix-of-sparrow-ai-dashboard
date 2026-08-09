@@ -19,26 +19,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
-import { serverFetchPnLPeriod, type PnLRawData } from "@/lib/pnl";
+import {
+  currentFinancialYearStart,
+  financialYearLabel,
+  financialYearOptions,
+} from "@/lib/financial-year";
+import { serverFetchPnLPeriod, type PeriodSpec, type PnLRawData } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
 
 export function OwnVehicleTransporterComparison() {
   const currentYear = new Date().getFullYear();
-  const [financialYear, setFinancialYear] = useState(String(currentYear));
+  const [year, setYear] = useState(String(currentYear));
+  const [month, setMonth] = useState("0");
+  const [financialYear, setFinancialYear] = useState(String(currentFinancialYearStart()));
   const [branchId, setBranchId] = useState("all");
   const [data, setData] = useState<PnLRawData | null>(null);
   const [loading, setLoading] = useState(true);
   const years = useMemo(() => financialYearOptions(currentYear), [currentYear]);
+  const calendarYears = useMemo(
+    () => Array.from({ length: 6 }, (_, index) => currentYear - 3 + index),
+    [currentYear],
+  );
+  const months = [
+    { value: "0", label: "All Year" },
+    ...Array.from({ length: 12 }, (_, index) => ({
+      value: String(index + 1),
+      label: new Date(2000, index).toLocaleString("en", { month: "long" }),
+    })),
+  ];
 
   async function load() {
     setLoading(true);
     try {
-      setData(
-        await serverFetchPnLPeriod({
-          data: { period: { financialYearStart: Number(financialYear) } },
-        }),
-      );
+      const period: PeriodSpec =
+        financialYear !== "none"
+          ? { financialYearStart: Number(financialYear) }
+          : {
+              year: Number(year),
+              ...(Number(month) > 0 ? { month: Number(month) } : {}),
+            };
+      setData(await serverFetchPnLPeriod({ data: { period } }));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not load comparison");
     } finally {
@@ -47,7 +67,7 @@ export function OwnVehicleTransporterComparison() {
   }
   useEffect(() => {
     load();
-  }, [financialYear]);
+  }, [financialYear, month, year]);
 
   const comparison = useMemo(() => {
     const trips = (data?.closedTrips ?? []).filter(
@@ -70,11 +90,48 @@ export function OwnVehicleTransporterComparison() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
+        <Select
+          value={year}
+          onValueChange={(value) => {
+            setYear(value);
+            setFinancialYear("none");
+          }}
+        >
+          <SelectTrigger className="h-9 w-28">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {calendarYears.map((item) => (
+              <SelectItem key={item} value={String(item)}>
+                {item}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={month}
+          onValueChange={(value) => {
+            setMonth(value);
+            setFinancialYear("none");
+          }}
+        >
+          <SelectTrigger className="h-9 w-36">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {months.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={financialYear} onValueChange={setFinancialYear}>
           <SelectTrigger className="h-9 w-44">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="none">Financial Year: None</SelectItem>
             {years.map((fy) => (
               <SelectItem key={fy.value} value={fy.value}>
                 FY {fy.label}
@@ -101,7 +158,11 @@ export function OwnVehicleTransporterComparison() {
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">
-        FY {financialYearLabel(Number(financialYear))} · April through March
+        {financialYear !== "none"
+          ? `FY ${financialYearLabel(Number(financialYear))} · April through March`
+          : Number(month) > 0
+            ? `${months[Number(month)]?.label} ${year}`
+            : `Calendar year ${year}`}
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         {comparison.map((row) => (

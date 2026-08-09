@@ -137,7 +137,11 @@ export function ApprovalChargeAdvanceReport() {
         .lt("created_at", endExclusive)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setHistory((data as unknown as AdvanceLog[]) ?? []);
+      const branchTripCodes = await tripCodesForBranch(branchId);
+      const rows = (data as unknown as AdvanceLog[]) ?? [];
+      setHistory(
+        branchTripCodes ? rows.filter((log) => branchTripCodes.has(log.trip_code ?? "")) : rows,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to load history: " + message);
@@ -222,7 +226,11 @@ export function ApprovalChargeAdvanceReport() {
       })),
       ["Transporter", "Trips", "PAID AMOUNT (₹)", "Balance (₹)"],
     );
-    downloadCsv(csv, `transpoter_advance_${startDate}_to_${endDate}.csv`);
+    const period =
+      financialYear !== "none"
+        ? `FY-${financialYear}-${Number(financialYear) + 1}`
+        : `${startDate}_to_${endDate}`;
+    downloadCsv(csv, `transpoter_advance_${period}.csv`);
   }
 
   return (

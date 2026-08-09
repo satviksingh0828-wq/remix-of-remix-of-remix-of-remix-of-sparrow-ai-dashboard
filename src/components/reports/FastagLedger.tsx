@@ -33,7 +33,7 @@ import { toast } from "sonner";
 import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { financialYearRange } from "@/lib/financial-year";
-import { tripCodesForBranch, useReportFilters } from "@/lib/report-filters";
+import { useReportFilters } from "@/lib/report-filters";
 
 interface Vehicle {
   id: string;
@@ -83,17 +83,18 @@ export function FastagLedger() {
     setLoading(true);
     try {
       // 1. Load all vehicles
-      const vehiclesData = await fetchAll<any>(() =>
-        supabase
+      const vehiclesData = await fetchAll<any>(() => {
+        let query = supabase
           .from("vehicles")
-          .select("id,registration_number,nickname")
-          .order("registration_number"),
-      );
+          .select("id,registration_number,nickname,branch_id")
+          .order("registration_number");
+        if (branchId !== "all") query = query.eq("branch_id", branchId);
+        return query;
+      });
       setVehicles(vehiclesData);
 
       // 2. Load all transactions from standalone table
-      const branchTripCodes = await tripCodesForBranch(branchId);
-      const allTransactions = await fetchAll<any>(() => {
+      const transactions = await fetchAll<any>(() => {
         let query = supabase
           .from("fastag_transactions")
           .select("vehicle_id,transaction_type,amount,trip_code,transaction_date");
@@ -103,10 +104,6 @@ export function FastagLedger() {
         }
         return query;
       });
-      const transactions = branchTripCodes
-        ? allTransactions.filter((row) => row.trip_code && branchTripCodes.has(row.trip_code))
-        : allTransactions;
-
       const vehicleBalances: Record<string, { recharge: number; deduction: number }> = {};
 
       vehiclesData.forEach((v) => {
@@ -152,7 +149,13 @@ export function FastagLedger() {
         .order("transaction_date", { ascending: false });
 
       if (error) throw error;
-      setHistory(data as any[]);
+      const range = financialYear !== "none" ? financialYearRange(Number(financialYear)) : null;
+      setHistory(
+        (data as any[]).filter(
+          (row) =>
+            !range || (row.transaction_date >= range.start && row.transaction_date < range.end),
+        ),
+      );
     } catch (err: any) {
       toast.error("Failed to load history: " + err.message);
     } finally {

@@ -201,7 +201,13 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
       })),
       ["Date", "Name", "Vehicle", "Branch", "Amount", "Status", "Paid Date", "Note"],
     );
-    downloadCsv(csv, `${type}_ledger_${new Date().toISOString().split("T")[0]}.csv`);
+    const effectiveFinancialYear =
+      reportFinancialYear !== "none" ? reportFinancialYear : financialYear;
+    const period =
+      effectiveFinancialYear !== "none"
+        ? `FY-${effectiveFinancialYear}-${Number(effectiveFinancialYear) + 1}`
+        : `${year}-${month}`;
+    downloadCsv(csv, `${type}_ledger_${period}.csv`);
   }
 
   return (
