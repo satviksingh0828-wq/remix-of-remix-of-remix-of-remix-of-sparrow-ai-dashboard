@@ -1,14 +1,9 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Download, 
-  RefreshCw, 
-  Search
-} from "lucide-react";
+import { ChevronDown, ChevronRight, Download, RefreshCw, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { inr } from "@/lib/trip-calc";
 import { financialYearOptions, financialYearRange } from "@/lib/financial-year";
+import { useReportFilters } from "@/lib/report-filters";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -23,8 +18,18 @@ import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 interface Vehicle {
@@ -52,16 +57,17 @@ interface CoverageLedgerProps {
 }
 
 export function CoverageLedger({ type }: CoverageLedgerProps) {
+  const { branchId, financialYear: reportFinancialYear } = useReportFilters();
   const isInsurance = type === "insurance";
   const title = isInsurance ? "INSURANCE PREMIUM LEDGER" : "ROAD TAX LEDGER";
-  
+
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => {
     const arr = [];
     for (let y = currentYear; y >= 2020; y--) arr.push(String(y));
     return arr;
   }, [currentYear]);
-  
+
   const financialYears = useMemo(() => financialYearOptions(currentYear), [currentYear]);
 
   const [year, setYear] = useState<string>(String(currentYear));
@@ -70,7 +76,7 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
   const [status, setStatus] = useState<"all" | "paid" | "unpaid">("all");
   const [search, setSearch] = useState("");
   const [vehicleFilter, setVehicleFilter] = useState<string>("all");
-  
+
   const [rows, setRows] = useState<CoverageRow[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,11 +84,11 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
 
   async function loadVehicles() {
     try {
-      const data = await fetchAll<any>(() => 
+      const data = await fetchAll<any>(() =>
         supabase
           .from("vehicles")
           .select("id,registration_number,nickname")
-          .order("registration_number")
+          .order("registration_number"),
       );
       setVehicles(data);
     } catch (err: any) {
@@ -96,16 +102,20 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
       const data = await fetchAll<any>(() => {
         let q = supabase
           .from("expenditures")
-          .select(`
+          .select(
+            `
             *,
             vehicles:vehicle_id(registration_number),
             branches:branch_id(branch_name)
-          `)
+          `,
+          )
           .eq(isInsurance ? "is_insurance" : "is_road_tax", true)
           .order("entry_date", { ascending: false });
 
-        if (financialYear !== "none") {
-          const range = financialYearRange(Number(financialYear));
+        const effectiveFinancialYear =
+          reportFinancialYear !== "none" ? reportFinancialYear : financialYear;
+        if (effectiveFinancialYear !== "none") {
+          const range = financialYearRange(Number(effectiveFinancialYear));
           q = q.gte("entry_date", range.start).lt("entry_date", range.end) as typeof q;
         } else if (year !== "all") {
           if (month !== "all") {
@@ -127,14 +137,17 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
         if (vehicleFilter !== "all") {
           q = q.eq("vehicle_id", vehicleFilter) as typeof q;
         }
+        if (branchId !== "all") q = q.eq("branch_id", branchId) as typeof q;
         return q;
       });
 
-      setRows(data.map(r => ({
-        ...r,
-        registration_number: r.vehicles?.registration_number,
-        branch_name: r.branches?.branch_name
-      })));
+      setRows(
+        data.map((r) => ({
+          ...r,
+          registration_number: r.vehicles?.registration_number,
+          branch_name: r.branches?.branch_name,
+        })),
+      );
     } catch (err: any) {
       toast.error(err.message || "Failed to load data");
     } finally {
@@ -148,31 +161,35 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
 
   useEffect(() => {
     load();
-  }, [year, month, financialYear, type, vehicleFilter]);
+  }, [year, month, financialYear, reportFinancialYear, branchId, type, vehicleFilter]);
 
   const filteredRows = useMemo(() => {
-    return rows.filter(r => {
-      const matchesStatus = 
-        status === "all" ? true :
-        status === "paid" ? r.is_paid : !r.is_paid;
-      
+    return rows.filter((r) => {
+      const matchesStatus = status === "all" ? true : status === "paid" ? r.is_paid : !r.is_paid;
+
       const s = search.toLowerCase();
-      const matchesSearch = 
+      const matchesSearch =
         r.expenditure_name.toLowerCase().includes(s) ||
         (r.registration_number || "").toLowerCase().includes(s) ||
         (r.note || "").toLowerCase().includes(s);
-        
+
       return matchesStatus && matchesSearch;
     });
   }, [rows, status, search]);
 
-  const total = useMemo(() => filteredRows.reduce((s, r) => s + Number(r.amount || 0), 0), [filteredRows]);
-  const unpaidTotal = useMemo(() => filteredRows.reduce((s, r) => s + (r.is_paid ? 0 : Number(r.amount || 0)), 0), [filteredRows]);
+  const total = useMemo(
+    () => filteredRows.reduce((s, r) => s + Number(r.amount || 0), 0),
+    [filteredRows],
+  );
+  const unpaidTotal = useMemo(
+    () => filteredRows.reduce((s, r) => s + (r.is_paid ? 0 : Number(r.amount || 0)), 0),
+    [filteredRows],
+  );
 
   function handleExport() {
     if (filteredRows.length === 0) return toast.error("No data to export");
     const csv = toCsv(
-      filteredRows.map(r => ({
+      filteredRows.map((r) => ({
         Date: r.entry_date,
         Name: r.expenditure_name,
         Vehicle: r.registration_number || "—",
@@ -180,9 +197,9 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
         Amount: r.amount,
         Status: r.is_paid ? "Paid" : "Unpaid",
         "Paid Date": r.paid_date || "—",
-        Note: r.note
+        Note: r.note,
       })),
-      ["Date", "Name", "Vehicle", "Branch", "Amount", "Status", "Paid Date", "Note"]
+      ["Date", "Name", "Vehicle", "Branch", "Amount", "Status", "Paid Date", "Note"],
     );
     downloadCsv(csv, `${type}_ledger_${new Date().toISOString().split("T")[0]}.csv`);
   }
@@ -207,7 +224,11 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All years</SelectItem>
-            {years.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}
+            {years.map((y) => (
+              <SelectItem key={y} value={y}>
+                {y}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -218,7 +239,9 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
           <SelectContent>
             <SelectItem value="all">All months</SelectItem>
             {MONTHS.map((m, i) => (
-              <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>{m}</SelectItem>
+              <SelectItem key={m} value={String(i + 1).padStart(2, "0")}>
+                {m}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -229,7 +252,11 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="none">Financial Year: None</SelectItem>
-            {financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
+            {financialYears.map((fy) => (
+              <SelectItem key={fy.value} value={fy.value}>
+                FY {fy.label}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -239,7 +266,7 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All vehicles</SelectItem>
-            {vehicles.map(v => (
+            {vehicles.map((v) => (
               <SelectItem key={v.id} value={v.id}>
                 {v.registration_number} {v.nickname ? `(${v.nickname})` : ""}
               </SelectItem>
@@ -260,8 +287,8 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
 
         <div className="ml-auto flex items-center gap-3">
           <span className="text-sm text-muted-foreground">
-            Total <span className="font-semibold text-foreground">{inr(total)}</span> ·{" "}
-            unpaid <span className="font-semibold text-foreground">{inr(unpaidTotal)}</span>
+            Total <span className="font-semibold text-foreground">{inr(total)}</span> · unpaid{" "}
+            <span className="font-semibold text-foreground">{inr(unpaidTotal)}</span>
           </span>
           <Button variant="outline" size="sm" onClick={handleExport} className="h-9 gap-2">
             <Download className="size-4" />
@@ -303,26 +330,38 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
                   </td>
                 </tr>
               ) : (
-                filteredRows.map(row => {
+                filteredRows.map((row) => {
                   const isExpanded = expandedId === row.id;
                   return (
                     <Fragment key={row.id}>
-                      <tr 
+                      <tr
                         className="cursor-pointer transition-colors hover:bg-muted/30"
                         onClick={() => setExpandedId(isExpanded ? null : row.id)}
                       >
                         <td className="px-4 py-3 text-center text-muted-foreground">
-                          {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                          {isExpanded ? (
+                            <ChevronDown className="size-4" />
+                          ) : (
+                            <ChevronRight className="size-4" />
+                          )}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">{row.entry_date}</td>
                         <td className="px-4 py-3 font-medium">{row.expenditure_name}</td>
                         <td className="px-4 py-3">{row.registration_number || "—"}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{row.branch_name || "—"}</td>
-                        <td className="px-4 py-3 text-right font-semibold">{inr(Number(row.amount || 0))}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {row.branch_name || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold">
+                          {inr(Number(row.amount || 0))}
+                        </td>
                         <td className="px-4 py-3 text-center">
-                          <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            row.is_paid ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          }`}>
+                          <span
+                            className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                              row.is_paid
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            }`}
+                          >
                             {row.is_paid ? "Paid" : "Unpaid"}
                           </span>
                         </td>
@@ -332,20 +371,30 @@ export function CoverageLedger({ type }: CoverageLedgerProps) {
                           <td colSpan={7} className="px-8 py-4">
                             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Details</p>
-                                <p className="text-sm">{row.note || "No additional notes provided."}</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  Details
+                                </p>
+                                <p className="text-sm">
+                                  {row.note || "No additional notes provided."}
+                                </p>
                               </div>
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Payment Status</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  Payment Status
+                                </p>
                                 <p className="text-sm">
-                                  {row.is_paid 
+                                  {row.is_paid
                                     ? `Paid on ${row.paid_date || "N/A"}`
                                     : "Payment pending"}
                                 </p>
                               </div>
                               <div className="space-y-1">
-                                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Internal ID</p>
-                                <p className="font-mono text-[10px] text-muted-foreground">{row.id}</p>
+                                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                  Internal ID
+                                </p>
+                                <p className="font-mono text-[10px] text-muted-foreground">
+                                  {row.id}
+                                </p>
                               </div>
                             </div>
                           </td>

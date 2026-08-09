@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, Fragment } from "react";
-import { 
-  ChevronDown, 
-  ChevronRight, 
-  Download, 
-  RefreshCw, 
+import {
+  ChevronDown,
+  ChevronRight,
+  Download,
+  RefreshCw,
   Search,
   Plus,
   CreditCard,
-  History
+  History,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { inr, num } from "@/lib/trip-calc";
@@ -32,6 +32,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
+import { financialYearRange } from "@/lib/financial-year";
+import { tripCodesForBranch, useReportFilters } from "@/lib/report-filters";
 
 interface Vehicle {
   id: string;
@@ -58,11 +60,12 @@ interface FastagTransaction {
 }
 
 export function FastagLedger() {
+  const { branchId, financialYear } = useReportFilters();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [balances, setBalances] = useState<FastagBalance[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  
+
   // Recharge Modal State
   const [isRechargeOpen, setIsRechargeOpen] = useState(false);
   const [rechargeVehicleId, setRechargeVehicleId] = useState("");
@@ -80,24 +83,38 @@ export function FastagLedger() {
     setLoading(true);
     try {
       // 1. Load all vehicles
-      const vehiclesData = await fetchAll<any>(() => 
-        supabase.from("vehicles").select("id,registration_number,nickname").order("registration_number")
+      const vehiclesData = await fetchAll<any>(() =>
+        supabase
+          .from("vehicles")
+          .select("id,registration_number,nickname")
+          .order("registration_number"),
       );
       setVehicles(vehiclesData);
 
       // 2. Load all transactions from standalone table
-      const transactions = await fetchAll<any>(() => 
-        supabase.from("fastag_transactions").select("vehicle_id,transaction_type,amount")
-      );
+      const branchTripCodes = await tripCodesForBranch(branchId);
+      const allTransactions = await fetchAll<any>(() => {
+        let query = supabase
+          .from("fastag_transactions")
+          .select("vehicle_id,transaction_type,amount,trip_code,transaction_date");
+        if (financialYear !== "none") {
+          const range = financialYearRange(Number(financialYear));
+          query = query.gte("transaction_date", range.start).lt("transaction_date", range.end);
+        }
+        return query;
+      });
+      const transactions = branchTripCodes
+        ? allTransactions.filter((row) => row.trip_code && branchTripCodes.has(row.trip_code))
+        : allTransactions;
 
       const vehicleBalances: Record<string, { recharge: number; deduction: number }> = {};
-      
-      vehiclesData.forEach(v => {
+
+      vehiclesData.forEach((v) => {
         vehicleBalances[v.id] = { recharge: 0, deduction: 0 };
       });
 
       // Aggregate from standalone table
-      transactions.forEach(t => {
+      transactions.forEach((t) => {
         if (t.vehicle_id && vehicleBalances[t.vehicle_id]) {
           if (t.transaction_type === "recharge") {
             vehicleBalances[t.vehicle_id].recharge += Number(t.amount);
@@ -107,13 +124,13 @@ export function FastagLedger() {
         }
       });
 
-      const finalBalances: FastagBalance[] = vehiclesData.map(v => ({
+      const finalBalances: FastagBalance[] = vehiclesData.map((v) => ({
         vehicle_id: v.id,
         registration_number: v.registration_number,
         nickname: v.nickname,
         total_recharge: vehicleBalances[v.id].recharge,
         total_deduction: vehicleBalances[v.id].deduction,
-        balance: vehicleBalances[v.id].recharge - vehicleBalances[v.id].deduction
+        balance: vehicleBalances[v.id].recharge - vehicleBalances[v.id].deduction,
       }));
 
       setBalances(finalBalances);
@@ -154,11 +171,11 @@ export function FastagLedger() {
         amount: Number(rechargeAmount),
         transaction_date: rechargeDate,
         transaction_type: "recharge",
-        note: rechargeNote
+        note: rechargeNote,
       });
 
       if (error) throw error;
-      
+
       toast.success("Recharge added successfully");
       setIsRechargeOpen(false);
       setRechargeAmount("");
@@ -173,28 +190,32 @@ export function FastagLedger() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [branchId, financialYear]);
 
   const filteredBalances = useMemo(() => {
     const s = search.toLowerCase();
-    return balances.filter(b => 
-      b.registration_number.toLowerCase().includes(s) || 
-      (b.nickname || "").toLowerCase().includes(s)
+    return balances.filter(
+      (b) =>
+        b.registration_number.toLowerCase().includes(s) ||
+        (b.nickname || "").toLowerCase().includes(s),
     );
   }, [balances, search]);
 
   function handleExport() {
     const csv = toCsv(
-      filteredBalances.map(b => ({
+      filteredBalances.map((b) => ({
         Vehicle: b.registration_number,
         Nickname: b.nickname || "—",
         "Total Recharge": b.total_recharge,
         "Total Deduction": b.total_deduction,
-        Balance: b.balance
+        Balance: b.balance,
       })),
-      ["Vehicle", "Nickname", "Total Recharge", "Total Deduction", "Balance"]
+      ["Vehicle", "Nickname", "Total Recharge", "Total Deduction", "Balance"],
     );
-    downloadCsv(csv, `fastag_balances_${new Date().toISOString().split("T")[0]}.csv`);
+    downloadCsv(
+      csv,
+      `fastag_balances_${financialYear === "none" ? new Date().toISOString().split("T")[0] : `FY-${financialYear}-${Number(financialYear) + 1}`}.csv`,
+    );
   }
 
   return (
@@ -231,7 +252,7 @@ export function FastagLedger() {
                       <SelectValue placeholder="Select Vehicle" />
                     </SelectTrigger>
                     <SelectContent>
-                      {vehicles.map(v => (
+                      {vehicles.map((v) => (
                         <SelectItem key={v.id} value={v.id}>
                           {v.registration_number} {v.nickname ? `(${v.nickname})` : ""}
                         </SelectItem>
@@ -241,32 +262,34 @@ export function FastagLedger() {
                 </div>
                 <div className="space-y-2">
                   <Label>Amount (₹)</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="0.00" 
-                    value={rechargeAmount} 
-                    onChange={e => setRechargeAmount(e.target.value)}
+                  <Input
+                    type="number"
+                    placeholder="0.00"
+                    value={rechargeAmount}
+                    onChange={(e) => setRechargeAmount(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Date</Label>
-                  <Input 
-                    type="date" 
-                    value={rechargeDate} 
-                    onChange={e => setRechargeDate(e.target.value)}
+                  <Input
+                    type="date"
+                    value={rechargeDate}
+                    onChange={(e) => setRechargeDate(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Note (Optional)</Label>
-                  <Input 
-                    placeholder="Transaction ID, bank name, etc." 
-                    value={rechargeNote} 
-                    onChange={e => setRechargeNote(e.target.value)}
+                  <Input
+                    placeholder="Transaction ID, bank name, etc."
+                    value={rechargeNote}
+                    onChange={(e) => setRechargeNote(e.target.value)}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsRechargeOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setIsRechargeOpen(false)}>
+                  Cancel
+                </Button>
                 <Button onClick={handleAddRecharge} disabled={submitting}>
                   {submitting ? "Saving..." : "Save Recharge"}
                 </Button>
@@ -278,7 +301,13 @@ export function FastagLedger() {
             <Download className="size-4" />
             Export
           </Button>
-          <Button variant="ghost" size="icon" onClick={loadData} disabled={loading} className="h-9 w-9">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={loadData}
+            disabled={loading}
+            className="h-9 w-9"
+          >
             <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
         </div>
@@ -314,7 +343,7 @@ export function FastagLedger() {
                   </td>
                 </tr>
               ) : (
-                filteredBalances.map(row => {
+                filteredBalances.map((row) => {
                   const isExpanded = selectedVehicleId === row.vehicle_id;
                   return (
                     <Fragment key={row.vehicle_id}>
@@ -324,17 +353,25 @@ export function FastagLedger() {
                         </td>
                         <td className="px-4 py-3 font-medium">{row.registration_number}</td>
                         <td className="px-4 py-3 text-muted-foreground">{row.nickname || "—"}</td>
-                        <td className="px-4 py-3 text-right text-green-600 font-medium">+{inr(row.total_recharge)}</td>
-                        <td className="px-4 py-3 text-right text-red-600 font-medium">-{inr(row.total_deduction)}</td>
-                        <td className={`px-4 py-3 text-right font-bold ${row.balance < 500 ? "text-orange-600" : "text-foreground"}`}>
+                        <td className="px-4 py-3 text-right text-green-600 font-medium">
+                          +{inr(row.total_recharge)}
+                        </td>
+                        <td className="px-4 py-3 text-right text-red-600 font-medium">
+                          -{inr(row.total_deduction)}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-right font-bold ${row.balance < 500 ? "text-orange-600" : "text-foreground"}`}
+                        >
                           {inr(row.balance)}
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             className="h-8 gap-1 text-xs"
-                            onClick={() => isExpanded ? setSelectedVehicleId(null) : loadHistory(row.vehicle_id)}
+                            onClick={() =>
+                              isExpanded ? setSelectedVehicleId(null) : loadHistory(row.vehicle_id)
+                            }
                           >
                             <History className="size-3" />
                             {isExpanded ? "Hide History" : "View History"}
@@ -345,11 +382,17 @@ export function FastagLedger() {
                         <tr className="bg-muted/10 border-b border-border">
                           <td colSpan={7} className="p-0">
                             <div className="max-h-[300px] overflow-y-auto p-4">
-                              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Transaction History</h4>
+                              <h4 className="mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                                Transaction History
+                              </h4>
                               {loadingHistory ? (
-                                <div className="py-4 text-center text-muted-foreground">Loading history...</div>
+                                <div className="py-4 text-center text-muted-foreground">
+                                  Loading history...
+                                </div>
                               ) : history.length === 0 ? (
-                                <div className="py-4 text-center text-muted-foreground">No transactions yet.</div>
+                                <div className="py-4 text-center text-muted-foreground">
+                                  No transactions yet.
+                                </div>
                               ) : (
                                 <table className="w-full text-xs">
                                   <thead>
@@ -361,11 +404,17 @@ export function FastagLedger() {
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-border/50">
-                                    {history.map(txn => (
+                                    {history.map((txn) => (
                                       <tr key={txn.id}>
                                         <td className="py-2">{txn.transaction_date}</td>
                                         <td className="py-2 capitalize">
-                                          <span className={txn.transaction_type === "recharge" ? "text-green-600" : "text-red-600"}>
+                                          <span
+                                            className={
+                                              txn.transaction_type === "recharge"
+                                                ? "text-green-600"
+                                                : "text-red-600"
+                                            }
+                                          >
                                             {txn.transaction_type}
                                           </span>
                                         </td>
@@ -373,8 +422,11 @@ export function FastagLedger() {
                                           {txn.note}
                                           {txn.trip_code && ` (Trip ${txn.trip_code})`}
                                         </td>
-                                        <td className={`py-2 text-right font-medium ${txn.transaction_type === "recharge" ? "text-green-600" : "text-red-600"}`}>
-                                          {txn.transaction_type === "recharge" ? "+" : "-"}{inr(Number(txn.amount))}
+                                        <td
+                                          className={`py-2 text-right font-medium ${txn.transaction_type === "recharge" ? "text-green-600" : "text-red-600"}`}
+                                        >
+                                          {txn.transaction_type === "recharge" ? "+" : "-"}
+                                          {inr(Number(txn.amount))}
                                         </td>
                                       </tr>
                                     ))}

@@ -25,6 +25,16 @@ import { TransporterExpenseReport } from "@/components/reports/TransporterExpens
 import { OtherExpenseReport } from "@/components/reports/OtherExpenseReport";
 import { ApprovalChargeAdvanceReport } from "@/components/reports/ApprovalChargeAdvanceReport";
 import { useSession } from "@/lib/session";
+import { ReportFiltersContext } from "@/lib/report-filters";
+import { useBranches } from "@/lib/use-branches";
+import { financialYearOptions } from "@/lib/financial-year";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/reports")({
   head: () => ({
@@ -104,6 +114,10 @@ function ReportsPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabId>("pnl-compare");
   const [navOpen, setNavOpen] = useState(true);
+  const [branchId, setBranchId] = useState("all");
+  const [financialYear, setFinancialYear] = useState("none");
+  const branches = useBranches();
+  const financialYears = financialYearOptions();
 
   useEffect(() => {
     if (user && user.role !== "admin" && user.role !== "viewer")
@@ -206,21 +220,53 @@ function ReportsPage() {
           </div>
         </div>
 
-        <div key={tab} className="animate-fade-in min-w-0">
-          <header className="mb-6">
-            <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
-          </header>
-          {tab === "pnl-compare" && <ProfitLossComparison />}
-          {tab === "insurance" && <CoverageLedger type="insurance" />}
-          {tab === "road-tax" && <CoverageLedger type="road_tax" />}
-          {tab === "fastag" && <FastagLedger />}
-          {tab === "vehicle-expenses" && <VehicleExpenseReport />}
-          {tab === "driver-expenses" && <DriverExpenseReport />}
-          {tab === "transporter-expenses" && <TransporterExpenseReport />}
-          {tab === "approval-advances" && <ApprovalChargeAdvanceReport />}
-          {tab === "other-expenses" && <OtherExpenseReport />}
-        </div>
+        <ReportFiltersContext.Provider value={{ branchId, financialYear }}>
+          <div key={tab} className="animate-fade-in min-w-0">
+            <header className="mb-6">
+              <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
+            </header>
+            {tab !== "pnl-compare" && (
+              <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-border bg-muted/30 p-3">
+                <Select value={branchId} onValueChange={setBranchId}>
+                  <SelectTrigger className="h-9 w-44">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {branches.map((branch) => (
+                      <SelectItem key={branch.id} value={branch.id}>
+                        {branch.branch_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={financialYear} onValueChange={setFinancialYear}>
+                  <SelectTrigger className="h-9 w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Financial Year: None</SelectItem>
+                    {financialYears.map((fy) => (
+                      <SelectItem key={fy.value} value={fy.value}>
+                        FY {fy.label} (Apr–Mar)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {tab === "pnl-compare" && <ProfitLossComparison />}
+            {tab === "insurance" && <CoverageLedger type="insurance" />}
+            {tab === "road-tax" && <CoverageLedger type="road_tax" />}
+            {tab === "fastag" && <FastagLedger />}
+            {tab === "vehicle-expenses" && <VehicleExpenseReport />}
+            {tab === "driver-expenses" && <DriverExpenseReport />}
+            {tab === "transporter-expenses" && <TransporterExpenseReport />}
+            {tab === "approval-advances" && <ApprovalChargeAdvanceReport />}
+            {tab === "other-expenses" && <OtherExpenseReport />}
+          </div>
+        </ReportFiltersContext.Provider>
       </div>
     </AppShell>
   );
