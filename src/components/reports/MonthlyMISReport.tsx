@@ -25,7 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 
 type EditorActivity = Pick<
   MisActivity,
-  "id" | "activity_name" | "schedule_type" | "schedule_value"
+  "id" | "activity_name" | "schedule_type" | "schedule_value" | "schedule_value_2"
 >;
 const monthNow = new Date().toISOString().slice(0, 7);
 
@@ -239,7 +239,7 @@ export function MonthlyMISReport() {
             {activities.map((activity, index) => (
               <div
                 key={activity.id || index}
-                className="grid gap-2 rounded-lg border border-border p-3 md:grid-cols-[1fr_170px_130px_auto]"
+                className="grid gap-2 rounded-lg border border-border p-3 md:grid-cols-[1fr_170px_180px_auto]"
               >
                 <Input
                   value={activity.activity_name}
@@ -261,7 +261,8 @@ export function MonthlyMISReport() {
                           ? {
                               ...a,
                               schedule_type: value,
-                              schedule_value: value === "daily" ? null : value === "weekly" ? 1 : 1,
+                              schedule_value: value === "daily" ? null : 1,
+                              schedule_value_2: value === "twice_monthly" ? 15 : null,
                             }
                           : a,
                       ),
@@ -275,6 +276,7 @@ export function MonthlyMISReport() {
                     <SelectItem value="daily">Daily</SelectItem>
                     <SelectItem value="weekly">Every weekday</SelectItem>
                     <SelectItem value="day_of_month">Day of month</SelectItem>
+                    <SelectItem value="twice_monthly">Twice a month</SelectItem>
                   </SelectContent>
                 </Select>
                 {activity.schedule_type === "daily" ? (
@@ -292,21 +294,47 @@ export function MonthlyMISReport() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {[
-                        "Sunday",
-                        "Monday",
-                        "Tuesday",
-                        "Wednesday",
-                        "Thursday",
-                        "Friday",
-                        "Saturday",
-                      ].map((day, i) => (
-                        <SelectItem key={day} value={String(i)}>
-                          {day}
-                        </SelectItem>
-                      ))}
+                      {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(
+                        (day, i) => (
+                          <SelectItem key={day} value={String(i + 1)}>
+                            {day}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
+                ) : activity.schedule_type === "twice_monthly" ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      aria-label="First date"
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={activity.schedule_value ?? 1}
+                      onChange={(e) =>
+                        setActivities((list) =>
+                          list.map((a, i) =>
+                            i === index ? { ...a, schedule_value: Number(e.target.value) } : a,
+                          ),
+                        )
+                      }
+                    />
+                    <span className="text-muted-foreground">&</span>
+                    <Input
+                      aria-label="Second date"
+                      type="number"
+                      min={1}
+                      max={31}
+                      value={activity.schedule_value_2 ?? 15}
+                      onChange={(e) =>
+                        setActivities((list) =>
+                          list.map((a, i) =>
+                            i === index ? { ...a, schedule_value_2: Number(e.target.value) } : a,
+                          ),
+                        )
+                      }
+                    />
+                  </div>
                 ) : (
                   <Input
                     type="number"
@@ -338,7 +366,13 @@ export function MonthlyMISReport() {
               onClick={() =>
                 setActivities((list) => [
                   ...list,
-                  { id: "", activity_name: "", schedule_type: "daily", schedule_value: null },
+                  {
+                    id: "",
+                    activity_name: "",
+                    schedule_type: "daily",
+                    schedule_value: null,
+                    schedule_value_2: null,
+                  },
                 ])
               }
             >

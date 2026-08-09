@@ -7,6 +7,8 @@ export function misScheduleLabel(activity: MisActivity) {
   if (activity.schedule_type === "daily") return "Daily";
   if (activity.schedule_type === "weekly")
     return `Every ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][activity.schedule_value ?? 0]}`;
+  if (activity.schedule_type === "twice_monthly")
+    return `Twice monthly (${activity.schedule_value ?? 1} & ${activity.schedule_value_2 ?? 15})`;
   const day = activity.schedule_value ?? 1;
   const suffix =
     day % 10 === 1 && day !== 11
