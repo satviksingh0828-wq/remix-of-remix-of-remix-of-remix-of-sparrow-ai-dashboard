@@ -130,6 +130,8 @@ export type PnLRawData = {
   drivers: PnLDriver[];
   transporters: PnLTransporter[];
   year: number;
+  financialYearStart?: number;
+  periodMonths: number;
 };
 
 export type PnLStats = {
@@ -440,6 +442,7 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
         label: String(t.transporter_name ?? ""),
       })),
       year: y,
+      periodMonths: 12,
     };
   });
 
@@ -522,12 +525,7 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
       closedTrips: [...closedTripsRows.map(mapTrip), ...activeTrips],
       incomes: incomesRows.map(mapIncome),
       expenditures: expendituresRows.map(mapExpenditure),
-      contracts: (contractsRes.data ?? []).map((c: Record<string, unknown>) => ({
-        ...mapContract(c),
-        // Normalize to per-month equivalent for the period
-        fixed_monthly_charge: Number(c.fixed_monthly_charge ?? 0) * months,
-        fixed_yearly_charge: (Number(c.fixed_yearly_charge ?? 0) / 12) * months,
-      })),
+      contracts: (contractsRes.data ?? []).map(mapContract),
       branches: (branchesRes.data ?? []).map((b: Record<string, unknown>) => ({
         id: b.id as string,
         branch_name: String(b.branch_name ?? ""),
@@ -547,6 +545,8 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
         label: String(t.transporter_name ?? ""),
       })),
       year: outputYear,
+      financialYearStart,
+      periodMonths: months,
     };
   });
 
@@ -821,7 +821,8 @@ export function computePnL(data: PnLRawData, branchId: string | null): PnLStats 
     const monthly = c.fixed_monthly_charge;
     const yearlyMonthly = c.fixed_yearly_charge / 12;
     const total = monthly + yearlyMonthly;
-    return s + (branchId ? total / numBranches : total);
+    const periodTotal = total * data.periodMonths;
+    return s + (branchId ? periodTotal / numBranches : periodTotal);
   }, 0);
 
   const totalIncome = tripIncome + otherIncome + fixedIncome;
@@ -905,6 +906,19 @@ const SHORT_MONTHS = [
   "Dec",
 ];
 
+/** Dashboard month buckets follow the selected accounting period. Financial
+ * years start in April, rather than silently presenting January first. */
+export function accountingMonths(data: Pick<PnLRawData, "year" | "financialYearStart">) {
+  const isFinancialYear = data.financialYearStart !== undefined;
+  const monthNumbers = isFinancialYear
+    ? [4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3]
+    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+  return monthNumbers.map((month) => ({
+    label: SHORT_MONTHS[month - 1],
+    prefix: `${month < 4 && isFinancialYear ? data.year + 1 : data.year}-${String(month).padStart(2, "0")}`,
+  }));
+}
+
 /** Compute monthly P&L for a branch view (full-year dataset). */
 export function computeMonthlyPnL(
   data: PnLRawData,
@@ -919,15 +933,11 @@ export function computeMonthlyPnL(
 }> {
   const numBranches = Math.max(data.branches.length, 1);
   const perMonthFixed = data.contracts.reduce((s, c) => {
-    const monthly = c.fixed_monthly_charge;
-    const yearlyMonthly = c.fixed_yearly_charge / 12;
-    const total = monthly + yearlyMonthly;
+    const total = c.fixed_monthly_charge + c.fixed_yearly_charge / 12;
     return s + (branchId ? total / numBranches : total);
   }, 0);
 
-  return SHORT_MONTHS.map((m, idx) => {
-    const monthStr = `${data.year}-${String(idx + 1).padStart(2, "0")}`;
-
+  return accountingMonths(data).map(({ label, prefix: monthStr }) => {
     const trips = data.closedTrips.filter(
       (t) => (!branchId || t.branch_id === branchId) && t.closed_at.startsWith(monthStr),
     );
@@ -946,7 +956,7 @@ export function computeMonthlyPnL(
     const netPnL = tripIncome + otherIncome + fixedIncome - tripExpense - totalExpenditure;
 
     return {
-      month: m,
+      month: label,
       tripIncome,
       otherIncome,
       fixedIncome,
@@ -971,9 +981,7 @@ export function computeMonthlyPnLForEntity(
   const field =
     kind === "vehicle" ? "vehicle_id" : kind === "driver" ? "driver_id" : "transporter_id";
 
-  return SHORT_MONTHS.map((m, idx) => {
-    const monthStr = `${data.year}-${String(idx + 1).padStart(2, "0")}`;
-
+  return accountingMonths(data).map(({ label, prefix: monthStr }) => {
     const filter = (r: Record<string, unknown>) =>
       (!entityId || r[field] === entityId) &&
       String(r.closed_at ?? r.entry_date ?? "").startsWith(monthStr);
@@ -998,7 +1006,7 @@ export function computeMonthlyPnLForEntity(
     const netPnL = tripIncome + otherIncome - tripExpense - totalExpenditure;
 
     return {
-      month: m,
+      month: label,
       tripIncome,
       otherIncome,
       expenditures: tripExpense + totalExpenditure,

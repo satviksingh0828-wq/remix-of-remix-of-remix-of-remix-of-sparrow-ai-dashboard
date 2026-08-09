@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { serverFetchPnLYear, serverFetchPnLPeriod, type PnLRawData } from "@/lib/pnl";
+import { accountingMonths, serverFetchPnLYear, serverFetchPnLPeriod, type PnLRawData } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
 import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
 
@@ -26,7 +26,6 @@ const MONTH_OPTIONS = [
   { value: "9", label: "September" }, { value: "10", label: "October" },
   { value: "11", label: "November" }, { value: "12", label: "December" },
 ];
-const SHORT_MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const BRANCH_COLORS = ["#22c55e","#3b82f6","#8b5cf6","#f97316","#ef4444","#06b6d4","#f59e0b","#ec4899"];
 
 function fmt(v: number) {
@@ -182,8 +181,7 @@ export function TripSummaryPanel() {
 
   const monthlyData = useMemo(() => {
     if (!data || monthNum > 0) return [];
-    return SHORT_MONTHS.map((m, idx) => {
-      const prefix = `${data.year}-${String(idx + 1).padStart(2, "0")}`;
+    return accountingMonths(data).map(({ label: m, prefix }) => {
       const trips = data.closedTrips.filter(t =>
         t.closed_at.startsWith(prefix) && (branchId ? t.branch_id === branchId : true),
       );
@@ -198,8 +196,7 @@ export function TripSummaryPanel() {
 
   const monthlyData2 = useMemo(() => {
     if (!data2 || monthNum2 > 0 || !compareMode) return [];
-    return SHORT_MONTHS.map((m, idx) => {
-      const prefix = `${data2.year}-${String(idx + 1).padStart(2, "0")}`;
+    return accountingMonths(data2).map(({ label: m, prefix }) => {
       const trips = data2.closedTrips.filter(t =>
         t.closed_at.startsWith(prefix) && (branchId ? t.branch_id === branchId : true),
       );

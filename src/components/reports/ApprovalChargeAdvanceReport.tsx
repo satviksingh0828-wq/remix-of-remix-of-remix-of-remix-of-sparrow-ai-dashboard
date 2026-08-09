@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
+import { financialYearRange } from "@/lib/financial-year";
+import { tripCodesForBranch, useReportFilters } from "@/lib/report-filters";
 
 interface TransporterRow {
   transporter_id: string;
@@ -50,6 +52,7 @@ function logTripLabel(log: AdvanceLog) {
 }
 
 export function ApprovalChargeAdvanceReport() {
+  const { branchId, financialYear } = useReportFilters();
   const defaults = currentMonthRange();
   const [startDate, setStartDate] = useState(defaults.start);
   const [endDate, setEndDate] = useState(defaults.end);
@@ -64,6 +67,10 @@ export function ApprovalChargeAdvanceReport() {
   const [paying, setPaying] = useState(false);
 
   function range() {
+    if (financialYear !== "none") {
+      const selected = financialYearRange(Number(financialYear));
+      return { start: selected.start, endExclusive: selected.end };
+    }
     return { start: startDate, endExclusive: nextDate(endDate) };
   }
 
@@ -74,13 +81,17 @@ export function ApprovalChargeAdvanceReport() {
       const transporters = await fetchAll<Record<string, unknown>>(() =>
         supabase.from("transporters").select("id,transporter_name").order("transporter_name"),
       );
-      const logs = await fetchAll<Record<string, unknown>>(() =>
+      const branchTripCodes = await tripCodesForBranch(branchId);
+      const allLogs = await fetchAll<Record<string, unknown>>(() =>
         supabase
           .from("approval_charge_advances" as never)
-          .select("transporter_id,advance,balance,created_at")
+          .select("transporter_id,advance,balance,created_at,trip_code")
           .gte("created_at", start)
           .lt("created_at", endExclusive),
       );
+      const logs = branchTripCodes
+        ? allLogs.filter((log) => branchTripCodes.has(String(log.trip_code ?? "")))
+        : allLogs;
 
       const agg: Record<string, { paid: number; balance: number; trips: number }> = {};
       transporters.forEach((t) => {
@@ -126,7 +137,11 @@ export function ApprovalChargeAdvanceReport() {
         .lt("created_at", endExclusive)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      setHistory((data as unknown as AdvanceLog[]) ?? []);
+      const branchTripCodes = await tripCodesForBranch(branchId);
+      const rows = (data as unknown as AdvanceLog[]) ?? [];
+      setHistory(
+        branchTripCodes ? rows.filter((log) => branchTripCodes.has(log.trip_code ?? "")) : rows,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       toast.error("Failed to load history: " + message);
@@ -137,7 +152,7 @@ export function ApprovalChargeAdvanceReport() {
 
   useEffect(() => {
     loadData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, financialYear, branchId]);
 
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
@@ -211,7 +226,11 @@ export function ApprovalChargeAdvanceReport() {
       })),
       ["Transporter", "Trips", "PAID AMOUNT (₹)", "Balance (₹)"],
     );
-    downloadCsv(csv, `transpoter_advance_${startDate}_to_${endDate}.csv`);
+    const period =
+      financialYear !== "none"
+        ? `FY-${financialYear}-${Number(financialYear) + 1}`
+        : `${startDate}_to_${endDate}`;
+    downloadCsv(csv, `transpoter_advance_${period}.csv`);
   }
 
   return (

@@ -92,8 +92,9 @@ export function FixedIncomeList() {
   function exportCsv() {
     const rows: string[][] = [];
     rows.push(["Month", "Year", ...contracts.map(c => c.contract_name), "Monthly Total"]);
-    displayMonths.forEach(({ short, idx }) => {
-      rows.push([MONTHS[idx], year, ...contracts.map(c => c.effective_monthly.toFixed(2)), monthlyTotal.toFixed(2)]);
+    displayMonths.forEach(({ idx }) => {
+      const rowYear = financialYear !== "none" && idx < 3 ? String(Number(financialYear) + 1) : financialYear !== "none" ? financialYear : year;
+      rows.push([MONTHS[idx], rowYear, ...contracts.map(c => c.effective_monthly.toFixed(2)), monthlyTotal.toFixed(2)]);
     });
     if (monthNum === 0) {
       rows.push(["YEARLY TOTAL", year, ...contracts.map(c => (c.effective_monthly * 12).toFixed(2)), yearlyTotal.toFixed(2)]);
@@ -103,7 +104,9 @@ export function FixedIncomeList() {
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href     = url;
-    a.download = `fixed-income-${year}${monthNum > 0 ? `-${String(monthNum).padStart(2,"0")}` : ""}.csv`;
+    a.download = financialYear !== "none"
+      ? `fixed-income-fy-${financialYearLabel(Number(financialYear))}.csv`
+      : `fixed-income-${year}${monthNum > 0 ? `-${String(monthNum).padStart(2,"0")}` : ""}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }

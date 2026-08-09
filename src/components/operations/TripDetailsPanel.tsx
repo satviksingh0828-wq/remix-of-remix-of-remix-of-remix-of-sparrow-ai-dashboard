@@ -226,7 +226,9 @@ export function TripDetailsPanel() {
           ...manifest,
           manifestShare,
           allocatedIncome: distributedIncome * manifestShare,
-          allocatedExpense: distributedExpense * manifestShare,
+          // Basic users need the expense belonging to this trip/manifest only;
+          // branch-wide overhead pools are an accounting view for admins/viewers.
+          allocatedExpense: (canSeeMoney ? distributedExpense : trip.total_expense) * manifestShare,
           manifestProfit: distributedProfit * manifestShare,
         };
       });
@@ -242,7 +244,7 @@ export function TripDetailsPanel() {
         manifestRows,
       };
     });
-  }, [data, method, pools]);
+  }, [canSeeMoney, data, method, pools]);
 
   const filteredRows = useMemo(
     () =>
@@ -413,11 +415,7 @@ export function TripDetailsPanel() {
 
     const tripSheet = XLSX.utils.aoa_to_sheet(tripRows);
     tripSheet["!cols"] = (
-      canSeeMoney
-        ? [18, 18, 16, 16, 16, 16]
-        : canSeeExpense
-          ? [18, 18, 16]
-          : [18, 18]
+      canSeeMoney ? [18, 18, 16, 16, 16, 16] : canSeeExpense ? [18, 18, 16] : [18, 18]
     ).map((wch) => ({ wch }));
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
@@ -590,9 +588,7 @@ export function TripDetailsPanel() {
                   manifest-wise. Income and profit amounts are hidden for basic users.
                 </>
               ) : (
-                <>
-                  Showing trips only from your assigned branches. Financial amounts are hidden.
-                </>
+                <>Showing trips only from your assigned branches. Financial amounts are hidden.</>
               )}
             </p>
           </div>
@@ -603,7 +599,7 @@ export function TripDetailsPanel() {
             </p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-border">
-               <table className="w-full min-w-[760px] text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="w-8 px-2 py-3" />
