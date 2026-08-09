@@ -1,16 +1,13 @@
 import { useEffect, useId, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
+import { ORCA_FABRICA_BUSINESS_TABLES, type OrcaFabricaTable } from "@/lib/orca-fabrica-tables";
 
 type FabricaConfig = {
   supabaseUrl: string;
   supabaseKey: string;
   title: string;
   theme: "light" | "dark";
-  tables: Array<{
-    name: string;
-    use: string;
-    columns: Array<{ name: string; type: "string" | "number" | "date"; use: string }>;
-  }>;
+  tables: OrcaFabricaTable[];
 };
 
 declare global {
@@ -77,58 +74,7 @@ export function OrcaFabricaPanel() {
         supabaseKey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
         title: "Garuda AI Analytics",
         theme: appTheme(),
-        tables: [
-          {
-            name: "closed_trips",
-            use: "One row is a completed logistics trip with its final financial totals and branch assignment.",
-            columns: [
-              {
-                name: "trip_code",
-                type: "string",
-                use: "Unique business code of the completed trip.",
-              },
-              {
-                name: "branch_name",
-                type: "string",
-                use: "Depot or branch responsible for the trip.",
-              },
-              {
-                name: "closed_at",
-                type: "date",
-                use: "Date and time when the trip was finalized.",
-              },
-              {
-                name: "total_income",
-                type: "number",
-                use: "Total income earned by the trip in INR.",
-              },
-              {
-                name: "total_expense",
-                type: "number",
-                use: "Total expense incurred by the trip in INR.",
-              },
-              {
-                name: "net_income",
-                type: "number",
-                use: "Trip profit or loss in INR after expenses.",
-              },
-            ],
-          },
-          {
-            name: "branches",
-            use: "One row is a company depot or operating branch.",
-            columns: [
-              { name: "branch_name", type: "string", use: "Display name of the depot or branch." },
-              {
-                name: "branch_type",
-                type: "string",
-                use: "Operational classification of the branch.",
-              },
-              { name: "city", type: "string", use: "City in which the branch operates." },
-              { name: "state", type: "string", use: "State in which the branch operates." },
-            ],
-          },
-        ],
+        tables: ORCA_FABRICA_BUSINESS_TABLES,
       });
       mounted = true;
       setStatus("ready");
