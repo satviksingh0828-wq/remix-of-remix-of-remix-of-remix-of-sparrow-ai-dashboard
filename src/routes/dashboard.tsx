@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
+  Bot,
   Car,
   ChevronRight,
   PanelLeftClose,
@@ -17,6 +18,7 @@ import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
 import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
 import { OwnVehicleTransporterComparison } from "@/components/dashboard/OwnVehicleTransporterComparison";
 import { useSession } from "@/lib/session";
+import { OrcaFabricaPanel } from "@/components/dashboard/OrcaFabricaPanel";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -38,16 +40,54 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 const TABS = [
-  { id: "pnl", label: "Profit & Loss", desc: "Revenue, costs & net P&L", icon: TrendingUp },
-  { id: "vehicles", label: "Vehicles", desc: "Vehicle-wise P&L & distribution", icon: Car },
-  { id: "drivers", label: "Drivers", desc: "Driver-wise P&L & performance", icon: Users },
-  { id: "transporters", label: "Transporters", desc: "Transporter-wise P&L", icon: BarChart3 },
-  { id: "trips", label: "Trips", desc: "All trips — income & net", icon: RouteIcon },
+  {
+    id: "pnl",
+    label: "Profit & Loss",
+    desc: "Revenue, costs & net P&L",
+    icon: TrendingUp,
+    adminOnly: false,
+  },
+  {
+    id: "vehicles",
+    label: "Vehicles",
+    desc: "Vehicle-wise P&L & distribution",
+    icon: Car,
+    adminOnly: false,
+  },
+  {
+    id: "drivers",
+    label: "Drivers",
+    desc: "Driver-wise P&L & performance",
+    icon: Users,
+    adminOnly: false,
+  },
+  {
+    id: "transporters",
+    label: "Transporters",
+    desc: "Transporter-wise P&L",
+    icon: BarChart3,
+    adminOnly: false,
+  },
+  {
+    id: "trips",
+    label: "Trips",
+    desc: "All trips — income & net",
+    icon: RouteIcon,
+    adminOnly: false,
+  },
   {
     id: "own-vs-transporter",
     label: "Own vs Transporter",
     desc: "Compare own vehicles and hired transporters",
     icon: Car,
+    adminOnly: false,
+  },
+  {
+    id: "ai-analytics",
+    label: "AI Analytics",
+    desc: "Build dashboards with Orca Fabrica",
+    icon: Bot,
+    adminOnly: true,
   },
 ] as const;
 
@@ -58,6 +98,7 @@ function DashboardPage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabId>("pnl");
   const [navOpen, setNavOpen] = useState(true);
+  const tabs = TABS.filter((item) => !item.adminOnly || user?.role === "admin");
 
   useEffect(() => {
     if (user && user.role !== "admin" && user.role !== "viewer")
@@ -66,7 +107,7 @@ function DashboardPage() {
 
   if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const active = tabs.find((t) => t.id === tab) ?? tabs[0];
 
   return (
     <AppShell
@@ -108,7 +149,7 @@ function DashboardPage() {
               Dashboard
             </p>
             <ul className="space-y-1">
-              {TABS.map((t) => {
+              {tabs.map((t) => {
                 const Icon = t.icon;
                 const isActive = t.id === tab;
                 return (
@@ -138,7 +179,7 @@ function DashboardPage() {
         {/* ── Mobile horizontal tab bar ── */}
         <div className="lg:hidden -mx-1">
           <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
-            {TABS.map((t) => {
+            {tabs.map((t) => {
               const Icon = t.icon;
               const isActive = t.id === tab;
               return (
@@ -171,6 +212,7 @@ function DashboardPage() {
           {tab === "transporters" && <EntityPnLPanel kind="transporter" />}
           {tab === "trips" && <TripSummaryPanel />}
           {tab === "own-vs-transporter" && <OwnVehicleTransporterComparison />}
+          {tab === "ai-analytics" && user?.role === "admin" && <OrcaFabricaPanel />}
         </div>
       </div>
     </AppShell>
