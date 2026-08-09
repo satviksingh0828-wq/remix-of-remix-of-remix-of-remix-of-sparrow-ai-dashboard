@@ -20,6 +20,8 @@ import { useSession } from "@/lib/session";
 // ── Icons per kind ────────────────────────────────────────────────────────────
 
 function KindIcon({ kind }: { kind: NotificationItem["kind"] }) {
+  if (kind === "monthly_mis")
+    return <FileWarning className="size-4 shrink-0 text-emerald-500" />;
   if (kind === "insurance")
     return <ShieldAlert className="size-4 shrink-0 text-amber-500" />;
   if (kind === "road_tax")

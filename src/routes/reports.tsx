@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   BarChart3,
+  ClipboardList,
   Car,
   ChevronRight,
   CreditCard,
@@ -24,6 +25,7 @@ import { DriverExpenseReport } from "@/components/reports/DriverExpenseReport";
 import { TransporterExpenseReport } from "@/components/reports/TransporterExpenseReport";
 import { OtherExpenseReport } from "@/components/reports/OtherExpenseReport";
 import { ApprovalChargeAdvanceReport } from "@/components/reports/ApprovalChargeAdvanceReport";
+import { MonthlyMISReport } from "@/components/reports/MonthlyMISReport";
 import { useSession } from "@/lib/session";
 import { ReportFiltersContext } from "@/lib/report-filters";
 import { useBranches } from "@/lib/use-branches";
@@ -56,6 +58,12 @@ export const Route = createFileRoute("/reports")({
 });
 
 const TABS = [
+  {
+    id: "monthly-mis",
+    label: "Monthly MIS",
+    desc: "Depot submissions & compliance",
+    icon: ClipboardList,
+  },
   {
     id: "pnl-compare",
     label: "P&L Comparison",
@@ -226,7 +234,7 @@ function ReportsPage() {
               <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
             </header>
-            {tab !== "pnl-compare" && (
+            {tab !== "pnl-compare" && tab !== "monthly-mis" && (
               <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-border bg-muted/30 p-3">
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger className="h-9 w-44">
@@ -257,6 +265,7 @@ function ReportsPage() {
               </div>
             )}
             {tab === "pnl-compare" && <ProfitLossComparison />}
+            {tab === "monthly-mis" && <MonthlyMISReport />}
             {tab === "insurance" && <CoverageLedger type="insurance" />}
             {tab === "road-tax" && <CoverageLedger type="road_tax" />}
             {tab === "fastag" && <FastagLedger />}

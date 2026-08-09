@@ -4,6 +4,7 @@ import {
   BarChart2,
   CalendarCheck,
   CalendarRange,
+  ClipboardList,
   ChevronRight,
   DollarSign,
   FileText,
@@ -28,6 +29,7 @@ import { YearlyExpenseScheduler } from "@/components/operations/YearlyExpenseSch
 import { DriverPayroll } from "@/components/operations/DriverPayroll";
 import { TripImport } from "@/components/import/TripImport";
 import { useSession } from "@/lib/session";
+import { MonthlyMIS } from "@/components/operations/MonthlyMIS";
 
 export const Route = createFileRoute("/operations")({
   head: () => ({
@@ -55,6 +57,14 @@ export const Route = createFileRoute("/operations")({
 });
 
 const ALL_TABS = [
+  {
+    id: "monthly-mis",
+    label: "Monthly MIS",
+    desc: "Monthly branch compliance",
+    icon: ClipboardList,
+    adminOnly: false,
+    dividerBefore: false,
+  },
   {
     id: "trip",
     label: "Trip",
@@ -145,7 +155,7 @@ function OperationsPage() {
   const isViewer = user?.role === "viewer";
 
   const TABS = ALL_TABS.filter((t) =>
-    isViewer ? t.id !== "import-trips" : isAdmin || !t.adminOnly,
+    isViewer ? t.id !== "import-trips" && t.id !== "monthly-mis" : isAdmin || !t.adminOnly,
   );
   const [tab, setTab] = useState<TabId>("trip");
   const [navOpen, setNavOpen] = useState(true);
@@ -269,6 +279,11 @@ function OperationsPage() {
           {safeTab === "driver-payroll" && (
             <TabErrorBoundary label="Driver Payroll">
               <DriverPayroll />
+            </TabErrorBoundary>
+          )}
+          {safeTab === "monthly-mis" && !isViewer && (
+            <TabErrorBoundary label="Monthly MIS">
+              <MonthlyMIS />
             </TabErrorBoundary>
           )}
           {safeTab === "fixed-income" && (isAdmin || isViewer) && (
