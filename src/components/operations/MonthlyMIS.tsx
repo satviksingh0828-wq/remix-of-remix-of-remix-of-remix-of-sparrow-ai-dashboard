@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Lock, Save, Send } from "lucide-react";
+import { CheckCircle2, Download, Lock, Save, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { useBranches } from "@/lib/use-branches";
 import { serverLoadMisForm, serverSaveMisForm, type MisForm } from "@/lib/monthly-mis";
+import { exportMisFormExcel, misScheduleLabel } from "@/lib/monthly-mis-excel";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -123,12 +124,20 @@ export function MonthlyMIS() {
             className="block h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground"
           />
         </label>
-        {form?.status === "submitted" && (
-          <span className="ml-auto flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600">
-            <Lock className="size-3.5" />
-            Submitted & locked
-          </span>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {form && (
+            <Button variant="outline" onClick={() => exportMisFormExcel(form)}>
+              <Download className="size-4" />
+              Export Excel
+            </Button>
+          )}
+          {form?.status === "submitted" && (
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600">
+              <Lock className="size-3.5" />
+              Submitted & locked
+            </span>
+          )}
+        </div>
       </div>
       {form && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -166,6 +175,8 @@ export function MonthlyMIS() {
                 <th className="px-3 py-3 text-left">Due dates / completion</th>
                 <th className="px-3 py-3 text-center">Due</th>
                 <th className="px-3 py-3 text-center">Done</th>
+                <th className="px-3 py-3 text-center">Missed</th>
+                <th className="px-3 py-3 text-center">Compliance %</th>
               </tr>
             </thead>
             <tbody>
@@ -177,11 +188,7 @@ export function MonthlyMIS() {
                       {activity.activity_name}
                     </td>
                     <td className="whitespace-nowrap px-3 py-3 text-muted-foreground">
-                      {activity.schedule_type === "daily"
-                        ? "Daily"
-                        : activity.schedule_type === "weekly"
-                          ? `Every ${["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][activity.schedule_value ?? 0]}`
-                          : `${activity.schedule_value}${activity.schedule_value === 1 ? "st" : activity.schedule_value === 2 ? "nd" : activity.schedule_value === 3 ? "rd" : "th"}`}
+                      {misScheduleLabel(activity)}
                     </td>
                     <td className="px-3 py-3">
                       <div className="flex flex-wrap gap-1.5">
@@ -206,6 +213,18 @@ export function MonthlyMIS() {
                     <td className="px-3 py-3 text-center font-semibold">{entries.length}</td>
                     <td className="px-3 py-3 text-center font-semibold text-emerald-600">
                       {entries.filter((e) => e.completed).length}
+                    </td>
+                    <td className="px-3 py-3 text-center font-semibold text-destructive">
+                      {
+                        entries.filter(
+                          (e) => !e.completed && e.due_date < new Date().toISOString().slice(0, 10),
+                        ).length
+                      }
+                    </td>
+                    <td className="px-3 py-3 text-center font-semibold">
+                      {entries.length
+                        ? `${((entries.filter((e) => e.completed).length / entries.length) * 100).toFixed(1)}%`
+                        : "100.0%"}
                     </td>
                   </tr>
                 );

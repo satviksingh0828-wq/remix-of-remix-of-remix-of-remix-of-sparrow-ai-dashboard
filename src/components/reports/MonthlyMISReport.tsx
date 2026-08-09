@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Eye, Plus, Save, Trash2, X } from "lucide-react";
+import { Download, Eye, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
 import { useBranches } from "@/lib/use-branches";
@@ -11,6 +11,7 @@ import {
   type MisReportRow,
   type MisScheduleType,
 } from "@/lib/monthly-mis";
+import { exportMisDepotReportExcel } from "@/lib/monthly-mis-excel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -132,12 +133,22 @@ export function MonthlyMISReport() {
             className="block h-9 rounded-md border border-input bg-background px-3 text-sm"
           />
         </label>
-        {user?.role === "admin" && (
-          <Button className="ml-auto" onClick={openConfig}>
-            <Plus className="size-4" />
-            Configure depot form
+        <div className="ml-auto flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            disabled={!rows.length}
+            onClick={() => exportMisDepotReportExcel(rows, month)}
+          >
+            <Download className="size-4" />
+            Export depot-wise Excel
           </Button>
-        )}
+          {user?.role === "admin" && (
+            <Button onClick={openConfig}>
+              <Plus className="size-4" />
+              Configure depot form
+            </Button>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
