@@ -332,7 +332,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
 // Returns the parsed { uid, role } when valid, or null when invalid/tampered/expired.
 // Uses timingSafeEqual to prevent timing-oracle attacks on the signature.
 
-async function verifyAppToken(
+export async function verifyAppToken(
   token: string,
 ): Promise<{ uid: string; role: string } | null> {
   if (!token) return null;
