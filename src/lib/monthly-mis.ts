@@ -75,7 +75,10 @@ function datesForActivity(activity: MisActivity, month: string) {
   const result: string[] = [];
   for (let day = 1; day <= days; day += 1) {
     const date = new Date(Date.UTC(year, monthNumber - 1, day));
-    if (date.getUTCDay() === 0) continue;
+    const isSunday = date.getUTCDay() === 0;
+    if (isSunday && (activity.schedule_type === "daily" || activity.schedule_type === "weekly")) {
+      continue;
+    }
     const due =
       activity.schedule_type === "daily" ||
       (activity.schedule_type === "weekly" && date.getUTCDay() === activity.schedule_value) ||
