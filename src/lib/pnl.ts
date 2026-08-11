@@ -432,7 +432,7 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
         registration_number: String(v.registration_number ?? ""),
         label: [v.registration_number, v.nickname].filter(Boolean).join(" — "),
       })),
-      drivers: (driversRes.data ?? []).filter(isDriverActive).map((d: Record<string, unknown>) => ({
+      drivers: (driversRes.data ?? []).filter((d) => isDriverActive(d)).map((d: Record<string, unknown>) => ({
         id: d.id as string,
         full_name: String(d.full_name ?? ""),
         label: [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),
@@ -535,7 +535,7 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
         registration_number: String(v.registration_number ?? ""),
         label: [v.registration_number, v.nickname].filter(Boolean).join(" — "),
       })),
-      drivers: (driversRes.data ?? []).filter(isDriverActive).map((d: Record<string, unknown>) => ({
+      drivers: (driversRes.data ?? []).filter((d) => isDriverActive(d)).map((d: Record<string, unknown>) => ({
         id: d.id as string,
         full_name: String(d.full_name ?? ""),
         label: [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),
