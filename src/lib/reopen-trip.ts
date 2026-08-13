@@ -5,10 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
  * expenses from the archived snapshot back into the live tables, then deletes
  * the closed_trips row. Rates are NOT copied from the snapshot — the reopened
  * trip re-reads the current contract entries, so any rate changes take
- * effect. The trip can be closed again afterwards.
- *
- * After reopen, `reopened_at` is set to now so the auto-close countdown
- * runs from reopen time (1-day window instead of the original 2-day window).
+ * effect. The trip can be closed again afterwards. `reopened_at` records that
+ * the trip was reopened and when it happened.
  */
 export async function reopenTrip(closedId: string) {
   const { data: closed, error } = await supabase
@@ -36,7 +34,7 @@ export async function reopenTrip(closedId: string) {
     .from("trips")
     .insert({
       ...strip(tripSnap),
-      reopened_at: new Date().toISOString(), // triggers 1-day auto-close from now
+      reopened_at: new Date().toISOString(),
     } as never)
     .select("id")
     .single();
