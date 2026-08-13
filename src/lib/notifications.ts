@@ -19,6 +19,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } from "@/lib/trip-calc";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import { shouldEmailNotification } from "@/lib/notification-email-policy";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -82,6 +83,9 @@ async function emailPendingNotifications(db: any) {
   // lets a failed delivery retry on the next notification sync.
   for (const item of pending ?? []) {
     const kind = item.kind as NotificationKind;
+    // Manifest date warnings belong in the notification panel only. They are
+    // intentionally left un-emailed while all other alert kinds keep emailing.
+    if (!shouldEmailNotification(kind)) continue;
     const accent = notificationAccent[kind] ?? "#4f46e5";
     const days = item.days_left == null ? "" : `<div style="margin-top:16px;display:inline-block;padding:7px 11px;border-radius:999px;background:${accent}14;color:${accent};font-size:12px;font-weight:700">${Math.abs(Number(item.days_left))} day${Math.abs(Number(item.days_left)) === 1 ? "" : "s"}</div>`;
     try {

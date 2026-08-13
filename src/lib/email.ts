@@ -1,4 +1,16 @@
 const FOOTER = "POWERED BY ORCA SOLUTIONS";
+const EMAIL_LOGO_CONTENT_ID = "garuda-logo";
+
+function emailLogoUrl(): string {
+  const configuredUrl = process.env.EMAIL_LOGO_URL?.trim();
+  if (configuredUrl) return configuredUrl;
+
+  const appUrl = process.env.APP_URL?.trim()
+    || (process.env.VERCEL_URL?.trim() ? `https://${process.env.VERCEL_URL.trim()}` : "");
+  if (!appUrl) return "";
+
+  return new URL("/garuda-logo.png", appUrl).toString();
+}
 
 export function adminAlertEmails(): string[] {
   return [...new Set([
@@ -16,8 +28,8 @@ export function emailTemplate(options: {
   notice?: string;
 }): string {
   const accent = options.accent ?? "#4f46e5";
-  const appUrl = process.env.APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
-  const logo = appUrl ? `<img src="${appUrl}/garuda-logo.png" width="68" alt="Garuda Logistics Solutions" style="display:block;width:68px;height:auto;margin:0 auto 10px">` : "";
+  const logoUrl = emailLogoUrl();
+  const logo = logoUrl ? `<img src="${logoUrl}" width="68" alt="Garuda Logistics Solutions" style="display:block;width:68px;height:auto;margin:0 auto 10px">` : "";
   return `<!doctype html><html><body style="margin:0;background:#f1f5f9;padding:28px 12px;font-family:Arial,Helvetica,sans-serif;color:#0f172a">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.08)">
@@ -43,6 +55,24 @@ export async function sendResendEmail(options: {
   const apiKey = process.env.RESEND_API_KEY;
   const to = [...new Set(options.to.filter(Boolean))];
   if (!apiKey || !to.length) throw new Error("Email service or recipients are not configured");
+
+  // Email clients commonly block or proxy remote images. Attach the logo inline
+  // when it is reachable so the branding renders independently of that policy.
+  const logoUrl = emailLogoUrl();
+  let html = options.html;
+  let attachments: Array<{ filename: string; content: string; content_id: string }> | undefined;
+  if (logoUrl && html.includes(logoUrl)) {
+    try {
+      const logoResponse = await fetch(logoUrl);
+      if (logoResponse.ok) {
+        const content = Buffer.from(await logoResponse.arrayBuffer()).toString("base64");
+        attachments = [{ filename: "garuda-logo.png", content, content_id: EMAIL_LOGO_CONTENT_ID }];
+        html = html.replaceAll(logoUrl, `cid:${EMAIL_LOGO_CONTENT_ID}`);
+      }
+    } catch (logoError) {
+      console.error("[email] Could not embed logo; using the hosted image instead:", logoError);
+    }
+  }
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -50,7 +80,8 @@ export async function sendResendEmail(options: {
       from: options.from ?? process.env.NOTIFIER_EMAIL ?? process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev",
       to,
       subject: options.subject,
-      html: options.html,
+      html,
+      ...(attachments ? { attachments } : {}),
     }),
   });
   if (!response.ok) throw new Error(`Resend ${response.status}: ${await response.text()}`);
