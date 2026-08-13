@@ -6,6 +6,10 @@
     {
       "path": "/api/notify-admin",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/notify-admin",
+      "schedule": "15 6 * * *"
     }
   ]
 }
