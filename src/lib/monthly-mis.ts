@@ -261,6 +261,10 @@ export const serverSaveMisForm = createServerFn({ method: "POST" })
               intro: `<strong>${form.branch_name}</strong> submitted its Monthly MIS for <strong>${data.month}</strong>.`,
               content: `<table style="width:100%;border-collapse:collapse"><tr>${[["Due",metrics.due],["Done",metrics.done],["Missed",metrics.missed],["Compliance",`${metrics.compliance}%`]].map(([k,v]) => `<td style="padding:14px 8px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0"><strong style="font-size:18px">${v}</strong><br><span style="font-size:11px;color:#64748b">${k}</span></td>`).join("")}</tr></table>` }),
           });
+          // The MIS email above already reached all admins, so do not send a
+          // duplicate when the notification bell performs its next sync.
+          await auth.db.from("notifications").update({ emailed_at: new Date().toISOString() })
+            .eq("kind", "monthly_mis").eq("ref_id", `monthly-mis-${saved.id}`);
         } catch (emailError) { console.error("[Monthly MIS] Email failed:", emailError); }
       }
     }

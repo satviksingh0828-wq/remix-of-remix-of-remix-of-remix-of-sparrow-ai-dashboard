@@ -2,7 +2,7 @@ import { jsPDF } from "jspdf";
 
 export type PdfTableRow = (string | number)[];
 
-export function openBrandedTablePdf(options: {
+export async function openBrandedTablePdf(options: {
   title: string;
   subtitle?: string;
   filename: string;
@@ -12,18 +12,32 @@ export function openBrandedTablePdf(options: {
 }) {
   const tab = window.open("", "_blank");
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  let logo: string | null = null;
+  try {
+    const blob = await fetch("/garuda-logo.png").then((response) => response.blob());
+    logo = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader(); reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob);
+    });
+  } catch { /* Text header remains available if the logo cannot load. */ }
   const left = 14;
   const width = 182;
   const colWidth = width / options.columns.length;
   let y = 18;
 
   const header = () => {
-    pdf.setFillColor(79, 70, 229); pdf.rect(0, 0, 210, 7, "F");
-    pdf.setTextColor(15, 23, 42); pdf.setFont("helvetica", "bold"); pdf.setFontSize(18);
-    pdf.text(options.title, left, 20);
+    pdf.setFillColor(79, 70, 229); pdf.rect(0, 0, 210, 5, "F");
+    if (logo) pdf.addImage(logo, "PNG", left, 9, 22, 14);
+    pdf.setTextColor(15, 23, 42); pdf.setFont("helvetica", "bold"); pdf.setFontSize(14);
+    pdf.text("GARUDA LOGISTICS SOLUTIONS", logo ? 40 : left, 16);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5); pdf.setTextColor(100, 116, 139);
+    pdf.text("OPERATIONS & TRANSPORT MANAGEMENT", logo ? 40 : left, 21);
+    pdf.setDrawColor(203, 213, 225); pdf.line(left, 27, left + width, 27);
+    pdf.setTextColor(15, 23, 42); pdf.setFont("helvetica", "bold"); pdf.setFontSize(16);
+    pdf.text(options.title, left, 37);
     pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); pdf.setTextColor(100, 116, 139);
-    if (options.subtitle) pdf.text(options.subtitle, left, 26);
-    y = options.subtitle ? 34 : 29;
+    if (options.subtitle) pdf.text(options.subtitle, left, 43);
+    y = options.subtitle ? 51 : 46;
   };
   const tableHeader = () => {
     pdf.setFillColor(241, 245, 249); pdf.rect(left, y - 5, width, 8, "F");

@@ -18,6 +18,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } from "@/lib/trip-calc";
+import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -52,6 +53,57 @@ function addDays(base: Date, n: number) {
 function isoDate(d: Date) { return d.toISOString().slice(0, 10); }
 function daysUntil(s: string, today: Date) {
   return Math.ceil((new Date(s).getTime() - today.getTime()) / 86_400_000);
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;",
+  })[character] ?? character);
+}
+
+const notificationAccent: Record<NotificationKind, string> = {
+  insurance: "#d97706", road_tax: "#7c3aed", manifest_zero_income: "#e11d48",
+  monthly_mis: "#059669", manifest_date_future: "#9333ea",
+  manifest_date_old: "#ca8a04", manifest_date_missing: "#dc2626",
+};
+
+async function emailPendingNotifications(db: any) {
+  const recipients = adminAlertEmails();
+  if (!process.env.RESEND_API_KEY || recipients.length === 0) return;
+
+  const { data: pending, error } = await db.from("notifications")
+    .select("id,kind,title,detail,days_left")
+    .eq("dismissed", false)
+    .is("emailed_at", null)
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`Failed to load notification emails: ${error.message}`);
+
+  // One well-formatted email per notification keeps subjects searchable and
+  // lets a failed delivery retry on the next notification sync.
+  for (const item of pending ?? []) {
+    const kind = item.kind as NotificationKind;
+    const accent = notificationAccent[kind] ?? "#4f46e5";
+    const days = item.days_left == null ? "" : `<div style="margin-top:16px;display:inline-block;padding:7px 11px;border-radius:999px;background:${accent}14;color:${accent};font-size:12px;font-weight:700">${Math.abs(Number(item.days_left))} day${Math.abs(Number(item.days_left)) === 1 ? "" : "s"}</div>`;
+    try {
+      await sendResendEmail({
+        to: recipients,
+        subject: `Admin notification — ${String(item.title)}`,
+        html: emailTemplate({
+          title: escapeHtml(item.title),
+          eyebrow: "Admin notification",
+          accent,
+          intro: "A new notification requires administrator attention.",
+          content: `<div style="padding:18px;border:1px solid #e2e8f0;border-left:4px solid ${accent};border-radius:9px;background:#f8fafc;font-size:14px;line-height:1.65;color:#334155">${escapeHtml(item.detail)}</div>${days}`,
+          notice: "Open the notification bell in the dashboard to review or dismiss this alert.",
+        }),
+      });
+      const { error: markError } = await db.from("notifications")
+        .update({ emailed_at: new Date().toISOString() }).eq("id", item.id).is("emailed_at", null);
+      if (markError) throw new Error(`Failed to mark notification emailed: ${markError.message}`);
+    } catch (emailError) {
+      console.error("[notifications] Admin email failed:", emailError);
+    }
+  }
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -388,6 +440,10 @@ export const serverSyncNotifications = createServerFn({ method: "POST" })
       const { error: deleteError } = await db.from("notifications").delete().in("id", toDelete);
       if (deleteError) throw new Error(`Failed to delete resolved notifications: ${deleteError.message}`);
     }
+
+    // Mirror every new bell notification to both configured admin inboxes.
+    // Delivery failures are non-fatal and remain eligible for retry.
+    await emailPendingNotifications(db);
 
     // Return all unread
     const { data, error: readError } = await db

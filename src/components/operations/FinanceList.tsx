@@ -364,26 +364,6 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           New {cfg.single}
         </Button>
         <div className="ml-auto flex items-center gap-2">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={filtered.length === 0}
-            onClick={() => openBrandedTablePdf({
-              title: `${cfg.title} Report`,
-              subtitle: financialYear !== "none" ? `Financial year ${financialYear}` : `${month === "all" ? "All months" : MONTHS[Number(month) - 1]} ${year === "all" ? "" : year}`.trim(),
-              filename: `${cfg.filename}-report.pdf`,
-              columns: ["Date", cfg.nameLabel, "Branch", "Linked to", "Amount", "Status"],
-              rows: filtered.map((row) => [
-                row.entry_date || "—", row.name, nameOf(branchOpts, row.branch_id) || "—",
-                nameOf(vehicleOpts, row.vehicle_id) || nameOf(driverOpts, row.driver_id) || nameOf(transporterOpts, row.transporter_id) || "—",
-                inr(num(row.amount)), row.settled ? cfg.doneLabel : cfg.pendingLabel,
-              ]),
-              summary: [["TOTAL", inr(total)], [cfg.pendingLabel.toUpperCase(), inr(pendingTotal)]],
-            })}
-          >
-            <Download className="size-4" /> PDF
-          </Button>
           <CsvIO
             entityLabel={cfg.title}
             filename={cfg.filename}
@@ -637,6 +617,26 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                       </span>
                     </td>
                     <td className="py-2 text-right whitespace-nowrap">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title={`Open ${cfg.single} PDF`}
+                        onClick={() => openBrandedTablePdf({
+                          title: kind === "income" ? "Income Receipt" : "Expense Voucher",
+                          subtitle: `${r.entry_date || "No date"} · ${r.name}`,
+                          filename: `${cfg.filename}-${r.id ?? r.entry_date}.pdf`,
+                          columns: ["Field", "Details"],
+                          rows: [
+                            [cfg.nameLabel, r.name], ["Date", r.entry_date || "—"],
+                            ["Branch", nameOf(branchOpts, r.branch_id) || "—"], ["Linked to", linked],
+                            ["Status", r.settled ? cfg.doneLabel : cfg.pendingLabel],
+                            [`${cfg.doneLabel} date`, r.settled_date || "—"], ["Note", r.note || "—"],
+                          ],
+                          summary: [[kind === "income" ? "INCOME AMOUNT" : "EXPENSE AMOUNT", inr(num(r.amount))]],
+                        })}
+                      >
+                        <Download className="size-4" /> PDF
+                      </Button>
                       {!r.settled ? (
                         <Button variant="outline" size="sm" onClick={() => settle(r)}>
                           <Check className="size-4" />
