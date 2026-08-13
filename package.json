@@ -7,7 +7,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "build:dev": "vite build --mode development",
-    "build:vercel": "bun scripts/build-vercel.mjs",
+    "build:vercel": "node scripts/build-vercel.mjs",
     "preview": "vite preview",
     "test": "node --test --experimental-strip-types test/*.test.ts",
     "lint": "eslint .",
