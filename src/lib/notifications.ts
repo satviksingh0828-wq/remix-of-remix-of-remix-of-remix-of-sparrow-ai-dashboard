@@ -80,46 +80,72 @@ async function emailPendingNotifications(db: any): Promise<{ sent: number; faile
   }
 
   const { data: pending, error } = await db.from("notifications")
-    .select("id,kind,title,detail,days_left")
+    .select("id,kind,ref_id,title,detail,days_left")
     .eq("dismissed", false)
     .is("emailed_at", null)
     .order("created_at", { ascending: true });
   if (error) throw new Error(`Failed to load notification emails: ${error.message}`);
 
-  // One well-formatted email per notification keeps subjects searchable and
-  // lets a failed delivery retry on the next notification sync.
-  let sent = 0;
-  let failed = 0;
-  for (const item of pending ?? []) {
-    const kind = item.kind as NotificationKind;
-    // Manifest date warnings belong in the notification panel only. They are
-    // intentionally left un-emailed while all other alert kinds keep emailing.
-    if (!shouldEmailNotification(kind)) continue;
-    const accent = notificationAccent[kind] ?? "#4f46e5";
-    const days = item.days_left == null ? "" : `<div style="margin-top:16px;display:inline-block;padding:7px 11px;border-radius:999px;background:${accent}14;color:${accent};font-size:12px;font-weight:700">${Math.abs(Number(item.days_left))} day${Math.abs(Number(item.days_left)) === 1 ? "" : "s"}</div>`;
-    try {
-      await sendResendEmail({
-        to: recipients,
-        subject: `Admin notification — ${String(item.title)}`,
-        html: emailTemplate({
-          title: escapeHtml(item.title),
-          eyebrow: "Admin notification",
-          accent,
-          intro: "A new notification requires administrator attention.",
-          content: `<div style="padding:18px;border:1px solid #e2e8f0;border-left:4px solid ${accent};border-radius:9px;background:#f8fafc;font-size:14px;line-height:1.65;color:#334155">${escapeHtml(item.detail)}</div>${days}`,
-          notice: "Open the notification bell in the dashboard to review or dismiss this alert.",
-        }),
-      });
-      const { error: markError } = await db.from("notifications")
-        .update({ emailed_at: new Date().toISOString() }).eq("id", item.id).is("emailed_at", null);
-      if (markError) throw new Error(`Failed to mark notification emailed: ${markError.message}`);
-      sent++;
-    } catch (emailError) {
-      failed++;
-      console.error("[notifications] Admin email failed:", emailError);
+  const eligible = (pending ?? []).filter((item: { kind: string }) => shouldEmailNotification(item.kind));
+  if (eligible.length === 0) return { sent: 0, failed: 0 };
+
+  // Resolve the owning branch for every pooled alert so its branch inbox is CC'd.
+  const manifestIds = eligible.filter((i: { kind: string }) => i.kind === "manifest_zero_income")
+    .map((i: { ref_id?: string }) => String(i.ref_id ?? "").replace(/^mzi-/, ""));
+  const insuranceIds = eligible.filter((i: { kind: string }) => i.kind === "insurance")
+    .map((i: { ref_id?: string }) => String(i.ref_id ?? "").replace(/^ins-/, ""));
+  const roadTaxIds = eligible.filter((i: { kind: string }) => i.kind === "road_tax")
+    .map((i: { ref_id?: string }) => String(i.ref_id ?? "").replace(/^rt-/, ""));
+  const branchIds = new Set<string>();
+  const vehicleIds = new Set<string>();
+  if (manifestIds.length) {
+    const { data: manifests } = await db.from("trip_manifests").select("trip_id").in("id", manifestIds);
+    const tripIds = (manifests ?? []).map((row: { trip_id: string }) => row.trip_id);
+    if (tripIds.length) {
+      const { data: trips } = await db.from("trips").select("branch_id").in("id", tripIds);
+      for (const row of trips ?? []) if (row.branch_id) branchIds.add(String(row.branch_id));
     }
   }
-  return { sent, failed };
+  for (const [table, ids] of [["vehicle_insurance", insuranceIds], ["vehicle_road_tax", roadTaxIds]] as const) {
+    if (!ids.length) continue;
+    const { data: rows } = await db.from(table).select("vehicle_id").in("id", ids);
+    for (const row of rows ?? []) if (row.vehicle_id) vehicleIds.add(String(row.vehicle_id));
+  }
+  if (vehicleIds.size) {
+    const { data: vehicles } = await db.from("vehicles").select("branch_id").in("id", [...vehicleIds]);
+    for (const row of vehicles ?? []) if (row.branch_id) branchIds.add(String(row.branch_id));
+  }
+  let branchEmails: string[] = [];
+  if (branchIds.size) {
+    const { data: branches } = await db.from("branches").select("branch_email").in("id", [...branchIds]);
+    branchEmails = (branches ?? []).map((row: { branch_email?: string }) => row.branch_email?.trim() ?? "").filter(Boolean);
+  }
+
+  const cards = eligible.map((item: { kind: NotificationKind; title: string; detail: string }) => {
+    const accent = notificationAccent[item.kind] ?? "#4f46e5";
+    return `<div style="margin:0 0 12px;padding:16px;border:1px solid #e2e8f0;border-left:4px solid ${accent};border-radius:9px;background:#f8fafc"><div style="font-size:14px;font-weight:700;color:#0f172a">${escapeHtml(item.title)}</div><div style="margin-top:5px;font-size:13px;line-height:1.55;color:#475569">${escapeHtml(item.detail)}</div></div>`;
+  }).join("");
+  try {
+    await sendResendEmail({
+      to: recipients,
+      cc: branchEmails,
+      subject: `${eligible.length} pending admin notification${eligible.length === 1 ? "" : "s"} — Garuda Logistics`,
+      html: emailTemplate({
+        title: "Pending dashboard notifications",
+        eyebrow: "Consolidated alert",
+        intro: `This email combines ${eligible.length} unsent notification${eligible.length === 1 ? "" : "s"}, including all older pending alerts and alerts found in the latest sync.`,
+        content: cards,
+        notice: "Open the notification bell in the dashboard to review or dismiss these alerts.",
+      }),
+    });
+    const ids = eligible.map((item: { id: string }) => item.id);
+    const { error: markError } = await db.from("notifications").update({ emailed_at: new Date().toISOString() }).in("id", ids).is("emailed_at", null);
+    if (markError) throw new Error(`Failed to mark pooled notifications emailed: ${markError.message}`);
+    return { sent: eligible.length, failed: 0 };
+  } catch (emailError) {
+    console.error("[notifications] Pooled admin email failed:", emailError);
+    return { sent: 0, failed: eligible.length };
+  }
 }
 
 /**

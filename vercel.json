@@ -4,7 +4,7 @@
   "framework": null,
   "crons": [
     {
-      "path": "/api/notify-expiry",
+      "path": "/api/notify-admin",
       "schedule": "0 6 * * *"
     },
     {
