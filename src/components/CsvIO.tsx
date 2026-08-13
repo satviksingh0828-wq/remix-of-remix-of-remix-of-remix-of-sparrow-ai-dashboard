@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Download, FileSpreadsheet, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { downloadCsv, readCsvFile, toCsv } from "@/lib/csv";
+import { downloadCsv, readSpreadsheetFile, toCsv } from "@/lib/csv";
 
 export type CsvIOProps<T extends Record<string, unknown>> = {
   entityLabel: string; // e.g. "Vehicles"
@@ -45,7 +45,7 @@ export function CsvIO<T extends Record<string, unknown>>({
     if (!f) return;
     setBusy("import");
     try {
-      const parsed = await readCsvFile(f);
+      const parsed = await readSpreadsheetFile(f);
       if (parsed.length === 0) {
         toast.error("File has no rows");
         return;
@@ -66,7 +66,7 @@ export function CsvIO<T extends Record<string, unknown>>({
       <input
         ref={fileRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.xls,.xlsx,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         className="hidden"
         onChange={handleFile}
       />

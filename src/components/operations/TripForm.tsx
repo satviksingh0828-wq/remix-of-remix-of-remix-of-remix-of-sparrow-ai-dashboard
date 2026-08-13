@@ -23,6 +23,7 @@ import { EntityPicker, type PickerOption } from "@/components/EntityPicker";
 import { LocationPinPair } from "@/components/LocationPinPair";
 import { LocationPicker } from "@/components/LocationPicker";
 import { CsvIO } from "@/components/CsvIO";
+import { normalizeImportedDate } from "@/lib/date-input";
 import { TransporterQuickCreate } from "./TransporterQuickCreate";
 import { DRIVER_CONFIG, TRANSPORTER_CONFIG, VEHICLE_CONFIG } from "@/components/masters/configs";
 import { useLocations } from "@/lib/use-locations";
@@ -70,6 +71,7 @@ export type ManifestRow = {
   id?: string;
   trip_id: string;
   manifest_number: string;
+  manifest_date: string | null;
   source_id: string | null;
   from_location_id: string | null;
   from_pin_code: string;
@@ -1062,6 +1064,7 @@ function emptyManifest(tripId: string): ManifestRow {
   return {
     trip_id: tripId,
     manifest_number: "",
+    manifest_date: null,
     source_id: null,
     from_location_id: null,
     from_pin_code: "",
@@ -1109,6 +1112,7 @@ function ManifestTab({
 
   const csvColumns = [
     "Cnmt No.",
+    "Date",
     "source",
     "from_location",
     "from_pin_code",
@@ -1146,6 +1150,7 @@ function ManifestTab({
 
   const csvRows = manifests.map((m) => ({
     "Cnmt No.": m.manifest_number,
+    Date: m.manifest_date ?? "",
     source: m.source_id ? (sourceNameById.get(m.source_id) ?? "") : "",
     from_location: nameById.get(m.from_location_id ?? "") ?? "",
     from_pin_code: m.from_pin_code,
@@ -1206,6 +1211,7 @@ function ManifestTab({
     const payload = rows.map((r) => ({
       trip_id: id,
       manifest_number: r["Cnmt No."] ?? r.manifest_number ?? "",
+      manifest_date: normalizeImportedDate(r.Date ?? r.date ?? r.manifest_date) || null,
       source_id: r.source ? (sourceIdByName.get(r.source.toLowerCase()) ?? null) : null,
       from_location_id:
         idByName.get((r.from_location ?? "").toLowerCase()) ??
@@ -1261,6 +1267,7 @@ function ManifestTab({
             <thead>
               <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2 pr-3">Cnmt No.</th>
+                <th className="py-2 pr-3">Date</th>
                 <th className="py-2 pr-3">Source</th>
                 <th className="py-2 pr-3">From</th>
                 <th className="py-2 pr-3">To</th>
@@ -1289,6 +1296,7 @@ function ManifestTab({
                 return (
                   <tr key={l.m.id} className="border-b border-border/60">
                     <td className="py-2 pr-3 font-medium">{l.m.manifest_number || "—"}</td>
+                    <td className="py-2 pr-3">{l.m.manifest_date || "—"}</td>
                     <td className="py-2 pr-3 text-muted-foreground">
                       {l.m.source_id ? (sourceNameById.get(l.m.source_id) ?? "—") : "—"}
                     </td>
@@ -1337,7 +1345,7 @@ function ManifestTab({
               })}
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground"
                 >
                   Totals
@@ -1376,6 +1384,12 @@ function ManifestTab({
                   onChange={(e) => setEditing({ ...editing, manifest_number: e.target.value })}
                 />
               </div>
+              <Field
+                label="Date"
+                type="date"
+                value={editing.manifest_date ?? ""}
+                onChange={(v) => setEditing({ ...editing, manifest_date: v || null })}
+              />
               <div className="space-y-1.5 sm:col-span-2">
                 <Label className="text-xs font-medium text-muted-foreground">Source</Label>
                 <Select

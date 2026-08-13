@@ -297,6 +297,8 @@ function buildTripNoteCSS(primaryHex: string): string {
 }
 .tn-sig-box { text-align: center; }
 .tn-sig-line { margin-top: 28px; border-top: 1px solid #000; padding-top: 3px; font-size: 9.5px; }
+.tn-powered { margin-top: 18px; padding-top: 8px; border-top: 1px solid #ddd; text-align: center;
+  font-size: 8px; font-weight: 700; letter-spacing: .16em; color: #777; }
 `;
 }
 
@@ -494,6 +496,8 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
     <div class="tn-sig-box"><div class="tn-sig-line">Prepared By</div></div>
     <div class="tn-sig-box"><div class="tn-sig-line">Authorised Signatory</div></div>
   </div>
+
+  <div class="tn-powered">POWERED BY ORCA SOLUTIONS</div>
 
 </div>`;
 }

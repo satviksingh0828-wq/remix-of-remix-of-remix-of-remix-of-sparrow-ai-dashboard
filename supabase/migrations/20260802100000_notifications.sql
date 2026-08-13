@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   dismissed   boolean     NOT NULL DEFAULT false,
   dismissed_at timestamptz,
   dismissed_by text,                         -- username of admin who dismissed
+  emailed_at  timestamptz,                   -- set after delivery to all admin inboxes
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT notifications_kind_ref_id_key UNIQUE (kind, ref_id)

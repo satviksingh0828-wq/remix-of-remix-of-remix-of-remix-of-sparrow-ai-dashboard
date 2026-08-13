@@ -8,10 +8,12 @@
  *   RESEND_API_KEY        — Resend API key
  *   NOTIFIER_EMAIL        — "from" address (e.g. alerts@yourdomain.com)
  *   ADMIN_ALERT_EMAIL     — always receives every alert
+ *   ADMIN_2_ALERT_EMAIL   — optional second admin; also receives every alert
  *   CRON_SECRET           — bearer token Vercel sends; rejects other callers
  */
 
 import { createFileRoute } from "@tanstack/react-router";
+import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -21,42 +23,20 @@ function addDays(date: Date, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function sendEmail(
-  apiKey: string,
-  from: string,
-  to: string[],
-  subject: string,
-  html: string,
-) {
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: to.filter(Boolean), subject, html }),
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("[notify-expiry] Resend error:", text);
-  }
-}
-
 function insuranceHtml(
   vehicleReg: string,
   insuranceNumber: string,
   endDate: string,
   daysLeft: number,
 ) {
-  return `
-<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-  <h2 style="color:#b45309">⚠️ Vehicle Insurance Expiry Alert</h2>
-  <p>The insurance for vehicle <strong>${vehicleReg}</strong> is expiring in <strong>${daysLeft} day${daysLeft !== 1 ? "s" : ""}</strong>.</p>
+  return emailTemplate({ title: "Vehicle insurance expiry alert", eyebrow: "Compliance alert", accent: "#b45309",
+  intro: `The insurance for vehicle <strong>${vehicleReg}</strong> expires in <strong>${daysLeft} day${daysLeft !== 1 ? "s" : ""}</strong>.`, content: `
   <table style="border-collapse:collapse;width:100%;margin:16px 0">
     <tr><td style="padding:6px 12px;background:#fef3c7;font-weight:600;width:160px">Vehicle</td><td style="padding:6px 12px;background:#fffbeb">${vehicleReg}</td></tr>
     <tr><td style="padding:6px 12px;background:#fef3c7;font-weight:600">Insurance No.</td><td style="padding:6px 12px;background:#fffbeb">${insuranceNumber || "—"}</td></tr>
     <tr><td style="padding:6px 12px;background:#fef3c7;font-weight:600">Expiry Date</td><td style="padding:6px 12px;background:#fffbeb">${endDate}</td></tr>
     <tr><td style="padding:6px 12px;background:#fef3c7;font-weight:600">Days Remaining</td><td style="padding:6px 12px;background:#fffbeb;color:#c0392b;font-weight:700">${daysLeft} days</td></tr>
-  </table>
-  <p style="color:#6b7280;font-size:13px">Please renew the insurance before it expires to ensure continued compliance.</p>
-</div>`;
+  </table>`, notice: "Please renew the insurance before it expires to ensure continued compliance." });
 }
 
 function roadTaxHtml(
@@ -65,18 +45,14 @@ function roadTaxHtml(
   endDate: string,
   daysLeft: number,
 ) {
-  return `
-<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-  <h2 style="color:#7c3aed">⚠️ Vehicle Road Tax Expiry Alert</h2>
-  <p>The road tax for vehicle <strong>${vehicleReg}</strong> is expiring in <strong>${daysLeft} day${daysLeft !== 1 ? "s" : ""}</strong>.</p>
+  return emailTemplate({ title: "Vehicle road tax expiry alert", eyebrow: "Compliance alert", accent: "#7c3aed",
+  intro: `The road tax for vehicle <strong>${vehicleReg}</strong> expires in <strong>${daysLeft} day${daysLeft !== 1 ? "s" : ""}</strong>.`, content: `
   <table style="border-collapse:collapse;width:100%;margin:16px 0">
     <tr><td style="padding:6px 12px;background:#ede9fe;font-weight:600;width:160px">Vehicle</td><td style="padding:6px 12px;background:#f5f3ff">${vehicleReg}</td></tr>
     <tr><td style="padding:6px 12px;background:#ede9fe;font-weight:600">State</td><td style="padding:6px 12px;background:#f5f3ff">${state || "—"}</td></tr>
     <tr><td style="padding:6px 12px;background:#ede9fe;font-weight:600">Expiry Date</td><td style="padding:6px 12px;background:#f5f3ff">${endDate}</td></tr>
     <tr><td style="padding:6px 12px;background:#ede9fe;font-weight:600">Days Remaining</td><td style="padding:6px 12px;background:#f5f3ff;color:#7c3aed;font-weight:700">${daysLeft} days</td></tr>
-  </table>
-  <p style="color:#6b7280;font-size:13px">Please renew the road tax before it expires to ensure continued compliance.</p>
-</div>`;
+  </table>`, notice: "Please renew the road tax before it expires to ensure continued compliance." });
 }
 
 // ── route ──────────────────────────────────────────────────────────────────────
@@ -95,8 +71,7 @@ export const Route = createFileRoute("/api/notify-expiry")({
         }
 
         const apiKey      = process.env.RESEND_API_KEY;
-        const fromEmail   = process.env.NOTIFIER_EMAIL ?? process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev";
-        const adminEmail  = process.env.ADMIN_ALERT_EMAIL;
+        const adminEmails = adminAlertEmails();
 
         if (!apiKey) {
           console.error("[notify-expiry] RESEND_API_KEY not set");
@@ -176,17 +151,12 @@ export const Route = createFileRoute("/api/notify-expiry")({
           const endDate     = String(r.end_date ?? "");
           const daysLeft    = endDate === in5 ? 5 : 10;
           const branchEmail = branchEmailMap.get(vehicle.branchId) ?? "";
-          const to          = [adminEmail, branchEmail].filter(Boolean) as string[];
+          const to          = [...adminEmails, branchEmail].filter(Boolean) as string[];
           if (to.length === 0) continue;
 
           try {
-            await sendEmail(
-              apiKey,
-              fromEmail,
-              to,
-              `⚠️ Insurance expiring in ${daysLeft} days — ${vehicle.reg}`,
-              insuranceHtml(vehicle.reg, String(r.insurance_number ?? ""), endDate, daysLeft),
-            );
+            await sendResendEmail({ to, subject: `⚠️ Insurance expiring in ${daysLeft} days — ${vehicle.reg}`,
+              html: insuranceHtml(vehicle.reg, String(r.insurance_number ?? ""), endDate, daysLeft) });
             sent++;
           } catch (err) {
             errors.push(`insurance ${r.id}: ${err}`);
@@ -201,17 +171,12 @@ export const Route = createFileRoute("/api/notify-expiry")({
           const endDate     = String(r.end_date ?? "");
           const daysLeft    = endDate === in5 ? 5 : 10;
           const branchEmail = branchEmailMap.get(vehicle.branchId) ?? "";
-          const to          = [adminEmail, branchEmail].filter(Boolean) as string[];
+          const to          = [...adminEmails, branchEmail].filter(Boolean) as string[];
           if (to.length === 0) continue;
 
           try {
-            await sendEmail(
-              apiKey,
-              fromEmail,
-              to,
-              `⚠️ Road tax expiring in ${daysLeft} days — ${vehicle.reg} (${String(r.state ?? "")})`,
-              roadTaxHtml(vehicle.reg, String(r.state ?? ""), endDate, daysLeft),
-            );
+            await sendResendEmail({ to, subject: `⚠️ Road tax expiring in ${daysLeft} days — ${vehicle.reg} (${String(r.state ?? "")})`,
+              html: roadTaxHtml(vehicle.reg, String(r.state ?? ""), endDate, daysLeft) });
             sent++;
           } catch (err) {
             errors.push(`road_tax ${r.id}: ${err}`);

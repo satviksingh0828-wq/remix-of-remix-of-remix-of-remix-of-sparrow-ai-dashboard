@@ -1,4 +1,5 @@
-// Minimal CSV utilities. CSV opens natively in Excel/Sheets.
+// CSV and Excel utilities.
+import * as XLSX from "xlsx";
 
 export function toCsv(rows: Record<string, unknown>[], columns: string[]): string {
   const esc = (v: unknown) => {
@@ -71,4 +72,13 @@ export function readCsvFile(file: File): Promise<Record<string, string>[]> {
     reader.onerror = () => reject(reader.error);
     reader.readAsText(file);
   });
+}
+
+/** Read CSV or the first worksheet of an Excel workbook. */
+export async function readSpreadsheetFile(file: File): Promise<Record<string, string>[]> {
+  if (!/\.xlsx?$/i.test(file.name)) return readCsvFile(file);
+  const workbook = XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: false });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  if (!sheet) return [];
+  return XLSX.utils.sheet_to_json<Record<string, string>>(sheet, { defval: "", raw: false });
 }

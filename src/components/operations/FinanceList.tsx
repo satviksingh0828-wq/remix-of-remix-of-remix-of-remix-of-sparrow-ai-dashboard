@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Download, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { logAction } from "@/lib/log-actions";
 import { financialYearOptions, financialYearRange, dateInFinancialYear } from "@/lib/financial-year";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import { isDriverActive } from "@/lib/drivers";
+import { openBrandedTablePdf } from "@/lib/branded-pdf";
 import {
   emptyFinanceRow,
   FINANCE_CONFIG,
@@ -362,7 +363,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           <Plus className="size-4" />
           New {cfg.single}
         </Button>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <CsvIO
             entityLabel={cfg.title}
             filename={cfg.filename}
@@ -616,6 +617,26 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
                       </span>
                     </td>
                     <td className="py-2 text-right whitespace-nowrap">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title={`Open ${cfg.single} PDF`}
+                        onClick={() => openBrandedTablePdf({
+                          title: kind === "income" ? "Income Receipt" : "Expense Voucher",
+                          subtitle: `${r.entry_date || "No date"} · ${r.name}`,
+                          filename: `${cfg.filename}-${r.id ?? r.entry_date}.pdf`,
+                          columns: ["Field", "Details"],
+                          rows: [
+                            [cfg.nameLabel, r.name], ["Date", r.entry_date || "—"],
+                            ["Branch", nameOf(branchOpts, r.branch_id) || "—"], ["Linked to", linked],
+                            ["Status", r.settled ? cfg.doneLabel : cfg.pendingLabel],
+                            [`${cfg.doneLabel} date`, r.settled_date || "—"], ["Note", r.note || "—"],
+                          ],
+                          summary: [[kind === "income" ? "INCOME AMOUNT" : "EXPENSE AMOUNT", inr(num(r.amount))]],
+                        })}
+                      >
+                        <Download className="size-4" /> PDF
+                      </Button>
                       {!r.settled ? (
                         <Button variant="outline" size="sm" onClick={() => settle(r)}>
                           <Check className="size-4" />

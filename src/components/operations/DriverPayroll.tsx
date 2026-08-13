@@ -883,6 +883,7 @@ export function DriverPayroll() {
                                 downloadDriverPaymentReceipt(selectedDriver, {
                                   kind: "Salary",
                                   amount: p.net_amount,
+                                  salaryAmount: p.salary_amount,
                                   date: p.paid_date || p.created_at.slice(0, 10),
                                   month: monthLabel(p.month),
                                   advanceDeduction: p.advance_deduction,
@@ -1017,6 +1018,8 @@ export function DriverPayroll() {
                                 kind: "Advance",
                                 amount: adv.amount,
                                 date: adv.payment_date,
+                                monthlyDeduction: adv.monthly_deduction,
+                                remainingBalance: adv.remaining_balance,
                                 note: adv.note,
                               })
                             }
