@@ -11,6 +11,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { verifyTurnstileToken } from "@/lib/turnstile";
+import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
 
 // ── Public user shape (safe to store in localStorage / send to client) ──────
 
@@ -144,32 +145,15 @@ export const serverSignIn = createServerFn({ method: "POST" })
             .eq("id", user.id as string)
             .then(() => {/* fire-and-forget */});
 
-          const apiKey    = process.env.RESEND_API_KEY;
-          const toEmail   = process.env.ADMIN_ALERT_EMAIL;
-          const fromEmail = process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev";
-          if (apiKey && toEmail) {
-            fetch("https://api.resend.com/emails", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                from: fromEmail,
-                to: [toEmail],
-                subject: "⚠️ Admin account paused — Garuda Logistics",
-                html: `
-<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-  <h2 style="color:#c0392b">⚠️ Admin account paused</h2>
-  <p>The admin account <strong>${user.username as string}</strong> has been automatically <strong>paused</strong> after 3 consecutive failed login attempts.</p>
-  <p>To unpause the account, an administrator must go to the <strong>Users</strong> panel and enter the following one-time code:</p>
+          const recipients = adminAlertEmails();
+          if (process.env.RESEND_API_KEY && recipients.length) {
+            sendResendEmail({ to: recipients, subject: "⚠️ Admin account paused — Garuda Logistics", html: emailTemplate({
+              title: "Admin account paused", eyebrow: "Security alert", accent: "#dc2626",
+              intro: `The admin account <strong>${user.username as string}</strong> was paused after three consecutive failed login attempts.`,
+              content: `<p style="font-size:14px;line-height:1.6;color:#475569">Enter this one-time code in the Users panel to unpause the account:</p>
   <div style="background:#f4f4f4;border:2px dashed #c0392b;border-radius:8px;padding:20px 32px;margin:24px 0;text-align:center">
     <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#c0392b">${unpauseCode}</span>
-  </div>
-  <p style="color:#666;font-size:13px">This code is valid for one use only. The password has <strong>not</strong> been changed.</p>
-  <p style="color:#888;font-size:11px">Garuda Logistics Solutions — automated security alert</p>
-</div>`,
-              }),
+  </div>`, notice: "This code is valid for one use only. The password has not been changed." })
             }).catch(() => {/* non-fatal */});
           }
         }
@@ -577,43 +561,24 @@ export const serverRequestUnpauseOtp = createServerFn({ method: "POST" })
       .eq("id", user.id as string);
 
     // Send email — awaited so we can report failures back to the caller
-    const apiKey    = process.env.RESEND_API_KEY;
-    const toEmail   = process.env.ADMIN_ALERT_EMAIL;
-    const fromEmail = process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev";
+    const recipients = adminAlertEmails();
 
-    if (!apiKey || !toEmail) {
-      console.error("[serverRequestUnpauseOtp] Email not configured — set RESEND_API_KEY and ADMIN_ALERT_EMAIL env vars");
+    if (!process.env.RESEND_API_KEY || !recipients.length) {
+      console.error("[serverRequestUnpauseOtp] Email not configured — set RESEND_API_KEY and an admin email");
       return { ok: false, error: "Email service is not configured on this server. Contact your system administrator." };
     }
 
     try {
-      const resp = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [toEmail],
+      await sendResendEmail({
+          to: recipients,
           subject: "Your account unlock code — Garuda Logistics",
-          html: `
-<div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-  <h2 style="color:#b45309">🔓 Account unlock code</h2>
-  <p>A verification code was requested for the admin account <strong>${user.username as string}</strong>.</p>
-  <p>Enter this code on the login page to unlock the account:</p>
+          html: emailTemplate({ title: "Account unlock code", eyebrow: "Security verification", accent: "#b45309",
+            intro: `A verification code was requested for the admin account <strong>${user.username as string}</strong>.`, content: `
+  <p style="font-size:14px;color:#475569">Enter this code on the login page:</p>
   <div style="background:#fffbeb;border:2px dashed #b45309;border-radius:8px;padding:20px 32px;margin:24px 0;text-align:center">
     <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#b45309">${code}</span>
-  </div>
-  <p style="color:#666;font-size:13px">This code expires when a new one is requested. Your password has <strong>not</strong> been changed.</p>
-  <p style="color:#999;font-size:11px">If you did not request this, contact your system administrator immediately.</p>
-  <p style="color:#aaa;font-size:11px">Garuda Logistics Solutions — security alert</p>
-</div>`,
-        }),
+  </div>`, notice: "This code expires when a new one is requested. If you did not request it, contact your system administrator immediately." }),
       });
-
-      if (!resp.ok) {
-        const body = await resp.text().catch(() => "");
-        console.error("[serverRequestUnpauseOtp] Resend API error:", resp.status, body);
-        return { ok: false, error: "Failed to send verification email. Please try again shortly." };
-      }
     } catch (fetchErr) {
       console.error("[serverRequestUnpauseOtp] Network error sending email:", fetchErr);
       return { ok: false, error: "Failed to send verification email. Please check your connection and try again." };

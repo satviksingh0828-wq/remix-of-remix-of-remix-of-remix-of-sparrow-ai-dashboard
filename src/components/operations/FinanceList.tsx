@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, Download, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { logAction } from "@/lib/log-actions";
 import { financialYearOptions, financialYearRange, dateInFinancialYear } from "@/lib/financial-year";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import { isDriverActive } from "@/lib/drivers";
+import { openBrandedTablePdf } from "@/lib/branded-pdf";
 import {
   emptyFinanceRow,
   FINANCE_CONFIG,
@@ -362,7 +363,27 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
           <Plus className="size-4" />
           New {cfg.single}
         </Button>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={filtered.length === 0}
+            onClick={() => openBrandedTablePdf({
+              title: `${cfg.title} Report`,
+              subtitle: financialYear !== "none" ? `Financial year ${financialYear}` : `${month === "all" ? "All months" : MONTHS[Number(month) - 1]} ${year === "all" ? "" : year}`.trim(),
+              filename: `${cfg.filename}-report.pdf`,
+              columns: ["Date", cfg.nameLabel, "Branch", "Linked to", "Amount", "Status"],
+              rows: filtered.map((row) => [
+                row.entry_date || "—", row.name, nameOf(branchOpts, row.branch_id) || "—",
+                nameOf(vehicleOpts, row.vehicle_id) || nameOf(driverOpts, row.driver_id) || nameOf(transporterOpts, row.transporter_id) || "—",
+                inr(num(row.amount)), row.settled ? cfg.doneLabel : cfg.pendingLabel,
+              ]),
+              summary: [["TOTAL", inr(total)], [cfg.pendingLabel.toUpperCase(), inr(pendingTotal)]],
+            })}
+          >
+            <Download className="size-4" /> PDF
+          </Button>
           <CsvIO
             entityLabel={cfg.title}
             filename={cfg.filename}
