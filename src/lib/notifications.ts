@@ -90,8 +90,11 @@ async function emailPendingNotifications(db: any): Promise<{ sent: number; faile
   if (eligible.length === 0) return { sent: 0, failed: 0 };
 
   // Resolve the owning branch for every pooled alert so its branch inbox is CC'd.
-  const manifestIds = eligible.filter((i: { kind: string }) => i.kind === "manifest_zero_income")
-    .map((i: { ref_id?: string }) => String(i.ref_id ?? "").replace(/^mzi-/, ""));
+  const manifestIds = eligible.filter((i: { kind: string }) => [
+    "manifest_zero_income", "manifest_date_old", "manifest_date_missing",
+  ].includes(i.kind)).map((i: { ref_id?: string }) =>
+    String(i.ref_id ?? "").replace(/^(?:mzi|mdo|mdm)-/, ""),
+  );
   const insuranceIds = eligible.filter((i: { kind: string }) => i.kind === "insurance")
     .map((i: { ref_id?: string }) => String(i.ref_id ?? "").replace(/^ins-/, ""));
   const roadTaxIds = eligible.filter((i: { kind: string }) => i.kind === "road_tax")
