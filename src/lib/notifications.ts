@@ -67,6 +67,12 @@ const notificationAccent: Record<NotificationKind, string> = {
   manifest_date_old: "#ca8a04", manifest_date_missing: "#dc2626",
 };
 
+const panelOnlyNotificationKinds = new Set<NotificationKind>([
+  "manifest_date_future",
+  "manifest_date_old",
+  "manifest_date_missing",
+]);
+
 async function emailPendingNotifications(db: any) {
   const recipients = adminAlertEmails();
   if (!process.env.RESEND_API_KEY || recipients.length === 0) return;
@@ -82,6 +88,9 @@ async function emailPendingNotifications(db: any) {
   // lets a failed delivery retry on the next notification sync.
   for (const item of pending ?? []) {
     const kind = item.kind as NotificationKind;
+    // Manifest date warnings belong in the notification panel only. They are
+    // intentionally left un-emailed while all other alert kinds keep emailing.
+    if (panelOnlyNotificationKinds.has(kind)) continue;
     const accent = notificationAccent[kind] ?? "#4f46e5";
     const days = item.days_left == null ? "" : `<div style="margin-top:16px;display:inline-block;padding:7px 11px;border-radius:999px;background:${accent}14;color:${accent};font-size:12px;font-weight:700">${Math.abs(Number(item.days_left))} day${Math.abs(Number(item.days_left)) === 1 ? "" : "s"}</div>`;
     try {
