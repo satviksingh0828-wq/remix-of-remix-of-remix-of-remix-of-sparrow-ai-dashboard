@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Archive, Building2, Clock, Eye, Plus, RotateCcw, Search, Trash2, Truck } from "lucide-react";
+import { Archive, Building2, Eye, Plus, RotateCcw, Search, Trash2, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useSession } from "@/lib/session";
-import { closeTrip } from "@/lib/close-trip";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { inr } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
@@ -30,82 +29,6 @@ type ClosedTrip = {
 };
 
 type BranchOption = { id: string; name: string };
-
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000;
-
-/** Returns the auto-close deadline for a live trip. */
-function getTripDeadline(t: TripRow): Date | null {
-  // Bulk-imported trips are intentionally kept open until a user closes them manually.
-  if (t.notes === "IMPORT_OPEN_TRIP") return null;
-  // Reopened trips: auto-close 1 day after reopen
-  if (t.reopened_at) {
-    return new Date(new Date(t.reopened_at).getTime() + ONE_DAY_MS);
-  }
-  // Normal trips: auto-close 2 days after start_date + start_time
-  if (t.start_date) {
-    const isoStr = t.start_time
-      ? `${t.start_date}T${t.start_time}:00`
-      : `${t.start_date}T00:00:00`;
-    return new Date(new Date(isoStr).getTime() + TWO_DAYS_MS);
-  }
-  // Fallback: 2 days from creation
-  if (t.created_at) {
-    return new Date(new Date(t.created_at as string).getTime() + TWO_DAYS_MS);
-  }
-  return null;
-}
-
-/** Live countdown badge shown on each trip row. Updates every minute. */
-function TimeLeft({ trip }: { trip: TripRow }) {
-  const [, setTick] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setTick((n) => n + 1), 60_000);
-    return () => clearInterval(id);
-  }, []);
-
-  const deadline = getTripDeadline(trip);
-  if (!deadline) return null;
-
-  const msLeft = deadline.getTime() - Date.now();
-
-  if (msLeft <= 0) {
-    return (
-      <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-        <Clock className="size-3" />
-        Closing…
-      </span>
-    );
-  }
-
-  const totalHours = Math.floor(msLeft / (1000 * 60 * 60));
-  const mins = Math.floor((msLeft % (1000 * 60 * 60)) / (1000 * 60));
-
-  if (totalHours >= 24) {
-    const days = Math.floor(totalHours / 24);
-    const hrs = totalHours % 24;
-    return (
-      <span className="flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-        <Clock className="size-3" />
-        {trip.reopened_at ? "Reopened · " : ""}Closes in {days}d {hrs}h
-      </span>
-    );
-  }
-  if (totalHours >= 4) {
-    return (
-      <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-        <Clock className="size-3" />
-        Closes in {totalHours}h {mins}m
-      </span>
-    );
-  }
-  return (
-    <span className="flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-      <Clock className="size-3" />
-      Closes in {totalHours}h {mins}m
-    </span>
-  );
-}
 
 export function Trips() {
   const [trips, setTrips] = useState<TripRow[]>([]);
@@ -166,67 +89,8 @@ export function Trips() {
         }),
       ]);
 
-      // Auto-close trips that have passed their deadline
-      const now = Date.now();
-      const stale = live.filter((t) => {
-        const deadline = getTripDeadline(t);
-        if (!deadline) return false;
-        return now > deadline.getTime();
-      });
-
-      if (stale.length > 0) {
-        let autoClosed = 0;
-        for (const staleTrip of stale) {
-          try {
-            await closeTrip(staleTrip.id!);
-            logAction("auto_closed", "trip", {
-              entityId: staleTrip.id,
-              entityLabel: staleTrip.trip_code,
-              details: {
-                reason: staleTrip.reopened_at
-                  ? "auto-closed 1 day after reopen"
-                  : "auto-closed after 2 days",
-              },
-            });
-            autoClosed++;
-          } catch {
-            // ignore — continue with remaining trips
-          }
-        }
-        if (autoClosed > 0) {
-          toast.info(`${autoClosed} trip${autoClosed > 1 ? "s" : ""} auto-closed`);
-        }
-
-        // Reload after auto-close (same date window as initial load)
-        const [freshLive, freshArchived] = await Promise.all([
-          fetchAll<TripRow>(() => {
-            let q = supabase
-              .from("trips")
-              .select("*")
-              .order("created_at", { ascending: false });
-            if (allowedBranchIds !== null) {
-              q = q.in("branch_id", allowedBranchIds) as typeof q;
-            }
-            return q;
-          }),
-          fetchAll<ClosedTrip>(() => {
-            let q = supabase
-              .from("closed_trips")
-              .select("id,trip_code,branch_id,branch_name,start_date,end_date,net_income,closed_at")
-              .order("closed_at", { ascending: false });
-            q = q.gte("closed_at", closedSince) as typeof q;
-            if (allowedBranchIds !== null) {
-              q = q.in("branch_id", allowedBranchIds) as typeof q;
-            }
-            return q;
-          }),
-        ]);
-        setTrips(freshLive);
-        setClosed(freshArchived);
-      } else {
-        setTrips(live);
-        setClosed(archived);
-      }
+      setTrips(live);
+      setClosed(archived);
     } catch {
       toast.error("Could not load trips");
     }
@@ -277,7 +141,7 @@ export function Trips() {
     }
     if (
       !window.confirm(
-        "Reopen this trip? It moves back to live trips (current contract rates apply) and will auto-close in 1 day if not manually closed.",
+        "Reopen this trip? It moves back to live trips and current contract rates will apply.",
       )
     )
       return;
@@ -285,7 +149,7 @@ export function Trips() {
     try {
       const newId = await reopenTrip(c.id);
       logAction("reopened", "trip", { entityId: newId, entityLabel: c.trip_code });
-      toast.success("Trip reopened — auto-closes in 1 day");
+      toast.success("Trip reopened");
       load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not reopen trip");
@@ -432,8 +296,6 @@ export function Trips() {
                     .join(" · ")}
                 </span>
               </button>
-              {/* Auto-close countdown — visible to all users */}
-              <TimeLeft trip={t} />
               {/* Admin-only: per-row logs */}
               {isAdmin && t.id ? (
                 <ItemLogsButton
