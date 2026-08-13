@@ -21,7 +21,8 @@ import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } fr
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
-export type NotificationKind = "insurance" | "road_tax" | "manifest_zero_income" | "monthly_mis";
+export type NotificationKind = "insurance" | "road_tax" | "manifest_zero_income" | "monthly_mis"
+  | "manifest_date_future" | "manifest_date_old" | "manifest_date_missing";
 
 export type NotificationItem = {
   id: string;
@@ -137,21 +138,26 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
   // closed_trips by the deadline mechanism; there is no `closed_at` on trips).
   const { data: openTrips } = await db
     .from("trips")
-    .select("id,trip_code,contract_id,ownership");
+    .select("id,trip_code,contract_id,ownership,start_date");
   // Zero-income checks only apply to own-vehicle trips; rented trips have no freight income
-  const ownTrips = (openTrips ?? []).filter((t: Record<string,unknown>) => t.ownership !== "third_party");
-  const openTripIds = ownTrips.map((t: Record<string,unknown>) => t.id as string);
+  const ownTripIds = new Set(
+    (openTrips ?? [])
+      .filter((t: Record<string,unknown>) => t.ownership !== "third_party")
+      .map((t: Record<string,unknown>) => t.id as string),
+  );
+  const openTripIds = (openTrips ?? []).map((t: Record<string,unknown>) => t.id as string);
 
   if (openTripIds.length) {
     // Load manifests for all open trips — include weight_kg, quantity, source_id
     const { data: mfRows, error: mfError } = await db
       .from("trip_manifests")
-      .select("id,trip_id,manifest_number,source_id,from_location_id,to_location_id,from_pin_code,to_pin_code,weight_kg,quantity")
+      .select("id,trip_id,manifest_number,manifest_date,source_id,from_location_id,to_location_id,from_pin_code,to_pin_code,weight_kg,quantity")
       .in("trip_id", openTripIds);
     if (mfError) throw new Error(`Failed to load manifests: ${mfError.message}`);
 
     const mfs = (mfRows ?? []) as Array<{
       id: string; trip_id: string; manifest_number: string | null;
+      manifest_date: string | null;
       source_id: string | null; from_location_id: string | null;
       to_location_id: string | null; from_pin_code: string | null; to_pin_code: string | null;
       weight_kg: string | null; quantity: string | null;
@@ -203,6 +209,9 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
       const tripCodeMap = new Map<string, string>(
         (openTrips ?? []).map((t: Record<string, unknown>) => [t.id as string, t.trip_code as string]),
       );
+      const tripStartMap = new Map<string, string | null>(
+        (openTrips ?? []).map((t: Record<string, unknown>) => [t.id as string, t.start_date as string | null]),
+      );
 
       // Group entries by contract_id for fast lookup
       const entriesByContract = new Map<string, EntryLite[]>();
@@ -225,16 +234,44 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
 
       // Check each manifest
       for (const m of mfs) {
+        const tripCode = tripCodeMap.get(m.trip_id) ?? m.trip_id;
+        const lr = m.manifest_number ? `LR ${m.manifest_number}` : "Manifest";
+        const tripStart = tripStartMap.get(m.trip_id);
+        if (!m.manifest_date) {
+          items.push({
+            kind: "manifest_date_missing", ref_id: `mdm-${m.id}`,
+            title: `Manifest date missing — Trip ${tripCode}`,
+            detail: `${lr} has no manifest date`, days_left: null,
+          });
+        } else if (tripStart) {
+          const difference = Math.round((Date.parse(m.manifest_date) - Date.parse(tripStart)) / 86_400_000);
+          if (difference > 0) {
+            items.push({
+              kind: "manifest_date_future", ref_id: `mdf-${m.id}`,
+              title: `Manifest date after trip start — Trip ${tripCode}`,
+              detail: `${lr} is dated ${m.manifest_date}; trip starts ${tripStart}`, days_left: difference,
+            });
+          } else if (difference < -2) {
+            items.push({
+              kind: "manifest_date_old", ref_id: `mdo-${m.id}`,
+              title: `Manifest date is too old — Trip ${tripCode}`,
+              detail: `${lr} is dated ${m.manifest_date}, ${Math.abs(difference)} days before trip start ${tripStart}`,
+              days_left: difference,
+            });
+          }
+        }
+
+        // Date checks apply to every trip; zero-income checks remain own-vehicle only.
+        if (!ownTripIds.has(m.trip_id)) continue;
+
         // Determine which contract to use: per-manifest source_id first, then trip-level contract_id
         const contractId = m.source_id
           ?? (openTrips ?? []).find((t: Record<string, unknown>) => t.id === m.trip_id)?.contract_id as string | null;
 
         if (!contractId) {
           // No contract at all — manifest definitely has zero income
-          const tripCode = tripCodeMap.get(m.trip_id) ?? m.trip_id;
           const from = m.from_location_id ? (locMap.get(m.from_location_id) ?? m.from_location_id) : "?";
           const to = m.to_location_id ? (locMap.get(m.to_location_id) ?? m.to_location_id) : "?";
-          const lr = m.manifest_number ? `LR ${m.manifest_number}` : "Manifest";
           items.push({
             kind: "manifest_zero_income", ref_id: `mzi-${m.id}`,
             title: `₹0 Freight & Loading — Trip ${tripCode}`,
@@ -261,10 +298,8 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
 
         // Alert if freight + loading are both zero (fixed charge is a separate concern)
         if (charges.freight === 0 && charges.loading === 0) {
-          const tripCode = tripCodeMap.get(m.trip_id) ?? m.trip_id;
           const from = m.from_location_id ? (locMap.get(m.from_location_id) ?? m.from_location_id) : "?";
           const to = m.to_location_id ? (locMap.get(m.to_location_id) ?? m.to_location_id) : "?";
-          const lr = m.manifest_number ? `LR ${m.manifest_number}` : "Manifest";
           let reason = "has no matching rate entry";
           if (entry && charges.freight === 0 && charges.loading === 0) {
             // Entry was found but computed zero — likely no weight/quantity or rates are zero
@@ -340,7 +375,10 @@ export const serverSyncNotifications = createServerFn({ method: "POST" })
     const { data: existing, error: existingError } = await db
       .from("notifications").select("id,kind,ref_id").eq("dismissed", false);
     if (existingError) throw new Error(`Failed to read existing notifications: ${existingError.message}`);
-    const computedKinds = new Set<NotificationKind>(["insurance", "road_tax", "manifest_zero_income"]);
+    const computedKinds = new Set<NotificationKind>([
+      "insurance", "road_tax", "manifest_zero_income", "manifest_date_future",
+      "manifest_date_old", "manifest_date_missing",
+    ]);
     const toDelete = (existing ?? [])
       .filter((r: Record<string,unknown>) =>
         computedKinds.has(r.kind as NotificationKind) && !currentRefIds.includes(r.ref_id as string),

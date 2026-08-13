@@ -19,6 +19,7 @@ import { isDriverActive } from "@/lib/drivers";
 import { readCsvFile, downloadCsv, toCsv } from "@/lib/csv";
 import { ensureLocationsForPins } from "@/lib/ensure-location";
 import { newTripCode } from "@/lib/trip-calc";
+import { normalizeImportedDate } from "@/lib/date-input";
 import { Button } from "@/components/ui/button";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -60,7 +61,7 @@ const TRIPS_COLS = [
   "transporter_name","start_pin_code","end_pin_code","start_date","start_time","end_date","end_time",
   "odometer_start","odometer_end","third_party_vehicle_number",
 ];
-const MANIFESTS_COLS = ["trip_code","manifest_number","source","from_pin_code","to_pin_code","weight_kg","quantity"];
+const MANIFESTS_COLS = ["trip_code","manifest_number","manifest_date","source","from_pin_code","to_pin_code","weight_kg","quantity"];
 const EXPENSES_COLS  = ["trip_code","expense_name","amount","note"];
 const INCOME_COLS    = ["trip_code","income_name","amount","note"];
 
@@ -69,27 +70,7 @@ const INCOME_COLS    = ["trip_code","income_name","amount","note"];
 function norm(s: string) { return (s ?? "").trim().toLowerCase(); }
 
 function normalizeDate(raw: string | undefined): string {
-  const value = (raw ?? "").trim();
-  if (!value) return "";
-
-  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(value)) {
-    const [year, month, day] = value.split("-");
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
-
-  const slash = value.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
-  if (slash) {
-    const [, day, month, year] = slash;
-    return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  }
-
-  const serial = Number(value);
-  if (Number.isInteger(serial) && serial > 0) {
-    const date = new Date(Date.UTC(1899, 11, 30 + serial));
-    return date.toISOString().slice(0, 10);
-  }
-
-  return value;
+  return normalizeImportedDate(raw);
 }
 
 function validate(
@@ -303,6 +284,7 @@ function ReadMe() {
               {[
                 ["trip_code",       "Must match the trip_code in trips.csv exactly"],
                 ["manifest_number", "Your manifest / LR number"],
+                ["manifest_date",   "Manifest date. Excel serial dates, YYYY-MM-DD, DD/MM/YYYY, DD-MM-YYYY and month-name formats are accepted."],
                 ["source",          "Contract/source name used to calculate freight and loading. Must exactly match an active source in Masters → Contracts. Leave blank if charges should stay zero until you edit the manifest."],
                 ["from_pin_code",   "6-digit PIN code of pickup location"],
                 ["to_pin_code",     "6-digit PIN code of delivery location"],
@@ -530,6 +512,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
             mfRows.map(m => ({
               trip_id: tripId,
               manifest_number: m.manifest_number?.trim() ?? "",
+              manifest_date: normalizeImportedDate(m.manifest_date) || null,
               source_id: m.source?.trim() ? (masters.sources.get(norm(m.source)) ?? null) : null,
               from_location_id: null,
               from_pin_code: m.from_pin_code?.trim() ?? "",
