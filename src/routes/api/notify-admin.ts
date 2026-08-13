@@ -11,8 +11,8 @@ export const Route = createFileRoute("/api/notify-admin")({
         }
 
         try {
-          const eligible = await syncScheduledNotificationEmails();
-          return Response.json({ ok: true, eligible });
+          const result = await syncScheduledNotificationEmails();
+          return Response.json({ ok: true, ...result });
         } catch (error) {
           console.error("[notify-admin] Scheduled notification email failed:", error);
           return Response.json(
