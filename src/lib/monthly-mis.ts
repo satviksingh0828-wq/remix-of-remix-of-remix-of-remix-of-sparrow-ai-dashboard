@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { verifyAppToken } from "@/lib/user-auth";
+import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
 
 export type MisScheduleType = "daily" | "weekly" | "day_of_month" | "twice_monthly";
 export type MisActivity = {
@@ -249,23 +250,18 @@ export const serverSaveMisForm = createServerFn({ method: "POST" })
         .select("branch_email,email_address,manager_email")
         .eq("id", data.branchId)
         .maybeSingle();
-      const apiKey = process.env.RESEND_API_KEY;
-      const adminEmail = process.env.ADMIN_ALERT_EMAIL;
+      const adminEmails = adminAlertEmails();
       const depotEmail = branch?.branch_email || branch?.email_address || branch?.manager_email;
-      if (apiKey && (depotEmail || adminEmail)) {
-        const response = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            from:
-              process.env.NOTIFIER_EMAIL ?? process.env.ALERT_FROM_EMAIL ?? "onboarding@resend.dev",
-            to: depotEmail ? [depotEmail] : [adminEmail],
-            cc: depotEmail && adminEmail ? [adminEmail] : undefined,
+      if (process.env.RESEND_API_KEY && (depotEmail || adminEmails.length)) {
+        try {
+          await sendResendEmail({
+            to: [...adminEmails, ...(depotEmail ? [depotEmail] : [])],
             subject: `Monthly MIS submitted — ${form.branch_name} — ${data.month}`,
-            html: `<h2>Monthly MIS submitted</h2><p><strong>${form.branch_name}</strong> submitted its Monthly MIS for <strong>${data.month}</strong>.</p><p>Due: ${metrics.due} &nbsp; Done: ${metrics.done} &nbsp; Missed: ${metrics.missed} &nbsp; Compliance: ${metrics.compliance}%</p>`,
-          }),
-        });
-        if (!response.ok) console.error("[Monthly MIS] Email failed:", await response.text());
+            html: emailTemplate({ title: "Monthly MIS submitted", eyebrow: "Operations report",
+              intro: `<strong>${form.branch_name}</strong> submitted its Monthly MIS for <strong>${data.month}</strong>.`,
+              content: `<table style="width:100%;border-collapse:collapse"><tr>${[["Due",metrics.due],["Done",metrics.done],["Missed",metrics.missed],["Compliance",`${metrics.compliance}%`]].map(([k,v]) => `<td style="padding:14px 8px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0"><strong style="font-size:18px">${v}</strong><br><span style="font-size:11px;color:#64748b">${k}</span></td>`).join("")}</tr></table>` }),
+          });
+        } catch (emailError) { console.error("[Monthly MIS] Email failed:", emailError); }
       }
     }
     return { ok: true, submitted: data.submit, metrics };

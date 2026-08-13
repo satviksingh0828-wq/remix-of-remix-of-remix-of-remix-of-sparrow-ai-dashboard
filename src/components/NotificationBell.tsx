@@ -26,10 +26,19 @@ function KindIcon({ kind }: { kind: NotificationItem["kind"] }) {
     return <ShieldAlert className="size-4 shrink-0 text-amber-500" />;
   if (kind === "road_tax")
     return <AlertTriangle className="size-4 shrink-0 text-violet-500" />;
+  if (kind === "manifest_date_future")
+    return <FileWarning className="size-4 shrink-0 text-purple-500" />;
+  if (kind === "manifest_date_old")
+    return <FileWarning className="size-4 shrink-0 text-yellow-500" />;
+  if (kind === "manifest_date_missing")
+    return <FileWarning className="size-4 shrink-0 text-red-500" />;
   return <FileWarning className="size-4 shrink-0 text-rose-500" />;
 }
 
 function borderClass(item: NotificationItem) {
+  if (item.kind === "manifest_date_future")             return "border-l-2 border-purple-500";
+  if (item.kind === "manifest_date_old")                return "border-l-2 border-yellow-400";
+  if (item.kind === "manifest_date_missing")            return "border-l-2 border-red-500";
   if (item.days_left != null && item.days_left <= 7)  return "border-l-2 border-destructive";
   if (item.days_left != null && item.days_left <= 15) return "border-l-2 border-amber-400";
   if (item.kind === "manifest_zero_income")            return "border-l-2 border-rose-400";
