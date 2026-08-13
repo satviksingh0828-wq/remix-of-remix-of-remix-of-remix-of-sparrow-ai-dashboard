@@ -19,6 +19,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } from "@/lib/trip-calc";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import { shouldEmailNotification } from "@/lib/notification-email-policy";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -69,7 +70,14 @@ const notificationAccent: Record<NotificationKind, string> = {
 
 async function emailPendingNotifications(db: any) {
   const recipients = adminAlertEmails();
-  if (!process.env.RESEND_API_KEY || recipients.length === 0) return;
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[notifications] Email skipped: RESEND_API_KEY is not configured");
+    return;
+  }
+  if (recipients.length === 0) {
+    console.error("[notifications] Email skipped: no admin alert email is configured");
+    return;
+  }
 
   const { data: pending, error } = await db.from("notifications")
     .select("id,kind,title,detail,days_left")
@@ -82,6 +90,9 @@ async function emailPendingNotifications(db: any) {
   // lets a failed delivery retry on the next notification sync.
   for (const item of pending ?? []) {
     const kind = item.kind as NotificationKind;
+    // Manifest date warnings belong in the notification panel only. They are
+    // intentionally left un-emailed while all other alert kinds keep emailing.
+    if (!shouldEmailNotification(kind)) continue;
     const accent = notificationAccent[kind] ?? "#4f46e5";
     const days = item.days_left == null ? "" : `<div style="margin-top:16px;display:inline-block;padding:7px 11px;border-radius:999px;background:${accent}14;color:${accent};font-size:12px;font-weight:700">${Math.abs(Number(item.days_left))} day${Math.abs(Number(item.days_left)) === 1 ? "" : "s"}</div>`;
     try {
@@ -104,6 +115,48 @@ async function emailPendingNotifications(db: any) {
       console.error("[notifications] Admin email failed:", emailError);
     }
   }
+}
+
+/**
+ * Computes current bell alerts and sends eligible pending emails without a
+ * browser session. Used by the scheduled notification route so delivery does
+ * not depend on an administrator having the dashboard open.
+ */
+export async function syncScheduledNotificationEmails(): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabaseAdmin as any;
+  const computed = await computeItems(db);
+  const { data: dismissed, error: dismissedError } = await db
+    .from("notifications")
+    .select("ref_id")
+    .eq("dismissed", true);
+  if (dismissedError) throw new Error(`Failed to read dismissed notifications: ${dismissedError.message}`);
+
+  const dismissedRefs = new Set<string>(
+    (dismissed ?? []).map((row: Record<string, unknown>) => String(row.ref_id)),
+  );
+  const eligible = computed.filter(
+    (item) => !dismissedRefs.has(item.ref_id) && shouldEmailNotification(item.kind),
+  );
+  if (eligible.length > 0) {
+    const now = new Date().toISOString();
+    const { error } = await db.from("notifications").upsert(
+      eligible.map((item) => ({
+        kind: item.kind,
+        ref_id: item.ref_id,
+        title: item.title,
+        detail: item.detail,
+        days_left: item.days_left,
+        updated_at: now,
+      })),
+      { onConflict: "kind,ref_id", ignoreDuplicates: false },
+    );
+    if (error) throw new Error(`Failed to upsert scheduled notifications: ${error.message}`);
+  }
+
+  await emailPendingNotifications(db);
+  return eligible.length;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
