@@ -68,6 +68,12 @@ const notificationAccent: Record<NotificationKind, string> = {
   manifest_date_old: "#ca8a04", manifest_date_missing: "#dc2626",
 };
 
+const panelOnlyNotificationKinds = new Set<NotificationKind>([
+  "manifest_date_future",
+  "manifest_date_old",
+  "manifest_date_missing",
+]);
+
 async function emailPendingNotifications(db: any) {
   const recipients = adminAlertEmails();
   if (!process.env.RESEND_API_KEY || recipients.length === 0) return;
