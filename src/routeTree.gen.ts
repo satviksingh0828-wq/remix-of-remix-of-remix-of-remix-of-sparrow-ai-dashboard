@@ -21,6 +21,7 @@ import { Route as HomeRouteImport } from './routes/home'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
+import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -82,6 +83,11 @@ const ApiNotifyExpiryRoute = ApiNotifyExpiryRouteImport.update({
   path: '/api/notify-expiry',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNotifyAdminRoute = ApiNotifyAdminRouteImport.update({
+  id: '/api/notify-admin',
+  path: '/api/notify-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -95,6 +101,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/system': typeof SystemRoute
   '/users': typeof UsersRoute
+  '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
 }
 export interface FileRoutesByTo {
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/system': typeof SystemRoute
   '/users': typeof UsersRoute
+  '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
 }
 export interface FileRoutesById {
@@ -124,6 +132,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/system': typeof SystemRoute
   '/users': typeof UsersRoute
+  '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
 }
 export interface FileRouteTypes {
@@ -140,6 +149,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/system'
     | '/users'
+    | '/api/notify-admin'
     | '/api/notify-expiry'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -154,6 +164,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/system'
     | '/users'
+    | '/api/notify-admin'
     | '/api/notify-expiry'
   id:
     | '__root__'
@@ -168,6 +179,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/system'
     | '/users'
+    | '/api/notify-admin'
     | '/api/notify-expiry'
   fileRoutesById: FileRoutesById
 }
@@ -183,6 +195,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SystemRoute: typeof SystemRoute
   UsersRoute: typeof UsersRoute
+  ApiNotifyAdminRoute: typeof ApiNotifyAdminRoute
   ApiNotifyExpiryRoute: typeof ApiNotifyExpiryRoute
 }
 
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNotifyExpiryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/notify-admin': {
+      id: '/api/notify-admin'
+      path: '/api/notify-admin'
+      fullPath: '/api/notify-admin'
+      preLoaderRoute: typeof ApiNotifyAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -287,6 +307,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SystemRoute: SystemRoute,
   UsersRoute: UsersRoute,
+  ApiNotifyAdminRoute: ApiNotifyAdminRoute,
   ApiNotifyExpiryRoute: ApiNotifyExpiryRoute,
 }
 export const routeTree = rootRouteImport

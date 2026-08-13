@@ -1,7 +1,7 @@
 /**
  * GET /api/notify-expiry
  *
- * Called daily by Vercel Cron. Sends Resend emails to admin + branch
+ * Available for an authenticated manual compliance run. Sends Resend emails to admin + branch
  * for vehicle insurance and road tax records expiring in exactly 10 or 5 days.
  *
  * Required env vars:
