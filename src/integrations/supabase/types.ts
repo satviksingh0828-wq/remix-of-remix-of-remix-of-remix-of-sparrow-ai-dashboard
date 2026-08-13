@@ -1491,6 +1491,7 @@ export type Database = {
           from_pin_code: string | null;
           id: string;
           manifest_number: string;
+          manifest_date: string | null;
           quantity: string | null;
           to_location_id: string | null;
           to_pin_code: string | null;
@@ -1504,6 +1505,7 @@ export type Database = {
           from_pin_code?: string | null;
           id?: string;
           manifest_number?: string;
+          manifest_date?: string | null;
           quantity?: string | null;
           to_location_id?: string | null;
           to_pin_code?: string | null;
@@ -1517,6 +1519,7 @@ export type Database = {
           from_pin_code?: string | null;
           id?: string;
           manifest_number?: string;
+          manifest_date?: string | null;
           quantity?: string | null;
           to_location_id?: string | null;
           to_pin_code?: string | null;

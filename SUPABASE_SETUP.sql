@@ -345,6 +345,7 @@ CREATE TABLE public.trip_manifests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   trip_id uuid NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
   manifest_number text NOT NULL DEFAULT '',
+  manifest_date date,
   from_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
   from_pin_code text DEFAULT '',
   to_location_id uuid REFERENCES public.locations(id) ON DELETE SET NULL,
