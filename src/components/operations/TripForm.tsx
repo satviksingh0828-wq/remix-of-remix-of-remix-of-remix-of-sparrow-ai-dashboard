@@ -31,6 +31,7 @@ import { isDriverActive } from "@/lib/drivers";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
+import { invalidManifestDates } from "@/lib/manifest-date-validation";
 import { logAction } from "@/lib/log-actions";
 import { ensureLocationForPin, ensureLocationsForPins } from "@/lib/ensure-location";
 import {
@@ -476,6 +477,19 @@ export function TripForm({
 
   async function handleClose() {
     if (!trip.id) return toast.error("Save the trip before closing it");
+
+    if (isBasic) {
+      const invalid = invalidManifestDates(trip.start_date, manifests);
+      if (invalid.length > 0) {
+        const labels = invalid.map((manifest, index) =>
+          manifest.manifest_number?.trim() || `Manifest ${index + 1}`,
+        );
+        window.alert(
+          `Manifest date outside allowed past-day limit\n\n${labels.join(", ")} ${invalid.length === 1 ? "has" : "have"} a missing date or a date older than the allowed two-day limit. Correct the manifest date, or ask an administrator to close this trip.`,
+        );
+        return;
+      }
+    }
 
     // ── Close validation ─────────────────────────────────────────────────────
     if (!isRented && !trip.end_date) {
