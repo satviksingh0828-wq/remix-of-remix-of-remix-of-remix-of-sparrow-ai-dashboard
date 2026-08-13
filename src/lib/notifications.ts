@@ -76,7 +76,14 @@ const panelOnlyNotificationKinds = new Set<NotificationKind>([
 
 async function emailPendingNotifications(db: any) {
   const recipients = adminAlertEmails();
-  if (!process.env.RESEND_API_KEY || recipients.length === 0) return;
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[notifications] Email skipped: RESEND_API_KEY is not configured");
+    return;
+  }
+  if (recipients.length === 0) {
+    console.error("[notifications] Email skipped: no admin alert email is configured");
+    return;
+  }
 
   const { data: pending, error } = await db.from("notifications")
     .select("id,kind,title,detail,days_left")
@@ -114,6 +121,48 @@ async function emailPendingNotifications(db: any) {
       console.error("[notifications] Admin email failed:", emailError);
     }
   }
+}
+
+/**
+ * Computes current bell alerts and sends eligible pending emails without a
+ * browser session. Used by the scheduled notification route so delivery does
+ * not depend on an administrator having the dashboard open.
+ */
+export async function syncScheduledNotificationEmails(): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabaseAdmin as any;
+  const computed = await computeItems(db);
+  const { data: dismissed, error: dismissedError } = await db
+    .from("notifications")
+    .select("ref_id")
+    .eq("dismissed", true);
+  if (dismissedError) throw new Error(`Failed to read dismissed notifications: ${dismissedError.message}`);
+
+  const dismissedRefs = new Set<string>(
+    (dismissed ?? []).map((row: Record<string, unknown>) => String(row.ref_id)),
+  );
+  const eligible = computed.filter(
+    (item) => !dismissedRefs.has(item.ref_id) && shouldEmailNotification(item.kind),
+  );
+  if (eligible.length > 0) {
+    const now = new Date().toISOString();
+    const { error } = await db.from("notifications").upsert(
+      eligible.map((item) => ({
+        kind: item.kind,
+        ref_id: item.ref_id,
+        title: item.title,
+        detail: item.detail,
+        days_left: item.days_left,
+        updated_at: now,
+      })),
+      { onConflict: "kind,ref_id", ignoreDuplicates: false },
+    );
+    if (error) throw new Error(`Failed to upsert scheduled notifications: ${error.message}`);
+  }
+
+  await emailPendingNotifications(db);
+  return eligible.length;
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
