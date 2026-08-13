@@ -19,6 +19,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } from "@/lib/trip-calc";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import { shouldEmailNotification } from "@/lib/notification-email-policy";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -67,9 +68,16 @@ const notificationAccent: Record<NotificationKind, string> = {
   manifest_date_old: "#ca8a04", manifest_date_missing: "#dc2626",
 };
 
-async function emailPendingNotifications(db: any) {
+async function emailPendingNotifications(db: any): Promise<{ sent: number; failed: number }> {
   const recipients = adminAlertEmails();
-  if (!process.env.RESEND_API_KEY || recipients.length === 0) return;
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[notifications] Email skipped: RESEND_API_KEY is not configured");
+    return { sent: 0, failed: 0 };
+  }
+  if (recipients.length === 0) {
+    console.error("[notifications] Email skipped: no admin alert email is configured");
+    return { sent: 0, failed: 0 };
+  }
 
   const { data: pending, error } = await db.from("notifications")
     .select("id,kind,title,detail,days_left")
@@ -80,8 +88,13 @@ async function emailPendingNotifications(db: any) {
 
   // One well-formatted email per notification keeps subjects searchable and
   // lets a failed delivery retry on the next notification sync.
+  let sent = 0;
+  let failed = 0;
   for (const item of pending ?? []) {
     const kind = item.kind as NotificationKind;
+    // Manifest date warnings belong in the notification panel only. They are
+    // intentionally left un-emailed while all other alert kinds keep emailing.
+    if (!shouldEmailNotification(kind)) continue;
     const accent = notificationAccent[kind] ?? "#4f46e5";
     const days = item.days_left == null ? "" : `<div style="margin-top:16px;display:inline-block;padding:7px 11px;border-radius:999px;background:${accent}14;color:${accent};font-size:12px;font-weight:700">${Math.abs(Number(item.days_left))} day${Math.abs(Number(item.days_left)) === 1 ? "" : "s"}</div>`;
     try {
@@ -100,10 +113,58 @@ async function emailPendingNotifications(db: any) {
       const { error: markError } = await db.from("notifications")
         .update({ emailed_at: new Date().toISOString() }).eq("id", item.id).is("emailed_at", null);
       if (markError) throw new Error(`Failed to mark notification emailed: ${markError.message}`);
+      sent++;
     } catch (emailError) {
+      failed++;
       console.error("[notifications] Admin email failed:", emailError);
     }
   }
+  return { sent, failed };
+}
+
+/**
+ * Computes current bell alerts and sends eligible pending emails without a
+ * browser session. Used by the scheduled notification route so delivery does
+ * not depend on an administrator having the dashboard open.
+ */
+export async function syncScheduledNotificationEmails(): Promise<{ notifications: number; sent: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabaseAdmin as any;
+  const computed = await computeItems(db);
+  const { data: dismissed, error: dismissedError } = await db
+    .from("notifications")
+    .select("ref_id")
+    .eq("dismissed", true);
+  if (dismissedError) throw new Error(`Failed to read dismissed notifications: ${dismissedError.message}`);
+
+  const dismissedRefs = new Set<string>(
+    (dismissed ?? []).map((row: Record<string, unknown>) => String(row.ref_id)),
+  );
+  // Store every issue independently so a manifest can show both a date warning
+  // and a zero-freight warning. Email policy is applied only during delivery.
+  const active = computed.filter((item) => !dismissedRefs.has(item.ref_id));
+  if (active.length > 0) {
+    const now = new Date().toISOString();
+    const { error } = await db.from("notifications").upsert(
+      active.map((item) => ({
+        kind: item.kind,
+        ref_id: item.ref_id,
+        title: item.title,
+        detail: item.detail,
+        days_left: item.days_left,
+        updated_at: now,
+      })),
+      { onConflict: "kind,ref_id", ignoreDuplicates: false },
+    );
+    if (error) throw new Error(`Failed to upsert scheduled notifications: ${error.message}`);
+  }
+
+  const delivery = await emailPendingNotifications(db);
+  if (delivery.failed > 0) {
+    throw new Error(`${delivery.failed} notification email${delivery.failed === 1 ? "" : "s"} failed to send`);
+  }
+  return { notifications: active.length, sent: delivery.sent };
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -348,24 +409,27 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
         const entry = findEntry(entries, manifestLite);
         const charges = manifestCharges(contract, entry, manifestLite);
 
-        // Alert if freight + loading are both zero (fixed charge is a separate concern)
-        if (charges.freight === 0 && charges.loading === 0) {
+        // Freight is mandatory income. Report ₹0 freight even when loading or a
+        // fixed charge exists; those separate charges must not hide the error.
+        if (charges.freight === 0) {
           const from = m.from_location_id ? (locMap.get(m.from_location_id) ?? m.from_location_id) : "?";
           const to = m.to_location_id ? (locMap.get(m.to_location_id) ?? m.to_location_id) : "?";
           let reason = "has no matching rate entry";
-          if (entry && charges.freight === 0 && charges.loading === 0) {
+          if (entry && charges.freight === 0) {
             // Entry was found but computed zero — likely no weight/quantity or rates are zero
             const hasWeight = num(m.weight_kg) > 0;
             const hasQty = num(m.quantity) > 0;
             if (!hasWeight && !hasQty) {
               reason = "has no weight or quantity";
             } else {
-              reason = "has ₹0 freight & loading rates";
+              reason = charges.loading === 0
+                ? "has ₹0 freight & loading rates"
+                : `has ₹0 freight (loading is ₹${charges.loading.toLocaleString("en-IN")})`;
             }
           }
           items.push({
             kind: "manifest_zero_income", ref_id: `mzi-${m.id}`,
-            title: `₹0 Freight & Loading — Trip ${tripCode}`,
+            title: `₹0 Freight — Trip ${tripCode}`,
             detail: `${lr}: ${from} → ${to} ${reason}`,
             days_left: null,
           });
