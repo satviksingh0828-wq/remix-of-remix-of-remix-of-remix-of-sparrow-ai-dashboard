@@ -167,9 +167,12 @@ export function Trips() {
     );
   };
 
+  // Rows in `trips` are live/open records. Closing archives a snapshot in
+  // `closed_trips` and removes the live row. Do not use end_date as a visibility
+  // filter: the close form saves end details before archival, and a cancelled or
+  // failed close would otherwise make that still-live trip disappear.
   const visibleTrips = useMemo(() =>
     trips.filter((t) =>
-      !(t.end_date ?? "").trim() &&
       matchesTripSearch(t.id, t.trip_code) &&
       (branchFilter === "all" || t.branch_id === branchFilter)
     ),
