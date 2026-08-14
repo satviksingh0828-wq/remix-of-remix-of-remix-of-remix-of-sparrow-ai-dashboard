@@ -86,7 +86,7 @@ begin
     raise exception 'Only own-vehicle trips can be linked to the Driver''s App';
   end if;
 
-  v_token := encode(gen_random_bytes(32), 'base64url');
+  v_token := encode(gen_random_bytes(32), 'hex');
   v_expires_at := now() + make_interval(mins => p_ttl_minutes);
 
   insert into public.driver_trip_qr_tokens (trip_id, token_hash, expires_at)
@@ -149,7 +149,7 @@ begin
     );
   end if;
 
-  v_session_token := encode(gen_random_bytes(32), 'base64url');
+  v_session_token := encode(gen_random_bytes(32), 'hex');
 
   if found then
     v_link_id := v_link.id;
