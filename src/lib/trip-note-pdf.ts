@@ -73,6 +73,7 @@ export type TripNoteData = {
   };
   branch?: TripNoteBranch | null;
   trip: {
+    id?: string | null;
     trip_code: string;
     start_date?: string | null;
     end_date?: string | null;
@@ -91,6 +92,8 @@ export type TripNoteData = {
   } | null;
   third_party_vehicle_number?: string | null;
   manifests: TripNoteManifest[];
+  /** Fresh Driver’s App QR image data URI; populated only for own-vehicle trips. */
+  driver_app_qr_data_uri?: string | null;
 };
 
 // ── Supabase helpers ───────────────────────────────────────────────────────────
@@ -258,6 +261,13 @@ function buildTripNoteCSS(primaryHex: string): string {
   border-bottom: 0.7px solid #ddd; padding-bottom: 3px;
 }
 .tn-trip-box-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+.tn-driver-app-qr {
+  display: flex; align-items: center; gap: 10px; border: 1px solid #ccc; border-radius: 3px;
+  padding: 7px 9px; margin-bottom: 8px; page-break-inside: avoid;
+}
+.tn-driver-app-qr img { width: 72px; height: 72px; image-rendering: pixelated; }
+.tn-driver-app-qr h4 { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: #666; margin-bottom: 4px; }
+.tn-driver-app-qr p { font-size: 9px; color: #555; line-height: 1.4; }
 
 /* Details columns */
 .tn-details-wrap { display: flex; gap: 10px; margin-bottom: 8px; }
@@ -382,6 +392,19 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
       ${dr("Licence Expiry Date", sv(driver?.licence_expiry_date))}
     </div>`;
 
+  const driverAppQrBlock =
+    trip.ownership === "own" && data.driver_app_qr_data_uri
+      ? `
+    <div class="tn-driver-app-qr">
+      <img src="${data.driver_app_qr_data_uri}" alt="Driver’s App QR code" />
+      <div>
+        <h4>Driver’s App</h4>
+        <p>Scan this QR code to link the own-vehicle trip to the Driver’s App.</p>
+        <p><strong>Trip Code:</strong> ${sv(trip.trip_code)}</p>
+      </div>
+    </div>`
+      : "";
+
   // Transporter block (3rd party)
   const transporterBlock = `
     <div class="tn-details-col">
@@ -456,6 +479,7 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
     </div>
   </div>
 
+  ${driverAppQrBlock}
   <div class="tn-details-wrap">
     ${isOwn ? vehicleBlock + driverBlock : transporterBlock}
   </div>

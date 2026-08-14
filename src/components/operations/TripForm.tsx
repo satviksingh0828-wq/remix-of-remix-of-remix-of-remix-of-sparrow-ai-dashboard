@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Loader2, Lock, Plus, Printer, Save, Trash2 } from "lucide-react";
+import QRCode from "qrcode";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -481,8 +482,8 @@ export function TripForm({
     if (isBasic) {
       const invalid = invalidManifestDates(trip.start_date, manifests);
       if (invalid.length > 0) {
-        const labels = invalid.map((manifest, index) =>
-          manifest.manifest_number?.trim() || `Manifest ${index + 1}`,
+        const labels = invalid.map(
+          (manifest, index) => manifest.manifest_number?.trim() || `Manifest ${index + 1}`,
         );
         window.alert(
           `Manifest date outside allowed past-day limit\n\n${labels.join(", ")} ${invalid.length === 1 ? "has" : "have"} a missing date or a date older than the allowed two-day limit. Correct the manifest date, or ask an administrator to close this trip.`,
@@ -610,6 +611,27 @@ export function TripForm({
   async function handleTripNote() {
     setGeneratingPdf(true);
     try {
+      let driverAppQrDataUri: string | null = null;
+      if (trip.ownership === "own" && trip.id) {
+        const { data: qrData, error: qrError } = await supabase.rpc(
+          "issue_driver_trip_qr" as never,
+          { p_trip_id: trip.id, p_ttl_minutes: 30 } as never,
+        );
+        if (qrError) {
+          toast.error(qrError.message || "Could not create the Driver’s App QR code");
+          return;
+        }
+        const qr = qrData as unknown as { token?: string; trip_code?: string };
+        if (!qr?.token) {
+          toast.error("Supabase returned an invalid Driver’s App QR response");
+          return;
+        }
+        driverAppQrDataUri = await QRCode.toDataURL(
+          JSON.stringify({ type: "garuda-driver-trip", token: qr.token, tripCode: qr.trip_code }),
+          { width: 240, margin: 1, errorCorrectionLevel: "M" },
+        );
+      }
+
       // Resolve insurance number for the trip's start-date month (own vehicles only)
       let insuranceNumber: string | null = null;
       if (vehicle && trip.ownership === "own" && trip.start_date) {
@@ -644,6 +666,7 @@ export function TripForm({
         company,
         branch,
         trip: {
+          id: trip.id ?? null,
           trip_code: trip.trip_code,
           start_date: trip.start_date,
           end_date: trip.end_date,
@@ -694,6 +717,7 @@ export function TripForm({
             }
           : null,
         third_party_vehicle_number: trip.third_party_vehicle_number || null,
+        driver_app_qr_data_uri: driverAppQrDataUri,
         manifests: manifests.map((m) => ({
           manifest_number: m.manifest_number,
           quantity: m.quantity,
