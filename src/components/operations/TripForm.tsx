@@ -611,22 +611,22 @@ export function TripForm({
   async function handleTripNote() {
     setGeneratingPdf(true);
     try {
-      let driverAppQrDataUri: string | null = null;
+      let tripQrDataUri: string | null = null;
       if (trip.ownership === "own" && trip.id) {
         const { data: qrData, error: qrError } = await supabase.rpc(
           "issue_driver_trip_qr" as never,
           { p_trip_id: trip.id } as never,
         );
         if (qrError) {
-          toast.error(qrError.message || "Could not create the Driver’s App QR code");
+          toast.error(qrError.message || "Could not create the Trip QR Code");
           return;
         }
         const qr = qrData as unknown as { token?: string; trip_code?: string };
         if (!qr?.token) {
-          toast.error("Supabase returned an invalid Driver’s App QR response");
+          toast.error("Supabase returned an invalid Trip QR Code response");
           return;
         }
-        driverAppQrDataUri = await QRCode.toDataURL(
+        tripQrDataUri = await QRCode.toDataURL(
           JSON.stringify({ type: "garuda-driver-trip", token: qr.token, tripCode: qr.trip_code }),
           { width: 240, margin: 1, errorCorrectionLevel: "M" },
         );
@@ -717,7 +717,7 @@ export function TripForm({
             }
           : null,
         third_party_vehicle_number: trip.third_party_vehicle_number || null,
-        driver_app_qr_data_uri: driverAppQrDataUri,
+        trip_qr_data_uri: tripQrDataUri,
         manifests: manifests.map((m) => ({
           manifest_number: m.manifest_number,
           quantity: m.quantity,

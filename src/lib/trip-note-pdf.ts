@@ -92,8 +92,8 @@ export type TripNoteData = {
   } | null;
   third_party_vehicle_number?: string | null;
   manifests: TripNoteManifest[];
-  /** Fresh Driver’s App QR image data URI; populated only for own-vehicle trips. */
-  driver_app_qr_data_uri?: string | null;
+  /** Stable Trip QR Code image data URI; populated only for own-vehicle trips. */
+  trip_qr_data_uri?: string | null;
 };
 
 // ── Supabase helpers ───────────────────────────────────────────────────────────
@@ -393,13 +393,13 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
     </div>`;
 
   const driverAppQrBlock =
-    trip.ownership === "own" && data.driver_app_qr_data_uri
+    trip.ownership === "own" && data.trip_qr_data_uri
       ? `
     <div class="tn-driver-app-qr">
-      <img src="${data.driver_app_qr_data_uri}" alt="Driver’s App QR code" />
+      <img src="${data.trip_qr_data_uri}" alt="Trip QR Code" />
       <div>
-        <h4>Driver’s App</h4>
-        <p>Scan this QR code to link the own-vehicle trip to the Driver’s App.</p>
+        <h4>Trip QR Code</h4>
+        <p>Scan this permanent Trip QR Code to link the own-vehicle trip.</p>
         <p><strong>Trip Code:</strong> ${sv(trip.trip_code)}</p>
       </div>
     </div>`

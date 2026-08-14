@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { Loader2, MapPin, QrCode, RefreshCw, Smartphone } from "lucide-react";
+import { Loader2, Map, MapPin, QrCode, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -135,8 +135,8 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
           size="sm"
           onClick={() => void issueQr()}
           disabled={loadingQr}
-          title="Show Driver’s App QR code"
-          aria-label={`Show Driver’s App QR code for ${trip.trip_code}`}
+          title="Show Trip QR Code"
+          aria-label={`Show Trip QR Code for ${trip.trip_code}`}
         >
           {loadingQr ? <Loader2 className="size-4 animate-spin" /> : <QrCode className="size-4" />}
         </Button>
@@ -155,18 +155,18 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Smartphone className="size-5 text-primary" />
-              Driver’s App trip link
+              <QrCode className="size-5 text-primary" />
+              Trip QR Code
             </DialogTitle>
             <DialogDescription>
-              Scan this permanent code from the Driver’s App. It remains the same for this own-vehicle trip.
+              Scan this permanent Trip QR Code. It remains the same for this own-vehicle trip.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
             {qrImage ? (
               <img
                 src={qrImage}
-                alt={`Driver’s App QR code for trip ${trip.trip_code}`}
+                alt={`Trip QR Code for trip ${trip.trip_code}`}
                 className="size-72 rounded-xl border border-border p-2"
               />
             ) : (
@@ -191,8 +191,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
               Live driver location
             </DialogTitle>
             <DialogDescription>
-              Own-vehicle trip {trip.trip_code}. The location is supplied by the linked Driver’s App
-              device.
+              Own-vehicle trip {trip.trip_code}. The map shows the latest location received from the linked device.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -202,6 +201,22 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
               </div>
             ) : location?.latitude != null && location.longitude != null ? (
               <>
+                <div className="overflow-hidden rounded-xl border border-border bg-muted/30">
+                  <iframe
+                    title={`Live location map for trip ${trip.trip_code}`}
+                    className="h-64 w-full border-0"
+                    loading="lazy"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${location.longitude - 0.01}%2C${location.latitude - 0.01}%2C${location.longitude + 0.01}%2C${location.latitude + 0.01}&layer=mapnik&marker=${location.latitude}%2C${location.longitude}`}
+                  />
+                  <a
+                    className="flex items-center justify-center gap-1 border-t border-border px-3 py-2 text-xs text-primary hover:underline"
+                    href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Map className="size-3.5" /> Open full map
+                  </a>
+                </div>
                 <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
                   <p className="font-medium">
                     {location.active ? "Tracking active" : "Tracking ended"}
@@ -224,7 +239,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Open location in Google Maps
+                  Open coordinates in Google Maps
                 </a>
               </>
             ) : (
