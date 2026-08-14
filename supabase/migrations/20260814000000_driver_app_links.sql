@@ -92,12 +92,13 @@ declare
 begin
   select t.id, t.trip_code, t.ownership
     into v_trip
-    from public.trips t
+   from public.trips t
    where t.id = p_trip_id
-     and t.ownership = 'own';
+     and t.ownership = 'own'
+     and coalesce(nullif(trim(t.end_date), ''), '') = '';
 
   if not found then
-    raise exception 'Only own-vehicle trips can be linked to the Driver''s App';
+    raise exception 'Only open own-vehicle trips can have a Trip QR Code';
   end if;
 
   -- Reuse the same token forever for this trip. Old rows created by the
@@ -153,13 +154,14 @@ begin
 
   select q.id, q.trip_id, t.trip_code, t.ownership, q.expires_at, q.used_at
     into v_qr
-    from public.driver_trip_qr_tokens q
+   from public.driver_trip_qr_tokens q
     join public.trips t on t.id = q.trip_id
    where q.token_hash = encode(digest(p_qr_token, 'sha256'), 'hex')
+     and coalesce(nullif(trim(t.end_date), ''), '') = ''
    for update;
 
   if not found or v_qr.ownership <> 'own' then
-    raise exception 'Invalid own-vehicle trip QR code';
+    raise exception 'This Trip QR Code is not linked to an open own-vehicle trip';
   end if;
   -- Stable QR codes are reusable. Device ownership is enforced below.
 
@@ -194,6 +196,7 @@ begin
   return jsonb_build_object(
     'status', 'linked',
     'session_token', v_session_token,
+    'link_id', v_link_id,
     'trip_id', v_qr.trip_id,
     'trip_code', v_qr.trip_code
   );
