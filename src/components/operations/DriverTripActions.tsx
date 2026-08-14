@@ -184,8 +184,8 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
       </Dialog>
 
       <Dialog open={locationOpen} onOpenChange={setLocationOpen}>
-        <DialogContent className="w-[calc(100vw-1.25rem)] max-w-2xl gap-0 overflow-hidden p-0 sm:w-full">
-          <DialogHeader className="px-5 pb-3 pt-6 sm:px-7 sm:pt-7">
+        <DialogContent className="flex max-h-[calc(100dvh-1rem)] w-[calc(100dvw-1rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-h-[calc(100dvh-2rem)] sm:w-full">
+          <DialogHeader className="shrink-0 px-5 pb-3 pt-6 pr-12 sm:px-7 sm:pt-7">
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="size-5 text-primary" />
               Live driver location
@@ -194,9 +194,9 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
               Own-vehicle trip {trip.trip_code}. The map shows the latest location received from the linked device.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 px-4 pb-5 sm:px-7 sm:pb-7">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5 sm:space-y-5 sm:px-7 sm:pb-7">
             {loadingLocation ? (
-              <div className="flex min-h-72 items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-sm text-muted-foreground">
+              <div className="flex min-h-52 items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-sm text-muted-foreground sm:min-h-72">
                 <Loader2 className="size-4 animate-spin" /> Loading latest location…
               </div>
             ) : location?.latitude != null && location.longitude != null ? (
@@ -204,7 +204,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                 <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 p-1.5 shadow-sm sm:p-2">
                   <iframe
                     title={`Live location map for trip ${trip.trip_code}`}
-                    className="h-[min(52vh,420px)] min-h-72 w-full rounded-xl border-0 bg-muted"
+                    className="h-52 w-full rounded-xl border-0 bg-muted sm:h-[min(52dvh,420px)] sm:min-h-72"
                     loading="lazy"
                     src={`https://www.openstreetmap.org/export/embed.html?bbox=${location.longitude - 0.01}%2C${location.latitude - 0.01}%2C${location.longitude + 0.01}%2C${location.latitude + 0.01}&layer=mapnik&marker=${location.latitude}%2C${location.longitude}`}
                   />
@@ -217,33 +217,35 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                     <Map className="size-3.5" /> Open full map
                   </a>
                 </div>
-                <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm sm:p-5">
-                  <p className="font-medium">
-                    {location.active ? "Tracking active" : "Tracking ended"}
-                  </p>
-                  <p className="mt-1 text-muted-foreground">
-                    Last GPS update: {formatLocationTime(location.recorded_at)}
-                  </p>
-                  {location.accuracy_m != null ? (
-                    <p className="text-muted-foreground">
-                      Accuracy: ±{Math.round(location.accuracy_m)} m
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
+                  <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm sm:p-5">
+                    <p className="font-medium">
+                      {location.active ? "Tracking active" : "Tracking ended"}
                     </p>
-                  ) : null}
-                  <p className="mt-3 font-mono text-xs">
-                    {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                  </p>
+                    <p className="mt-1 text-muted-foreground">
+                      Last GPS update: {formatLocationTime(location.recorded_at)}
+                    </p>
+                    {location.accuracy_m != null ? (
+                      <p className="text-muted-foreground">
+                        Accuracy: ±{Math.round(location.accuracy_m)} m
+                      </p>
+                    ) : null}
+                    <p className="mt-3 break-all font-mono text-xs">
+                      {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                    </p>
+                  </div>
+                  <a
+                    className="flex min-h-12 items-center justify-center rounded-xl bg-primary px-4 py-3 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 sm:w-44"
+                    href={`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open in Google Maps
+                  </a>
                 </div>
-                <a
-                  className="block rounded-xl bg-primary px-4 py-3 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                  href={`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open coordinates in Google Maps
-                </a>
               </>
             ) : (
-              <div className="flex min-h-72 items-center justify-center rounded-2xl bg-muted/50 p-8 text-center text-sm text-muted-foreground">
+              <div className="flex min-h-52 items-center justify-center rounded-2xl bg-muted/50 p-8 text-center text-sm text-muted-foreground sm:min-h-72">
                 No live location has been received for this trip yet.
               </div>
             )}
