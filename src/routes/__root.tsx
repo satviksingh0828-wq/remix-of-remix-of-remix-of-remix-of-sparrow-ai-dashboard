@@ -51,7 +51,23 @@ function NotFoundComponent() {
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
+  const isDynamicImportError = /dynamically imported module|failed to fetch dynamically imported module|loading chunk/i.test(
+    error?.message ?? "",
+  );
   console.error("[AppError]", error?.message, error?.stack);
+
+  const retry = () => {
+    if (isDynamicImportError) {
+      // A deployment can leave the browser with an old route manifest whose
+      // hashed chunk no longer exists. Fetch fresh SSR HTML before retrying.
+      const url = new URL(window.location.href);
+      url.searchParams.set("_asset_retry", Date.now().toString());
+      window.location.replace(url.toString());
+      return;
+    }
+    router.invalidate();
+    reset();
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -70,10 +86,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         )}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
+            onClick={retry}
             className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             Try again
