@@ -1,6 +1,17 @@
--- Read-only verification for the stable Trip QR Code and live-location setup.
--- Run this after applying DRIVER_APP_COMPLETE_FIX.sql.
+-- Repair-and-verify script for the stable Trip QR Code and live-location setup.
+-- Run DRIVER_APP_COMPLETE_FIX.sql first for the complete installation.
+-- This preflight safely adds the stable token column if an older installation is present.
 -- Every result should show the expected value in the "expected" column.
+
+do $$
+begin
+  if to_regclass('public.driver_trip_qr_tokens') is null then
+    raise exception 'driver_trip_qr_tokens is missing. Run DRIVER_APP_COMPLETE_FIX.sql first.';
+  end if;
+  execute 'alter table public.driver_trip_qr_tokens add column if not exists token text';
+  execute 'alter table public.driver_trip_qr_tokens alter column expires_at drop not null';
+end;
+$$;
 
 -- 1. Required tables.
 select table_name,
