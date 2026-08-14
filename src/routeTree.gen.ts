@@ -22,6 +22,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
 import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
+import { Route as ApiDriverThemeRouteImport } from './routes/api/driver/theme'
 import { Route as ApiDriverTripsLocationRouteImport } from './routes/api/driver/trips/location'
 import { Route as ApiDriverTripsEndRouteImport } from './routes/api/driver/trips/end'
 import { Route as ApiDriverTripsCurrentRouteImport } from './routes/api/driver/trips/current'
@@ -92,6 +93,11 @@ const ApiNotifyAdminRoute = ApiNotifyAdminRouteImport.update({
   path: '/api/notify-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDriverThemeRoute = ApiDriverThemeRouteImport.update({
+  id: '/api/driver/theme',
+  path: '/api/driver/theme',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDriverTripsLocationRoute = ApiDriverTripsLocationRouteImport.update({
   id: '/api/driver/trips/location',
   path: '/api/driver/trips/location',
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
+  '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
+  '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
@@ -166,6 +174,7 @@ export interface FileRoutesById {
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
+  '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
@@ -187,6 +196,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
+    | '/api/driver/theme'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
+    | '/api/driver/theme'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
@@ -225,6 +236,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
+    | '/api/driver/theme'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
@@ -245,6 +257,7 @@ export interface RootRouteChildren {
   UsersRoute: typeof UsersRoute
   ApiNotifyAdminRoute: typeof ApiNotifyAdminRoute
   ApiNotifyExpiryRoute: typeof ApiNotifyExpiryRoute
+  ApiDriverThemeRoute: typeof ApiDriverThemeRoute
   ApiDriverTripsClaimRoute: typeof ApiDriverTripsClaimRoute
   ApiDriverTripsCurrentRoute: typeof ApiDriverTripsCurrentRoute
   ApiDriverTripsEndRoute: typeof ApiDriverTripsEndRoute
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNotifyAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/driver/theme': {
+      id: '/api/driver/theme'
+      path: '/api/driver/theme'
+      fullPath: '/api/driver/theme'
+      preLoaderRoute: typeof ApiDriverThemeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/driver/trips/location': {
       id: '/api/driver/trips/location'
       path: '/api/driver/trips/location'
@@ -389,6 +409,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsersRoute: UsersRoute,
   ApiNotifyAdminRoute: ApiNotifyAdminRoute,
   ApiNotifyExpiryRoute: ApiNotifyExpiryRoute,
+  ApiDriverThemeRoute: ApiDriverThemeRoute,
   ApiDriverTripsClaimRoute: ApiDriverTripsClaimRoute,
   ApiDriverTripsCurrentRoute: ApiDriverTripsCurrentRoute,
   ApiDriverTripsEndRoute: ApiDriverTripsEndRoute,
