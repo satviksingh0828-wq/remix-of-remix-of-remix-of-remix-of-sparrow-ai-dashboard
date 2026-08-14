@@ -184,8 +184,8 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
       </Dialog>
 
       <Dialog open={locationOpen} onOpenChange={setLocationOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
+        <DialogContent className="w-[calc(100vw-1.25rem)] max-w-2xl gap-0 overflow-hidden p-0 sm:w-full">
+          <DialogHeader className="px-5 pb-3 pt-6 sm:px-7 sm:pt-7">
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="size-5 text-primary" />
               Live driver location
@@ -194,22 +194,22 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
               Own-vehicle trip {trip.trip_code}. The map shows the latest location received from the linked device.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-5 px-4 pb-5 sm:px-7 sm:pb-7">
             {loadingLocation ? (
-              <div className="flex items-center justify-center gap-2 rounded-xl bg-muted/50 p-8 text-sm text-muted-foreground">
+              <div className="flex min-h-72 items-center justify-center gap-2 rounded-2xl bg-muted/50 p-8 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Loading latest location…
               </div>
             ) : location?.latitude != null && location.longitude != null ? (
               <>
-                <div className="overflow-hidden rounded-xl border border-border bg-muted/30">
+                <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 p-1.5 shadow-sm sm:p-2">
                   <iframe
                     title={`Live location map for trip ${trip.trip_code}`}
-                    className="h-64 w-full border-0"
+                    className="h-[min(52vh,420px)] min-h-72 w-full rounded-xl border-0 bg-muted"
                     loading="lazy"
                     src={`https://www.openstreetmap.org/export/embed.html?bbox=${location.longitude - 0.01}%2C${location.latitude - 0.01}%2C${location.longitude + 0.01}%2C${location.latitude + 0.01}&layer=mapnik&marker=${location.latitude}%2C${location.longitude}`}
                   />
                   <a
-                    className="flex items-center justify-center gap-1 border-t border-border px-3 py-2 text-xs text-primary hover:underline"
+                    className="mt-1.5 flex items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-xs font-medium text-primary hover:bg-primary/5 hover:underline"
                     href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
                     target="_blank"
                     rel="noreferrer"
@@ -217,7 +217,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                     <Map className="size-3.5" /> Open full map
                   </a>
                 </div>
-                <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
+                <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm sm:p-5">
                   <p className="font-medium">
                     {location.active ? "Tracking active" : "Tracking ended"}
                   </p>
@@ -234,7 +234,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                   </p>
                 </div>
                 <a
-                  className="block rounded-xl bg-primary px-4 py-2.5 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                  className="block rounded-xl bg-primary px-4 py-3 text-center text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
                   href={`https://www.google.com/maps/search/?api=1&query=${location.latitude},${location.longitude}`}
                   target="_blank"
                   rel="noreferrer"
@@ -243,7 +243,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                 </a>
               </>
             ) : (
-              <div className="rounded-xl bg-muted/50 p-8 text-center text-sm text-muted-foreground">
+              <div className="flex min-h-72 items-center justify-center rounded-2xl bg-muted/50 p-8 text-center text-sm text-muted-foreground">
                 No live location has been received for this trip yet.
               </div>
             )}
