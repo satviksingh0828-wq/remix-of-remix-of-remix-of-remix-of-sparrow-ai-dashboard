@@ -130,11 +130,13 @@ function ReportsPage() {
   useEffect(() => {
     if (user && user.role !== "admin" && user.role !== "viewer")
       navigate({ to: "/home", replace: true });
-  }, [user, navigate]);
+    if (user?.role === "viewer" && tab === "pnl-compare") setTab("monthly-mis");
+  }, [user, navigate, tab]);
 
   if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const visibleTabs = user?.role === "viewer" ? TABS.filter((t) => t.id !== "pnl-compare") : TABS;
+  const active = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0];
 
   return (
     <AppShell
@@ -176,7 +178,7 @@ function ReportsPage() {
               Reports
             </p>
             <ul className="space-y-1">
-              {TABS.map((t) => {
+              {visibleTabs.map((t) => {
                 const Icon = t.icon;
                 const isActive = t.id === tab;
                 return (
@@ -206,7 +208,7 @@ function ReportsPage() {
         {/* ── Mobile horizontal tab bar ── */}
         <div className="lg:hidden -mx-1">
           <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
-            {TABS.map((t) => {
+            {visibleTabs.map((t) => {
               const Icon = t.icon;
               const isActive = t.id === tab;
               return (

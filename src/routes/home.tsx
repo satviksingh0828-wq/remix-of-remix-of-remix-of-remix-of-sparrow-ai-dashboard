@@ -1,14 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  BarChart3,
-  Database,
-  FileText,
-  Settings2,
-  Truck,
-  Users,
-} from "lucide-react";
+import { ArrowRight, BarChart3, Database, FileText, Settings2, Truck, Users } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -65,7 +57,7 @@ const ALL_MODULES = [
     icon: BarChart3,
     active: true,
     to: "/dashboard" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin"] as const,
   },
   {
     key: "reports",
@@ -107,9 +99,7 @@ function HomePage() {
   }, []);
 
   const role = user?.role ?? "basic";
-  const MODULES = ALL_MODULES.filter((m) =>
-    (m.roles as readonly string[]).includes(role),
-  );
+  const MODULES = ALL_MODULES.filter((m) => (m.roles as readonly string[]).includes(role));
 
   return (
     <AppShell>
@@ -117,9 +107,7 @@ function HomePage() {
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">Workspace</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Garuda Logistics Solutions</h1>
         <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          {role === "admin"
-            ? "Select a module"
-            : "Select a module"}
+          {role === "admin" ? "Select a module" : "Select a module"}
         </p>
       </div>
 
