@@ -31,7 +31,7 @@ type LiveLocation = {
 } | null;
 
 function isOwnTrip(trip: TripRow) {
-  return trip.ownership === "own" && Boolean(trip.id);
+  return trip.ownership === "own" && !(trip.end_date ?? "").trim() && Boolean(trip.id);
 }
 
 function formatLocationTime(value?: string) {

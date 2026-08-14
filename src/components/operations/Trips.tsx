@@ -169,6 +169,7 @@ export function Trips() {
 
   const visibleTrips = useMemo(() =>
     trips.filter((t) =>
+      !(t.end_date ?? "").trim() &&
       matchesTripSearch(t.id, t.trip_code) &&
       (branchFilter === "all" || t.branch_id === branchFilter)
     ),
