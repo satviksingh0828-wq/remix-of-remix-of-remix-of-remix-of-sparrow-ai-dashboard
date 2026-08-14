@@ -1065,6 +1065,7 @@ function Field({
   type = "text",
   min,
   max,
+  required = false,
 }: {
   label: string;
   value: string;
@@ -1072,16 +1073,21 @@ function Field({
   type?: string;
   min?: string;
   max?: string;
+  required?: boolean;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+      <Label className="text-xs font-medium text-muted-foreground">
+        {label}{required ? " *" : ""}
+      </Label>
       <Input
         className="h-10"
         type={type}
         value={value ?? ""}
         min={min}
         max={max}
+        required={required}
+        aria-required={required}
         onChange={(e) => onChange(e.target.value)}
       />
     </div>
@@ -1147,6 +1153,7 @@ function ManifestTab({
 }) {
   const [editing, setEditing] = useState<ManifestRow | null>(null);
   const [saving, setSaving] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
 
   const csvColumns = [
     "Cnmt No.",
@@ -1204,6 +1211,7 @@ function ManifestTab({
     // Pre-fill "From" with the trip's start location so the user doesn't have
     // to re-enter it for every manifest on the same trip.
     const startLoc = startLocationId ? locations.find((l) => l.id === startLocationId) : null;
+    setValidationAttempted(false);
     setEditing({
       ...emptyManifest(id),
       from_location_id: startLocationId ?? null,
@@ -1214,6 +1222,16 @@ function ManifestTab({
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!editing) return;
+
+    const missingDate = !editing.manifest_date?.trim();
+    const missingSource = !editing.source_id?.trim();
+    if (missingDate || missingSource) {
+      setValidationAttempted(true);
+      toast.error("Manifest date and source are required before saving.");
+      return;
+    }
+
+    setValidationAttempted(false);
     setSaving(true);
     const { id, ...rest } = editing;
     const res = id
@@ -1246,11 +1264,24 @@ function ManifestTab({
     ]);
     const pinToId = await ensureLocationsForPins(allPins, idByPin);
 
+    const invalidRows = rows.filter((r) => {
+      const manifestDate = normalizeImportedDate(r.Date ?? r.date ?? r.manifest_date);
+      const sourceName = (r.source ?? "").trim().toLowerCase();
+      const sourceId = sourceName ? sourceIdByName.get(sourceName) : null;
+      return !manifestDate || !sourceId;
+    });
+    if (invalidRows.length > 0) {
+      toast.error("Every imported manifest must include a valid date and source.");
+      return { inserted: 0, failed: rows.length };
+    }
+
     const payload = rows.map((r) => ({
       trip_id: id,
       manifest_number: r["Cnmt No."] ?? r.manifest_number ?? "",
       manifest_date: normalizeImportedDate(r.Date ?? r.date ?? r.manifest_date) || null,
-      source_id: r.source ? (sourceIdByName.get(r.source.toLowerCase()) ?? null) : null,
+      source_id: r.source
+        ? (sourceIdByName.get(r.source.trim().toLowerCase()) ?? null)
+        : null,
       from_location_id:
         idByName.get((r.from_location ?? "").toLowerCase()) ??
         pinToId.get((r.from_pin_code ?? "").trim()) ??
@@ -1422,20 +1453,30 @@ function ManifestTab({
                   onChange={(e) => setEditing({ ...editing, manifest_number: e.target.value })}
                 />
               </div>
-              <Field
-                label="Date"
-                type="date"
-                value={editing.manifest_date ?? ""}
-                onChange={(v) => setEditing({ ...editing, manifest_date: v || null })}
-              />
+              <div className="space-y-1.5">
+                <Field
+                  label="Date"
+                  type="date"
+                  value={editing.manifest_date ?? ""}
+                  required
+                  onChange={(v) => setEditing({ ...editing, manifest_date: v || null })}
+                />
+                {validationAttempted && !editing.manifest_date?.trim() ? (
+                  <p className="text-xs text-destructive" role="alert">Manifest date is required.</p>
+                ) : null}
+              </div>
               <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-xs font-medium text-muted-foreground">Source</Label>
+                <Label className="text-xs font-medium text-muted-foreground">Source *</Label>
                 <Select
                   value={editing.source_id ?? ""}
                   onValueChange={(v) => setEditing({ ...editing, source_id: v || null })}
                 >
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select source (optional)" />
+                  <SelectTrigger
+                    className="h-10"
+                    aria-required="true"
+                    aria-invalid={validationAttempted && !editing.source_id?.trim()}
+                  >
+                    <SelectValue placeholder="Select source" />
                   </SelectTrigger>
                   <SelectContent>
                     {contracts.map((c) => (
@@ -1445,6 +1486,9 @@ function ManifestTab({
                     ))}
                   </SelectContent>
                 </Select>
+                {validationAttempted && !editing.source_id?.trim() ? (
+                  <p className="text-xs text-destructive" role="alert">Source is required.</p>
+                ) : null}
               </div>
               <LocationPinPair
                 label="From"
