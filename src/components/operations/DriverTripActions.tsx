@@ -39,6 +39,21 @@ function formatLocationTime(value?: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
+function supabaseErrorMessage(error: unknown, fallback: string) {
+  const value = error as {
+    message?: string;
+    details?: string;
+    hint?: string;
+    code?: string;
+  } | null;
+  const message = [value?.message, value?.details, value?.hint].filter(Boolean).join(" — ");
+  if (!message) return fallback;
+  if (value?.code === "42883" || /does not exist|schema cache/i.test(message)) {
+    return "Driver App SQL is not installed in Supabase. Apply 20260814000000_driver_app_links.sql, then retry.";
+  }
+  return message;
+}
+
 export function DriverTripActions({ trip }: { trip: TripRow }) {
   const [qrOpen, setQrOpen] = useState(false);
   const [locationOpen, setLocationOpen] = useState(false);
@@ -80,7 +95,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
       setQr(data as unknown as QrPayload);
       setQrOpen(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not create a trip QR code");
+      toast.error(supabaseErrorMessage(error, "Could not create a trip QR code"));
     } finally {
       setLoadingQr(false);
     }
@@ -99,7 +114,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
       if (error) throw error;
       setLocation(data as unknown as LiveLocation);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not load live location");
+      toast.error(supabaseErrorMessage(error, "Could not load live location"));
     } finally {
       setLoadingLocation(false);
     }
