@@ -169,7 +169,6 @@ export function Trips() {
 
   const visibleTrips = useMemo(() =>
     trips.filter((t) =>
-      !(t.end_date ?? "").trim() &&
       matchesTripSearch(t.id, t.trip_code) &&
       (branchFilter === "all" || t.branch_id === branchFilter)
     ),
@@ -271,7 +270,7 @@ export function Trips() {
           {isBasic && allowedBranchIds?.length === 0
             ? "No branches assigned to your account. Contact your administrator."
             : normalizedSearch
-              ? "No live trips match your search."
+              ? "No trips match your search."
               : "No trips yet. Create a trip to record manifests, income and expenses."}
         </p>
       ) : (
@@ -293,6 +292,8 @@ export function Trips() {
                     t.ownership === "own" ? "Own vehicle" : "Rented",
                     t.start_date,
                     t.start_time,
+                    t.end_date,
+                    t.end_time,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
