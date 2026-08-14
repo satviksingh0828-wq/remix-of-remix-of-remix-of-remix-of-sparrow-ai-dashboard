@@ -16,7 +16,8 @@ import type { TripRow } from "./TripForm";
 type QrPayload = {
   token: string;
   trip_code: string;
-  expires_at: string;
+  expires_at?: string | null;
+  stable?: boolean;
 };
 
 type LiveLocation = {
@@ -88,7 +89,6 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
         "issue_driver_trip_qr" as never,
         {
           p_trip_id: trip.id,
-          p_ttl_minutes: 30,
         } as never,
       );
       if (error) throw error;
@@ -159,8 +159,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
               Driver’s App trip link
             </DialogTitle>
             <DialogDescription>
-              Scan this code from the Driver’s App. It is valid for 30 minutes and can link only
-              this own-vehicle trip.
+              Scan this permanent code from the Driver’s App. It remains the same for this own-vehicle trip.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4">
@@ -178,11 +177,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
             <div className="w-full rounded-xl bg-muted/50 p-3 text-center">
               <p className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Trip code</p>
               <p className="mt-1 text-lg font-semibold tracking-tight">{trip.trip_code}</p>
-              {qr?.expires_at ? (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Expires {formatLocationTime(qr.expires_at)}
-                </p>
-              ) : null}
+              <p className="mt-1 text-xs text-muted-foreground">Permanent trip QR code</p>
             </div>
           </div>
         </DialogContent>

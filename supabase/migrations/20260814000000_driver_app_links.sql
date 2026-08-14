@@ -6,14 +6,33 @@ create extension if not exists pgcrypto;
 create table if not exists public.driver_trip_qr_tokens (
   id uuid primary key default gen_random_uuid(),
   trip_id uuid not null references public.trips(id) on delete cascade,
+  token text unique,
   token_hash text not null unique,
-  expires_at timestamptz not null,
+  -- Kept nullable for backwards compatibility; stable QR tokens do not expire.
+  expires_at timestamptz,
   used_at timestamptz,
   created_at timestamptz not null default now()
 );
 
+alter table public.driver_trip_qr_tokens add column if not exists token text;
+alter table public.driver_trip_qr_tokens alter column expires_at drop not null;
+
+-- Keep the newest old QR row for each trip before enforcing one stable QR per trip.
+delete from public.driver_trip_qr_tokens q
+ where q.id in (
+   select id
+     from (
+       select id, row_number() over (partition by trip_id order by created_at desc, id desc) as rn
+         from public.driver_trip_qr_tokens
+     ) duplicates
+    where duplicates.rn > 1
+ );
+
 create index if not exists driver_trip_qr_tokens_trip_idx
-  on public.driver_trip_qr_tokens (trip_id, expires_at desc);
+  on public.driver_trip_qr_tokens (trip_id, created_at desc);
+
+create unique index if not exists driver_trip_qr_tokens_one_per_trip_idx
+  on public.driver_trip_qr_tokens (trip_id);
 
 create table if not exists public.driver_trip_links (
   id uuid primary key default gen_random_uuid(),
@@ -58,9 +77,9 @@ grant all on public.driver_trip_locations to service_role;
 grant usage, select on sequence public.driver_trip_locations_id_seq to service_role;
 
 drop function if exists public.issue_driver_trip_qr(uuid, integer);
+drop function if exists public.issue_driver_trip_qr(uuid);
 create or replace function public.issue_driver_trip_qr(
-  p_trip_id uuid,
-  p_ttl_minutes integer default 30
+  p_trip_id uuid
 )
 returns jsonb
 language plpgsql
@@ -70,12 +89,7 @@ as $$
 declare
   v_trip record;
   v_token text;
-  v_expires_at timestamptz;
 begin
-  if p_ttl_minutes < 1 or p_ttl_minutes > 1440 then
-    raise exception 'QR expiry must be between 1 and 1440 minutes';
-  end if;
-
   select t.id, t.trip_code, t.ownership
     into v_trip
     from public.trips t
@@ -86,17 +100,33 @@ begin
     raise exception 'Only own-vehicle trips can be linked to the Driver''s App';
   end if;
 
-  v_token := encode(gen_random_bytes(32), 'hex');
-  v_expires_at := now() + make_interval(mins => p_ttl_minutes);
+  -- Reuse the same token forever for this trip. Old rows created by the
+  -- expiring-token version are upgraded once with a reusable token.
+  select q.token into v_token
+    from public.driver_trip_qr_tokens q
+   where q.trip_id = v_trip.id
+   for update;
 
-  insert into public.driver_trip_qr_tokens (trip_id, token_hash, expires_at)
-  values (v_trip.id, encode(digest(v_token, 'sha256'), 'hex'), v_expires_at);
+  if v_token is null then
+    v_token := encode(gen_random_bytes(32), 'hex');
+    insert into public.driver_trip_qr_tokens (trip_id, token, token_hash, expires_at)
+    values (v_trip.id, v_token, encode(digest(v_token, 'sha256'), 'hex'), null)
+    on conflict (trip_id) do update
+      set token = excluded.token,
+          token_hash = excluded.token_hash,
+          expires_at = null;
+  else
+    update public.driver_trip_qr_tokens
+       set expires_at = null
+     where trip_id = v_trip.id;
+  end if;
 
   return jsonb_build_object(
     'token', v_token,
     'trip_id', v_trip.id,
     'trip_code', v_trip.trip_code,
-    'expires_at', v_expires_at
+    'expires_at', null,
+    'stable', true
   );
 end;
 $$;
@@ -131,9 +161,7 @@ begin
   if not found or v_qr.ownership <> 'own' then
     raise exception 'Invalid own-vehicle trip QR code';
   end if;
-  if v_qr.expires_at <= now() or v_qr.used_at is not null then
-    raise exception 'This trip QR code has expired or was already used';
-  end if;
+  -- Stable QR codes are reusable. Device ownership is enforced below.
 
   select l.id, l.device_id, l.ended_at
     into v_link
@@ -162,10 +190,6 @@ begin
     values (v_qr.trip_id, p_device_id, encode(digest(v_session_token, 'sha256'), 'hex'), now())
     returning id into v_link_id;
   end if;
-
-  update public.driver_trip_qr_tokens
-     set used_at = now()
-   where id = v_qr.id;
 
   return jsonb_build_object(
     'status', 'linked',
@@ -341,14 +365,14 @@ as $$
   where t.id = p_trip_id;
 $$;
 
-grant execute on function public.issue_driver_trip_qr(uuid, integer) to anon, authenticated;
+grant execute on function public.issue_driver_trip_qr(uuid) to anon, authenticated;
 grant execute on function public.claim_driver_trip(text, text) to anon, authenticated;
 grant execute on function public.get_driver_trip(text) to anon, authenticated;
 grant execute on function public.record_driver_location(text, double precision, double precision, double precision) to anon, authenticated;
 grant execute on function public.end_driver_trip(text) to anon, authenticated;
 grant execute on function public.get_trip_live_location(uuid) to anon, authenticated;
 
-revoke all on function public.issue_driver_trip_qr(uuid, integer) from public;
+revoke all on function public.issue_driver_trip_qr(uuid) from public;
 revoke all on function public.claim_driver_trip(text, text) from public;
 revoke all on function public.get_driver_trip(text) from public;
 revoke all on function public.record_driver_location(text, double precision, double precision, double precision) from public;

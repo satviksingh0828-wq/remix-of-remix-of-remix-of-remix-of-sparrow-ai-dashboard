@@ -615,7 +615,7 @@ export function TripForm({
       if (trip.ownership === "own" && trip.id) {
         const { data: qrData, error: qrError } = await supabase.rpc(
           "issue_driver_trip_qr" as never,
-          { p_trip_id: trip.id, p_ttl_minutes: 30 } as never,
+          { p_trip_id: trip.id } as never,
         );
         if (qrError) {
           toast.error(qrError.message || "Could not create the Driver’s App QR code");
