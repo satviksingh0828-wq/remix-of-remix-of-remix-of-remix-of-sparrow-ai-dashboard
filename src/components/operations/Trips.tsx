@@ -16,6 +16,7 @@ import { logAction } from "@/lib/log-actions";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
 import { TripForm, emptyTrip, type TripRow } from "./TripForm";
 import { ClosedTripDetail } from "./ClosedTripDetail";
+import { DriverTripActions } from "./DriverTripActions";
 
 type ClosedTrip = {
   id: string;
@@ -304,6 +305,7 @@ export function Trips() {
                   entityLabel={t.trip_code}
                 />
               ) : null}
+              <DriverTripActions trip={t} />
               {!isViewer && !isBasic && (
                 <Button
                   variant="ghost"
