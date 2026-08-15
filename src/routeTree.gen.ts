@@ -23,9 +23,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiNotifyOpenTripsRouteImport } from './routes/api/notify-open-trips'
 import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
 import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
-import { Route as ApiMobileOperationsRouteImport } from './routes/api/mobile/operations'
 import { Route as ApiDriverThemeRouteImport } from './routes/api/driver/theme'
-import { Route as ApiMobileAuthLoginRouteImport } from './routes/api/mobile/auth/login'
 import { Route as ApiDriverTripsLocationRouteImport } from './routes/api/driver/trips/location'
 import { Route as ApiDriverTripsEndRouteImport } from './routes/api/driver/trips/end'
 import { Route as ApiDriverTripsCurrentRouteImport } from './routes/api/driver/trips/current'
@@ -101,19 +99,9 @@ const ApiNotifyAdminRoute = ApiNotifyAdminRouteImport.update({
   path: '/api/notify-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiMobileOperationsRoute = ApiMobileOperationsRouteImport.update({
-  id: '/api/mobile/operations',
-  path: '/api/mobile/operations',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiDriverThemeRoute = ApiDriverThemeRouteImport.update({
   id: '/api/driver/theme',
   path: '/api/driver/theme',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMobileAuthLoginRoute = ApiMobileAuthLoginRouteImport.update({
-  id: '/api/mobile/auth/login',
-  path: '/api/mobile/auth/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDriverTripsLocationRoute = ApiDriverTripsLocationRouteImport.update({
@@ -153,12 +141,10 @@ export interface FileRoutesByFullPath {
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
-  '/api/mobile/operations': typeof ApiMobileOperationsRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
-  '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -176,12 +162,10 @@ export interface FileRoutesByTo {
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
-  '/api/mobile/operations': typeof ApiMobileOperationsRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
-  '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -200,12 +184,10 @@ export interface FileRoutesById {
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
-  '/api/mobile/operations': typeof ApiMobileOperationsRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
-  '/api/mobile/auth/login': typeof ApiMobileAuthLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -225,12 +207,10 @@ export interface FileRouteTypes {
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
     | '/api/driver/theme'
-    | '/api/mobile/operations'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
-    | '/api/mobile/auth/login'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -248,12 +228,10 @@ export interface FileRouteTypes {
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
     | '/api/driver/theme'
-    | '/api/mobile/operations'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
-    | '/api/mobile/auth/login'
   id:
     | '__root__'
     | '/'
@@ -271,12 +249,10 @@ export interface FileRouteTypes {
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
     | '/api/driver/theme'
-    | '/api/mobile/operations'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
-    | '/api/mobile/auth/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -295,12 +271,10 @@ export interface RootRouteChildren {
   ApiNotifyExpiryRoute: typeof ApiNotifyExpiryRoute
   ApiNotifyOpenTripsRoute: typeof ApiNotifyOpenTripsRoute
   ApiDriverThemeRoute: typeof ApiDriverThemeRoute
-  ApiMobileOperationsRoute: typeof ApiMobileOperationsRoute
   ApiDriverTripsClaimRoute: typeof ApiDriverTripsClaimRoute
   ApiDriverTripsCurrentRoute: typeof ApiDriverTripsCurrentRoute
   ApiDriverTripsEndRoute: typeof ApiDriverTripsEndRoute
   ApiDriverTripsLocationRoute: typeof ApiDriverTripsLocationRoute
-  ApiMobileAuthLoginRoute: typeof ApiMobileAuthLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -403,25 +377,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNotifyAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/mobile/operations': {
-      id: '/api/mobile/operations'
-      path: '/api/mobile/operations'
-      fullPath: '/api/mobile/operations'
-      preLoaderRoute: typeof ApiMobileOperationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/driver/theme': {
       id: '/api/driver/theme'
       path: '/api/driver/theme'
       fullPath: '/api/driver/theme'
       preLoaderRoute: typeof ApiDriverThemeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/mobile/auth/login': {
-      id: '/api/mobile/auth/login'
-      path: '/api/mobile/auth/login'
-      fullPath: '/api/mobile/auth/login'
-      preLoaderRoute: typeof ApiMobileAuthLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/driver/trips/location': {
@@ -471,12 +431,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiNotifyExpiryRoute: ApiNotifyExpiryRoute,
   ApiNotifyOpenTripsRoute: ApiNotifyOpenTripsRoute,
   ApiDriverThemeRoute: ApiDriverThemeRoute,
-  ApiMobileOperationsRoute: ApiMobileOperationsRoute,
   ApiDriverTripsClaimRoute: ApiDriverTripsClaimRoute,
   ApiDriverTripsCurrentRoute: ApiDriverTripsCurrentRoute,
   ApiDriverTripsEndRoute: ApiDriverTripsEndRoute,
   ApiDriverTripsLocationRoute: ApiDriverTripsLocationRoute,
-  ApiMobileAuthLoginRoute: ApiMobileAuthLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
