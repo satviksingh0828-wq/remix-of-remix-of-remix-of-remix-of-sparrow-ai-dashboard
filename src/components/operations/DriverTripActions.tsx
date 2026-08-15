@@ -12,6 +12,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { TripRow } from "./TripForm";
+import { DriverRouteMap } from "./DriverRouteMap";
+import {
+  serverGetDriverTripLocationTrace,
+  type DriverRouteTrace,
+} from "@/lib/driver-location-trace";
+import { useSession } from "@/lib/session";
 
 type QrPayload = {
   token: string;
@@ -62,7 +68,9 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
   const [qrImage, setQrImage] = useState<string | null>(null);
   const [loadingQr, setLoadingQr] = useState(false);
   const [location, setLocation] = useState<LiveLocation>(null);
+  const [routeTrace, setRouteTrace] = useState<DriverRouteTrace | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
+  const { user } = useSession();
 
   const ownTrip = isOwnTrip(trip);
 
@@ -113,6 +121,14 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
       );
       if (error) throw error;
       setLocation(data as unknown as LiveLocation);
+      if (!user?.sessionToken) {
+        setRouteTrace(null);
+        return;
+      }
+      const trace = await serverGetDriverTripLocationTrace({
+        data: { sessionToken: user.sessionToken, tripId: trip.id },
+      });
+      setRouteTrace(trace);
     } catch (error) {
       toast.error(supabaseErrorMessage(error, "Could not load live location"));
     } finally {
@@ -188,10 +204,11 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
           <DialogHeader className="shrink-0 px-5 pb-3 pt-6 pr-12 sm:px-7 sm:pt-7">
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="size-5 text-primary" />
-              Live driver location
+              Driver location and route
             </DialogTitle>
             <DialogDescription>
-              Own-vehicle trip {trip.trip_code}. The map shows the latest location received from the linked device.
+              Own-vehicle trip {trip.trip_code}. The map shows the latest location and recorded
+              route trace from the linked device.
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 pb-5 sm:space-y-5 sm:px-7 sm:pb-7">
@@ -201,22 +218,37 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
               </div>
             ) : location?.latitude != null && location.longitude != null ? (
               <>
-                <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 p-1.5 shadow-sm sm:p-2">
-                  <iframe
-                    title={`Live location map for trip ${trip.trip_code}`}
-                    className="h-52 w-full rounded-xl border-0 bg-muted sm:h-[min(52dvh,420px)] sm:min-h-72"
-                    loading="lazy"
-                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${location.longitude - 0.01}%2C${location.latitude - 0.01}%2C${location.longitude + 0.01}%2C${location.latitude + 0.01}&layer=mapnik&marker=${location.latitude}%2C${location.longitude}`}
-                  />
-                  <a
-                    className="mt-1.5 flex items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-xs font-medium text-primary hover:bg-primary/5 hover:underline"
-                    href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Map className="size-3.5" /> Open full map
-                  </a>
-                </div>
+                {routeTrace?.points.length ? (
+                  <DriverRouteMap points={routeTrace.points} tripCode={trip.trip_code} />
+                ) : (
+                  <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 p-1.5 shadow-sm sm:p-2">
+                    <iframe
+                      title={`Live location map for trip ${trip.trip_code}`}
+                      className="h-52 w-full rounded-xl border-0 bg-muted sm:h-[min(52dvh,420px)] sm:min-h-72"
+                      loading="lazy"
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${location.longitude - 0.01}%2C${location.latitude - 0.01}%2C${location.longitude + 0.01}%2C${location.latitude + 0.01}&layer=mapnik&marker=${location.latitude}%2C${location.longitude}`}
+                    />
+                  </div>
+                )}
+                <a
+                  className="mt-1.5 flex items-center justify-center gap-1 rounded-xl px-3 py-2.5 text-xs font-medium text-primary hover:bg-primary/5 hover:underline"
+                  href={`https://www.openstreetmap.org/?mlat=${location.latitude}&mlon=${location.longitude}#map=16/${location.latitude}/${location.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Map className="size-3.5" /> Open full map
+                </a>
+                {routeTrace?.truncated ? (
+                  <p className="text-xs text-muted-foreground">
+                    The map shows the latest 50,000 recorded locations, sampled for readability.
+                  </p>
+                ) : null}
+                {routeTrace?.totalStoredPoints ? (
+                  <p className="text-xs text-muted-foreground">
+                    Route trace based on {routeTrace.totalStoredPoints.toLocaleString()} recorded
+                    location point{routeTrace.totalStoredPoints === 1 ? "" : "s"}.
+                  </p>
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
                   <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm sm:p-5">
                     <p className="font-medium">

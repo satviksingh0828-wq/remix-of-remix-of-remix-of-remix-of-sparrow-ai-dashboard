@@ -20,6 +20,7 @@ import { Route as ImportTripsRouteImport } from './routes/import-trips'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiNotifyOpenTripsRouteImport } from './routes/api/notify-open-trips'
 import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
 import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
 import { Route as ApiDriverThemeRouteImport } from './routes/api/driver/theme'
@@ -83,6 +84,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNotifyOpenTripsRoute = ApiNotifyOpenTripsRouteImport.update({
+  id: '/api/notify-open-trips',
+  path: '/api/notify-open-trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiNotifyExpiryRoute = ApiNotifyExpiryRouteImport.update({
   id: '/api/notify-expiry',
   path: '/api/notify-expiry',
@@ -133,6 +139,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
+  '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
@@ -153,6 +160,7 @@ export interface FileRoutesByTo {
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
+  '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
@@ -174,6 +182,7 @@ export interface FileRoutesById {
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
+  '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/driver/trips/claim': typeof ApiDriverTripsClaimRoute
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
@@ -196,6 +205,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
+    | '/api/notify-open-trips'
     | '/api/driver/theme'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
@@ -216,6 +226,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
+    | '/api/notify-open-trips'
     | '/api/driver/theme'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
@@ -236,6 +247,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
+    | '/api/notify-open-trips'
     | '/api/driver/theme'
     | '/api/driver/trips/claim'
     | '/api/driver/trips/current'
@@ -257,6 +269,7 @@ export interface RootRouteChildren {
   UsersRoute: typeof UsersRoute
   ApiNotifyAdminRoute: typeof ApiNotifyAdminRoute
   ApiNotifyExpiryRoute: typeof ApiNotifyExpiryRoute
+  ApiNotifyOpenTripsRoute: typeof ApiNotifyOpenTripsRoute
   ApiDriverThemeRoute: typeof ApiDriverThemeRoute
   ApiDriverTripsClaimRoute: typeof ApiDriverTripsClaimRoute
   ApiDriverTripsCurrentRoute: typeof ApiDriverTripsCurrentRoute
@@ -343,6 +356,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/notify-open-trips': {
+      id: '/api/notify-open-trips'
+      path: '/api/notify-open-trips'
+      fullPath: '/api/notify-open-trips'
+      preLoaderRoute: typeof ApiNotifyOpenTripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/notify-expiry': {
       id: '/api/notify-expiry'
       path: '/api/notify-expiry'
@@ -409,6 +429,7 @@ const rootRouteChildren: RootRouteChildren = {
   UsersRoute: UsersRoute,
   ApiNotifyAdminRoute: ApiNotifyAdminRoute,
   ApiNotifyExpiryRoute: ApiNotifyExpiryRoute,
+  ApiNotifyOpenTripsRoute: ApiNotifyOpenTripsRoute,
   ApiDriverThemeRoute: ApiDriverThemeRoute,
   ApiDriverTripsClaimRoute: ApiDriverTripsClaimRoute,
   ApiDriverTripsCurrentRoute: ApiDriverTripsCurrentRoute,

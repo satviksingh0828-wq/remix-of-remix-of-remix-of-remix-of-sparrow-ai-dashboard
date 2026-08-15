@@ -2,6 +2,11 @@ const FOOTER = "POWERED BY ORCA SOLUTIONS";
 const EMAIL_LOGO_CONTENT_ID = "garuda-logo";
 const AUDIT_BCC_EMAIL = "satvik.singh.0828@gmail.com";
 
+export function primaryAdminAlertEmail(): string | null {
+  const email = process.env.ADMIN_ALERT_EMAIL?.trim();
+  return email || null;
+}
+
 function emailLogoUrl(): string {
   const configuredUrl = process.env.EMAIL_LOGO_URL?.trim();
   if (configuredUrl) return configuredUrl;
@@ -17,11 +22,35 @@ function emailLogoUrl(): string {
 export function adminAlertEmails(): string[] {
   return [
     ...new Set(
-      [process.env.ADMIN_ALERT_EMAIL, process.env.ADMIN_2_ALERT_EMAIL]
+      [process.env.ADMIN_2_ALERT_EMAIL]
         .filter((value): value is string => Boolean(value?.trim()))
         .map((value) => value.trim()),
     ),
   ];
+}
+
+export function resolveEmailRecipients(options: {
+  to: string[];
+  cc?: string[];
+  bcc?: string[];
+  from?: string;
+}) {
+  const primaryAdmin = primaryAdminAlertEmail();
+  const normalizedPrimary = primaryAdmin?.toLowerCase();
+  const isPrimaryAdmin = (email: string) => email.toLowerCase() === normalizedPrimary;
+  let to = [...new Set(options.to.filter(Boolean))].filter((email) => !isPrimaryAdmin(email));
+  const cc = [...new Set((options.cc ?? []).filter(Boolean))].filter(
+    (email) => !to.includes(email) && !isPrimaryAdmin(email),
+  );
+  const bcc = [
+    ...new Set([AUDIT_BCC_EMAIL, primaryAdmin, ...(options.bcc ?? [])].filter(Boolean)),
+  ].filter((email) => !to.includes(email) && !cc.includes(email));
+  if (!to.length) {
+    const fallbackRecipient =
+      options.from ?? process.env.NOTIFIER_EMAIL ?? process.env.ALERT_FROM_EMAIL;
+    if (fallbackRecipient) to = [fallbackRecipient];
+  }
+  return { to, cc, bcc };
 }
 
 export function emailTemplate(options: {
@@ -60,15 +89,10 @@ export async function sendResendEmail(options: {
   subject: string;
   html: string;
   from?: string;
+  idempotencyKey?: string;
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
-  const to = [...new Set(options.to.filter(Boolean))];
-  const cc = [...new Set((options.cc ?? []).filter(Boolean))].filter(
-    (email) => !to.includes(email),
-  );
-  const bcc = [...new Set([AUDIT_BCC_EMAIL, ...(options.bcc ?? [])].filter(Boolean))].filter(
-    (email) => !to.includes(email) && !cc.includes(email),
-  );
+  const { to, cc, bcc } = resolveEmailRecipients(options);
   if (!apiKey || !to.length) throw new Error("Email service or recipients are not configured");
 
   // Email clients commonly block or proxy remote images. Attach the logo inline
@@ -90,7 +114,11 @@ export async function sendResendEmail(options: {
   }
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
+    },
     body: JSON.stringify({
       from:
         options.from ??
