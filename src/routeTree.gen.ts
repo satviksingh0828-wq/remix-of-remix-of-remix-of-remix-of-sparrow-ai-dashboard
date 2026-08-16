@@ -28,6 +28,7 @@ import { Route as ApiDriverTripsLocationRouteImport } from './routes/api/driver/
 import { Route as ApiDriverTripsEndRouteImport } from './routes/api/driver/trips/end'
 import { Route as ApiDriverTripsCurrentRouteImport } from './routes/api/driver/trips/current'
 import { Route as ApiDriverTripsClaimRouteImport } from './routes/api/driver/trips/claim'
+import { Route as ApiDriverTripsCheckpointsVerifyRouteImport } from './routes/api/driver/trips/checkpoints/verify'
 
 const UsersRoute = UsersRouteImport.update({
   id: '/users',
@@ -124,6 +125,12 @@ const ApiDriverTripsClaimRoute = ApiDriverTripsClaimRouteImport.update({
   path: '/api/driver/trips/claim',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDriverTripsCheckpointsVerifyRoute =
+  ApiDriverTripsCheckpointsVerifyRouteImport.update({
+    id: '/api/driver/trips/checkpoints/verify',
+    path: '/api/driver/trips/checkpoints/verify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
+  '/api/driver/trips/checkpoints/verify': typeof ApiDriverTripsCheckpointsVerifyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -166,6 +174,7 @@ export interface FileRoutesByTo {
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
+  '/api/driver/trips/checkpoints/verify': typeof ApiDriverTripsCheckpointsVerifyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -188,6 +197,7 @@ export interface FileRoutesById {
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
+  '/api/driver/trips/checkpoints/verify': typeof ApiDriverTripsCheckpointsVerifyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,6 +221,7 @@ export interface FileRouteTypes {
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
+    | '/api/driver/trips/checkpoints/verify'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
+    | '/api/driver/trips/checkpoints/verify'
   id:
     | '__root__'
     | '/'
@@ -253,6 +265,7 @@ export interface FileRouteTypes {
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
+    | '/api/driver/trips/checkpoints/verify'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -275,6 +288,7 @@ export interface RootRouteChildren {
   ApiDriverTripsCurrentRoute: typeof ApiDriverTripsCurrentRoute
   ApiDriverTripsEndRoute: typeof ApiDriverTripsEndRoute
   ApiDriverTripsLocationRoute: typeof ApiDriverTripsLocationRoute
+  ApiDriverTripsCheckpointsVerifyRoute: typeof ApiDriverTripsCheckpointsVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -412,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDriverTripsClaimRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/driver/trips/checkpoints/verify': {
+      id: '/api/driver/trips/checkpoints/verify'
+      path: '/api/driver/trips/checkpoints/verify'
+      fullPath: '/api/driver/trips/checkpoints/verify'
+      preLoaderRoute: typeof ApiDriverTripsCheckpointsVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -435,6 +456,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDriverTripsCurrentRoute: ApiDriverTripsCurrentRoute,
   ApiDriverTripsEndRoute: ApiDriverTripsEndRoute,
   ApiDriverTripsLocationRoute: ApiDriverTripsLocationRoute,
+  ApiDriverTripsCheckpointsVerifyRoute: ApiDriverTripsCheckpointsVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

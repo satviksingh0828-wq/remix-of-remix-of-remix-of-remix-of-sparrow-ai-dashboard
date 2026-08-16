@@ -17,6 +17,7 @@ import {
   serverGetDriverTripLocationTrace,
   type DriverRouteTrace,
 } from "@/lib/driver-location-trace";
+import { serverGetTripCheckpointStatus, type TripCheckpointStatus } from "@/lib/driver-checkpoint-status";
 import { useSession } from "@/lib/session";
 
 type QrPayload = {
@@ -69,6 +70,7 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
   const [loadingQr, setLoadingQr] = useState(false);
   const [location, setLocation] = useState<LiveLocation>(null);
   const [routeTrace, setRouteTrace] = useState<DriverRouteTrace | null>(null);
+  const [checkpointStatus, setCheckpointStatus] = useState<TripCheckpointStatus | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(false);
   const { user } = useSession();
 
@@ -123,12 +125,15 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
       setLocation(data as unknown as LiveLocation);
       if (!user?.sessionToken) {
         setRouteTrace(null);
+        setCheckpointStatus(null);
         return;
       }
-      const trace = await serverGetDriverTripLocationTrace({
-        data: { sessionToken: user.sessionToken, tripId: trip.id },
-      });
+      const [trace, status] = await Promise.all([
+        serverGetDriverTripLocationTrace({ data: { sessionToken: user.sessionToken, tripId: trip.id } }),
+        serverGetTripCheckpointStatus({ data: { sessionToken: user.sessionToken, tripId: trip.id } }),
+      ]);
       setRouteTrace(trace);
+      setCheckpointStatus(status);
     } catch (error) {
       toast.error(supabaseErrorMessage(error, "Could not load live location"));
     } finally {
@@ -253,6 +258,28 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                     Route trace based on {routeTrace.totalStoredPoints.toLocaleString()} recorded
                     location point{routeTrace.totalStoredPoints === 1 ? "" : "s"}.
                   </p>
+                ) : null}
+                {checkpointStatus ? (
+                  <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm sm:p-5">
+                    <p className="font-medium">
+                      {!checkpointStatus.linked
+                        ? "No Driver App session linked"
+                        : checkpointStatus.active
+                          ? "Driver verification pending"
+                          : checkpointStatus.verified
+                            ? "All driver checkpoints verified"
+                            : "Driver verification needs attention"}
+                    </p>
+                    <p className="mt-1 text-muted-foreground">
+                      {!checkpointStatus.linked
+                        ? "This trip can be closed normally if its standard closing requirements are complete."
+                        : checkpointStatus.active
+                          ? "The driver must use Verify and End Trip in the Driver App before the web trip can be closed."
+                          : checkpointStatus.verified
+                            ? `${checkpointStatus.recordedCount.toLocaleString()} checkpoint${checkpointStatus.recordedCount === 1 ? "" : "s"} confirmed by Sparrow${checkpointStatus.verifiedAt ? ` at ${formatLocationTime(checkpointStatus.verifiedAt)}` : ""}.`
+                            : "The web trip remains open until every device checkpoint is confirmed by Sparrow."}
+                    </p>
+                  </div>
                 ) : null}
                 <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-stretch">
                   <div className="rounded-2xl border border-border bg-muted/30 p-4 text-sm sm:p-5">

@@ -32,6 +32,7 @@ import { isDriverActive } from "@/lib/drivers";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { closeTrip } from "@/lib/close-trip";
+import { serverRequireTripCheckpointVerification } from "@/lib/driver-checkpoint-status";
 import { invalidManifestDates } from "@/lib/manifest-date-validation";
 import { logAction } from "@/lib/log-actions";
 import { ensureLocationForPin, ensureLocationsForPins } from "@/lib/ensure-location";
@@ -524,6 +525,12 @@ export function TripForm({
       return;
     setClosing(true);
     try {
+      if (isOwn) {
+        if (!user?.sessionToken) throw new Error("Your session has expired. Please sign in again before verifying driver checkpoints.");
+        await serverRequireTripCheckpointVerification({
+          data: { sessionToken: user.sessionToken, tripId: trip.id },
+        });
+      }
       await closeTrip(trip.id);
       logAction("closed", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
       toast.success("Trip closed and archived");
@@ -778,7 +785,7 @@ export function TripForm({
             title="Archive a snapshot of this trip and remove it from live records"
           >
             {closing ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
-            Close trip
+            {closing ? "Verifying checkpoints…" : "Close trip"}
           </Button>
         )}
       </div>
