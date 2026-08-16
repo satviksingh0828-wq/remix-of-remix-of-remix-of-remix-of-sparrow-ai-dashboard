@@ -15,3 +15,22 @@ test("route trace sampling keeps the first and latest recorded locations", () =>
   assert.deepEqual(sampled[0], points[0]);
   assert.deepEqual(sampled.at(-1), points.at(-1));
 });
+
+test("route trace sampling keeps checkpoint positions unique and ordered", () => {
+  const points: DriverRoutePoint[] = Array.from({ length: 2_001 }, (_, index) => ({
+    latitude: 20 + index / 10_000,
+    longitude: 77 + index / 10_000,
+    accuracyM: null,
+    recordedAt: `checkpoint-${index.toString().padStart(5, "0")}`,
+  }));
+  const sampled = downsampleRouteTrace(points, 500);
+
+  assert.equal(sampled.length, 500);
+  assert.equal(new Set(sampled.map((point) => point.recordedAt)).size, sampled.length);
+  assert.equal(
+    sampled.every(
+      (point, index) => index === 0 || point.recordedAt > sampled[index - 1].recordedAt,
+    ),
+    true,
+  );
+});

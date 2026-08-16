@@ -6,9 +6,11 @@ import type { DriverRoutePoint } from "@/lib/driver-location-trace";
 export function DriverRouteMap({
   points,
   tripCode,
+  totalStoredPoints,
 }: {
   points: DriverRoutePoint[];
   tripCode: string;
+  totalStoredPoints: number;
 }) {
   const mapElement = useRef<HTMLDivElement | null>(null);
 
@@ -48,6 +50,25 @@ export function DriverRouteMap({
       })
         .bindTooltip("Route start", { direction: "top" })
         .addTo(map);
+      points.slice(1, -1).forEach((point, index) => {
+        const checkpointNumber = index + 2;
+        const checkpointTime = new Date(point.recordedAt);
+        const timeLabel = Number.isNaN(checkpointTime.getTime())
+          ? point.recordedAt
+          : checkpointTime.toLocaleString();
+        L.circleMarker(L.latLng(point.latitude, point.longitude), {
+          radius: 3.5,
+          color: "#6d28d9",
+          fillColor: "#a78bfa",
+          fillOpacity: 0.95,
+          weight: 1.5,
+        })
+          .bindTooltip(`Checkpoint ${checkpointNumber.toLocaleString()} · ${timeLabel}`, {
+            direction: "top",
+            opacity: 0.95,
+          })
+          .addTo(map!);
+      });
       L.circleMarker(latLngs.at(-1)!, {
         radius: 8,
         color: "#0369a1",
@@ -79,11 +100,22 @@ export function DriverRouteMap({
         <span className="flex items-center gap-1.5">
           <i className="size-2.5 rounded-full bg-sky-400 ring-2 ring-sky-700" /> Latest location
         </span>
+        {points.length > 2 ? (
+          <span className="flex items-center gap-1.5">
+            <i className="size-2 rounded-full bg-violet-400 ring-2 ring-violet-700" /> Each GPS
+            checkpoint
+          </span>
+        ) : null}
         {points.length > 1 ? (
           <span className="flex items-center gap-1.5">
             <i className="h-0.5 w-4 bg-violet-600" /> Recorded route trace
           </span>
         ) : null}
+        <span>
+          {points.length === totalStoredPoints
+            ? `${points.length.toLocaleString()} checkpoints shown in order`
+            : `${points.length.toLocaleString()} of ${totalStoredPoints.toLocaleString()} checkpoints shown in order`}
+        </span>
       </div>
     </div>
   );

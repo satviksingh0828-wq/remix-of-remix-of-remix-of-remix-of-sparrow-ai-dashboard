@@ -219,7 +219,11 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
             ) : location?.latitude != null && location.longitude != null ? (
               <>
                 {routeTrace?.points.length ? (
-                  <DriverRouteMap points={routeTrace.points} tripCode={trip.trip_code} />
+                  <DriverRouteMap
+                    points={routeTrace.points}
+                    tripCode={trip.trip_code}
+                    totalStoredPoints={routeTrace.totalStoredPoints}
+                  />
                 ) : (
                   <div className="overflow-hidden rounded-2xl border border-border bg-muted/30 p-1.5 shadow-sm sm:p-2">
                     <iframe
@@ -240,7 +244,8 @@ export function DriverTripActions({ trip }: { trip: TripRow }) {
                 </a>
                 {routeTrace?.truncated ? (
                   <p className="text-xs text-muted-foreground">
-                    The map shows the latest 50,000 recorded locations, sampled for readability.
+                    The route contains more than 5,000 checkpoints. The map preserves the route
+                    order and samples the latest stored trace for readability.
                   </p>
                 ) : null}
                 {routeTrace?.totalStoredPoints ? (

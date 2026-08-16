@@ -5,7 +5,7 @@ import { verifyAppToken } from "@/lib/user-auth";
 import { downsampleRouteTrace, type DriverRoutePoint } from "@/lib/driver-route-utils";
 
 const MAX_STORED_POINTS = 50_000;
-const MAX_RENDERED_POINTS = 800;
+const MAX_RENDERED_POINTS = 5_000;
 
 export type { DriverRoutePoint } from "@/lib/driver-route-utils";
 
