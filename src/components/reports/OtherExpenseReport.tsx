@@ -87,7 +87,7 @@ export function OtherExpenseReport() {
     setLoading(true);
     try {
       const { start, end } = dateRange();
-      const branchTripCodes = await tripCodesForBranch(branchId);
+      const branchTripCodes = await tripCodesForBranch(branchId, { start, end });
       const data = await fetchAll<any>(() =>
         supabase
           .from("other_expense_logs" as any)

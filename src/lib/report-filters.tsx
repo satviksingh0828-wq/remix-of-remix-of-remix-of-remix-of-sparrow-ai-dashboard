@@ -17,10 +17,15 @@ export function reportDateRange(
   return financialYear === "none" ? fallback() : financialYearRange(Number(financialYear));
 }
 
-export async function tripCodesForBranch(branchId: string) {
-  if (branchId === "all") return null;
+export async function tripCodesForBranch(branchId: string, range?: { start: string; end: string }) {
+  if (branchId === "all" && !range) return null;
   const rows = await fetchAll<{ trip_code: string }>(() =>
-    supabase.from("closed_trips").select("trip_code").eq("branch_id", branchId),
+    (() => {
+      let query = supabase.from("closed_trips").select("trip_code");
+      if (branchId !== "all") query = query.eq("branch_id", branchId);
+      if (range) query = query.gte("closed_at", range.start).lt("closed_at", range.end);
+      return query;
+    })(),
   );
   return new Set(rows.map((row) => row.trip_code));
 }
