@@ -115,10 +115,11 @@ const ALL_TABS = [
   },
   {
     id: "trip-details",
-    label: "Trip Details",
-    desc: "Trips, manifests & locations",
+    label: "Booking Report",
+    desc: "Your branch booking and expense report",
     icon: FileText,
     adminOnly: false,
+    basicOnly: true,
     dividerBefore: false,
   },
   {
@@ -154,9 +155,10 @@ function OperationsPage() {
   const isAdmin = user?.role === "admin";
   const isViewer = user?.role === "viewer";
 
-  const TABS = ALL_TABS.filter((t) =>
-    isViewer ? t.id !== "import-trips" && t.id !== "monthly-mis" : isAdmin || !t.adminOnly,
-  );
+  const TABS = ALL_TABS.filter((t) => {
+    if ("basicOnly" in t && t.basicOnly && user?.role !== "basic") return false;
+    return isViewer ? t.id !== "import-trips" && t.id !== "monthly-mis" : isAdmin || !t.adminOnly;
+  });
   const [tab, setTab] = useState<TabId>("trip");
   const [navOpen, setNavOpen] = useState(true);
 
@@ -296,8 +298,8 @@ function OperationsPage() {
               <TripAveragesPanel />
             </TabErrorBoundary>
           )}
-          {safeTab === "trip-details" && (
-            <TabErrorBoundary label="Trip Details">
+          {safeTab === "trip-details" && user?.role === "basic" && (
+            <TabErrorBoundary label="Booking Report">
               <TripDetailsPanel />
             </TabErrorBoundary>
           )}
