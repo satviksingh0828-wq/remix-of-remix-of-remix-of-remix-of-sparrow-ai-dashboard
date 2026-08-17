@@ -60,6 +60,16 @@ function moneyColor(value: number) {
   return value >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
 }
 
+function displayDate(value: string) {
+  if (!value) return "—";
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date
+        .toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+        .replace(/ /g, "-");
+}
+
 function buildBranchPools(
   data: TripAveragesData,
   branches: Array<{ id: string }>,
@@ -226,6 +236,8 @@ export function TripDetailsPanel() {
           ...manifest,
           manifestShare,
           allocatedIncome: distributedIncome * manifestShare,
+          allocatedTripExpense: trip.total_expense * manifestShare,
+          allocatedDistributedExpense: expenseDistribution * manifestShare,
           // Basic users need the expense belonging to this trip/manifest only;
           // branch-wide overhead pools are an accounting view for admins/viewers.
           allocatedExpense: (canSeeMoney ? distributedExpense : trip.total_expense) * manifestShare,
@@ -281,13 +293,16 @@ export function TripDetailsPanel() {
       ? [
           "Trip",
           "Branch",
+          "Trip Start Date",
+          "Trip End Date",
+          "Distributed Expense (₹)",
           "Trip Income (₹)",
           "Trip Expense (₹)",
           "Trip Profit (₹)",
           "Final Profit (₹)",
         ]
       : canSeeExpense
-        ? ["Trip", "Branch", "Trip Expense (₹)"]
+        ? ["Trip", "Branch", "Trip Start Date", "Trip End Date", "Trip Expense (₹)"]
         : ["Trip", "Branch"];
     const tripRows: (string | number)[][] = [
       tripHeaders,
@@ -296,13 +311,22 @@ export function TripDetailsPanel() {
           ? [
               row.trip_code || "—",
               row.branch_name || "—",
+              row.start_date,
+              row.end_date,
+              row.expenseDistribution,
               row.total_income,
               row.total_expense,
               row.net_income,
               row.distributedProfit,
             ]
           : canSeeExpense
-            ? [row.trip_code || "—", row.branch_name || "—", row.total_expense]
+            ? [
+                row.trip_code || "—",
+                row.branch_name || "—",
+                row.start_date,
+                row.end_date,
+                row.total_expense,
+              ]
             : [row.trip_code || "—", row.branch_name || "—"],
       ),
     ];
@@ -310,13 +334,16 @@ export function TripDetailsPanel() {
       tripRows.push([
         "TOTALS",
         "",
+        "",
+        "",
+        total("expenseDistribution"),
         total("total_income"),
         total("total_expense"),
         total("net_income"),
         total("distributedProfit"),
       ]);
     } else if (canSeeExpense) {
-      tripRows.push(["TOTALS", "", total("total_expense")]);
+      tripRows.push(["TOTALS", "", "", "", total("total_expense")]);
     } else {
       tripRows.push(["TOTALS", ""]);
     }
@@ -325,13 +352,13 @@ export function TripDetailsPanel() {
       ? [
           "Trip",
           "Branch",
-          "Manifest No.",
+          "Manifest Date",
           "From Location",
           "To Location",
           "Weight (kg)",
           "Quantity",
+          "Trip Expense (₹)",
           "Manifest Income (₹)",
-          "Distributed Income (₹)",
           "Distributed Expense (₹)",
           "Profit (₹)",
         ]
@@ -339,17 +366,17 @@ export function TripDetailsPanel() {
         ? [
             "Trip",
             "Branch",
-            "Manifest No.",
+            "Manifest Date",
             "From Location",
             "To Location",
             "Weight (kg)",
             "Quantity",
-            "Expense Dist. (₹)",
+            "Trip Expense (₹)",
           ]
         : [
             "Trip",
             "Branch",
-            "Manifest No.",
+            "Manifest Date",
             "From Location",
             "To Location",
             "Weight (kg)",
@@ -374,12 +401,12 @@ export function TripDetailsPanel() {
       for (const manifest of row.manifestRows) {
         manifestIncomeTotal += manifest.manifest_income;
         distributedIncomeTotal += manifest.allocatedIncome;
-        distributedExpenseTotal += manifest.allocatedExpense;
+        distributedExpenseTotal += manifest.allocatedDistributedExpense;
         manifestProfitTotal += manifest.manifestProfit;
         const base: (string | number)[] = [
           row.trip_code || "—",
           row.branch_name || "—",
-          manifest.manifest_number || "—",
+          manifest.manifest_date || "—",
           manifest.from_location || "—",
           manifest.to_location || "—",
           manifest.weight_kg,
@@ -389,13 +416,13 @@ export function TripDetailsPanel() {
           canSeeMoney
             ? [
                 ...base,
+                manifest.allocatedTripExpense,
                 manifest.manifest_income,
-                manifest.allocatedIncome,
-                manifest.allocatedExpense,
+                manifest.allocatedDistributedExpense,
                 manifest.manifestProfit,
               ]
             : canSeeExpense
-              ? [...base, manifest.allocatedExpense]
+              ? [...base, manifest.allocatedTripExpense]
               : base,
         );
       }
@@ -605,10 +632,13 @@ export function TripDetailsPanel() {
                     <th className="w-8 px-2 py-3" />
                     <th className="px-4 py-3">Trip</th>
                     <th className="px-4 py-3">Branch</th>
+                    <th className="px-4 py-3">Trip Start Date</th>
+                    <th className="px-4 py-3">Trip End Date</th>
                     {canSeeMoney && (
                       <>
-                        <th className="px-4 py-3 text-right">Trip Income</th>
                         <th className="px-4 py-3 text-right">Trip Expense</th>
+                        <th className="px-4 py-3 text-right">Distributed Expense</th>
+                        <th className="px-4 py-3 text-right">Trip Income</th>
                         <th className="px-4 py-3 text-right">Trip Profit</th>
                         <th className="px-4 py-3 text-right">Final Profit</th>
                       </>
@@ -639,12 +669,21 @@ export function TripDetailsPanel() {
                           <td className="px-4 py-3 text-muted-foreground">
                             {row.branch_name || "—"}
                           </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {displayDate(row.start_date)}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {displayDate(row.end_date)}
+                          </td>
                           {canSeeMoney && (
                             <>
-                              <td className="px-4 py-3 text-right">{inr(row.total_income)}</td>
                               <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
                                 {inr(row.total_expense)}
                               </td>
+                              <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
+                                {inr(row.expenseDistribution)}
+                              </td>
+                              <td className="px-4 py-3 text-right">{inr(row.total_income)}</td>
                               <td
                                 className={`px-4 py-3 text-right font-medium ${moneyColor(row.net_income)}`}
                               >
@@ -669,7 +708,7 @@ export function TripDetailsPanel() {
                             className="border-b border-border bg-muted/10"
                           >
                             <td
-                              colSpan={canSeeMoney ? 7 : canSeeExpense ? 4 : 3}
+                              colSpan={canSeeMoney ? 10 : canSeeExpense ? 6 : 5}
                               className="px-6 py-3"
                             >
                               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -684,23 +723,23 @@ export function TripDetailsPanel() {
                                   <table className="w-full min-w-[760px] text-xs">
                                     <thead>
                                       <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
-                                        <th className="py-1.5 pr-4">Manifest No.</th>
+                                        <th className="py-1.5 pr-4">Manifest Date</th>
                                         <th className="py-1.5 pr-4">From Location</th>
                                         <th className="py-1.5 pr-4">To Location</th>
                                         <th className="py-1.5 pr-4 text-right">Weight</th>
                                         <th className="py-1.5 pr-4 text-right">Qty</th>
                                         {canSeeMoney && (
                                           <>
+                                            <th className="py-1.5 pr-4 text-right">Trip Expense</th>
                                             <th className="py-1.5 pr-4 text-right">Income</th>
-                                            <th className="py-1.5 pr-4 text-right">Income Dist.</th>
                                             <th className="py-1.5 pr-4 text-right">
-                                              Expense Dist.
+                                              Distributed Expense
                                             </th>
                                             <th className="py-1.5 text-right">Profit</th>
                                           </>
                                         )}
                                         {!canSeeMoney && canSeeExpense && (
-                                          <th className="py-1.5 text-right">Expense Dist.</th>
+                                          <th className="py-1.5 text-right">Trip Expense</th>
                                         )}
                                       </tr>
                                     </thead>
@@ -711,7 +750,7 @@ export function TripDetailsPanel() {
                                           className="border-b border-border/40"
                                         >
                                           <td className="py-1.5 pr-4 font-medium">
-                                            {manifest.manifest_number || "—"}
+                                            {displayDate(manifest.manifest_date)}
                                           </td>
                                           <td className="py-1.5 pr-4">{manifest.from_location}</td>
                                           <td className="py-1.5 pr-4">{manifest.to_location}</td>
@@ -724,13 +763,13 @@ export function TripDetailsPanel() {
                                           {canSeeMoney && (
                                             <>
                                               <td className="py-1.5 pr-4 text-right">
-                                                {inr(manifest.manifest_income)}
+                                                {inr(manifest.allocatedTripExpense)}
                                               </td>
                                               <td className="py-1.5 pr-4 text-right text-green-600 dark:text-green-400">
-                                                {inr(manifest.allocatedIncome)}
+                                                {inr(manifest.manifest_income)}
                                               </td>
                                               <td className="py-1.5 pr-4 text-right text-red-600 dark:text-red-400">
-                                                {inr(manifest.allocatedExpense)}
+                                                {inr(manifest.allocatedDistributedExpense)}
                                               </td>
                                               <td
                                                 className={`py-1.5 text-right font-semibold ${moneyColor(manifest.manifestProfit)}`}
@@ -741,7 +780,7 @@ export function TripDetailsPanel() {
                                           )}
                                           {!canSeeMoney && canSeeExpense && (
                                             <td className="py-1.5 text-right text-red-600 dark:text-red-400">
-                                              {inr(manifest.allocatedExpense)}
+                                              {inr(manifest.allocatedTripExpense)}
                                             </td>
                                           )}
                                         </tr>

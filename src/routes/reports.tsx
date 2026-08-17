@@ -14,6 +14,7 @@ import {
   Truck,
   Users,
   WalletCards,
+  CalendarRange,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -26,6 +27,7 @@ import { TransporterExpenseReport } from "@/components/reports/TransporterExpens
 import { OtherExpenseReport } from "@/components/reports/OtherExpenseReport";
 import { ApprovalChargeAdvanceReport } from "@/components/reports/ApprovalChargeAdvanceReport";
 import { MonthlyMISReport } from "@/components/reports/MonthlyMISReport";
+import { TripDetailsPanel } from "@/components/operations/TripDetailsPanel";
 import { useSession } from "@/lib/session";
 import { ReportFiltersContext } from "@/lib/report-filters";
 import { useBranches } from "@/lib/use-branches";
@@ -58,6 +60,12 @@ export const Route = createFileRoute("/reports")({
 });
 
 const TABS = [
+  {
+    id: "booking-report",
+    label: "Booking Report",
+    desc: "Trip and manifest booking details",
+    icon: CalendarRange,
+  },
   {
     id: "monthly-mis",
     label: "Monthly MIS",
@@ -268,6 +276,7 @@ function ReportsPage() {
             )}
             {tab === "pnl-compare" && <ProfitLossComparison />}
             {tab === "monthly-mis" && <MonthlyMISReport />}
+            {tab === "booking-report" && <TripDetailsPanel />}
             {tab === "insurance" && <CoverageLedger type="insurance" />}
             {tab === "road-tax" && <CoverageLedger type="road_tax" />}
             {tab === "fastag" && <FastagLedger />}

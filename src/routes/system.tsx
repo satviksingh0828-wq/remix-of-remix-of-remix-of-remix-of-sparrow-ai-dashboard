@@ -10,6 +10,7 @@ import {
   Server,
   ShieldCheck,
   ShieldHalf,
+  Wrench,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -18,13 +19,17 @@ import { DatabaseStats } from "@/components/system/DatabaseStats";
 import { ProjectStats } from "@/components/system/ProjectStats";
 import { SecurityPanel } from "@/components/system/SecurityPanel";
 import { TurnstilePanel } from "@/components/system/TurnstilePanel";
+import { CorrectionPanel } from "@/components/system/CorrectionPanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/system")({
   head: () => ({
     meta: [
       { title: "System — Garuda Logistics Solutions" },
-      { name: "description", content: "Admin system panel: error detection, database stats, and project info." },
+      {
+        name: "description",
+        content: "Admin system panel: error detection, database stats, and project info.",
+      },
     ],
   }),
   component: () => (
@@ -36,34 +41,40 @@ export const Route = createFileRoute("/system")({
 
 const TABS = [
   {
-    id:    "errors",
+    id: "corrections",
+    label: "Correction Panel",
+    desc: "Safely correct archived trip data",
+    icon: Wrench,
+  },
+  {
+    id: "errors",
     label: "Error Panel",
-    desc:  "Timestamp inconsistencies in closed trips",
-    icon:  AlertTriangle,
+    desc: "Timestamp inconsistencies in closed trips",
+    icon: AlertTriangle,
   },
   {
-    id:    "db",
+    id: "db",
     label: "Database Stats",
-    desc:  "PostgreSQL system stats & storage",
-    icon:  Database,
+    desc: "PostgreSQL system stats & storage",
+    icon: Database,
   },
   {
-    id:    "security",
+    id: "security",
     label: "Security",
-    desc:  "Passkeys, sessions & failed logins",
-    icon:  ShieldCheck,
+    desc: "Passkeys, sessions & failed logins",
+    icon: ShieldCheck,
   },
   {
-    id:    "turnstile",
+    id: "turnstile",
     label: "Turnstile",
-    desc:  "Cloudflare CAPTCHA analytics",
-    icon:  ShieldHalf,
+    desc: "Cloudflare CAPTCHA analytics",
+    icon: ShieldHalf,
   },
   {
-    id:    "project",
+    id: "project",
     label: "Project Stats",
-    desc:  "Supabase project & Management API info",
-    icon:  BarChart3,
+    desc: "Supabase project & Management API info",
+    icon: BarChart3,
   },
 ] as const;
 
@@ -71,8 +82,8 @@ type TabId = (typeof TABS)[number]["id"];
 
 function SystemPage() {
   const { user } = useSession();
-  const navigate   = useNavigate();
-  const [tab,     setTab]     = useState<TabId>("errors");
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<TabId>("errors");
   const [navOpen, setNavOpen] = useState(true);
 
   // Admin-only guard
@@ -82,13 +93,15 @@ function SystemPage() {
 
   if (user?.role !== "admin") return null;
 
-  const active = TABS.find(t => t.id === tab) ?? TABS[0];
+  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
 
   return (
     <AppShell
       breadcrumb={
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/home" className="hover:text-foreground">Workspace</Link>
+          <Link to="/home" className="hover:text-foreground">
+            Workspace
+          </Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">System</span>
         </span>
@@ -96,14 +109,21 @@ function SystemPage() {
       headerEnd={
         <button
           type="button"
-          onClick={() => setNavOpen(v => !v)}
+          onClick={() => setNavOpen((v) => !v)}
           title={navOpen ? "Hide sidebar" : "Show sidebar"}
           className="hidden lg:flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          {navOpen
-            ? <><PanelLeftClose className="size-3.5" /><span>Hide sidebar</span></>
-            : <><PanelLeftOpen  className="size-3.5" /><span>Show sidebar</span></>
-          }
+          {navOpen ? (
+            <>
+              <PanelLeftClose className="size-3.5" />
+              <span>Hide sidebar</span>
+            </>
+          ) : (
+            <>
+              <PanelLeftOpen className="size-3.5" />
+              <span>Show sidebar</span>
+            </>
+          )}
         </button>
       }
     >
@@ -115,8 +135,8 @@ function SystemPage() {
               System
             </p>
             <ul className="space-y-1">
-              {TABS.map(t => {
-                const Icon     = t.icon;
+              {TABS.map((t) => {
+                const Icon = t.icon;
                 const isActive = t.id === tab;
                 return (
                   <li key={t.id}>
@@ -145,8 +165,8 @@ function SystemPage() {
         {/* Mobile horizontal tab bar */}
         <div className="lg:hidden -mx-1">
           <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
-            {TABS.map(t => {
-              const Icon     = t.icon;
+            {TABS.map((t) => {
+              const Icon = t.icon;
               const isActive = t.id === tab;
               return (
                 <button
@@ -174,11 +194,12 @@ function SystemPage() {
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
 
-          {tab === "errors"    && <ErrorPanel />}
-          {tab === "db"        && <DatabaseStats />}
-          {tab === "security"  && <SecurityPanel />}
+          {tab === "errors" && <ErrorPanel />}
+          {tab === "corrections" && <CorrectionPanel />}
+          {tab === "db" && <DatabaseStats />}
+          {tab === "security" && <SecurityPanel />}
           {tab === "turnstile" && <TurnstilePanel />}
-          {tab === "project"   && <ProjectStats />}
+          {tab === "project" && <ProjectStats />}
         </div>
       </div>
     </AppShell>
