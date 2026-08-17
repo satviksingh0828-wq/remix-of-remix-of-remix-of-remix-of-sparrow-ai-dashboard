@@ -63,7 +63,11 @@ function moneyColor(value: number) {
 function displayDate(value: string) {
   if (!value) return "—";
   const date = new Date(`${value.slice(0, 10)}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-IN");
+  return Number.isNaN(date.getTime())
+    ? value
+    : date
+        .toLocaleDateString("en-GB", { day: "2-digit", month: "long", year: "numeric" })
+        .replace(/ /g, "-");
 }
 
 function buildBranchPools(
