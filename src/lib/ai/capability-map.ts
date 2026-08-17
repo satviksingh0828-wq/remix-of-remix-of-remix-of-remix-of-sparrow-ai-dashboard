@@ -65,7 +65,7 @@ export const AI_CAPABILITY_MAP: CapabilityModule[] = [
     ],
   },
   { route: "/dashboard", adminOnly: true, tabs: ["Profit & Loss", "Vehicles", "Drivers", "Transporters", "Trips"].map((label) => ({ label })) },
-  { route: "/reports", adminOnly: true, tabs: ["P&L Comparison", "Insurance Premium Ledger", "Road Tax Ledger", "Fastag Balance", "Vehicle Expenses", "Driver Expenses", "TRANSPORTER Expenses", "Other Expenses"].map((label) => ({ label })) },
+  { route: "/reports", adminOnly: true, tabs: ["Booking Report", "P&L Comparison", "Insurance Premium Ledger", "Road Tax Ledger", "Fastag Balance", "Vehicle Expenses", "Driver Expenses", "TRANSPORTER Expenses", "Other Expenses"].map((label) => ({ label })) },
   { route: "/users", adminOnly: true, tabs: ["Users", "Devices", "Activity Logs"].map((label) => ({ label })) },
   { route: "/settings", adminOnly: true, tabs: ["Company", "Branch", "Theme Settings"].map((label) => ({ label })) },
 ];

@@ -25,6 +25,7 @@ export type PnLClosedTrip = {
 };
 
 export type ManifestDetail = {
+  manifest_date: string;
   manifest_number: string;
   from_location: string;
   from_pin_code: string;
@@ -46,6 +47,8 @@ export type TripAveragesRow = {
   total_weight: number;
   total_quantity: number;
   closed_at: string;
+  start_date: string;
+  end_date: string;
   manifests: ManifestDetail[];
 };
 
@@ -432,11 +435,14 @@ export const serverFetchPnLYear = createServerFn({ method: "POST" })
         registration_number: String(v.registration_number ?? ""),
         label: [v.registration_number, v.nickname].filter(Boolean).join(" — "),
       })),
-      drivers: (driversRes.data ?? []).filter((d) => isDriverActive(d)).map((d: Record<string, unknown>) => ({
-        id: d.id as string,
-        full_name: String(d.full_name ?? ""),
-        label: [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),
-      })),
+      drivers: (driversRes.data ?? [])
+        .filter((d) => isDriverActive(d))
+        .map((d: Record<string, unknown>) => ({
+          id: d.id as string,
+          full_name: String(d.full_name ?? ""),
+          label:
+            [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),
+        })),
       transporters: (transportersRes.data ?? []).map((t: Record<string, unknown>) => ({
         id: t.id as string,
         label: String(t.transporter_name ?? ""),
@@ -535,11 +541,14 @@ export const serverFetchPnLPeriod = createServerFn({ method: "POST" })
         registration_number: String(v.registration_number ?? ""),
         label: [v.registration_number, v.nickname].filter(Boolean).join(" — "),
       })),
-      drivers: (driversRes.data ?? []).filter((d) => isDriverActive(d)).map((d: Record<string, unknown>) => ({
-        id: d.id as string,
-        full_name: String(d.full_name ?? ""),
-        label: [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),
-      })),
+      drivers: (driversRes.data ?? [])
+        .filter((d) => isDriverActive(d))
+        .map((d: Record<string, unknown>) => ({
+          id: d.id as string,
+          full_name: String(d.full_name ?? ""),
+          label:
+            [d.full_name, d.driver_code].filter(Boolean).join(" (") + (d.driver_code ? ")" : ""),
+        })),
       transporters: (transportersRes.data ?? []).map((t: Record<string, unknown>) => ({
         id: t.id as string,
         label: String(t.transporter_name ?? ""),
@@ -630,6 +639,7 @@ async function fetchTripAveragesData(
         const from = resolveLocation(m.from_location_id, m.from_pin_code);
         const to = resolveLocation(m.to_location_id, m.to_pin_code);
         return {
+          manifest_date: String(m.manifest_date ?? ""),
           manifest_number: String(m.manifest_number ?? ""),
           from_location: from.name,
           from_pin_code: from.pin,
@@ -647,6 +657,8 @@ async function fetchTripAveragesData(
 
   const allTrips: TripAveragesRow[] = tripsRows.map((r: Record<string, unknown>) => {
     const { weight, quantity } = extractWeightQty(r.snapshot);
+    const snapshot = (r.snapshot ?? {}) as Record<string, unknown>;
+    const tripSnapshot = (snapshot.trip ?? snapshot) as Record<string, unknown>;
     return {
       id: r.id as string,
       trip_code: String(r.trip_code ?? ""),
@@ -658,6 +670,8 @@ async function fetchTripAveragesData(
       total_weight: weight,
       total_quantity: quantity,
       closed_at: r.closed_at as string,
+      start_date: String(tripSnapshot.start_date ?? ""),
+      end_date: String(tripSnapshot.end_date ?? ""),
       manifests: extractManifests(r.snapshot),
     };
   });

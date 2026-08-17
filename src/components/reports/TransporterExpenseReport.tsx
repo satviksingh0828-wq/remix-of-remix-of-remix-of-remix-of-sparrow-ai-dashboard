@@ -93,7 +93,7 @@ export function TransporterExpenseReport() {
         supabase.from("transporters").select("id,transporter_name").order("transporter_name"),
       );
 
-      const branchTripCodes = await tripCodesForBranch(branchId);
+      const branchTripCodes = await tripCodesForBranch(branchId, { start, end });
       const allLogs = await fetchAll<any>(() =>
         supabase
           .from("transporter_expense_logs" as any)
@@ -147,7 +147,10 @@ export function TransporterExpenseReport() {
         .lt("trip_date", end)
         .order("trip_date", { ascending: false });
       if (error) throw error;
-      setHistory(data as any[]);
+      const periodTripCodes = await tripCodesForBranch(branchId, { start, end });
+      setHistory(
+        (data as any[]).filter((row) => !periodTripCodes || periodTripCodes.has(row.trip_code)),
+      );
     } catch (err: any) {
       toast.error("Failed to load history: " + err.message);
     } finally {
