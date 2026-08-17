@@ -1,5 +1,5 @@
 /**
- * TripDetailsPanel — period trip and manifest detail.
+ * TripDetailsPanel — branch-scoped booking report for basic users.
  *
  * It intentionally uses the Trip Averages period controls and distribution
  * rules, but presents the operational detail needed by every role. Monetary
@@ -302,7 +302,7 @@ export function TripDetailsPanel() {
           "Final Profit (₹)",
         ]
       : canSeeExpense
-        ? ["Trip", "Branch", "Trip Start Date", "Trip End Date", "Trip Expense (₹)"]
+        ? ["Branch", "Trip", "Trip Start Date", "Trip End Date", "Trip Expense (₹)"]
         : ["Trip", "Branch"];
     const tripRows: (string | number)[][] = [
       tripHeaders,
@@ -321,8 +321,8 @@ export function TripDetailsPanel() {
             ]
           : canSeeExpense
             ? [
-                row.trip_code || "—",
                 row.branch_name || "—",
+                row.trip_code || "—",
                 row.start_date,
                 row.end_date,
                 row.total_expense,
@@ -364,8 +364,6 @@ export function TripDetailsPanel() {
         ]
       : canSeeExpense
         ? [
-            "Trip",
-            "Branch",
             "Manifest Date",
             "From Location",
             "To Location",
@@ -384,6 +382,7 @@ export function TripDetailsPanel() {
           ];
     const manifestRows: (string | number)[][] = [manifestHeaders];
     let manifestIncomeTotal = 0;
+    let tripExpenseTotal = 0;
     let distributedIncomeTotal = 0;
     let distributedExpenseTotal = 0;
     let manifestProfitTotal = 0;
@@ -391,21 +390,23 @@ export function TripDetailsPanel() {
     for (const row of filteredRows) {
       if (row.manifestRows.length === 0) {
         manifestRows.push(
-          canSeeExpense
+          canSeeMoney
             ? [row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", "", ""]
-            : [row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", ""],
+            : canSeeExpense
+              ? ["—", "—", "—", "", "", ""]
+              : [row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", ""],
         );
         continue;
       }
 
       for (const manifest of row.manifestRows) {
         manifestIncomeTotal += manifest.manifest_income;
+        tripExpenseTotal += manifest.allocatedTripExpense;
         distributedIncomeTotal += manifest.allocatedIncome;
         distributedExpenseTotal += manifest.allocatedDistributedExpense;
         manifestProfitTotal += manifest.manifestProfit;
         const base: (string | number)[] = [
-          row.trip_code || "—",
-          row.branch_name || "—",
+          ...(canSeeMoney ? [row.trip_code || "—", row.branch_name || "—"] : []),
           manifest.manifest_date || "—",
           manifest.from_location || "—",
           manifest.to_location || "—",
@@ -427,7 +428,11 @@ export function TripDetailsPanel() {
         );
       }
     }
-    const manifestTotals = ["TOTALS", "", "", "", "", "", ""];
+    const manifestTotals: (string | number)[] = canSeeMoney
+      ? ["TOTALS", "", "", "", "", "", ""]
+      : canSeeExpense
+        ? ["TOTALS", "", "", "", ""]
+        : ["TOTALS", "", "", "", "", ""];
     if (canSeeMoney) {
       manifestTotals.push(
         manifestIncomeTotal,
@@ -436,7 +441,7 @@ export function TripDetailsPanel() {
         manifestProfitTotal,
       );
     } else if (canSeeExpense) {
-      manifestTotals.push(distributedExpenseTotal);
+      manifestTotals.push(tripExpenseTotal);
     }
     manifestRows.push(manifestTotals);
 
@@ -449,7 +454,7 @@ export function TripDetailsPanel() {
       canSeeMoney
         ? [18, 18, 16, 20, 20, 12, 12, 18, 20, 20, 16]
         : canSeeExpense
-          ? [18, 18, 16, 20, 20, 12, 12, 18]
+          ? [16, 20, 20, 12, 12, 18]
           : [18, 18, 16, 20, 20, 12, 12]
     ).map((wch) => ({ wch }));
 
@@ -458,8 +463,8 @@ export function TripDetailsPanel() {
     XLSX.utils.book_append_sheet(workbook, manifestSheet, "Manifest Wise");
     const filename =
       financialYear !== "none"
-        ? `trip-details-fy-${financialYearLabel(Number(financialYear))}.xlsx`
-        : `trip-details-${year}-${month.padStart(2, "0")}.xlsx`;
+        ? `booking-report-fy-${financialYearLabel(Number(financialYear))}.xlsx`
+        : `booking-report-${year}-${month.padStart(2, "0")}.xlsx`;
     XLSX.writeFile(workbook, filename);
   }
 
@@ -595,7 +600,7 @@ export function TripDetailsPanel() {
         <>
           <div className="rounded-xl border border-border bg-muted/20 p-4">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Trip Details — {monthLabel}
+              Booking Report — {monthLabel}
               {financialYear === "none" ? ` ${year}` : ""}
               {branchFilter !== "all" && (
                 <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium normal-case text-primary">
@@ -630,8 +635,8 @@ export function TripDetailsPanel() {
                 <thead>
                   <tr className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wide text-muted-foreground">
                     <th className="w-8 px-2 py-3" />
-                    <th className="px-4 py-3">Trip</th>
                     <th className="px-4 py-3">Branch</th>
+                    <th className="px-4 py-3">Trip</th>
                     <th className="px-4 py-3">Trip Start Date</th>
                     <th className="px-4 py-3">Trip End Date</th>
                     {canSeeMoney && (
@@ -665,10 +670,10 @@ export function TripDetailsPanel() {
                               <ChevronRight className="inline size-4" />
                             )}
                           </td>
-                          <td className="px-4 py-3 font-medium">{row.trip_code || "—"}</td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {row.branch_name || "—"}
                           </td>
+                          <td className="px-4 py-3 font-medium">{row.trip_code || "—"}</td>
                           <td className="px-4 py-3 text-muted-foreground">
                             {displayDate(row.start_date)}
                           </td>

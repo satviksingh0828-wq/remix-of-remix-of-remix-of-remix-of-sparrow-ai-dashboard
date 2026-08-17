@@ -1585,7 +1585,7 @@ function LineTab({
               size="sm"
               variant="outline"
               className="ml-auto"
-              onClick={() => setRows([...rows, { name: "", amount: "", note: "" }])}
+              onClick={() => setRows([...rows, { name: "Other", amount: "", note: "" }])}
             >
               <Plus className="size-4" />
               Add field
