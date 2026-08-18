@@ -109,7 +109,7 @@ function UsersPage() {
         {/* Mobile dropdown navigation */}
         <MobileTabDropdown
           tabs={TABS}
-          activeId={safeTab}
+          activeId={tab}
           label="Users"
           onChange={setTab}
         />

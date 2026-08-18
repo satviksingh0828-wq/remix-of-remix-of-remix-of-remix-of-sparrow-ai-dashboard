@@ -215,7 +215,7 @@ function ReportsPage() {
         )}
 
         {/* Mobile dropdown navigation */}
-        <MobileTabDropdown tabs={TABS} activeId={safeTab} label="Reports" onChange={setTab} />
+        <MobileTabDropdown tabs={TABS} activeId={tab} label="Reports" onChange={setTab} />
 
         <ReportFiltersContext.Provider value={{ branchId, financialYear }}>
           <div key={tab} className="animate-fade-in min-w-0">

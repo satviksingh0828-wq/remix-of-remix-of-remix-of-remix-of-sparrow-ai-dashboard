@@ -130,7 +130,7 @@ function SettingsPage() {
         )}
 
         {/* Mobile dropdown navigation */}
-        <MobileTabDropdown tabs={TABS} activeId={safeTab} label="Settings" onChange={setTab} />
+        <MobileTabDropdown tabs={TABS} activeId={tab} label="Settings" onChange={setTab} />
 
         <div key={tab} className="animate-fade-in min-w-0">
           <header className="mb-6">
