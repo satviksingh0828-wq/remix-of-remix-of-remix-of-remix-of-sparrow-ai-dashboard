@@ -1,6 +1,15 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building, Building2, Check, ChevronRight, PanelLeftClose, PanelLeftOpen, Palette, Wifi } from "lucide-react";
+import {
+  Building,
+  Building2,
+  Check,
+  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Palette,
+  Wifi,
+} from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { CompanySettings } from "@/components/settings/CompanySettings";
@@ -20,28 +29,34 @@ export const Route = createFileRoute("/settings")({
       { property: "og:title", content: "Settings — Garuda Logistics Solutions" },
       {
         property: "og:description",
-        content: "Company profile, branches, departments and theme settings for Garuda Logistics Solutions.",
+        content:
+          "Company profile, branches, departments and theme settings for Garuda Logistics Solutions.",
       },
     ],
   }),
   component: () => (
     <RequireAuth>
-      <SettingsPage />
+      <SettingsRouteContent />
     </RequireAuth>
   ),
 });
 
+function SettingsRouteContent() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  return pathname.startsWith("/settings/") ? <Outlet /> : <SettingsPage />;
+}
+
 const TABS = [
-  { id: "company", label: "Company",        desc: "Profile & registration", icon: Building  },
-  { id: "branch",  label: "Branch",         desc: "Locations & managers",   icon: Building2 },
-  { id: "theme",   label: "Theme Settings", desc: "Appearance",             icon: Palette   },
+  { id: "company", label: "Company", desc: "Profile & registration", icon: Building },
+  { id: "branch", label: "Branch", desc: "Locations & managers", icon: Building2 },
+  { id: "theme", label: "Theme Settings", desc: "Appearance", icon: Palette },
   { id: "attendance", label: "Attendance Module", desc: "Device & service connection", icon: Wifi },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
 function SettingsPage() {
-  const [tab, setTab]     = useState<TabId>("company");
+  const [tab, setTab] = useState<TabId>("company");
   const [navOpen, setNavOpen] = useState(true);
 
   const active = TABS.find((t) => t.id === tab)!;
@@ -50,7 +65,9 @@ function SettingsPage() {
     <AppShell
       breadcrumb={
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/home" className="hover:text-foreground">Workspace</Link>
+          <Link to="/home" className="hover:text-foreground">
+            Workspace
+          </Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Settings</span>
         </span>
@@ -58,14 +75,21 @@ function SettingsPage() {
       headerEnd={
         <button
           type="button"
-          onClick={() => setNavOpen(v => !v)}
+          onClick={() => setNavOpen((v) => !v)}
           title={navOpen ? "Hide sidebar" : "Show sidebar"}
           className="hidden lg:flex items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          {navOpen
-            ? <><PanelLeftClose className="size-3.5" /><span>Hide sidebar</span></>
-            : <><PanelLeftOpen  className="size-3.5" /><span>Show sidebar</span></>
-          }
+          {navOpen ? (
+            <>
+              <PanelLeftClose className="size-3.5" />
+              <span>Hide sidebar</span>
+            </>
+          ) : (
+            <>
+              <PanelLeftOpen className="size-3.5" />
+              <span>Show sidebar</span>
+            </>
+          )}
         </button>
       }
     >
@@ -78,7 +102,7 @@ function SettingsPage() {
             </p>
             <ul className="space-y-1">
               {TABS.map((t) => {
-                const Icon     = t.icon;
+                const Icon = t.icon;
                 const isActive = t.id === tab;
                 return (
                   <li key={t.id}>
@@ -108,7 +132,7 @@ function SettingsPage() {
         <div className="lg:hidden -mx-1">
           <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
             {TABS.map((t) => {
-              const Icon     = t.icon;
+              const Icon = t.icon;
               const isActive = t.id === tab;
               return (
                 <button
@@ -116,7 +140,9 @@ function SettingsPage() {
                   type="button"
                   onClick={() => setTab(t.id)}
                   className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors ${
-                    isActive ? "bg-primary text-primary-foreground font-medium" : "bg-muted text-muted-foreground hover:text-foreground"
+                    isActive
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   <Icon className="size-3.5" />
@@ -133,8 +159,8 @@ function SettingsPage() {
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
           {tab === "company" ? <CompanySettings /> : null}
-          {tab === "branch"  ? <BranchSettings />  : null}
-          {tab === "theme"   ? <ThemePanel />       : null}
+          {tab === "branch" ? <BranchSettings /> : null}
+          {tab === "theme" ? <ThemePanel /> : null}
           {tab === "attendance" ? <AttendanceModuleSettings /> : null}
         </div>
       </div>
@@ -175,9 +201,7 @@ function ThemePanel() {
                   <span className="block text-sm font-medium">{t.label}</span>
                   <span className="block truncate text-xs text-muted-foreground">{t.hint}</span>
                 </span>
-                {isActive ? (
-                  <Check className="absolute right-3 top-3 size-4 text-primary" />
-                ) : null}
+                {isActive ? <Check className="absolute right-3 top-3 size-4 text-primary" /> : null}
               </button>
             );
           })}
@@ -215,11 +239,11 @@ function ThemePanel() {
             <div className="flex items-center justify-between p-4">
               <span className="min-w-0">
                 <span className="block text-sm font-medium">Plain UI</span>
-                <span className="block text-xs text-muted-foreground">Gradient with logo (default)</span>
+                <span className="block text-xs text-muted-foreground">
+                  Gradient with logo (default)
+                </span>
               </span>
-              {loginUi === "plain" ? (
-                <Check className="size-4 shrink-0 text-primary" />
-              ) : null}
+              {loginUi === "plain" ? <Check className="size-4 shrink-0 text-primary" /> : null}
             </div>
           </button>
 
@@ -245,11 +269,11 @@ function ThemePanel() {
             <div className="flex items-center justify-between p-4">
               <span className="min-w-0">
                 <span className="block text-sm font-medium">Image UI</span>
-                <span className="block text-xs text-muted-foreground">Garuda banner as background</span>
+                <span className="block text-xs text-muted-foreground">
+                  Garuda banner as background
+                </span>
               </span>
-              {loginUi === "image" ? (
-                <Check className="size-4 shrink-0 text-primary" />
-              ) : null}
+              {loginUi === "image" ? <Check className="size-4 shrink-0 text-primary" /> : null}
             </div>
           </button>
         </div>

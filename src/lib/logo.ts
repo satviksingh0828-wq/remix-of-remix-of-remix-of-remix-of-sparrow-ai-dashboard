@@ -18,7 +18,16 @@ export function getLogoBase64(): string | null {
   return _activeLogo;
 }
 
-/** No-op kept for compatibility — logo loading is now handled by CompanyContext. */
-export function preloadLogo(): Promise<void> {
-  return Promise.resolve();
+/** Load the fixed Garuda header logo once so every synchronous PDF exporter can embed it. */
+export async function preloadLogo(): Promise<void> {
+  if (_activeLogo || typeof window === "undefined") return;
+  const response = await fetch("/garuda-logo.png");
+  if (!response.ok) throw new Error("Could not load Garuda logo");
+  const blob = await response.blob();
+  _activeLogo = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 }

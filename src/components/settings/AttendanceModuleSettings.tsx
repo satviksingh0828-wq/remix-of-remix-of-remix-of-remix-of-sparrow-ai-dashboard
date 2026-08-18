@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, Save, Wifi } from "lucide-react";
+import { Loader2, Save, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -110,11 +110,6 @@ export function AttendanceModuleSettings() {
           </Button>
         </div>
       </section>
-
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <CheckCircle2 className="size-3.5 text-primary" />
-        Attendance and payroll data remain in the same Supabase project.
-      </div>
     </div>
   );
 }

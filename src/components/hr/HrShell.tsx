@@ -1,54 +1,38 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { CalendarCheck, ChevronRight, LayoutDashboard, Users, Wallet } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { HrSectionNav } from "@/components/hr/HrSectionNav";
 
-type HrArea = "master" | "attendance" | "payroll" | "dashboard";
+type HrArea = "master" | "attendance" | "payroll";
 
-const areas = [
-  { id: "master" as const, label: "HR Master", desc: "Employees, departments & positions", to: "/employees", icon: Users },
-  { id: "attendance" as const, label: "Attendance", desc: "Marking, history & holidays", to: "/attendance", icon: CalendarCheck },
-  { id: "payroll" as const, label: "Payroll", desc: "Salary, loans & deductions", to: "/payroll", icon: Wallet },
-  { id: "dashboard" as const, label: "HR Dashboard", desc: "People, attendance & payroll overview", to: "/hr-dashboard", icon: LayoutDashboard },
-];
+const areaLabels: Record<HrArea, string> = {
+  master: "HR Master",
+  attendance: "HR Attendance",
+  payroll: "HR Payroll",
+};
 
+/** Shared page shell for each independent HR workspace module. */
 export function HrShell({ area, children }: { area: HrArea; children: ReactNode }) {
+  const label = areaLabels[area];
+
   return (
     <AppShell
       breadcrumb={
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link to="/home" className="hover:text-foreground">Workspace</Link>
+          <Link to="/home" className="hover:text-foreground">
+            Workspace
+          </Link>
           <ChevronRight className="size-3.5" />
-          <span className="text-foreground">HR</span>
+          <span className="text-foreground">{label}</span>
         </span>
       }
     >
-      <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
-        {areas.map((item) => {
-          const Icon = item.icon;
-          const active = item.id === area;
-          return (
-            <Link
-              key={item.id}
-              to={item.to}
-              className={`flex min-w-[150px] shrink-0 items-center gap-2 rounded-xl border px-3 py-2.5 transition-colors ${
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Icon className="size-4" />
-              <span className="leading-tight">
-                <span className="block text-sm font-medium">{item.label}</span>
-                <span className={`block text-[10px] ${active ? "text-primary-foreground/75" : "opacity-70"}`}>
-                  {item.desc}
-                </span>
-              </span>
-            </Link>
-          );
-        })}
-      </div>
-      {children}
+      <header className="mb-4">
+        <h1 className="text-2xl font-semibold tracking-tight">{label}</h1>
+      </header>
+      <HrSectionNav area={area} />
+      <div className="min-w-0">{children}</div>
     </AppShell>
   );
 }

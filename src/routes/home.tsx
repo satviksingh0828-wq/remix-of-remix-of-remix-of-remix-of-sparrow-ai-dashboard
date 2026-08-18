@@ -71,7 +71,7 @@ const ALL_MODULES = [
   },
   {
     key: "hr-attendance",
-    label: "Attendance",
+    label: "HR Attendance",
     desc: "Marking, history & holidays",
     icon: CalendarCheck,
     active: true,
@@ -80,7 +80,7 @@ const ALL_MODULES = [
   },
   {
     key: "hr-payroll",
-    label: "Payroll",
+    label: "HR Payroll",
     desc: "Salary, loans & deductions",
     icon: Wallet,
     active: true,
@@ -94,7 +94,7 @@ const ALL_MODULES = [
     icon: BarChart3,
     active: true,
     to: "/dashboard" as const,
-    roles: ["admin"] as const,
+    roles: ["admin", "viewer"] as const,
   },
   {
     key: "reports",

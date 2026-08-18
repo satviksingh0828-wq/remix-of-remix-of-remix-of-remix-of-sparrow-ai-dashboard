@@ -18,7 +18,7 @@ function fmtDate(d: string) {
 function drawHeader(doc: jsPDF, company: string, address: string): number {
   const logo = getLogoBase64();
   if (logo) {
-    try { doc.addImage(logo, 'JPEG', 36, 20, 44, 32); } catch { /* ignore */ }
+    try { doc.addImage(logo, 'PNG', 36, 20, 44, 32); } catch { /* ignore */ }
   }
   const textX = logo ? 88 : 40;
   doc.setFont('helvetica', 'bold');
