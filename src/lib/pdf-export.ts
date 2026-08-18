@@ -20,7 +20,7 @@ function header(doc: jsPDF, settings: AppSettings | null | undefined, title: str
   const logo = getLogoBase64();
   if (logo) {
     try {
-      doc.addImage(logo, 'JPEG', 36, 18, 44, 32);
+      doc.addImage(logo, 'PNG', 36, 18, 44, 32);
     } catch { /* ignore if logo fails */ }
   }
   const textX = logo ? 88 : 40;
@@ -379,7 +379,7 @@ export function exportLedgerPdf(opts: {
 
   const logo = getLogoBase64();
   if (logo) {
-    try { doc.addImage(logo, 'JPEG', 36, 14, 36, 26); } catch { /* ignore */ }
+    try { doc.addImage(logo, 'PNG', 36, 14, 36, 26); } catch { /* ignore */ }
   }
   const textX = logo ? 80 : 36;
   doc.setFont('helvetica', 'bold');

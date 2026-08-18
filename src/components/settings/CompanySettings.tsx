@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { syncCompanyToAppSettings } from "@/lib/company-app-settings";
 import {
   Select,
   SelectContent,
@@ -105,6 +107,7 @@ export function Field({
 }
 
 export function CompanySettings() {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState<Company>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -128,11 +131,23 @@ export function CompanySettings() {
     const res = id
       ? await supabase.from("company").update(payload).eq("id", id)
       : await supabase.from("company").insert(payload).select("id").maybeSingle();
-    setSaving(false);
-    if (res.error) return toast.error(res.error.message);
+    if (res.error) {
+      setSaving(false);
+      return toast.error(res.error.message);
+    }
     if (!id && "data" in res && res.data)
       setForm((f) => ({ ...f, id: (res.data as { id: string }).id }));
-    toast.success("Company details saved");
+    try {
+      await syncCompanyToAppSettings(rest);
+      await queryClient.invalidateQueries({ queryKey: ["app_settings"] });
+      toast.success("Company details and app identity saved");
+    } catch (error) {
+      toast.error(
+        `Company saved, but app identity could not be updated: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {
