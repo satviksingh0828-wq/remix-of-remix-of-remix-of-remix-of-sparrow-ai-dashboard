@@ -132,6 +132,8 @@ export function NotificationBell() {
         type="button"
         onClick={() => { setOpen((v) => !v); if (!open && !error) load(); }}
         aria-label={`Notifications${count > 0 ? ` (${count})` : ""}`}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         className="relative flex size-8 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Bell className="size-4" />
@@ -151,7 +153,9 @@ export function NotificationBell() {
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-10 z-50 w-[360px] rounded-xl border border-border bg-card shadow-xl"
+          role="dialog"
+          aria-label="Notifications"
+          className="fixed inset-x-3 top-[4.5rem] z-50 overflow-hidden rounded-xl border border-border bg-card shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-10 sm:w-[360px]"
         >
           {/* Header */}
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -186,7 +190,7 @@ export function NotificationBell() {
           </div>
 
           {/* Body */}
-          <div className="max-h-[420px] overflow-y-auto">
+          <div className="max-h-[calc(100dvh-10rem)] overscroll-contain overflow-y-auto sm:max-h-[420px]">
             {loading && items.length === 0 ? (
               <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">
                 Checking for alerts…
