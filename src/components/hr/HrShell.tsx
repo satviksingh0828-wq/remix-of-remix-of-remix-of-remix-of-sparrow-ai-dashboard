@@ -31,7 +31,7 @@ export function HrShell({ area, children }: { area: HrArea; children: ReactNode 
           type="button"
           onClick={() => setNavOpen((open) => !open)}
           title={navOpen ? "Hide sidebar" : "Show sidebar"}
-          className="hidden items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+          className="hidden items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground xl:flex"
         >
           {navOpen ? (
             <PanelLeftClose className="size-3.5" />
@@ -42,7 +42,7 @@ export function HrShell({ area, children }: { area: HrArea; children: ReactNode 
         </button>
       }
     >
-      <div className={`grid gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
+      <div className={`grid gap-6 ${navOpen ? "xl:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
         {navOpen && <HrSectionNav area={area} desktop />}
         <div className="min-w-0">
           <HrSectionNav area={area} />

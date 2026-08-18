@@ -6,6 +6,8 @@ import {
   CalendarCheck,
   CalendarClock,
   CalendarDays,
+  Check,
+  ChevronDown,
   ClipboardCheck,
   History,
   Landmark,
@@ -15,6 +17,12 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export type HrArea = "master" | "attendance" | "payroll";
 
@@ -134,6 +142,45 @@ function linkIsActive(pathname: string, to: string) {
 export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?: boolean }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const links = sectionLinks[area];
+  const activeLink = links.find(({ to }) => linkIsActive(pathname, to)) ?? links[0];
+  const ActiveIcon = activeLink.icon;
+
+  if (desktop) {
+    return (
+      <nav
+        aria-label={`${areaLabels[area]} sections`}
+        className="hidden xl:block xl:sticky xl:top-24 xl:self-start"
+      >
+        <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {areaLabels[area]}
+        </p>
+        <ul className="space-y-1">
+          {links.map(({ label, description, to, icon: Icon }) => {
+            const active = linkIsActive(pathname, to);
+            return (
+              <li key={to}>
+                <Link
+                  to={to}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
+                    active
+                      ? "bg-primary-soft text-foreground"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                >
+                  <Icon className={`size-4 shrink-0 ${active ? "text-primary" : ""}`} />
+                  <span className="min-w-0 leading-tight">
+                    <span className="block truncate text-sm font-medium">{label}</span>
+                    <span className="block truncate text-[11px] opacity-70">{description}</span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+    );
+  }
 
   if (desktop) {
     return (
@@ -173,27 +220,47 @@ export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?
   }
 
   return (
-    <nav aria-label={`${areaLabels[area]} sections`} className="-mx-1 mb-6 lg:hidden">
-      <div className="scrollbar-none flex gap-1 overflow-x-auto px-1 pb-1">
-        {links.map(({ label, to, icon: Icon }) => {
-          const active = linkIsActive(pathname, to);
-          return (
-            <Link
-              key={to}
-              to={to}
-              aria-current={active ? "page" : undefined}
-              className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl px-3 py-2 text-sm transition-colors ${
-                active
-                  ? "bg-primary font-medium text-primary-foreground"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Icon className="size-3.5" />
-              {label}
-            </Link>
-          );
-        })}
-      </div>
+    <nav aria-label={`${areaLabels[area]} sections`} className="mb-6 xl:hidden">
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ActiveIcon className="size-4 shrink-0 text-primary" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                {areaLabels[area]} section
+              </span>
+              <span className="block truncate text-sm font-semibold">{activeLink.label}</span>
+            </span>
+            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+          {links.map(({ label, description, to, icon: Icon }) => {
+            const active = linkIsActive(pathname, to);
+            return (
+              <DropdownMenuItem key={to} asChild>
+                <Link
+                  to={to}
+                  aria-current={active ? "page" : undefined}
+                  className="flex cursor-pointer items-center gap-3 py-2.5"
+                >
+                  <Icon className={`size-4 shrink-0 ${active ? "text-primary" : ""}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {description}
+                    </span>
+                  </span>
+                  {active && <Check className="size-4 shrink-0 text-primary" />}
+                </Link>
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </nav>
   );
 }
