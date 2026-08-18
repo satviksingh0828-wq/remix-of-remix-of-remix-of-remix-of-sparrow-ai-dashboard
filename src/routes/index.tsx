@@ -381,16 +381,16 @@ function LoginPage() {
       </AlertDialogContent>
     </AlertDialog>
 
-    <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
+    <div className="grid min-h-dvh overflow-x-hidden lg:grid-cols-[1.05fr_1fr]">
       {/* Banner — switches between plain gradient and image based on Settings */}
       {loginUi === "image" ? (
-        <aside className="relative hidden overflow-hidden lg:block">
-          <picture>
+        <aside className="relative hidden min-h-dvh overflow-hidden lg:block">
+          <picture className="absolute inset-0 block">
             <source srcSet="/garuda-banner.webp" type="image/webp" />
             <img
               src="/garuda-banner.jpeg"
               alt="Garuda Logistics Solution"
-              className="h-full w-full object-cover"
+              className="block size-full object-cover"
               fetchPriority="high"
               decoding="async"
             />
@@ -403,7 +403,7 @@ function LoginPage() {
         </aside>
       ) : (
         <aside
-          className="relative hidden items-center justify-center overflow-hidden px-12 lg:flex"
+          className="relative hidden min-h-dvh items-center justify-center overflow-hidden px-12 lg:flex"
           style={{ backgroundImage: "var(--gradient-brand)" }}
         >
           <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
@@ -423,7 +423,7 @@ function LoginPage() {
       )}
 
       {/* Login */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-10">
+      <section className="relative flex min-h-dvh min-w-0 flex-col items-center justify-center bg-background px-6 py-10">
 
         {/* ── Normal login form — always visible ────────────────────────── */}
         <div className="w-full max-w-sm animate-fade-up">
