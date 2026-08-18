@@ -25,15 +25,15 @@ export function AppShell({
   const isViewer = user?.role === "viewer";
 
   return (
-    <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "mr-[360px]" : "")}>
+    <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "lg:mr-[360px]" : "")}>
       <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
-        <div className="mx-auto max-w-screen-xl flex h-16 items-center gap-3 px-4 sm:px-6">
+        <div className="mx-auto flex h-16 max-w-screen-xl items-center gap-1.5 px-3 sm:gap-3 sm:px-6">
           <Link to="/home" className="shrink-0">
-            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
+            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-8 w-auto sm:h-10" />
           </Link>
           {breadcrumb && <div className="ml-2 hidden md:block shrink-0">{breadcrumb}</div>}
           {headerEnd && <div className="ml-2 hidden lg:block">{headerEnd}</div>}
-          <div className="ml-auto flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-3">
             {user?.role === "admin" && (
               <Link
                 to="/system"
@@ -73,7 +73,7 @@ export function AppShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-screen-xl px-4 sm:px-6 py-6 sm:py-8">{children}</main>
+      <main className="mx-auto min-w-0 max-w-screen-xl overflow-x-hidden px-3 py-5 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }

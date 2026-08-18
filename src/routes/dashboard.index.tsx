@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
+import { MobileTabDropdown } from "@/components/MobileTabDropdown";
 import { ProfitLossPanel } from "@/components/dashboard/ProfitLossPanel";
 import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
 import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
@@ -171,30 +172,13 @@ export function DashboardPage({ initialTab }: { initialTab?: DashboardTabId }) {
           </nav>
         )}
 
-        {/* ── Mobile horizontal tab bar ── */}
-        <div className="lg:hidden -mx-1">
-          <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
-            {visibleTabs.map((t) => {
-              const Icon = t.icon;
-              const isActive = t.id === safeTab;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors ${
-                    isActive
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="size-3.5" />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Mobile dropdown navigation */}
+        <MobileTabDropdown
+          tabs={visibleTabs}
+          activeId={safeTab}
+          label="Dashboard"
+          onChange={setTab}
+        />
 
         <div key={safeTab} className="animate-fade-in min-w-0">
           <header className="mb-6">

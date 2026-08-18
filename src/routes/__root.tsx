@@ -170,7 +170,7 @@ function OrcaAIPanelMount() {
   const { user } = useSession();
   if (!open || user?.role !== "admin") return null;
   return (
-    <div className="fixed right-0 top-0 z-[60] h-screen w-[360px] shadow-[-4px_0_32px_rgba(0,0,0,0.12)]">
+    <div className="fixed inset-x-0 top-0 z-[60] h-screen w-full shadow-[-4px_0_32px_rgba(0,0,0,0.12)] sm:inset-x-auto sm:right-0 sm:w-[360px]">
       <OrcaAIPanel />
     </div>
   );

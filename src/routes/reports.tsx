@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
+import { MobileTabDropdown } from "@/components/MobileTabDropdown";
 import { ProfitLossComparison } from "@/components/reports/ProfitLossComparison";
 import { CoverageLedger } from "@/components/reports/CoverageLedger";
 import { FastagLedger } from "@/components/reports/FastagLedger";
@@ -213,30 +214,8 @@ function ReportsPage() {
           </nav>
         )}
 
-        {/* ── Mobile horizontal tab bar ── */}
-        <div className="lg:hidden -mx-1">
-          <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
-            {visibleTabs.map((t) => {
-              const Icon = t.icon;
-              const isActive = t.id === tab;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setTab(t.id)}
-                  className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm whitespace-nowrap transition-colors ${
-                    isActive
-                      ? "bg-primary text-primary-foreground font-medium"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="size-3.5" />
-                  {t.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Mobile dropdown navigation */}
+        <MobileTabDropdown tabs={TABS} activeId={safeTab} label="Reports" onChange={setTab} />
 
         <ReportFiltersContext.Provider value={{ branchId, financialYear }}>
           <div key={tab} className="animate-fade-in min-w-0">
