@@ -387,6 +387,7 @@ export function TripDetailsPanel() {
           "Trip Start Date",
           "Trip End Date",
           "Manifest Date",
+          "Manifest No.",
           "From Location",
           "To Location",
           "Weight (kg)",
@@ -403,6 +404,7 @@ export function TripDetailsPanel() {
             "Trip Start Date",
             "Trip End Date",
             "Manifest Date",
+            "Manifest No.",
             "From Location",
             "To Location",
             "Weight (kg)",
@@ -415,6 +417,7 @@ export function TripDetailsPanel() {
             "Trip Start Date",
             "Trip End Date",
             "Manifest Date",
+            "Manifest No.",
             "From Location",
             "To Location",
             "Weight (kg)",
@@ -431,10 +434,10 @@ export function TripDetailsPanel() {
       if (row.manifestRows.length === 0) {
         manifestRows.push(
           canSeeMoney
-            ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "", "", "", "", "", "", "", ""]
+            ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", "", "", "", "", ""]
             : canSeeExpense
-              ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "", "", ""]
-              : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "", ""],
+              ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", "", ""]
+              : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", ""],
         );
         continue;
       }
@@ -451,6 +454,7 @@ export function TripDetailsPanel() {
           excelDate(row.start_date),
           excelDate(row.end_date),
           excelDate(manifest.manifest_date),
+          manifest.manifest_number || "—",
           manifest.from_location || "—",
           manifest.to_location || "—",
           manifest.weight_kg,
@@ -471,11 +475,9 @@ export function TripDetailsPanel() {
         );
       }
     }
-    const manifestTotals: (string | number)[] = canSeeMoney
-      ? ["TOTALS", "", "", "", "", "", "", "", "", ""]
-      : canSeeExpense
-        ? ["TOTALS", "", "", "", "", "", "", "", ""]
-        : ["TOTALS", "", "", "", "", "", "", "", ""];
+    const manifestTotals: (string | number)[] = [
+      "TOTALS", "", "", "", "", "", "", "", "", "",
+    ];
     if (canSeeMoney) {
       manifestTotals.push(
         manifestIncomeTotal,
@@ -495,10 +497,10 @@ export function TripDetailsPanel() {
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
       canSeeMoney
-        ? [18, 18, 16, 16, 16, 20, 20, 12, 12, 18, 20, 20, 16]
+        ? [18, 18, 16, 16, 16, 18, 20, 20, 12, 12, 18, 20, 20, 16]
         : canSeeExpense
-          ? [18, 18, 16, 16, 16, 20, 20, 12, 12, 18]
-          : [18, 18, 16, 16, 16, 20, 20, 12, 12]
+          ? [18, 18, 16, 16, 16, 18, 20, 20, 12, 12, 18]
+          : [18, 18, 16, 16, 16, 18, 20, 20, 12, 12]
     ).map((wch) => ({ wch }));
 
     const workbook = XLSX.utils.book_new();
@@ -782,6 +784,7 @@ export function TripDetailsPanel() {
                                     <thead>
                                       <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
                                         <th className="py-1.5 pr-4">Manifest Date</th>
+                                        <th className="py-1.5 pr-4">Manifest No.</th>
                                         <th className="py-1.5 pr-4">From Location</th>
                                         <th className="py-1.5 pr-4">To Location</th>
                                         <th className="py-1.5 pr-4 text-right">Weight</th>
@@ -809,6 +812,9 @@ export function TripDetailsPanel() {
                                         >
                                           <td className="py-1.5 pr-4 font-medium">
                                             {displayDate(manifest.manifest_date)}
+                                          </td>
+                                          <td className="py-1.5 pr-4 font-medium">
+                                            {manifest.manifest_number || "—"}
                                           </td>
                                           <td className="py-1.5 pr-4">{manifest.from_location}</td>
                                           <td className="py-1.5 pr-4">{manifest.to_location}</td>
