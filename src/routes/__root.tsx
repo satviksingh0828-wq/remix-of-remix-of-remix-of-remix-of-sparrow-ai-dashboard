@@ -19,7 +19,6 @@ import { SessionProvider } from "../lib/session";
 import { ThemeProvider } from "../lib/theme";
 import { Toaster } from "../components/ui/sonner";
 import { InactivityChallenge } from "../components/InactivityChallenge";
-import { MobileBlock } from "../components/MobileBlock";
 import { OrcaAIProvider } from "../lib/orca-context";
 import { OrcaAIPanel } from "../components/OrcaAI";
 import { useOrcaAI } from "../lib/orca-context";
@@ -202,10 +201,7 @@ function RootComponent() {
             <SplashScreen />
             <SecurityInit />
             <SessionExpiredListener />
-            {/* MobileBlock: desktop-only wall before anything else */}
-            <MobileBlock>
-              <Outlet />
-            </MobileBlock>
+            <Outlet />
             <InactivityChallenge />
             <Toaster position="top-right" />
             <OrcaAIPanelMount />

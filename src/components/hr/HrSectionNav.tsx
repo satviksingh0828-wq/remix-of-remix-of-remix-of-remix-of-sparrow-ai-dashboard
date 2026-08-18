@@ -182,43 +182,6 @@ export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?
     );
   }
 
-  if (desktop) {
-    return (
-      <nav
-        aria-label={`${areaLabels[area]} sections`}
-        className="hidden lg:block lg:sticky lg:top-24 lg:self-start"
-      >
-        <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          {areaLabels[area]}
-        </p>
-        <ul className="space-y-1">
-          {links.map(({ label, description, to, icon: Icon }) => {
-            const active = linkIsActive(pathname, to);
-            return (
-              <li key={to}>
-                <Link
-                  to={to}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${
-                    active
-                      ? "bg-primary-soft text-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <Icon className={`size-4 shrink-0 ${active ? "text-primary" : ""}`} />
-                  <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-sm font-medium">{label}</span>
-                    <span className="block truncate text-[11px] opacity-70">{description}</span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    );
-  }
-
   return (
     <nav aria-label={`${areaLabels[area]} sections`} className="mb-6 xl:hidden">
       <DropdownMenu>
