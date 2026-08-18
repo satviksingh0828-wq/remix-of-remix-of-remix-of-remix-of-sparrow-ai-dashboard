@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
+  BarChart3,
   CalendarCheck,
   ChevronRight,
   PanelLeftClose,
@@ -9,10 +10,18 @@ import {
   Wallet,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { HrSectionNav } from "@/components/hr/HrSectionNav";
 
 type HrArea = "master" | "attendance" | "payroll" | "dashboard";
 
 const areas = [
+  {
+    id: "dashboard" as const,
+    label: "Dashboard",
+    desc: "Employee, attendance & payroll insights",
+    to: "/dashboard/employee",
+    icon: BarChart3,
+  },
   {
     id: "master" as const,
     label: "HR Master",
@@ -22,14 +31,14 @@ const areas = [
   },
   {
     id: "attendance" as const,
-    label: "Attendance",
+    label: "HR Attendance",
     desc: "Marking, history & holidays",
     to: "/attendance",
     icon: CalendarCheck,
   },
   {
     id: "payroll" as const,
-    label: "Payroll",
+    label: "HR Payroll",
     desc: "Salary, loans & deductions",
     to: "/payroll",
     icon: Wallet,
@@ -122,7 +131,10 @@ export function HrShell({ area, children }: { area: HrArea; children: ReactNode 
           </div>
         </div>
 
-        <div className="min-w-0">{children}</div>
+        <div className="min-w-0">
+          <HrSectionNav area={area} />
+          {children}
+        </div>
       </div>
     </AppShell>
   );
