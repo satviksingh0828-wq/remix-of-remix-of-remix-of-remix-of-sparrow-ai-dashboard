@@ -16,7 +16,10 @@ import { ProfitLossPanel } from "@/components/dashboard/ProfitLossPanel";
 import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
 import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
 import { OwnVehicleTransporterComparison } from "@/components/dashboard/OwnVehicleTransporterComparison";
-import { HrOverviewPanel } from "@/components/dashboard/HrOverviewPanel";
+import { EmployeeDashboard } from "@/components/hr/employee-dashboard";
+import { AttendanceDashboard } from "@/components/hr/attendance-dashboard";
+import { PayrollDashboard } from "@/components/hr/payroll-dashboard";
+import { HierarchyView } from "@/components/hr/hierarchy-view";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/dashboard/")({
@@ -50,24 +53,56 @@ const TABS = [
     desc: "Compare own vehicles and hired transporters",
     icon: Car,
   },
-  { id: "hr", label: "HR Overview", desc: "Employees, attendance & payroll", icon: Users },
+  {
+    id: "employee",
+    label: "Employee dashboard",
+    desc: "Employee and department insights",
+    icon: Users,
+    hr: true,
+  },
+  {
+    id: "attendance",
+    label: "Attendance dashboard",
+    desc: "Attendance trends and summaries",
+    icon: Users,
+    hr: true,
+  },
+  {
+    id: "payroll",
+    label: "Payroll dashboard",
+    desc: "Salary, loans and deductions",
+    icon: BarChart3,
+    hr: true,
+  },
+  {
+    id: "hierarchy",
+    label: "Hierarchy",
+    desc: "Department reporting structure",
+    icon: Users,
+    hr: true,
+  },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
+export type DashboardTabId = (typeof TABS)[number]["id"];
 
-function DashboardPage() {
+export function DashboardPage({ initialTab }: { initialTab?: DashboardTabId }) {
   const { user } = useSession();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<TabId>("pnl");
+  const isManager = user?.role === "viewer";
+  const visibleTabs = isManager ? TABS.filter((item) => "hr" in item && item.hr) : TABS;
+  const fallbackTab: DashboardTabId = isManager ? "employee" : "pnl";
+  const requestedTab = initialTab ?? fallbackTab;
+  const [tab, setTab] = useState<DashboardTabId>(requestedTab);
   const [navOpen, setNavOpen] = useState(true);
 
   useEffect(() => {
-    if (user && user.role !== "admin") navigate({ to: "/home", replace: true });
+    if (user?.role === "basic") navigate({ to: "/home", replace: true });
   }, [user, navigate]);
 
-  if (user?.role !== "admin") return null;
+  if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
-  const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const safeTab = visibleTabs.some((item) => item.id === tab) ? tab : fallbackTab;
+  const active = TABS.find((t) => t.id === safeTab) ?? TABS[0];
 
   return (
     <AppShell
@@ -109,9 +144,9 @@ function DashboardPage() {
               Dashboard
             </p>
             <ul className="space-y-1">
-              {TABS.map((t) => {
+              {visibleTabs.map((t) => {
                 const Icon = t.icon;
-                const isActive = t.id === tab;
+                const isActive = t.id === safeTab;
                 return (
                   <li key={t.id}>
                     <button
@@ -139,9 +174,9 @@ function DashboardPage() {
         {/* ── Mobile horizontal tab bar ── */}
         <div className="lg:hidden -mx-1">
           <div className="flex gap-1 overflow-x-auto pb-1 px-1 scrollbar-none">
-            {TABS.map((t) => {
+            {visibleTabs.map((t) => {
               const Icon = t.icon;
-              const isActive = t.id === tab;
+              const isActive = t.id === safeTab;
               return (
                 <button
                   key={t.id}
@@ -161,18 +196,21 @@ function DashboardPage() {
           </div>
         </div>
 
-        <div key={tab} className="animate-fade-in min-w-0">
+        <div key={safeTab} className="animate-fade-in min-w-0">
           <header className="mb-6">
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
-          {tab === "pnl" && <ProfitLossPanel />}
-          {tab === "vehicles" && <EntityPnLPanel kind="vehicle" />}
-          {tab === "drivers" && <EntityPnLPanel kind="driver" />}
-          {tab === "transporters" && <EntityPnLPanel kind="transporter" />}
-          {tab === "trips" && <TripSummaryPanel />}
-          {tab === "own-vs-transporter" && <OwnVehicleTransporterComparison />}
-          {tab === "hr" && <HrOverviewPanel />}
+          {safeTab === "pnl" && <ProfitLossPanel />}
+          {safeTab === "vehicles" && <EntityPnLPanel kind="vehicle" />}
+          {safeTab === "drivers" && <EntityPnLPanel kind="driver" />}
+          {safeTab === "transporters" && <EntityPnLPanel kind="transporter" />}
+          {safeTab === "trips" && <TripSummaryPanel />}
+          {safeTab === "own-vs-transporter" && <OwnVehicleTransporterComparison />}
+          {safeTab === "employee" && <EmployeeDashboard />}
+          {safeTab === "attendance" && <AttendanceDashboard />}
+          {safeTab === "payroll" && <PayrollDashboard />}
+          {safeTab === "hierarchy" && <HierarchyView />}
         </div>
       </div>
     </AppShell>

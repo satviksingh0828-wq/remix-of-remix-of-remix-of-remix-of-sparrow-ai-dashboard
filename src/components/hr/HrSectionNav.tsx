@@ -1,14 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 
-type HrArea = "master" | "attendance" | "payroll" | "dashboard";
+type HrArea = "master" | "attendance" | "payroll";
 
 const sectionLinks = {
-  dashboard: [
-    ["Employee dashboard", "/dashboard/employee"],
-    ["Attendance dashboard", "/dashboard/attendance"],
-    ["Payroll dashboard", "/dashboard/payroll"],
-    ["Hierarchy", "/dashboard/hierarchy"],
-  ],
   master: [
     ["All employees", "/employees"],
     ["Add employee", "/employees/new"],

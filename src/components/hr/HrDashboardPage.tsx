@@ -1,11 +1,10 @@
-import type { ReactNode } from "react";
-import { HrShell } from "@/components/hr/HrShell";
-import { RequireHrAccess } from "@/components/HrAccess";
+import { DashboardPage, type DashboardTabId } from "@/routes/dashboard.index";
+import { RequireAuth } from "@/components/RequireAuth";
 
-export function HrDashboardPage({ children }: { children: ReactNode }) {
+export function HrDashboardPage({ tab }: { tab: DashboardTabId }) {
   return (
-    <RequireHrAccess>
-      <HrShell area="dashboard">{children}</HrShell>
-    </RequireHrAccess>
+    <RequireAuth>
+      <DashboardPage initialTab={tab} />
+    </RequireAuth>
   );
 }

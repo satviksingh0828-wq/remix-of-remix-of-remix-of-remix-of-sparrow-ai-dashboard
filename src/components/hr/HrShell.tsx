@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import {
-  BarChart3,
   CalendarCheck,
   ChevronRight,
   PanelLeftClose,
@@ -12,16 +11,9 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { HrSectionNav } from "@/components/hr/HrSectionNav";
 
-type HrArea = "master" | "attendance" | "payroll" | "dashboard";
+type HrArea = "master" | "attendance" | "payroll";
 
 const areas = [
-  {
-    id: "dashboard" as const,
-    label: "Dashboard",
-    desc: "Employee, attendance & payroll insights",
-    to: "/dashboard/employee",
-    icon: BarChart3,
-  },
   {
     id: "master" as const,
     label: "HR Master",
