@@ -1,16 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import {
-  ArrowRight,
-  BarChart3,
-  CalendarCheck,
-  Database,
-  FileText,
-  Settings2,
-  Truck,
-  Users,
-  Wallet,
-} from "lucide-react";
+import { ArrowRight, BarChart3, Database, FileText, Settings2, Truck, Users } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -61,30 +51,12 @@ const ALL_MODULES = [
     roles: ["admin", "basic", "viewer"] as const,
   },
   {
-    key: "hr-master",
-    label: "HR Master",
-    desc: "Employees, departments & positions",
+    key: "hr",
+    label: "HR",
+    desc: "Employees, attendance, payroll & departments",
     icon: Users,
     active: true,
     to: "/employees" as const,
-    roles: ["admin", "viewer"] as const,
-  },
-  {
-    key: "hr-attendance",
-    label: "Attendance",
-    desc: "Marking, history & holidays",
-    icon: CalendarCheck,
-    active: true,
-    to: "/attendance" as const,
-    roles: ["admin", "viewer"] as const,
-  },
-  {
-    key: "hr-payroll",
-    label: "Payroll",
-    desc: "Salary, loans & deductions",
-    icon: Wallet,
-    active: true,
-    to: "/payroll" as const,
     roles: ["admin", "viewer"] as const,
   },
   {
