@@ -49,6 +49,8 @@ export type TripAveragesRow = {
   closed_at: string;
   start_date: string;
   end_date: string;
+  ownership: string;
+  distance_travelled: number | null;
   manifests: ManifestDetail[];
 };
 
@@ -659,6 +661,23 @@ async function fetchTripAveragesData(
     const { weight, quantity } = extractWeightQty(r.snapshot);
     const snapshot = (r.snapshot ?? {}) as Record<string, unknown>;
     const tripSnapshot = (snapshot.trip ?? snapshot) as Record<string, unknown>;
+    const hasOdometerReadings =
+      String(tripSnapshot.odometer_start ?? "").trim() !== "" &&
+      String(tripSnapshot.odometer_end ?? "").trim() !== "";
+    const odometerStart = Number(tripSnapshot.odometer_start);
+    const odometerEnd = Number(tripSnapshot.odometer_end);
+    const recordedDistance = Number(
+      tripSnapshot.distance_travelled ?? tripSnapshot.distance_traveled ?? tripSnapshot.distance,
+    );
+    const distanceTravelled =
+      hasOdometerReadings &&
+      Number.isFinite(odometerStart) &&
+      Number.isFinite(odometerEnd) &&
+      odometerEnd >= odometerStart
+        ? odometerEnd - odometerStart
+        : Number.isFinite(recordedDistance) && recordedDistance >= 0
+          ? recordedDistance
+          : null;
     return {
       id: r.id as string,
       trip_code: String(r.trip_code ?? ""),
@@ -672,6 +691,8 @@ async function fetchTripAveragesData(
       closed_at: r.closed_at as string,
       start_date: String(tripSnapshot.start_date ?? ""),
       end_date: String(tripSnapshot.end_date ?? ""),
+      ownership: String(tripSnapshot.ownership ?? ""),
+      distance_travelled: distanceTravelled,
       manifests: extractManifests(r.snapshot),
     };
   });

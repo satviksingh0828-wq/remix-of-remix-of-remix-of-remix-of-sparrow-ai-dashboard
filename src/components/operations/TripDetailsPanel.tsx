@@ -70,6 +70,22 @@ function displayDate(value: string) {
         .replace(/ /g, "-");
 }
 
+function excelDate(value: string) {
+  if (!value) return "—";
+  const match = value.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value;
+  const [, year, month, day] = match;
+  const monthName = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ][Number(month) - 1];
+  return monthName ? `${day}-${monthName}-${year}` : value;
+}
+
+function ownershipLabel(value: string) {
+  return value === "own" ? "Own" : value === "third_party" ? "Renter" : "—";
+}
+
 function buildBranchPools(
   data: TripAveragesData,
   branches: Array<{ id: string }>,
@@ -291,10 +307,15 @@ export function TripDetailsPanel() {
 
     const tripHeaders = canSeeMoney
       ? [
-          "Trip",
           "Branch",
+          "Trip",
           "Trip Start Date",
           "Trip End Date",
+          "No. of Manifest",
+          "Weight (kg)",
+          "Quantity",
+          "Distance Travelled (km)",
+          "Type (Renter/Own)",
           "Distributed Expense (₹)",
           "Trip Income (₹)",
           "Trip Expense (₹)",
@@ -302,17 +323,22 @@ export function TripDetailsPanel() {
           "Final Profit (₹)",
         ]
       : canSeeExpense
-        ? ["Branch", "Trip", "Trip Start Date", "Trip End Date", "Trip Expense (₹)"]
-        : ["Trip", "Branch"];
+        ? ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Trip Expense (₹)"]
+        : ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)"];
     const tripRows: (string | number)[][] = [
       tripHeaders,
       ...filteredRows.map((row) =>
         canSeeMoney
           ? [
-              row.trip_code || "—",
               row.branch_name || "—",
-              row.start_date,
-              row.end_date,
+              row.trip_code || "—",
+              excelDate(row.start_date),
+              excelDate(row.end_date),
+              row.manifests.length,
+              row.total_weight,
+              row.total_quantity,
+              row.distance_travelled ?? "—",
+              ownershipLabel(row.ownership),
               row.expenseDistribution,
               row.total_income,
               row.total_expense,
@@ -323,11 +349,16 @@ export function TripDetailsPanel() {
             ? [
                 row.branch_name || "—",
                 row.trip_code || "—",
-                row.start_date,
-                row.end_date,
+                excelDate(row.start_date),
+                excelDate(row.end_date),
+                row.manifests.length,
+                row.total_weight,
+                row.total_quantity,
+                row.distance_travelled ?? "—",
+                ownershipLabel(row.ownership),
                 row.total_expense,
               ]
-            : [row.trip_code || "—", row.branch_name || "—"],
+            : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), row.manifests.length, row.total_weight, row.total_quantity, row.distance_travelled ?? "—", ownershipLabel(row.ownership)],
       ),
     ];
     if (canSeeMoney) {
@@ -336,6 +367,7 @@ export function TripDetailsPanel() {
         "",
         "",
         "",
+        "", "", "", "", "",
         total("expenseDistribution"),
         total("total_income"),
         total("total_expense"),
@@ -343,16 +375,19 @@ export function TripDetailsPanel() {
         total("distributedProfit"),
       ]);
     } else if (canSeeExpense) {
-      tripRows.push(["TOTALS", "", "", "", total("total_expense")]);
+      tripRows.push(["TOTALS", "", "", "", "", "", "", "", "", total("total_expense")]);
     } else {
-      tripRows.push(["TOTALS", ""]);
+      tripRows.push(["TOTALS", "", "", "", "", "", "", "", ""]);
     }
 
     const manifestHeaders = canSeeMoney
       ? [
-          "Trip",
           "Branch",
+          "Trip",
+          "Trip Start Date",
+          "Trip End Date",
           "Manifest Date",
+          "Manifest No.",
           "From Location",
           "To Location",
           "Weight (kg)",
@@ -364,7 +399,12 @@ export function TripDetailsPanel() {
         ]
       : canSeeExpense
         ? [
+            "Branch",
+            "Trip",
+            "Trip Start Date",
+            "Trip End Date",
             "Manifest Date",
+            "Manifest No.",
             "From Location",
             "To Location",
             "Weight (kg)",
@@ -372,9 +412,12 @@ export function TripDetailsPanel() {
             "Trip Expense (₹)",
           ]
         : [
-            "Trip",
             "Branch",
+            "Trip",
+            "Trip Start Date",
+            "Trip End Date",
             "Manifest Date",
+            "Manifest No.",
             "From Location",
             "To Location",
             "Weight (kg)",
@@ -391,10 +434,10 @@ export function TripDetailsPanel() {
       if (row.manifestRows.length === 0) {
         manifestRows.push(
           canSeeMoney
-            ? [row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", "", ""]
+            ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", "", "", "", "", ""]
             : canSeeExpense
-              ? ["—", "—", "—", "", "", ""]
-              : [row.trip_code || "—", row.branch_name || "—", "—", "—", "—", "", ""],
+              ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", "", ""]
+              : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", ""],
         );
         continue;
       }
@@ -406,8 +449,12 @@ export function TripDetailsPanel() {
         distributedExpenseTotal += manifest.allocatedDistributedExpense;
         manifestProfitTotal += manifest.manifestProfit;
         const base: (string | number)[] = [
-          ...(canSeeMoney ? [row.trip_code || "—", row.branch_name || "—"] : []),
-          manifest.manifest_date || "—",
+          row.branch_name || "—",
+          row.trip_code || "—",
+          excelDate(row.start_date),
+          excelDate(row.end_date),
+          excelDate(manifest.manifest_date),
+          manifest.manifest_number || "—",
           manifest.from_location || "—",
           manifest.to_location || "—",
           manifest.weight_kg,
@@ -428,11 +475,9 @@ export function TripDetailsPanel() {
         );
       }
     }
-    const manifestTotals: (string | number)[] = canSeeMoney
-      ? ["TOTALS", "", "", "", "", "", ""]
-      : canSeeExpense
-        ? ["TOTALS", "", "", "", ""]
-        : ["TOTALS", "", "", "", "", ""];
+    const manifestTotals: (string | number)[] = [
+      "TOTALS", "", "", "", "", "", "", "", "", "",
+    ];
     if (canSeeMoney) {
       manifestTotals.push(
         manifestIncomeTotal,
@@ -447,15 +492,15 @@ export function TripDetailsPanel() {
 
     const tripSheet = XLSX.utils.aoa_to_sheet(tripRows);
     tripSheet["!cols"] = (
-      canSeeMoney ? [18, 18, 16, 16, 16, 16] : canSeeExpense ? [18, 18, 16] : [18, 18]
+      canSeeMoney ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 18, 18, 18, 18, 18] : canSeeExpense ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 18] : [18, 18, 16, 16, 16, 14, 12, 22, 18]
     ).map((wch) => ({ wch }));
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
       canSeeMoney
-        ? [18, 18, 16, 20, 20, 12, 12, 18, 20, 20, 16]
+        ? [18, 18, 16, 16, 16, 18, 20, 20, 12, 12, 18, 20, 20, 16]
         : canSeeExpense
-          ? [16, 20, 20, 12, 12, 18]
-          : [18, 18, 16, 20, 20, 12, 12]
+          ? [18, 18, 16, 16, 16, 18, 20, 20, 12, 12, 18]
+          : [18, 18, 16, 16, 16, 18, 20, 20, 12, 12]
     ).map((wch) => ({ wch }));
 
     const workbook = XLSX.utils.book_new();
@@ -639,6 +684,11 @@ export function TripDetailsPanel() {
                     <th className="px-4 py-3">Trip</th>
                     <th className="px-4 py-3">Trip Start Date</th>
                     <th className="px-4 py-3">Trip End Date</th>
+                    <th className="px-4 py-3 text-right">No. of Manifest</th>
+                    <th className="px-4 py-3 text-right">Weight (kg)</th>
+                    <th className="px-4 py-3 text-right">Quantity</th>
+                    <th className="px-4 py-3 text-right">Distance Travelled</th>
+                    <th className="px-4 py-3">Type</th>
                     {canSeeMoney && (
                       <>
                         <th className="px-4 py-3 text-right">Trip Expense</th>
@@ -680,6 +730,11 @@ export function TripDetailsPanel() {
                           <td className="px-4 py-3 text-muted-foreground">
                             {displayDate(row.end_date)}
                           </td>
+                          <td className="px-4 py-3 text-right">{row.manifests.length}</td>
+                          <td className="px-4 py-3 text-right">{row.total_weight.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right">{row.total_quantity.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right">{row.distance_travelled === null ? "—" : `${row.distance_travelled.toLocaleString()} km`}</td>
+                          <td className="px-4 py-3">{ownershipLabel(row.ownership)}</td>
                           {canSeeMoney && (
                             <>
                               <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
@@ -713,7 +768,7 @@ export function TripDetailsPanel() {
                             className="border-b border-border bg-muted/10"
                           >
                             <td
-                              colSpan={canSeeMoney ? 10 : canSeeExpense ? 6 : 5}
+                              colSpan={canSeeMoney ? 15 : canSeeExpense ? 11 : 10}
                               className="px-6 py-3"
                             >
                               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -729,6 +784,7 @@ export function TripDetailsPanel() {
                                     <thead>
                                       <tr className="border-b border-border text-left text-[10px] uppercase tracking-wide text-muted-foreground">
                                         <th className="py-1.5 pr-4">Manifest Date</th>
+                                        <th className="py-1.5 pr-4">Manifest No.</th>
                                         <th className="py-1.5 pr-4">From Location</th>
                                         <th className="py-1.5 pr-4">To Location</th>
                                         <th className="py-1.5 pr-4 text-right">Weight</th>
@@ -756,6 +812,9 @@ export function TripDetailsPanel() {
                                         >
                                           <td className="py-1.5 pr-4 font-medium">
                                             {displayDate(manifest.manifest_date)}
+                                          </td>
+                                          <td className="py-1.5 pr-4 font-medium">
+                                            {manifest.manifest_number || "—"}
                                           </td>
                                           <td className="py-1.5 pr-4">{manifest.from_location}</td>
                                           <td className="py-1.5 pr-4">{manifest.to_location}</td>
@@ -805,7 +864,7 @@ export function TripDetailsPanel() {
                   <tfoot>
                     <tr className="border-t-2 border-border bg-muted/40 font-semibold">
                       <td className="px-2 py-3" />
-                      <td className="px-4 py-3" colSpan={2}>
+                      <td className="px-4 py-3" colSpan={9}>
                         Totals
                       </td>
                       <td className="px-4 py-3 text-right">{inr(total("total_income"))}</td>
@@ -827,7 +886,7 @@ export function TripDetailsPanel() {
                   <tfoot>
                     <tr className="border-t-2 border-border bg-muted/40 font-semibold">
                       <td className="px-2 py-3" />
-                      <td className="px-4 py-3" colSpan={2}>
+                      <td className="px-4 py-3" colSpan={9}>
                         Totals
                       </td>
                       <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
