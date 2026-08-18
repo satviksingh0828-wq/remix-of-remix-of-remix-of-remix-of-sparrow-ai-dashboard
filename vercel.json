@@ -1,6 +1,6 @@
 {
   "buildCommand": "npm run build:vercel",
-  "installCommand": "npm install --legacy-peer-deps --no-audit --no-fund",
+  "installCommand": "npm ci --legacy-peer-deps --no-audit --no-fund",
   "framework": null,
   "crons": [
     {
