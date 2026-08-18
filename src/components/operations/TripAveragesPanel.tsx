@@ -51,6 +51,22 @@ function netColor(v: number) {
   return v >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
 }
 
+function ownershipLabel(value: string) {
+  return value === "own" ? "Own" : value === "third_party" ? "Renter" : "—";
+}
+
+function excelDate(value: string) {
+  if (!value) return "—";
+  const match = value.slice(0, 10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value;
+  const [, year, month, day] = match;
+  const monthName = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ][Number(month) - 1];
+  return monthName ? `${day}-${monthName}-${year}` : value;
+}
+
 /**
  * Compute per-branch other P&L so that every income/expenditure rupee is
  * allocated to exactly one branch — and all branch nets sum to otherNetPnL.
@@ -310,12 +326,17 @@ export function TripAveragesPanel() {
     const exportRows = filteredRows;
     const branchTotalBase = exportRows.reduce((s, r) => s + r.base, 0);
     const tripSheetData: (string | number)[][] = [
-      ["Trip", "Branch", "Income (₹)", "Expense (₹)", "Trip Net (₹)",
+      ["Branch", "Trip", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Income (₹)", "Expense (₹)", "Trip Net (₹)",
        method === "weight" ? "Weight (kg)" : "Quantity",
        "Share %", "Branch Other P&L (₹)", "Distribution (₹)", "Final Net (₹)"],
       ...exportRows.map(r => [
-        r.trip_code,
         r.branch_name,
+        r.trip_code,
+        r.manifests.length,
+        r.total_weight,
+        r.total_quantity,
+        r.distance_travelled ?? "—",
+        ownershipLabel(r.ownership),
         r.total_income,
         r.total_expense,
         r.net_income,
@@ -326,7 +347,7 @@ export function TripAveragesPanel() {
         parseFloat(r.finalNet.toFixed(2)),
       ]),
       // totals row
-      ["TOTALS", "",
+      ["TOTALS", "", "", "", "", "", "",
         exportRows.reduce((s, r) => s + r.total_income, 0),
         exportRows.reduce((s, r) => s + r.total_expense, 0),
         exportRows.reduce((s, r) => s + r.net_income, 0),
@@ -339,7 +360,7 @@ export function TripAveragesPanel() {
     ];
 
     const manifestSheetData: (string | number)[][] = [
-      ["Trip", "Branch", "Trip Income (₹)", "Trip Expense (₹)", "Trip Net (₹)",
+      ["Branch", "Trip", "Trip Start Date", "Trip End Date", "Trip Income (₹)", "Trip Expense (₹)", "Trip Net (₹)",
        "Trip " + (method === "weight" ? "Weight (kg)" : "Quantity"),
        "Trip Share %", "Distribution (₹)", "Trip Final Net (₹)",
        "Manifest No.", "From", "To", "Weight (kg)", "Quantity",
@@ -348,7 +369,7 @@ export function TripAveragesPanel() {
     for (const r of exportRows) {
       if (r.manifestRows.length === 0) {
         manifestSheetData.push([
-          r.trip_code, r.branch_name,
+          r.branch_name, r.trip_code, excelDate(r.start_date), excelDate(r.end_date),
           r.total_income, r.total_expense, r.net_income,
           r.base,
           branchTotalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
@@ -359,7 +380,7 @@ export function TripAveragesPanel() {
       } else {
         for (const m of r.manifestRows) {
           manifestSheetData.push([
-            r.trip_code, r.branch_name,
+            r.branch_name, r.trip_code, excelDate(r.start_date), excelDate(r.end_date),
             r.total_income, r.total_expense, r.net_income,
             r.base,
             branchTotalBase > 0 ? parseFloat((r.distRatio * 100).toFixed(2)) : 0,
@@ -550,6 +571,11 @@ export function TripAveragesPanel() {
                     <th className="w-8 px-2 py-3" />
                     <th className="px-4 py-3">Trip</th>
                     <th className="px-4 py-3">Branch</th>
+                    <th className="px-4 py-3 text-right">No. of Manifest</th>
+                    <th className="px-4 py-3 text-right">Weight (kg)</th>
+                    <th className="px-4 py-3 text-right">Quantity</th>
+                    <th className="px-4 py-3 text-right">Distance Travelled</th>
+                    <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3 text-right">Income</th>
                     <th className="px-4 py-3 text-right">Expense</th>
                     <th className="px-4 py-3 text-right">Trip Net</th>
@@ -579,6 +605,11 @@ export function TripAveragesPanel() {
                           </td>
                           <td className="px-4 py-3 font-medium">{row.trip_code || "—"}</td>
                           <td className="px-4 py-3 text-muted-foreground">{row.branch_name || "—"}</td>
+                          <td className="px-4 py-3 text-right">{row.manifests.length}</td>
+                          <td className="px-4 py-3 text-right">{row.total_weight.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right">{row.total_quantity.toLocaleString()}</td>
+                          <td className="px-4 py-3 text-right">{row.distance_travelled === null ? "—" : `${row.distance_travelled.toLocaleString()} km`}</td>
+                          <td className="px-4 py-3">{ownershipLabel(row.ownership)}</td>
                           <td className="px-4 py-3 text-right">{inr(row.total_income)}</td>
                           <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">{inr(row.total_expense)}</td>
                           <td className={`px-4 py-3 text-right font-medium ${netColor(row.net_income)}`}>
@@ -601,7 +632,7 @@ export function TripAveragesPanel() {
                         {/* ── Expanded manifest breakdown ── */}
                         {isExpanded && (
                           <tr key={`${row.id}-expanded`} className="border-b border-border bg-muted/10">
-                            <td colSpan={10} className="px-6 py-0">
+                            <td colSpan={15} className="px-6 py-0">
                               <div className="py-3">
                                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                   Manifests — {row.trip_code}
@@ -681,7 +712,7 @@ export function TripAveragesPanel() {
                 <tfoot>
                   <tr className="border-t-2 border-border bg-muted/40 font-semibold">
                     <td className="px-2 py-3" />
-                    <td className="px-4 py-3" colSpan={2}>Totals</td>
+                    <td className="px-4 py-3" colSpan={7}>Totals</td>
                     <td className="px-4 py-3 text-right">{inr(filteredRows.reduce((s, r) => s + r.total_income, 0))}</td>
                     <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">{inr(filteredRows.reduce((s, r) => s + r.total_expense, 0))}</td>
                     <td className={`px-4 py-3 text-right ${netColor(filteredRows.reduce((s,r)=>s+r.net_income,0))}`}>
