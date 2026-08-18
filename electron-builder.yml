@@ -1,0 +1,43 @@
+appId: com.garuda.hrms
+productName: Garuda HRMS
+copyright: Garuda Logistics Solution — HRMS Payroll System
+
+directories:
+  output: release
+  buildResources: build-resources
+
+# Files included in the packaged app (electron-builder handles node_modules automatically)
+files:
+  - dist/**/*
+  - electron/**/*.cjs
+  - package.json
+  - "!src/**/*"
+  - "!supabase/**/*"
+  - "!server/**/*"
+  - "!data/**/*"
+  - "!release/**/*"
+  - "!build-resources/**/*"
+  - "!puppeteer-win-cache/**/*"
+  - "!*.bat"
+  - "!*.md"
+
+# Baileys uses WebSockets — no Chrome to bundle, app stays lightweight
+asar: false
+
+extraFiles:
+  - from: rclone-v1.74.4-windows-386
+    to: rclone-v1.74.4-windows-386
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: zip
+      arch: [x64]
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+
+publish: null

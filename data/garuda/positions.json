@@ -1,0 +1,83 @@
+[
+  {
+    "id": "4b3a2afc-5874-4d24-97b3-396f46acc868",
+    "department_id": "a3b2c652-ebe2-493f-a496-fe8bfe05d374",
+    "name": "HR Manager",
+    "is_head": true,
+    "reports_to_position_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "fca28afb-0f3f-47ee-88b4-2f003c524b00",
+    "department_id": "a3b2c652-ebe2-493f-a496-fe8bfe05d374",
+    "name": "HR Executive",
+    "is_head": false,
+    "reports_to_position_id": "4b3a2afc-5874-4d24-97b3-396f46acc868",
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "daa47345-f05b-4a21-b900-b03833c6951b",
+    "department_id": "eb98e1db-0d4e-47b1-8569-1e34c14e89ac",
+    "name": "Engineering Manager",
+    "is_head": true,
+    "reports_to_position_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "a7b96fe1-0b1b-40b4-abf9-b28354e92aec",
+    "department_id": "eb98e1db-0d4e-47b1-8569-1e34c14e89ac",
+    "name": "Senior Developer",
+    "is_head": false,
+    "reports_to_position_id": "daa47345-f05b-4a21-b900-b03833c6951b",
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "9b0684dd-7d25-41d6-968b-60857a97e399",
+    "department_id": "eb98e1db-0d4e-47b1-8569-1e34c14e89ac",
+    "name": "Developer",
+    "is_head": false,
+    "reports_to_position_id": "a7b96fe1-0b1b-40b4-abf9-b28354e92aec",
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "681d3c48-15df-415d-bbf1-ffcbe7d7d3cd",
+    "department_id": "08f66104-f376-4ee6-a9b9-2bd030296bdf",
+    "name": "Sales Manager",
+    "is_head": true,
+    "reports_to_position_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "1f2c993a-8221-4b9f-a320-6abf62be1e5e",
+    "department_id": "08f66104-f376-4ee6-a9b9-2bd030296bdf",
+    "name": "Sales Executive",
+    "is_head": false,
+    "reports_to_position_id": "681d3c48-15df-415d-bbf1-ffcbe7d7d3cd",
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "a3f2ca22-1b1b-4582-b64f-e507dc7a802b",
+    "department_id": "efb73d84-2445-4ba1-ae87-077eead9fe17",
+    "name": "Accounts Manager",
+    "is_head": true,
+    "reports_to_position_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "98c113f9-550b-4647-81a4-55decea9f49b",
+    "department_id": "efb73d84-2445-4ba1-ae87-077eead9fe17",
+    "name": "Accounts Executive",
+    "is_head": false,
+    "reports_to_position_id": "a3f2ca22-1b1b-4582-b64f-e507dc7a802b",
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  }
+]

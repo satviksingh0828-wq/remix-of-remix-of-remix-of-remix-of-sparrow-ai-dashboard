@@ -1,0 +1,57 @@
+[
+  {
+    "id": "loss-001",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "amount": 2000,
+    "reason": "Damaged warehouse scanner unit",
+    "status": "deducted",
+    "payroll_id": "pay-006",
+    "deducted_on": "2026-05-01",
+    "created_at": "2026-04-20T09:00:00.000Z",
+    "updated_at": "2026-05-01T11:30:00.000Z"
+  },
+  {
+    "id": "loss-002",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "amount": 1500,
+    "reason": "Lost company ID badge and access card",
+    "status": "deducted",
+    "payroll_id": "pay-010",
+    "deducted_on": "2026-06-01",
+    "created_at": "2026-06-10T09:00:00.000Z",
+    "updated_at": "2026-06-01T11:00:00.000Z"
+  },
+  {
+    "id": "loss-003",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "amount": 5000,
+    "reason": "Vehicle damage — reversing incident in depot",
+    "status": "paid",
+    "payroll_id": null,
+    "deducted_on": "2026-03-15",
+    "created_at": "2026-03-10T09:00:00.000Z",
+    "updated_at": "2026-03-15T09:00:00.000Z"
+  },
+  {
+    "id": "loss-004",
+    "employee_id": "51df17a2-78d1-46f8-abae-68a018cf0950",
+    "amount": 3000,
+    "reason": "Fuel card misuse — personal vehicle top-up",
+    "status": "pending",
+    "payroll_id": null,
+    "deducted_on": null,
+    "created_at": "2026-07-05T09:00:00.000Z",
+    "updated_at": "2026-07-05T09:00:00.000Z"
+  },
+  {
+    "id": "311a7fb3-181b-488b-8eb7-1cded3455b37",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "amount": 500,
+    "reason": "Due to late punch.",
+    "status": "pending",
+    "payroll_id": null,
+    "deducted_on": null,
+    "created_at": "2026-07-20T16:46:52.205Z",
+    "updated_at": "2026-07-20T16:46:52.205Z"
+  }
+]

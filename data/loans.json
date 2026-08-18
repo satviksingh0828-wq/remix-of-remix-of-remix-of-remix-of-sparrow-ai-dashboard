@@ -1,0 +1,38 @@
+[
+  {
+    "id": "loan-001",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "principal": 60000,
+    "interest_rate": 12,
+    "interest_method": "compound",
+    "months": 12,
+    "emi": 5328.18,
+    "total_payable": 63938.16,
+    "start_date": "2026-01-01",
+    "status": "active",
+    "paid_months": 6,
+    "paid_off_date": null,
+    "discount_amount": 0,
+    "notes": "Home appliance purchase",
+    "created_at": "2026-01-01T09:00:00.000Z",
+    "updated_at": "2026-07-01T10:00:00.000Z"
+  },
+  {
+    "id": "loan-002",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "principal": 100000,
+    "interest_rate": 10,
+    "interest_method": "simple",
+    "months": 12,
+    "emi": 9166.67,
+    "total_payable": 110000,
+    "start_date": "2025-12-01",
+    "status": "active",
+    "paid_months": 6,
+    "paid_off_date": null,
+    "discount_amount": 0,
+    "notes": "Medical emergency loan",
+    "created_at": "2025-12-01T09:00:00.000Z",
+    "updated_at": "2026-06-01T11:30:00.000Z"
+  }
+]

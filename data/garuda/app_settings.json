@@ -1,0 +1,18 @@
+[
+  {
+    "id": "028b3ce1-95ce-4620-a5ce-3220124a5ce1",
+    "company_name": "Garuda Logistics Solution",
+    "company_address": "Plot No. 12, Industrial Area Phase-2, Chandigarh – 160002",
+    "attendance_module_enabled": true,
+    "attendance_module_url": "https://checkin-flow-engine.lovable.app",
+    "attendance_module_key": "panel_key_change_me_9f3c2a",
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-21T14:34:09.052Z",
+    "wa_auto_send_payroll": false,
+    "wa_send_on_payment": false,
+    "wa_send_loan": false,
+    "wa_send_advance": false,
+    "wa_send_loss_deduction": false,
+    "wa_send_attendance_monthly": false
+  }
+]

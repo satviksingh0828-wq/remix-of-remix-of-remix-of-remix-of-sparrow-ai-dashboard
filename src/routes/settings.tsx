@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Building, Building2, Check, ChevronRight, PanelLeftClose, PanelLeftOpen, Palette } from "lucide-react";
+import { Building, Building2, Check, ChevronRight, PanelLeftClose, PanelLeftOpen, Palette, Wifi } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { CompanySettings } from "@/components/settings/CompanySettings";
 import { BranchSettings } from "@/components/settings/BranchSettings";
 import { THEMES, useTheme, type ThemeId } from "@/lib/theme";
+import { AttendanceModuleSettings } from "@/components/settings/AttendanceModuleSettings";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -34,6 +35,7 @@ const TABS = [
   { id: "company", label: "Company",        desc: "Profile & registration", icon: Building  },
   { id: "branch",  label: "Branch",         desc: "Locations & managers",   icon: Building2 },
   { id: "theme",   label: "Theme Settings", desc: "Appearance",             icon: Palette   },
+  { id: "attendance", label: "Attendance Module", desc: "Device & service connection", icon: Wifi },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -133,6 +135,7 @@ function SettingsPage() {
           {tab === "company" ? <CompanySettings /> : null}
           {tab === "branch"  ? <BranchSettings />  : null}
           {tab === "theme"   ? <ThemePanel />       : null}
+          {tab === "attendance" ? <AttendanceModuleSettings /> : null}
         </div>
       </div>
     </AppShell>

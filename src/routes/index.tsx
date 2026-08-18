@@ -92,7 +92,7 @@ function LoginPage() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Paused-account OTP flow ────────────────────────────────────────────────
-  const [pausedRole, setPausedRole] = useState<"admin" | "basic" | null>(null);
+  const [pausedRole, setPausedRole] = useState<"admin" | "basic" | "viewer" | null>(null);
   const [otpSent, setOtpSent]       = useState(false);
   const [otpCode, setOtpCode]       = useState("");
   const [otpBusy, setOtpBusy]       = useState(false);

@@ -1,9 +1,9 @@
-modules = ["nodejs-20", "web", "python-base-3.13"]
-[nix]
-channel = "stable-25_05"
-
+modules = ["nodejs-20", "web"]
 [agent]
 expertMode = true
+
+[nix]
+channel = "stable-25_05"
 
 [workflows]
 runButton = "Project"
@@ -32,7 +32,3 @@ outputType = "webview"
 [[ports]]
 localPort = 5000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3001

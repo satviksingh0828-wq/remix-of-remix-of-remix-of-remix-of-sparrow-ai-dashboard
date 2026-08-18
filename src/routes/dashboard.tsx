@@ -16,6 +16,7 @@ import { ProfitLossPanel } from "@/components/dashboard/ProfitLossPanel";
 import { EntityPnLPanel } from "@/components/dashboard/EntityPnLPanel";
 import { TripSummaryPanel } from "@/components/dashboard/TripSummaryPanel";
 import { OwnVehicleTransporterComparison } from "@/components/dashboard/OwnVehicleTransporterComparison";
+import { HrOverviewPanel } from "@/components/dashboard/HrOverviewPanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/dashboard")({
@@ -49,6 +50,7 @@ const TABS = [
     desc: "Compare own vehicles and hired transporters",
     icon: Car,
   },
+  { id: "hr", label: "HR Overview", desc: "Employees, attendance & payroll", icon: Users },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -170,6 +172,7 @@ function DashboardPage() {
           {tab === "transporters" && <EntityPnLPanel kind="transporter" />}
           {tab === "trips" && <TripSummaryPanel />}
           {tab === "own-vs-transporter" && <OwnVehicleTransporterComparison />}
+          {tab === "hr" && <HrOverviewPanel />}
         </div>
       </div>
     </AppShell>

@@ -1,0 +1,63 @@
+[
+  {
+    "id": "a3b2c652-ebe2-493f-a496-fe8bfe05d374",
+    "name": "Human Resources",
+    "address": "Floor 1, Block A",
+    "working_days_of_week": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "reports_to_department_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "eb98e1db-0d4e-47b1-8569-1e34c14e89ac",
+    "name": "Engineering",
+    "address": "Floor 2, Block B",
+    "working_days_of_week": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "reports_to_department_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "08f66104-f376-4ee6-a9b9-2bd030296bdf",
+    "name": "Sales",
+    "address": "Floor 1, Block C",
+    "working_days_of_week": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ],
+    "reports_to_department_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  },
+  {
+    "id": "efb73d84-2445-4ba1-ae87-077eead9fe17",
+    "name": "Accounts",
+    "address": "Floor 3, Block A",
+    "working_days_of_week": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "reports_to_department_id": null,
+    "created_at": "2026-07-17T11:45:23.180Z",
+    "updated_at": "2026-07-17T11:45:23.180Z"
+  }
+]

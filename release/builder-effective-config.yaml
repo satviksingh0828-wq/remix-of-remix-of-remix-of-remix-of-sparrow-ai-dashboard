@@ -1,0 +1,33 @@
+directories:
+  output: release
+  buildResources: build-resources
+appId: com.garuda.hrms
+productName: Garuda HRMS
+copyright: Garuda Logistics Solution — HRMS Payroll System
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*.cjs
+      - package.json
+      - '!src/**/*'
+      - '!supabase/**/*'
+      - '!server/**/*'
+      - '!data/**/*'
+      - '!release/**/*'
+      - '!build-resources/**/*'
+      - '!puppeteer-win-cache/**/*'
+      - '!*.bat'
+      - '!*.md'
+asar: false
+win:
+  target:
+    - target: zip
+      arch:
+        - x64
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+publish: null
+electronVersion: 33.4.11

@@ -1,0 +1,882 @@
+[
+  {
+    "id": "att-001",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-01",
+    "status": "present",
+    "created_at": "2026-04-01T18:00:00.000Z",
+    "updated_at": "2026-04-01T18:00:00.000Z"
+  },
+  {
+    "id": "att-002",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-02",
+    "status": "present",
+    "created_at": "2026-04-02T18:00:00.000Z",
+    "updated_at": "2026-04-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-003",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-03",
+    "status": "present",
+    "created_at": "2026-04-03T18:00:00.000Z",
+    "updated_at": "2026-04-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-004",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-04",
+    "status": "absent",
+    "created_at": "2026-04-04T18:00:00.000Z",
+    "updated_at": "2026-04-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-005",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-07",
+    "status": "present",
+    "created_at": "2026-04-07T18:00:00.000Z",
+    "updated_at": "2026-04-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-006",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-08",
+    "status": "present",
+    "created_at": "2026-04-08T18:00:00.000Z",
+    "updated_at": "2026-04-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-007",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-09",
+    "status": "present",
+    "created_at": "2026-04-09T18:00:00.000Z",
+    "updated_at": "2026-04-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-008",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-10",
+    "status": "present",
+    "created_at": "2026-04-10T18:00:00.000Z",
+    "updated_at": "2026-04-10T18:00:00.000Z"
+  },
+  {
+    "id": "att-009",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-11",
+    "status": "half_day",
+    "created_at": "2026-04-11T18:00:00.000Z",
+    "updated_at": "2026-04-11T18:00:00.000Z"
+  },
+  {
+    "id": "att-010",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-14",
+    "status": "present",
+    "created_at": "2026-04-14T18:00:00.000Z",
+    "updated_at": "2026-04-14T18:00:00.000Z"
+  },
+  {
+    "id": "att-011",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-15",
+    "status": "present",
+    "created_at": "2026-04-15T18:00:00.000Z",
+    "updated_at": "2026-04-15T18:00:00.000Z"
+  },
+  {
+    "id": "att-012",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-16",
+    "status": "present",
+    "created_at": "2026-04-16T18:00:00.000Z",
+    "updated_at": "2026-04-16T18:00:00.000Z"
+  },
+  {
+    "id": "att-013",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-17",
+    "status": "present",
+    "created_at": "2026-04-17T18:00:00.000Z",
+    "updated_at": "2026-04-17T18:00:00.000Z"
+  },
+  {
+    "id": "att-014",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-22",
+    "status": "present",
+    "created_at": "2026-04-22T18:00:00.000Z",
+    "updated_at": "2026-04-22T18:00:00.000Z"
+  },
+  {
+    "id": "att-015",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-23",
+    "status": "present",
+    "created_at": "2026-04-23T18:00:00.000Z",
+    "updated_at": "2026-04-23T18:00:00.000Z"
+  },
+  {
+    "id": "att-016",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-24",
+    "status": "present",
+    "created_at": "2026-04-24T18:00:00.000Z",
+    "updated_at": "2026-04-24T18:00:00.000Z"
+  },
+  {
+    "id": "att-017",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-25",
+    "status": "present",
+    "created_at": "2026-04-25T18:00:00.000Z",
+    "updated_at": "2026-04-25T18:00:00.000Z"
+  },
+  {
+    "id": "att-018",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-28",
+    "status": "present",
+    "created_at": "2026-04-28T18:00:00.000Z",
+    "updated_at": "2026-04-28T18:00:00.000Z"
+  },
+  {
+    "id": "att-019",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-29",
+    "status": "present",
+    "created_at": "2026-04-29T18:00:00.000Z",
+    "updated_at": "2026-04-29T18:00:00.000Z"
+  },
+  {
+    "id": "att-020",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-04-30",
+    "status": "present",
+    "created_at": "2026-04-30T18:00:00.000Z",
+    "updated_at": "2026-04-30T18:00:00.000Z"
+  },
+  {
+    "id": "att-021",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-01",
+    "status": "present",
+    "created_at": "2026-05-01T18:00:00.000Z",
+    "updated_at": "2026-05-01T18:00:00.000Z"
+  },
+  {
+    "id": "att-022",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-05",
+    "status": "present",
+    "created_at": "2026-05-05T18:00:00.000Z",
+    "updated_at": "2026-05-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-023",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-06",
+    "status": "present",
+    "created_at": "2026-05-06T18:00:00.000Z",
+    "updated_at": "2026-05-06T18:00:00.000Z"
+  },
+  {
+    "id": "att-024",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-07",
+    "status": "absent",
+    "created_at": "2026-05-07T18:00:00.000Z",
+    "updated_at": "2026-05-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-025",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-08",
+    "status": "present",
+    "created_at": "2026-05-08T18:00:00.000Z",
+    "updated_at": "2026-05-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-026",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-09",
+    "status": "present",
+    "created_at": "2026-05-09T18:00:00.000Z",
+    "updated_at": "2026-05-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-027",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-12",
+    "status": "present",
+    "created_at": "2026-05-12T18:00:00.000Z",
+    "updated_at": "2026-05-12T18:00:00.000Z"
+  },
+  {
+    "id": "att-028",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-13",
+    "status": "present",
+    "created_at": "2026-05-13T18:00:00.000Z",
+    "updated_at": "2026-05-13T18:00:00.000Z"
+  },
+  {
+    "id": "att-029",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-14",
+    "status": "present",
+    "created_at": "2026-05-14T18:00:00.000Z",
+    "updated_at": "2026-05-14T18:00:00.000Z"
+  },
+  {
+    "id": "att-030",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-15",
+    "status": "present",
+    "created_at": "2026-05-15T18:00:00.000Z",
+    "updated_at": "2026-05-15T18:00:00.000Z"
+  },
+  {
+    "id": "att-031",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-16",
+    "status": "present",
+    "created_at": "2026-05-16T18:00:00.000Z",
+    "updated_at": "2026-05-16T18:00:00.000Z"
+  },
+  {
+    "id": "att-032",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-19",
+    "status": "present",
+    "created_at": "2026-05-19T18:00:00.000Z",
+    "updated_at": "2026-05-19T18:00:00.000Z"
+  },
+  {
+    "id": "att-033",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-20",
+    "status": "present",
+    "created_at": "2026-05-20T18:00:00.000Z",
+    "updated_at": "2026-05-20T18:00:00.000Z"
+  },
+  {
+    "id": "att-034",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-21",
+    "status": "present",
+    "created_at": "2026-05-21T18:00:00.000Z",
+    "updated_at": "2026-05-21T18:00:00.000Z"
+  },
+  {
+    "id": "att-035",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-22",
+    "status": "half_day",
+    "created_at": "2026-05-22T18:00:00.000Z",
+    "updated_at": "2026-05-22T18:00:00.000Z"
+  },
+  {
+    "id": "att-036",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-23",
+    "status": "present",
+    "created_at": "2026-05-23T18:00:00.000Z",
+    "updated_at": "2026-05-23T18:00:00.000Z"
+  },
+  {
+    "id": "att-037",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-26",
+    "status": "present",
+    "created_at": "2026-05-26T18:00:00.000Z",
+    "updated_at": "2026-05-26T18:00:00.000Z"
+  },
+  {
+    "id": "att-038",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-27",
+    "status": "present",
+    "created_at": "2026-05-27T18:00:00.000Z",
+    "updated_at": "2026-05-27T18:00:00.000Z"
+  },
+  {
+    "id": "att-039",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-28",
+    "status": "present",
+    "created_at": "2026-05-28T18:00:00.000Z",
+    "updated_at": "2026-05-28T18:00:00.000Z"
+  },
+  {
+    "id": "att-040",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-29",
+    "status": "present",
+    "created_at": "2026-05-29T18:00:00.000Z",
+    "updated_at": "2026-05-29T18:00:00.000Z"
+  },
+  {
+    "id": "att-041",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-05-30",
+    "status": "present",
+    "created_at": "2026-05-30T18:00:00.000Z",
+    "updated_at": "2026-05-30T18:00:00.000Z"
+  },
+  {
+    "id": "att-042",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-02",
+    "status": "present",
+    "created_at": "2026-06-02T18:00:00.000Z",
+    "updated_at": "2026-06-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-043",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-03",
+    "status": "present",
+    "created_at": "2026-06-03T18:00:00.000Z",
+    "updated_at": "2026-06-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-044",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-04",
+    "status": "present",
+    "created_at": "2026-06-04T18:00:00.000Z",
+    "updated_at": "2026-06-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-045",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-05",
+    "status": "absent",
+    "created_at": "2026-06-05T18:00:00.000Z",
+    "updated_at": "2026-06-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-046",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-06",
+    "status": "present",
+    "created_at": "2026-06-06T18:00:00.000Z",
+    "updated_at": "2026-06-06T18:00:00.000Z"
+  },
+  {
+    "id": "att-047",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-09",
+    "status": "present",
+    "created_at": "2026-06-09T18:00:00.000Z",
+    "updated_at": "2026-06-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-048",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-10",
+    "status": "present",
+    "created_at": "2026-06-10T18:00:00.000Z",
+    "updated_at": "2026-06-10T18:00:00.000Z"
+  },
+  {
+    "id": "att-049",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-11",
+    "status": "present",
+    "created_at": "2026-06-11T18:00:00.000Z",
+    "updated_at": "2026-06-11T18:00:00.000Z"
+  },
+  {
+    "id": "att-050",
+    "employee_id": "306d4066-9bff-4287-951f-dd40cd0662ea",
+    "date": "2026-06-12",
+    "status": "present",
+    "created_at": "2026-06-12T18:00:00.000Z",
+    "updated_at": "2026-06-12T18:00:00.000Z"
+  },
+  {
+    "id": "att-051",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-01",
+    "status": "present",
+    "created_at": "2026-04-01T18:00:00.000Z",
+    "updated_at": "2026-04-01T18:00:00.000Z"
+  },
+  {
+    "id": "att-052",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-02",
+    "status": "present",
+    "created_at": "2026-04-02T18:00:00.000Z",
+    "updated_at": "2026-04-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-053",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-03",
+    "status": "present",
+    "created_at": "2026-04-03T18:00:00.000Z",
+    "updated_at": "2026-04-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-054",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-04",
+    "status": "present",
+    "created_at": "2026-04-04T18:00:00.000Z",
+    "updated_at": "2026-04-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-055",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-07",
+    "status": "absent",
+    "created_at": "2026-04-07T18:00:00.000Z",
+    "updated_at": "2026-04-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-056",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-08",
+    "status": "present",
+    "created_at": "2026-04-08T18:00:00.000Z",
+    "updated_at": "2026-04-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-057",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-09",
+    "status": "present",
+    "created_at": "2026-04-09T18:00:00.000Z",
+    "updated_at": "2026-04-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-058",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-10",
+    "status": "present",
+    "created_at": "2026-04-10T18:00:00.000Z",
+    "updated_at": "2026-04-10T18:00:00.000Z"
+  },
+  {
+    "id": "att-059",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-11",
+    "status": "present",
+    "created_at": "2026-04-11T18:00:00.000Z",
+    "updated_at": "2026-04-11T18:00:00.000Z"
+  },
+  {
+    "id": "att-060",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-04-14",
+    "status": "present",
+    "created_at": "2026-04-14T18:00:00.000Z",
+    "updated_at": "2026-04-14T18:00:00.000Z"
+  },
+  {
+    "id": "att-061",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-05-05",
+    "status": "present",
+    "created_at": "2026-05-05T18:00:00.000Z",
+    "updated_at": "2026-05-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-062",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-05-06",
+    "status": "present",
+    "created_at": "2026-05-06T18:00:00.000Z",
+    "updated_at": "2026-05-06T18:00:00.000Z"
+  },
+  {
+    "id": "att-063",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-05-07",
+    "status": "present",
+    "created_at": "2026-05-07T18:00:00.000Z",
+    "updated_at": "2026-05-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-064",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-05-08",
+    "status": "half_day",
+    "created_at": "2026-05-08T18:00:00.000Z",
+    "updated_at": "2026-05-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-065",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-05-09",
+    "status": "present",
+    "created_at": "2026-05-09T18:00:00.000Z",
+    "updated_at": "2026-05-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-066",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-05-12",
+    "status": "present",
+    "created_at": "2026-05-12T18:00:00.000Z",
+    "updated_at": "2026-05-12T18:00:00.000Z"
+  },
+  {
+    "id": "att-067",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-05-13",
+    "status": "present",
+    "created_at": "2026-05-13T18:00:00.000Z",
+    "updated_at": "2026-05-13T18:00:00.000Z"
+  },
+  {
+    "id": "att-068",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-06-02",
+    "status": "present",
+    "created_at": "2026-06-02T18:00:00.000Z",
+    "updated_at": "2026-06-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-069",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-06-03",
+    "status": "present",
+    "created_at": "2026-06-03T18:00:00.000Z",
+    "updated_at": "2026-06-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-070",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-06-04",
+    "status": "absent",
+    "created_at": "2026-06-04T18:00:00.000Z",
+    "updated_at": "2026-06-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-071",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-06-05",
+    "status": "present",
+    "created_at": "2026-06-05T18:00:00.000Z",
+    "updated_at": "2026-06-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-072",
+    "employee_id": "31d857ce-a7cc-4382-b79a-3ad5c0133f55",
+    "date": "2026-06-06",
+    "status": "present",
+    "created_at": "2026-06-06T18:00:00.000Z",
+    "updated_at": "2026-06-06T18:00:00.000Z"
+  },
+  {
+    "id": "att-073",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-01",
+    "status": "present",
+    "created_at": "2026-04-01T18:00:00.000Z",
+    "updated_at": "2026-04-01T18:00:00.000Z"
+  },
+  {
+    "id": "att-074",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-02",
+    "status": "present",
+    "created_at": "2026-04-02T18:00:00.000Z",
+    "updated_at": "2026-04-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-075",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-03",
+    "status": "absent",
+    "created_at": "2026-04-03T18:00:00.000Z",
+    "updated_at": "2026-04-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-076",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-04",
+    "status": "present",
+    "created_at": "2026-04-04T18:00:00.000Z",
+    "updated_at": "2026-04-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-077",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-07",
+    "status": "present",
+    "created_at": "2026-04-07T18:00:00.000Z",
+    "updated_at": "2026-04-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-078",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-08",
+    "status": "present",
+    "created_at": "2026-04-08T18:00:00.000Z",
+    "updated_at": "2026-04-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-079",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-09",
+    "status": "present",
+    "created_at": "2026-04-09T18:00:00.000Z",
+    "updated_at": "2026-04-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-080",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-10",
+    "status": "present",
+    "created_at": "2026-04-10T18:00:00.000Z",
+    "updated_at": "2026-04-10T18:00:00.000Z"
+  },
+  {
+    "id": "att-081",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-11",
+    "status": "present",
+    "created_at": "2026-04-11T18:00:00.000Z",
+    "updated_at": "2026-04-11T18:00:00.000Z"
+  },
+  {
+    "id": "att-082",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-04-14",
+    "status": "present",
+    "created_at": "2026-04-14T18:00:00.000Z",
+    "updated_at": "2026-04-14T18:00:00.000Z"
+  },
+  {
+    "id": "att-083",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-05-05",
+    "status": "present",
+    "created_at": "2026-05-05T18:00:00.000Z",
+    "updated_at": "2026-05-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-084",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-05-06",
+    "status": "present",
+    "created_at": "2026-05-06T18:00:00.000Z",
+    "updated_at": "2026-05-06T18:00:00.000Z"
+  },
+  {
+    "id": "att-085",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-05-07",
+    "status": "present",
+    "created_at": "2026-05-07T18:00:00.000Z",
+    "updated_at": "2026-05-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-086",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-05-08",
+    "status": "present",
+    "created_at": "2026-05-08T18:00:00.000Z",
+    "updated_at": "2026-05-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-087",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-05-09",
+    "status": "present",
+    "created_at": "2026-05-09T18:00:00.000Z",
+    "updated_at": "2026-05-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-088",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-06-02",
+    "status": "present",
+    "created_at": "2026-06-02T18:00:00.000Z",
+    "updated_at": "2026-06-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-089",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-06-03",
+    "status": "present",
+    "created_at": "2026-06-03T18:00:00.000Z",
+    "updated_at": "2026-06-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-090",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-06-04",
+    "status": "absent",
+    "created_at": "2026-06-04T18:00:00.000Z",
+    "updated_at": "2026-06-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-091",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "date": "2026-06-05",
+    "status": "present",
+    "created_at": "2026-06-05T18:00:00.000Z",
+    "updated_at": "2026-06-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-092",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-01",
+    "status": "present",
+    "created_at": "2026-04-01T18:00:00.000Z",
+    "updated_at": "2026-04-01T18:00:00.000Z"
+  },
+  {
+    "id": "att-093",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-02",
+    "status": "present",
+    "created_at": "2026-04-02T18:00:00.000Z",
+    "updated_at": "2026-04-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-094",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-03",
+    "status": "present",
+    "created_at": "2026-04-03T18:00:00.000Z",
+    "updated_at": "2026-04-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-095",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-04",
+    "status": "half_day",
+    "created_at": "2026-04-04T18:00:00.000Z",
+    "updated_at": "2026-04-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-096",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-07",
+    "status": "present",
+    "created_at": "2026-04-07T18:00:00.000Z",
+    "updated_at": "2026-04-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-097",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-08",
+    "status": "present",
+    "created_at": "2026-04-08T18:00:00.000Z",
+    "updated_at": "2026-04-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-098",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-09",
+    "status": "present",
+    "created_at": "2026-04-09T18:00:00.000Z",
+    "updated_at": "2026-04-09T18:00:00.000Z"
+  },
+  {
+    "id": "att-099",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-04-10",
+    "status": "present",
+    "created_at": "2026-04-10T18:00:00.000Z",
+    "updated_at": "2026-04-10T18:00:00.000Z"
+  },
+  {
+    "id": "att-100",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-05-05",
+    "status": "present",
+    "created_at": "2026-05-05T18:00:00.000Z",
+    "updated_at": "2026-05-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-101",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-05-06",
+    "status": "present",
+    "created_at": "2026-05-06T18:00:00.000Z",
+    "updated_at": "2026-05-06T18:00:00.000Z"
+  },
+  {
+    "id": "att-102",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-05-07",
+    "status": "present",
+    "created_at": "2026-05-07T18:00:00.000Z",
+    "updated_at": "2026-05-07T18:00:00.000Z"
+  },
+  {
+    "id": "att-103",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-05-08",
+    "status": "absent",
+    "created_at": "2026-05-08T18:00:00.000Z",
+    "updated_at": "2026-05-08T18:00:00.000Z"
+  },
+  {
+    "id": "att-104",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-06-02",
+    "status": "present",
+    "created_at": "2026-06-02T18:00:00.000Z",
+    "updated_at": "2026-06-02T18:00:00.000Z"
+  },
+  {
+    "id": "att-105",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-06-03",
+    "status": "present",
+    "created_at": "2026-06-03T18:00:00.000Z",
+    "updated_at": "2026-06-03T18:00:00.000Z"
+  },
+  {
+    "id": "att-106",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-06-04",
+    "status": "present",
+    "created_at": "2026-06-04T18:00:00.000Z",
+    "updated_at": "2026-06-04T18:00:00.000Z"
+  },
+  {
+    "id": "att-107",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-06-05",
+    "status": "present",
+    "created_at": "2026-06-05T18:00:00.000Z",
+    "updated_at": "2026-06-05T18:00:00.000Z"
+  },
+  {
+    "id": "att-108",
+    "employee_id": "5fdb0cd1-219f-4cea-9dcc-53f9df0cb1a4",
+    "date": "2026-06-06",
+    "status": "half_day",
+    "created_at": "2026-06-06T18:00:00.000Z",
+    "updated_at": "2026-06-06T18:00:00.000Z"
+  },
+  {
+    "id": "87fe6ed5-0879-435b-9c63-128801980b4a",
+    "employee_id": "d297d1c4-a09c-498c-a8bc-81ee8a6c3cac",
+    "date": "2026-07-12",
+    "status": "extra_work",
+    "created_at": "2026-07-20T07:18:54.218Z",
+    "updated_at": "2026-07-20T07:18:54.218Z"
+  },
+  {
+    "id": "271c9278-c18d-4451-8fa5-9934002a90ff",
+    "employee_id": "d297d1c4-a09c-498c-a8bc-81ee8a6c3cac",
+    "date": "2026-07-19",
+    "status": "half_extra_work",
+    "created_at": "2026-07-20T16:57:26.919Z",
+    "updated_at": "2026-07-20T16:57:26.919Z"
+  }
+]

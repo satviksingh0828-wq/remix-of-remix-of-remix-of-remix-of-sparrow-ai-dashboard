@@ -1,0 +1,20 @@
+[
+  {
+    "id": "adv-001",
+    "employee_id": "1518cfc7-ade1-4458-8947-64498aa62d67",
+    "principal": 24000,
+    "interest_rate": 0,
+    "interest_method": "none",
+    "months": 6,
+    "emi": 4000,
+    "total_payable": 24000,
+    "start_date": "2026-02-01",
+    "status": "active",
+    "paid_months": 5,
+    "paid_off_date": null,
+    "discount_amount": 0,
+    "notes": "Festival advance",
+    "created_at": "2026-02-01T09:00:00.000Z",
+    "updated_at": "2026-07-20T16:45:47.956Z"
+  }
+]
