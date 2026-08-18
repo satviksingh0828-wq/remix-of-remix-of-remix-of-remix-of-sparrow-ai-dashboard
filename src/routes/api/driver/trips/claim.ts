@@ -24,12 +24,12 @@ export const Route = createFileRoute("/api/driver/trips/claim")({
           if (!token) {
             const { data: trip, error: tripError } = await supabaseAdmin
               .from("trips")
-              .select("id, trip_code, ownership, end_date")
+              .select("id, trip_code, ownership")
               .eq("trip_code", tripCode)
               .eq("ownership", "own")
               .maybeSingle();
             if (tripError) throw tripError;
-            if (!trip || (trip.end_date ?? "").trim()) return jsonError("No open own-vehicle trip was found for this trip code.", 404);
+            if (!trip) return jsonError("No own-vehicle trip was found for this trip code.", 404);
 
             const { data: qr, error: qrError } = await driverAdmin.rpc("issue_driver_trip_qr", { p_trip_id: trip.id });
             if (qrError) throw qrError;

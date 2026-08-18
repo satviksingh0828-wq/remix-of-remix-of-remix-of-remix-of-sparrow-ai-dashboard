@@ -127,19 +127,19 @@ from ranked_active_links r
 where l.id = r.id
   and r.row_number > 1;
 
--- Driver linkage is limited to open own-vehicle trips.
+-- Driver linkage is limited to own-vehicle trips; an entered end date does not revoke access.
 update public.driver_trip_links l
 set ended_at = now(),
     last_seen_at = coalesce(l.last_seen_at, now())
 from public.trips t
 where t.id = l.trip_id
   and l.ended_at is null
-  and (t.ownership <> 'own' or coalesce(nullif(trim(t.end_date), ''), '') <> '');
+  and t.ownership <> 'own';
 
 delete from public.driver_trip_qr_tokens q
 using public.trips t
 where t.id = q.trip_id
-  and (t.ownership <> 'own' or coalesce(nullif(trim(t.end_date), ''), '') <> '');
+  and t.ownership <> 'own';
 
 alter table public.driver_trip_qr_tokens alter column token set not null;
 alter table public.driver_trip_qr_tokens alter column token_hash set not null;
@@ -191,9 +191,8 @@ begin
   select t.id, t.trip_code into v_trip
   from public.trips t
   where t.id = p_trip_id
-    and t.ownership = 'own'
-    and coalesce(nullif(trim(t.end_date), ''), '') = '';
-  if not found then raise exception 'Only open own-vehicle trips can have a Trip QR Code'; end if;
+    and t.ownership = 'own';
+  if not found then raise exception 'Only own-vehicle trips can have a Trip QR Code'; end if;
 
   select token into v_token
   from public.driver_trip_qr_tokens
@@ -239,9 +238,8 @@ begin
   join public.trips t on t.id = q.trip_id
   where q.token_hash = encode(digest(p_qr_token, 'sha256'), 'hex')
     and t.ownership = 'own'
-    and coalesce(nullif(trim(t.end_date), ''), '') = ''
   for update;
-  if not found then raise exception 'This Trip QR Code is not linked to an open own-vehicle trip'; end if;
+  if not found then raise exception 'This Trip QR Code is not linked to an own-vehicle trip'; end if;
 
   select l.id, l.device_id into v_link
   from public.driver_trip_links l
@@ -439,18 +437,18 @@ with checks as (
   union all select 'eligible QR trips only',
     not exists (
       select 1 from public.driver_trip_qr_tokens q join public.trips t on t.id = q.trip_id
-      where t.ownership <> 'own' or coalesce(nullif(trim(t.end_date), ''), '') <> ''
+      where t.ownership <> 'own'
     ),
-    'only open own-vehicle trips have QR rows'
+    'only own-vehicle trips have QR rows'
   union all select 'one active device per trip',
     not exists (select 1 from public.driver_trip_links where ended_at is null group by trip_id having count(*) > 1),
     'active-device conflict is prevented'
   union all select 'active links eligible only',
     not exists (
       select 1 from public.driver_trip_links l join public.trips t on t.id = l.trip_id
-      where l.ended_at is null and (t.ownership <> 'own' or coalesce(nullif(trim(t.end_date), ''), '') <> '')
+      where l.ended_at is null and t.ownership <> 'own'
     ),
-    'only open own-vehicle trips can have active devices'
+    'only own-vehicle trips can have active devices'
   union all select 'location rows valid',
     not exists (
       select 1 from public.driver_trip_locations

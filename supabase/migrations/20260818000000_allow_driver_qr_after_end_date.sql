@@ -1,6 +1,58 @@
--- Garuda Driver's App: active device-session contract repair
--- Run this only after 20260814000000_driver_app_links.sql.
--- It restores the permanent QR, one-active-device, and session response contract.
+-- Allow Trip QR issuance and claiming after a trip end date is entered.
+-- End dates no longer revoke note/PDF, QR, or location access. Own-vehicle
+-- validation and active-session/device safeguards remain in place.
+
+begin;
+
+create or replace function public.issue_driver_trip_qr(p_trip_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_trip record;
+  v_token text;
+begin
+  select t.id, t.trip_code, t.ownership
+    into v_trip
+    from public.trips t
+   where t.id = p_trip_id
+     and t.ownership = 'own';
+
+  if not found then
+    raise exception 'Only own-vehicle trips can have a Trip QR Code';
+  end if;
+
+  select q.token
+    into v_token
+    from public.driver_trip_qr_tokens q
+   where q.trip_id = v_trip.id
+   for update;
+
+  if v_token is null then
+    v_token := encode(gen_random_bytes(32), 'hex');
+    insert into public.driver_trip_qr_tokens (trip_id, token, token_hash, expires_at)
+    values (v_trip.id, v_token, encode(digest(v_token, 'sha256'), 'hex'), null)
+    on conflict (trip_id) do update
+      set token = excluded.token,
+          token_hash = excluded.token_hash,
+          expires_at = null;
+  else
+    update public.driver_trip_qr_tokens
+       set expires_at = null
+     where trip_id = v_trip.id;
+  end if;
+
+  return jsonb_build_object(
+    'token', v_token,
+    'trip_id', v_trip.id,
+    'trip_code', v_trip.trip_code,
+    'stable', true,
+    'expires_at', null
+  );
+end;
+$$;
 
 create or replace function public.claim_driver_trip(p_qr_token text, p_device_id text)
 returns jsonb
@@ -18,7 +70,7 @@ begin
     raise exception 'QR token and device ID are required';
   end if;
 
-  select q.id, q.trip_id, t.trip_code
+  select q.id, q.trip_id, t.trip_code, t.ownership
     into v_qr
     from public.driver_trip_qr_tokens q
     join public.trips t on t.id = q.trip_id
@@ -66,10 +118,7 @@ exception when unique_violation then
 end;
 $$;
 
-revoke all on function public.claim_driver_trip(text, text) from public;
+grant execute on function public.issue_driver_trip_qr(uuid) to anon, authenticated;
 grant execute on function public.claim_driver_trip(text, text) to anon, authenticated;
 
--- Expected inspection result: both contract keys are present in the function body.
-select
-  position('session_token' in pg_get_functiondef('public.claim_driver_trip(text, text)'::regprocedure)) > 0 as returns_session_token,
-  position('link_id' in pg_get_functiondef('public.claim_driver_trip(text, text)'::regprocedure)) > 0 as returns_link_id;
+commit;

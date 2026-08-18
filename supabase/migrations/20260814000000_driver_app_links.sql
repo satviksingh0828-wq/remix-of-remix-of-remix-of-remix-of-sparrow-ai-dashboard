@@ -94,11 +94,10 @@ begin
     into v_trip
    from public.trips t
    where t.id = p_trip_id
-     and t.ownership = 'own'
-     and coalesce(nullif(trim(t.end_date), ''), '') = '';
+     and t.ownership = 'own';
 
   if not found then
-    raise exception 'Only open own-vehicle trips can have a Trip QR Code';
+    raise exception 'Only own-vehicle trips can have a Trip QR Code';
   end if;
 
   -- Reuse the same token forever for this trip. Old rows created by the
@@ -157,11 +156,10 @@ begin
    from public.driver_trip_qr_tokens q
     join public.trips t on t.id = q.trip_id
    where q.token_hash = encode(digest(p_qr_token, 'sha256'), 'hex')
-     and coalesce(nullif(trim(t.end_date), ''), '') = ''
    for update;
 
   if not found or v_qr.ownership <> 'own' then
-    raise exception 'This Trip QR Code is not linked to an open own-vehicle trip';
+    raise exception 'This Trip QR Code is not linked to an own-vehicle trip';
   end if;
   -- Stable QR codes are reusable. Device ownership is enforced below.
 

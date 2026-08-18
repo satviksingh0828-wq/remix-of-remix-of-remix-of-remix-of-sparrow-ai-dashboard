@@ -1,5 +1,5 @@
 -- Apply after the existing stable Trip QR Code migration.
--- Repairs the link identifier response and prevents closed trips from issuing or claiming Trip QR Codes.
+-- Repairs the link identifier response and keeps Trip QR access available after an end date is entered.
 
 create or replace function public.issue_driver_trip_qr(p_trip_id uuid)
 returns jsonb
@@ -15,10 +15,9 @@ begin
     into v_trip
     from public.trips t
    where t.id = p_trip_id
-     and t.ownership = 'own'
-     and coalesce(nullif(trim(t.end_date), ''), '') = '';
+     and t.ownership = 'own';
 
-  if not found then raise exception 'Only open own-vehicle trips can have a Trip QR Code'; end if;
+  if not found then raise exception 'Only own-vehicle trips can have a Trip QR Code'; end if;
 
   select q.token into v_token from public.driver_trip_qr_tokens q where q.trip_id = v_trip.id for update;
   if v_token is null then
@@ -51,9 +50,8 @@ begin
     join public.trips t on t.id = q.trip_id
    where q.token_hash = encode(digest(p_qr_token, 'sha256'), 'hex')
      and t.ownership = 'own'
-     and coalesce(nullif(trim(t.end_date), ''), '') = ''
    for update;
-  if not found then raise exception 'This Trip QR Code is not linked to an open own-vehicle trip'; end if;
+  if not found then raise exception 'This Trip QR Code is not linked to an own-vehicle trip'; end if;
   select l.id, l.device_id into v_link from public.driver_trip_links l where l.trip_id = v_qr.trip_id and l.ended_at is null for update;
   if found and v_link.device_id <> p_device_id then return jsonb_build_object('status', 'already_linked', 'trip_code', v_qr.trip_code); end if;
   v_session_token := encode(gen_random_bytes(32), 'hex');
