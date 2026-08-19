@@ -41,7 +41,7 @@ export const Route = createFileRoute("/home")({
   ),
 });
 
-const ALL_MODULES = [
+const BASIC_MODULES = [
   {
     key: "operation",
     label: "Operation",
@@ -125,6 +125,45 @@ const ALL_MODULES = [
   },
 ] as const;
 
+const ADMIN_VIEWER_MODULES = [
+  {
+    key: "tms",
+    label: "TMS",
+    desc: "Operations, masters, dashboards & reports",
+    icon: Truck,
+    active: true,
+    to: "/tms" as const,
+    roles: ["admin", "viewer"] as const,
+  },
+  {
+    key: "hrms",
+    label: "HRMS",
+    desc: "Employees, attendance, payroll & HR dashboards",
+    icon: Users,
+    active: true,
+    to: "/hrms" as const,
+    roles: ["admin", "viewer"] as const,
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    desc: "Universal theme & passkey security",
+    icon: Settings2,
+    active: true,
+    to: "/settings" as const,
+    roles: ["admin"] as const,
+  },
+  {
+    key: "users",
+    label: "Users",
+    desc: "Users, devices & activity logs",
+    icon: Users,
+    active: true,
+    to: "/users" as const,
+    roles: ["admin"] as const,
+  },
+] as const;
+
 function HomePage() {
   const navigate = useNavigate();
   const { user } = useSession();
@@ -136,7 +175,8 @@ function HomePage() {
   }, []);
 
   const role = user?.role ?? "basic";
-  const MODULES = ALL_MODULES.filter((m) => (m.roles as readonly string[]).includes(role));
+  const moduleSource = role === "basic" ? BASIC_MODULES : ADMIN_VIEWER_MODULES;
+  const MODULES = moduleSource.filter((m) => (m.roles as readonly string[]).includes(role));
 
   return (
     <AppShell>

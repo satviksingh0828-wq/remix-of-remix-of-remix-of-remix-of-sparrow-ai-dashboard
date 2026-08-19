@@ -1,0 +1,22 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { BarChart3, Database, FileText, Truck } from "lucide-react";
+import { RequireAuth } from "@/components/RequireAuth";
+import { WorkspaceModulePage } from "@/components/WorkspaceModulePage";
+
+export const Route = createFileRoute("/tms")({
+  component: () => (
+    <RequireAuth>
+      <WorkspaceModulePage
+        eyebrow="Workspace / TMS"
+        title="TMS"
+        description="Operations, masters, dashboards and reports for transport management."
+        tiles={[
+          { key: "operation", label: "Operation", desc: "Trips, consignments & dispatch", icon: Truck, to: "/operations" },
+          { key: "masters", label: "Masters", desc: "Vehicles, drivers, transporters & locations", icon: Database, to: "/masters" },
+          { key: "dashboard", label: "Dashboard", desc: "Profit & loss, revenue overview", icon: BarChart3, to: "/dashboard" },
+          { key: "reports", label: "Reports", desc: "P&L comparison & period reports", icon: FileText, to: "/reports" },
+        ]}
+      />
+    </RequireAuth>
+  ),
+});

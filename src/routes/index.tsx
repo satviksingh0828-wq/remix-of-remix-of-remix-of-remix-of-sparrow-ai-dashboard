@@ -26,6 +26,7 @@ import { logAction } from "@/lib/log-actions";
 import { useTheme } from "@/lib/theme";
 import { serverRequestUnpauseOtp, serverSubmitUnpauseOtp } from "@/lib/user-auth";
 import { PoweredBy } from "@/components/PoweredBy";
+import { usePasskeyContext } from "@/components/PasskeyGate";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -71,6 +72,7 @@ function LiveClock({ dark = false }: { dark?: boolean }) {
 
 function LoginPage() {
   const { signIn, user, ready } = useSession();
+  const { credentialId } = usePasskeyContext();
   const navigate                = useNavigate();
   const { loginUi }             = useTheme();
 
@@ -206,7 +208,7 @@ function LoginPage() {
     setError(null);
     try {
       await new Promise((r) => setTimeout(r, 400));
-      const outcome = await signIn(id, password, turnstileToken);
+      const outcome = await signIn(id, password, turnstileToken, credentialId ?? undefined);
 
       if (outcome.ok) {
         clearRateLimit(id.trim());

@@ -25,6 +25,8 @@ import { useOrcaAI } from "../lib/orca-context";
 import { useSession } from "../lib/session";
 import { SplashScreen } from "../components/SplashScreen";
 import { OrcaLogo } from "../components/OrcaLogo";
+import { PasskeyGate } from "../components/PasskeyGate";
+import { useAppSettings } from "../lib/hooks";
 
 function NotFoundComponent() {
   return (
@@ -165,6 +167,13 @@ function SessionExpiredListener() {
 }
 
 /** Renders the SPARROW AI panel — admin only, persists across route changes */
+function PasskeyProtectionGate({ children }: { children: ReactNode }) {
+  const { data: settings, isLoading } = useAppSettings();
+  if (isLoading) return <SplashScreen />;
+  if (settings?.passkey_protection_enabled !== true) return <>{children}</>;
+  return <PasskeyGate>{children}</PasskeyGate>;
+}
+
 function OrcaAIPanelMount() {
   const { open } = useOrcaAI();
   const { user } = useSession();
@@ -208,13 +217,15 @@ function RootComponent() {
       <SessionProvider>
         <ThemeProvider>
           <OrcaAIProvider>
-            <SplashScreen />
-            <SecurityInit />
-            <SessionExpiredListener />
-            <Outlet />
-            <InactivityChallenge />
-            <Toaster position="top-right" />
-            <OrcaAIPanelMount />
+            <PasskeyProtectionGate>
+              <SplashScreen />
+              <SecurityInit />
+              <SessionExpiredListener />
+              <Outlet />
+              <InactivityChallenge />
+              <Toaster position="top-right" />
+              <OrcaAIPanelMount />
+            </PasskeyProtectionGate>
           </OrcaAIProvider>
         </ThemeProvider>
       </SessionProvider>

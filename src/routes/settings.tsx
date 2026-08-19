@@ -1,22 +1,22 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
-  Building,
-  Building2,
   Check,
   ChevronRight,
   PanelLeftClose,
   PanelLeftOpen,
+  Loader2,
   Palette,
-  Wifi,
+  ShieldCheck,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { MobileTabDropdown } from "@/components/MobileTabDropdown";
-import { CompanySettings } from "@/components/settings/CompanySettings";
-import { BranchSettings } from "@/components/settings/BranchSettings";
 import { THEMES, useTheme, type ThemeId } from "@/lib/theme";
-import { AttendanceModuleSettings } from "@/components/settings/AttendanceModuleSettings";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { useAppSettings, useUpdateAppSettings } from "@/lib/hooks";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -48,17 +48,23 @@ function SettingsRouteContent() {
 }
 
 const TABS = [
-  { id: "company", label: "Company", desc: "Profile & registration", icon: Building },
-  { id: "branch", label: "Branch", desc: "Locations & managers", icon: Building2 },
-  { id: "theme", label: "Theme Settings", desc: "Appearance", icon: Palette },
-  { id: "attendance", label: "Attendance Module", desc: "Device & service connection", icon: Wifi },
+  { id: "theme", label: "Theme Settings", desc: "Universal app appearance", icon: Palette },
+  { id: "passkey", label: "Passkey Security", desc: "Admin-controlled device protection", icon: ShieldCheck },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
 function SettingsPage() {
-  const [tab, setTab] = useState<TabId>("company");
+  const { user } = useSession();
+  const navigate = useNavigate();
+  const [tab, setTab] = useState<TabId>("theme");
   const [navOpen, setNavOpen] = useState(true);
+
+  useEffect(() => {
+    if (user && user.role !== "admin") navigate({ to: "/home", replace: true });
+  }, [navigate, user]);
+
+  if (user?.role !== "admin") return null;
 
   const active = TABS.find((t) => t.id === tab)!;
 
@@ -137,13 +143,65 @@ function SettingsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
-          {tab === "company" ? <CompanySettings /> : null}
-          {tab === "branch" ? <BranchSettings /> : null}
           {tab === "theme" ? <ThemePanel /> : null}
-          {tab === "attendance" ? <AttendanceModuleSettings /> : null}
+          {tab === "passkey" ? <PasskeySecurityPanel /> : null}
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function PasskeySecurityPanel() {
+  const { data: settings, isLoading } = useAppSettings();
+  const updateSettings = useUpdateAppSettings();
+  const enabled = settings?.passkey_protection_enabled === true;
+
+  function toggleProtection() {
+    if (!settings?.id) {
+      toast.error("App settings are not available yet.");
+      return;
+    }
+    updateSettings.mutate(
+      { id: settings.id, values: { passkey_protection_enabled: !enabled } as never },
+      {
+        onSuccess: () => toast.success(`Passkey protection ${!enabled ? "enabled" : "disabled"}`),
+        onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save passkey setting"),
+      },
+    );
+  }
+
+  return (
+    <div className="animate-fade-up space-y-5">
+      <section className="surface-card p-6">
+        <div className="flex items-start gap-4">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <ShieldCheck className="size-5" />
+          </span>
+          <div>
+            <h3 className="text-sm font-semibold tracking-tight">Passkey protection</h3>
+            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+              When enabled, the existing Windows Hello / passkey device gate verifies the device before the full app renders.
+              It reuses the existing device registrations, user assignments, and challenge tables.
+            </p>
+          </div>
+        </div>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-muted/30 p-4">
+          <div>
+            <p className="text-sm font-medium">Require passkey verification</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Current status: <strong className="text-foreground">{enabled ? "Enabled" : "Disabled"}</strong>
+            </p>
+          </div>
+          <Button type="button" onClick={toggleProtection} disabled={isLoading || updateSettings.isPending}>
+            {updateSettings.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            {enabled ? "Disable protection" : "Enable protection"}
+          </Button>
+        </div>
+        <p className="mt-4 text-xs text-muted-foreground">
+          Before enabling, apply the supplied <code>passkey_protection_enabled</code> column SQL in Supabase. The current default is disabled.
+        </p>
+      </section>
+    </div>
   );
 }
 

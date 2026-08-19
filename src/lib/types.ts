@@ -131,6 +131,8 @@ export interface AppSettings {
   wa_send_advance: boolean | null;
   wa_send_loss_deduction: boolean | null;
   wa_send_attendance_monthly: boolean | null;
+  /** Admin-controlled full-app WebAuthn/Windows Hello gate. */
+  passkey_protection_enabled?: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -139,7 +141,8 @@ export type AppSettingsInput = Pick<
   'company_name' | 'company_address' |
   'attendance_module_enabled' | 'attendance_module_url' | 'attendance_module_key' |
   'wa_auto_send_payroll' | 'wa_send_on_payment' | 'wa_send_loan' |
-  'wa_send_advance' | 'wa_send_loss_deduction' | 'wa_send_attendance_monthly'
+  'wa_send_advance' | 'wa_send_loss_deduction' | 'wa_send_attendance_monthly' |
+  'passkey_protection_enabled'
 >;
 
 /** A single check-in or check-out event fetched from the attendance module */

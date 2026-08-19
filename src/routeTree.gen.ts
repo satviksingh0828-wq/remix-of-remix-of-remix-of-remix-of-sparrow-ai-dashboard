@@ -9,124 +9,66 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as UsersRouteImport } from './routes/users'
-import { Route as SystemRouteImport } from './routes/system'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as ReportsRouteImport } from './routes/reports'
-import { Route as PayrollRouteImport } from './routes/payroll'
-import { Route as OperationsRouteImport } from './routes/operations'
-import { Route as MastersRouteImport } from './routes/masters'
-import { Route as ImportTripsRouteImport } from './routes/import-trips'
-import { Route as HrDashboardRouteImport } from './routes/hr-dashboard'
-import { Route as HomeRouteImport } from './routes/home'
-import { Route as EmployeesRouteImport } from './routes/employees'
-import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as PayrollIndexRouteImport } from './routes/payroll.index'
-import { Route as EmployeesIndexRouteImport } from './routes/employees.index'
-import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
-import { Route as AttendanceIndexRouteImport } from './routes/attendance.index'
-import { Route as SettingsAttendanceModuleRouteImport } from './routes/settings.attendance-module'
-import { Route as PayrollPendingRouteImport } from './routes/payroll.pending'
-import { Route as PayrollLoansRouteImport } from './routes/payroll.loans'
-import { Route as PayrollLedgerRouteImport } from './routes/payroll.ledger'
-import { Route as PayrollHistoryRouteImport } from './routes/payroll.history'
-import { Route as PayrollGenerateRouteImport } from './routes/payroll.generate'
-import { Route as PayrollDeductionsRouteImport } from './routes/payroll.deductions'
-import { Route as PayrollAdvancesRouteImport } from './routes/payroll.advances'
-import { Route as EmployeesNewRouteImport } from './routes/employees.new'
-import { Route as EmployeesDepartmentsRouteImport } from './routes/employees.departments'
-import { Route as DashboardPayrollRouteImport } from './routes/dashboard.payroll'
-import { Route as DashboardHierarchyRouteImport } from './routes/dashboard.hierarchy'
-import { Route as DashboardEmployeeRouteImport } from './routes/dashboard.employee'
-import { Route as DashboardAttendanceRouteImport } from './routes/dashboard.attendance'
-import { Route as AttendanceMarkRouteImport } from './routes/attendance.mark'
-import { Route as AttendanceHolidaysRouteImport } from './routes/attendance.holidays'
-import { Route as AttendanceHistoryRouteImport } from './routes/attendance.history'
-import { Route as AttendanceAutomarkerRouteImport } from './routes/attendance.automarker'
-import { Route as ApiNotifyOpenTripsRouteImport } from './routes/api/notify-open-trips'
-import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
+import { Route as AttendanceRouteImport } from './routes/attendance'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as EmployeesRouteImport } from './routes/employees'
+import { Route as HomeRouteImport } from './routes/home'
+import { Route as HrDashboardRouteImport } from './routes/hr-dashboard'
+import { Route as HrmsRouteImport } from './routes/hrms'
+import { Route as ImportTripsRouteImport } from './routes/import-trips'
+import { Route as MastersRouteImport } from './routes/masters'
+import { Route as OperationsRouteImport } from './routes/operations'
+import { Route as PayrollRouteImport } from './routes/payroll'
+import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as SystemRouteImport } from './routes/system'
+import { Route as TmsRouteImport } from './routes/tms'
+import { Route as UsersRouteImport } from './routes/users'
 import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
-import { Route as EmployeesDepartmentsIndexRouteImport } from './routes/employees.departments.index'
-import { Route as EmployeesIdIndexRouteImport } from './routes/employees.$id.index'
-import { Route as AttendanceHistoryIndexRouteImport } from './routes/attendance.history.index'
-import { Route as EmployeesDepartmentsNewRouteImport } from './routes/employees.departments.new'
-import { Route as EmployeesIdEditRouteImport } from './routes/employees.$id.edit'
-import { Route as AttendanceHistoryIdRouteImport } from './routes/attendance.history.$id'
+import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
+import { Route as ApiNotifyOpenTripsRouteImport } from './routes/api/notify-open-trips'
+import { Route as AttendanceIndexRouteImport } from './routes/attendance.index'
+import { Route as AttendanceAutomarkerRouteImport } from './routes/attendance.automarker'
+import { Route as AttendanceHistoryRouteImport } from './routes/attendance.history'
+import { Route as AttendanceHolidaysRouteImport } from './routes/attendance.holidays'
+import { Route as AttendanceMarkRouteImport } from './routes/attendance.mark'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardAttendanceRouteImport } from './routes/dashboard.attendance'
+import { Route as DashboardEmployeeRouteImport } from './routes/dashboard.employee'
+import { Route as DashboardHierarchyRouteImport } from './routes/dashboard.hierarchy'
+import { Route as DashboardPayrollRouteImport } from './routes/dashboard.payroll'
+import { Route as EmployeesIndexRouteImport } from './routes/employees.index'
+import { Route as EmployeesDepartmentsRouteImport } from './routes/employees.departments'
+import { Route as EmployeesNewRouteImport } from './routes/employees.new'
+import { Route as PayrollIndexRouteImport } from './routes/payroll.index'
+import { Route as PayrollAdvancesRouteImport } from './routes/payroll.advances'
+import { Route as PayrollDeductionsRouteImport } from './routes/payroll.deductions'
+import { Route as PayrollGenerateRouteImport } from './routes/payroll.generate'
+import { Route as PayrollHistoryRouteImport } from './routes/payroll.history'
+import { Route as PayrollLedgerRouteImport } from './routes/payroll.ledger'
+import { Route as PayrollLoansRouteImport } from './routes/payroll.loans'
+import { Route as PayrollPendingRouteImport } from './routes/payroll.pending'
+import { Route as SettingsAttendanceModuleRouteImport } from './routes/settings.attendance-module'
 import { Route as ApiDriverThemeRouteImport } from './routes/api/driver/theme'
+import { Route as AttendanceHistoryIndexRouteImport } from './routes/attendance.history.index'
+import { Route as AttendanceHistoryIdRouteImport } from './routes/attendance.history.$id'
+import { Route as EmployeesIdIndexRouteImport } from './routes/employees.$id.index'
+import { Route as EmployeesIdEditRouteImport } from './routes/employees.$id.edit'
+import { Route as EmployeesDepartmentsIndexRouteImport } from './routes/employees.departments.index'
+import { Route as EmployeesDepartmentsNewRouteImport } from './routes/employees.departments.new'
+import { Route as ApiDriverTripsClaimRouteImport } from './routes/api/driver/trips/claim'
+import { Route as ApiDriverTripsCurrentRouteImport } from './routes/api/driver/trips/current'
+import { Route as ApiDriverTripsEndRouteImport } from './routes/api/driver/trips/end'
+import { Route as ApiDriverTripsLocationRouteImport } from './routes/api/driver/trips/location'
 import { Route as EmployeesDepartmentsIdIndexRouteImport } from './routes/employees.departments.$id.index'
 import { Route as EmployeesDepartmentsIdEditRouteImport } from './routes/employees.departments.$id.edit'
-import { Route as ApiDriverTripsLocationRouteImport } from './routes/api/driver/trips/location'
-import { Route as ApiDriverTripsEndRouteImport } from './routes/api/driver/trips/end'
-import { Route as ApiDriverTripsCurrentRouteImport } from './routes/api/driver/trips/current'
-import { Route as ApiDriverTripsClaimRouteImport } from './routes/api/driver/trips/claim'
 import { Route as ApiDriverTripsCheckpointsVerifyRouteImport } from './routes/api/driver/trips/checkpoints/verify'
 
-const UsersRoute = UsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SystemRoute = SystemRouteImport.update({
-  id: '/system',
-  path: '/system',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReportsRoute = ReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PayrollRoute = PayrollRouteImport.update({
-  id: '/payroll',
-  path: '/payroll',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OperationsRoute = OperationsRouteImport.update({
-  id: '/operations',
-  path: '/operations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MastersRoute = MastersRouteImport.update({
-  id: '/masters',
-  path: '/masters',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImportTripsRoute = ImportTripsRouteImport.update({
-  id: '/import-trips',
-  path: '/import-trips',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HrDashboardRoute = HrDashboardRouteImport.update({
-  id: '/hr-dashboard',
-  path: '/hr-dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HomeRoute = HomeRouteImport.update({
-  id: '/home',
-  path: '/home',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EmployeesRoute = EmployeesRouteImport.update({
-  id: '/employees',
-  path: '/employees',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AttendanceRoute = AttendanceRouteImport.update({
@@ -134,130 +76,79 @@ const AttendanceRoute = AttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PayrollIndexRoute = PayrollIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => PayrollRoute,
+const EmployeesRoute = EmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const EmployeesIndexRoute = EmployeesIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => EmployeesRoute,
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardIndexRoute = DashboardIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => DashboardRoute,
+const HrDashboardRoute = HrDashboardRouteImport.update({
+  id: '/hr-dashboard',
+  path: '/hr-dashboard',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AttendanceIndexRoute = AttendanceIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AttendanceRoute,
+const HrmsRoute = HrmsRouteImport.update({
+  id: '/hrms',
+  path: '/hrms',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const SettingsAttendanceModuleRoute =
-  SettingsAttendanceModuleRouteImport.update({
-    id: '/attendance-module',
-    path: '/attendance-module',
-    getParentRoute: () => SettingsRoute,
-  } as any)
-const PayrollPendingRoute = PayrollPendingRouteImport.update({
-  id: '/pending',
-  path: '/pending',
-  getParentRoute: () => PayrollRoute,
+const ImportTripsRoute = ImportTripsRouteImport.update({
+  id: '/import-trips',
+  path: '/import-trips',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PayrollLoansRoute = PayrollLoansRouteImport.update({
-  id: '/loans',
-  path: '/loans',
-  getParentRoute: () => PayrollRoute,
+const MastersRoute = MastersRouteImport.update({
+  id: '/masters',
+  path: '/masters',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PayrollLedgerRoute = PayrollLedgerRouteImport.update({
-  id: '/ledger',
-  path: '/ledger',
-  getParentRoute: () => PayrollRoute,
+const OperationsRoute = OperationsRouteImport.update({
+  id: '/operations',
+  path: '/operations',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const PayrollHistoryRoute = PayrollHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => PayrollRoute,
-} as any)
-const PayrollGenerateRoute = PayrollGenerateRouteImport.update({
-  id: '/generate',
-  path: '/generate',
-  getParentRoute: () => PayrollRoute,
-} as any)
-const PayrollDeductionsRoute = PayrollDeductionsRouteImport.update({
-  id: '/deductions',
-  path: '/deductions',
-  getParentRoute: () => PayrollRoute,
-} as any)
-const PayrollAdvancesRoute = PayrollAdvancesRouteImport.update({
-  id: '/advances',
-  path: '/advances',
-  getParentRoute: () => PayrollRoute,
-} as any)
-const EmployeesNewRoute = EmployeesNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => EmployeesRoute,
-} as any)
-const EmployeesDepartmentsRoute = EmployeesDepartmentsRouteImport.update({
-  id: '/departments',
-  path: '/departments',
-  getParentRoute: () => EmployeesRoute,
-} as any)
-const DashboardPayrollRoute = DashboardPayrollRouteImport.update({
+const PayrollRoute = PayrollRouteImport.update({
   id: '/payroll',
   path: '/payroll',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardHierarchyRoute = DashboardHierarchyRouteImport.update({
-  id: '/hierarchy',
-  path: '/hierarchy',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardEmployeeRoute = DashboardEmployeeRouteImport.update({
-  id: '/employee',
-  path: '/employee',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const DashboardAttendanceRoute = DashboardAttendanceRouteImport.update({
-  id: '/attendance',
-  path: '/attendance',
-  getParentRoute: () => DashboardRoute,
-} as any)
-const AttendanceMarkRoute = AttendanceMarkRouteImport.update({
-  id: '/mark',
-  path: '/mark',
-  getParentRoute: () => AttendanceRoute,
-} as any)
-const AttendanceHolidaysRoute = AttendanceHolidaysRouteImport.update({
-  id: '/holidays',
-  path: '/holidays',
-  getParentRoute: () => AttendanceRoute,
-} as any)
-const AttendanceHistoryRoute = AttendanceHistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
-  getParentRoute: () => AttendanceRoute,
-} as any)
-const AttendanceAutomarkerRoute = AttendanceAutomarkerRouteImport.update({
-  id: '/automarker',
-  path: '/automarker',
-  getParentRoute: () => AttendanceRoute,
-} as any)
-const ApiNotifyOpenTripsRoute = ApiNotifyOpenTripsRouteImport.update({
-  id: '/api/notify-open-trips',
-  path: '/api/notify-open-trips',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiNotifyExpiryRoute = ApiNotifyExpiryRouteImport.update({
-  id: '/api/notify-expiry',
-  path: '/api/notify-expiry',
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SystemRoute = SystemRouteImport.update({
+  id: '/system',
+  path: '/system',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TmsRoute = TmsRouteImport.update({
+  id: '/tms',
+  path: '/tms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UsersRoute = UsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiNotifyAdminRoute = ApiNotifyAdminRouteImport.update({
@@ -265,40 +156,181 @@ const ApiNotifyAdminRoute = ApiNotifyAdminRouteImport.update({
   path: '/api/notify-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EmployeesDepartmentsIndexRoute =
-  EmployeesDepartmentsIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => EmployeesDepartmentsRoute,
-  } as any)
-const EmployeesIdIndexRoute = EmployeesIdIndexRouteImport.update({
-  id: '/$id/',
-  path: '/$id/',
+const ApiNotifyExpiryRoute = ApiNotifyExpiryRouteImport.update({
+  id: '/api/notify-expiry',
+  path: '/api/notify-expiry',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNotifyOpenTripsRoute = ApiNotifyOpenTripsRouteImport.update({
+  id: '/api/notify-open-trips',
+  path: '/api/notify-open-trips',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AttendanceIndexRoute = AttendanceIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AttendanceRoute,
+} as any)
+const AttendanceAutomarkerRoute = AttendanceAutomarkerRouteImport.update({
+  id: '/automarker',
+  path: '/automarker',
+  getParentRoute: () => AttendanceRoute,
+} as any)
+const AttendanceHistoryRoute = AttendanceHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => AttendanceRoute,
+} as any)
+const AttendanceHolidaysRoute = AttendanceHolidaysRouteImport.update({
+  id: '/holidays',
+  path: '/holidays',
+  getParentRoute: () => AttendanceRoute,
+} as any)
+const AttendanceMarkRoute = AttendanceMarkRouteImport.update({
+  id: '/mark',
+  path: '/mark',
+  getParentRoute: () => AttendanceRoute,
+} as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAttendanceRoute = DashboardAttendanceRouteImport.update({
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardEmployeeRoute = DashboardEmployeeRouteImport.update({
+  id: '/employee',
+  path: '/employee',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardHierarchyRoute = DashboardHierarchyRouteImport.update({
+  id: '/hierarchy',
+  path: '/hierarchy',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPayrollRoute = DashboardPayrollRouteImport.update({
+  id: '/payroll',
+  path: '/payroll',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const EmployeesIndexRoute = EmployeesIndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => EmployeesRoute,
+} as any)
+const EmployeesDepartmentsRoute = EmployeesDepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => EmployeesRoute,
+} as any)
+const EmployeesNewRoute = EmployeesNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => EmployeesRoute,
+} as any)
+const PayrollIndexRoute = PayrollIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const PayrollAdvancesRoute = PayrollAdvancesRouteImport.update({
+  id: '/advances',
+  path: '/advances',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const PayrollDeductionsRoute = PayrollDeductionsRouteImport.update({
+  id: '/deductions',
+  path: '/deductions',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const PayrollGenerateRoute = PayrollGenerateRouteImport.update({
+  id: '/generate',
+  path: '/generate',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const PayrollHistoryRoute = PayrollHistoryRouteImport.update({
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const PayrollLedgerRoute = PayrollLedgerRouteImport.update({
+  id: '/ledger',
+  path: '/ledger',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const PayrollLoansRoute = PayrollLoansRouteImport.update({
+  id: '/loans',
+  path: '/loans',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const PayrollPendingRoute = PayrollPendingRouteImport.update({
+  id: '/pending',
+  path: '/pending',
+  getParentRoute: () => PayrollRoute,
+} as any)
+const SettingsAttendanceModuleRoute =
+  SettingsAttendanceModuleRouteImport.update({
+    id: '/attendance-module',
+    path: '/attendance-module',
+    getParentRoute: () => SettingsRoute,
+  } as any)
+const ApiDriverThemeRoute = ApiDriverThemeRouteImport.update({
+  id: '/api/driver/theme',
+  path: '/api/driver/theme',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AttendanceHistoryIndexRoute = AttendanceHistoryIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AttendanceHistoryRoute,
 } as any)
-const EmployeesDepartmentsNewRoute = EmployeesDepartmentsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => EmployeesDepartmentsRoute,
+const AttendanceHistoryIdRoute = AttendanceHistoryIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AttendanceHistoryRoute,
+} as any)
+const EmployeesIdIndexRoute = EmployeesIdIndexRouteImport.update({
+  id: '/$id/',
+  path: '/$id/',
+  getParentRoute: () => EmployeesRoute,
 } as any)
 const EmployeesIdEditRoute = EmployeesIdEditRouteImport.update({
   id: '/$id/edit',
   path: '/$id/edit',
   getParentRoute: () => EmployeesRoute,
 } as any)
-const AttendanceHistoryIdRoute = AttendanceHistoryIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AttendanceHistoryRoute,
+const EmployeesDepartmentsIndexRoute =
+  EmployeesDepartmentsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => EmployeesDepartmentsRoute,
+  } as any)
+const EmployeesDepartmentsNewRoute = EmployeesDepartmentsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => EmployeesDepartmentsRoute,
 } as any)
-const ApiDriverThemeRoute = ApiDriverThemeRouteImport.update({
-  id: '/api/driver/theme',
-  path: '/api/driver/theme',
+const ApiDriverTripsClaimRoute = ApiDriverTripsClaimRouteImport.update({
+  id: '/api/driver/trips/claim',
+  path: '/api/driver/trips/claim',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDriverTripsCurrentRoute = ApiDriverTripsCurrentRouteImport.update({
+  id: '/api/driver/trips/current',
+  path: '/api/driver/trips/current',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDriverTripsEndRoute = ApiDriverTripsEndRouteImport.update({
+  id: '/api/driver/trips/end',
+  path: '/api/driver/trips/end',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDriverTripsLocationRoute = ApiDriverTripsLocationRouteImport.update({
+  id: '/api/driver/trips/location',
+  path: '/api/driver/trips/location',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EmployeesDepartmentsIdIndexRoute =
@@ -313,26 +345,6 @@ const EmployeesDepartmentsIdEditRoute =
     path: '/$id/edit',
     getParentRoute: () => EmployeesDepartmentsRoute,
   } as any)
-const ApiDriverTripsLocationRoute = ApiDriverTripsLocationRouteImport.update({
-  id: '/api/driver/trips/location',
-  path: '/api/driver/trips/location',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDriverTripsEndRoute = ApiDriverTripsEndRouteImport.update({
-  id: '/api/driver/trips/end',
-  path: '/api/driver/trips/end',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDriverTripsCurrentRoute = ApiDriverTripsCurrentRouteImport.update({
-  id: '/api/driver/trips/current',
-  path: '/api/driver/trips/current',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDriverTripsClaimRoute = ApiDriverTripsClaimRouteImport.update({
-  id: '/api/driver/trips/claim',
-  path: '/api/driver/trips/claim',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiDriverTripsCheckpointsVerifyRoute =
   ApiDriverTripsCheckpointsVerifyRouteImport.update({
     id: '/api/driver/trips/checkpoints/verify',
@@ -347,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/employees': typeof EmployeesRouteWithChildren
   '/home': typeof HomeRoute
   '/hr-dashboard': typeof HrDashboardRoute
+  '/hrms': typeof HrmsRoute
   '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
@@ -355,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/system': typeof SystemRoute
+  '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
@@ -400,6 +414,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/home': typeof HomeRoute
   '/hr-dashboard': typeof HrDashboardRoute
+  '/hrms': typeof HrmsRoute
   '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
@@ -407,6 +422,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/system': typeof SystemRoute
+  '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
@@ -454,6 +470,7 @@ export interface FileRoutesById {
   '/employees': typeof EmployeesRouteWithChildren
   '/home': typeof HomeRoute
   '/hr-dashboard': typeof HrDashboardRoute
+  '/hrms': typeof HrmsRoute
   '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
@@ -462,6 +479,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/system': typeof SystemRoute
+  '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
@@ -512,6 +530,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/home'
     | '/hr-dashboard'
+    | '/hrms'
     | '/import-trips'
     | '/masters'
     | '/operations'
@@ -520,6 +539,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sitemap.xml'
     | '/system'
+    | '/tms'
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
@@ -565,6 +585,7 @@ export interface FileRouteTypes {
     | '/'
     | '/home'
     | '/hr-dashboard'
+    | '/hrms'
     | '/import-trips'
     | '/masters'
     | '/operations'
@@ -572,6 +593,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sitemap.xml'
     | '/system'
+    | '/tms'
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
@@ -618,6 +640,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/home'
     | '/hr-dashboard'
+    | '/hrms'
     | '/import-trips'
     | '/masters'
     | '/operations'
@@ -626,6 +649,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/sitemap.xml'
     | '/system'
+    | '/tms'
     | '/users'
     | '/api/notify-admin'
     | '/api/notify-expiry'
@@ -675,6 +699,7 @@ export interface RootRouteChildren {
   EmployeesRoute: typeof EmployeesRouteWithChildren
   HomeRoute: typeof HomeRoute
   HrDashboardRoute: typeof HrDashboardRoute
+  HrmsRoute: typeof HrmsRoute
   ImportTripsRoute: typeof ImportTripsRoute
   MastersRoute: typeof MastersRoute
   OperationsRoute: typeof OperationsRoute
@@ -683,6 +708,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SystemRoute: typeof SystemRoute
+  TmsRoute: typeof TmsRoute
   UsersRoute: typeof UsersRoute
   ApiNotifyAdminRoute: typeof ApiNotifyAdminRoute
   ApiNotifyExpiryRoute: typeof ApiNotifyExpiryRoute
@@ -697,95 +723,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/users': {
-      id: '/users'
-      path: '/users'
-      fullPath: '/users'
-      preLoaderRoute: typeof UsersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/system': {
-      id: '/system'
-      path: '/system'
-      fullPath: '/system'
-      preLoaderRoute: typeof SystemRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reports': {
-      id: '/reports'
-      path: '/reports'
-      fullPath: '/reports'
-      preLoaderRoute: typeof ReportsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/payroll': {
-      id: '/payroll'
-      path: '/payroll'
-      fullPath: '/payroll'
-      preLoaderRoute: typeof PayrollRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/operations': {
-      id: '/operations'
-      path: '/operations'
-      fullPath: '/operations'
-      preLoaderRoute: typeof OperationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/masters': {
-      id: '/masters'
-      path: '/masters'
-      fullPath: '/masters'
-      preLoaderRoute: typeof MastersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/import-trips': {
-      id: '/import-trips'
-      path: '/import-trips'
-      fullPath: '/import-trips'
-      preLoaderRoute: typeof ImportTripsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/hr-dashboard': {
-      id: '/hr-dashboard'
-      path: '/hr-dashboard'
-      fullPath: '/hr-dashboard'
-      preLoaderRoute: typeof HrDashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/home': {
-      id: '/home'
-      path: '/home'
-      fullPath: '/home'
-      preLoaderRoute: typeof HomeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/employees': {
-      id: '/employees'
-      path: '/employees'
-      fullPath: '/employees'
-      preLoaderRoute: typeof EmployeesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/attendance': {
@@ -795,179 +737,109 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AttendanceRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/payroll/': {
-      id: '/payroll/'
-      path: '/'
-      fullPath: '/payroll/'
-      preLoaderRoute: typeof PayrollIndexRouteImport
-      parentRoute: typeof PayrollRoute
+    '/employees': {
+      id: '/employees'
+      path: '/employees'
+      fullPath: '/employees'
+      preLoaderRoute: typeof EmployeesRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/employees/': {
-      id: '/employees/'
-      path: '/'
-      fullPath: '/employees/'
-      preLoaderRoute: typeof EmployeesIndexRouteImport
-      parentRoute: typeof EmployeesRoute
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/dashboard/': {
-      id: '/dashboard/'
-      path: '/'
-      fullPath: '/dashboard/'
-      preLoaderRoute: typeof DashboardIndexRouteImport
-      parentRoute: typeof DashboardRoute
+    '/hr-dashboard': {
+      id: '/hr-dashboard'
+      path: '/hr-dashboard'
+      fullPath: '/hr-dashboard'
+      preLoaderRoute: typeof HrDashboardRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/attendance/': {
-      id: '/attendance/'
-      path: '/'
-      fullPath: '/attendance/'
-      preLoaderRoute: typeof AttendanceIndexRouteImport
-      parentRoute: typeof AttendanceRoute
+    '/hrms': {
+      id: '/hrms'
+      path: '/hrms'
+      fullPath: '/hrms'
+      preLoaderRoute: typeof HrmsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/settings/attendance-module': {
-      id: '/settings/attendance-module'
-      path: '/attendance-module'
-      fullPath: '/settings/attendance-module'
-      preLoaderRoute: typeof SettingsAttendanceModuleRouteImport
-      parentRoute: typeof SettingsRoute
+    '/import-trips': {
+      id: '/import-trips'
+      path: '/import-trips'
+      fullPath: '/import-trips'
+      preLoaderRoute: typeof ImportTripsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/payroll/pending': {
-      id: '/payroll/pending'
-      path: '/pending'
-      fullPath: '/payroll/pending'
-      preLoaderRoute: typeof PayrollPendingRouteImport
-      parentRoute: typeof PayrollRoute
+    '/masters': {
+      id: '/masters'
+      path: '/masters'
+      fullPath: '/masters'
+      preLoaderRoute: typeof MastersRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/payroll/loans': {
-      id: '/payroll/loans'
-      path: '/loans'
-      fullPath: '/payroll/loans'
-      preLoaderRoute: typeof PayrollLoansRouteImport
-      parentRoute: typeof PayrollRoute
+    '/operations': {
+      id: '/operations'
+      path: '/operations'
+      fullPath: '/operations'
+      preLoaderRoute: typeof OperationsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/payroll/ledger': {
-      id: '/payroll/ledger'
-      path: '/ledger'
-      fullPath: '/payroll/ledger'
-      preLoaderRoute: typeof PayrollLedgerRouteImport
-      parentRoute: typeof PayrollRoute
-    }
-    '/payroll/history': {
-      id: '/payroll/history'
-      path: '/history'
-      fullPath: '/payroll/history'
-      preLoaderRoute: typeof PayrollHistoryRouteImport
-      parentRoute: typeof PayrollRoute
-    }
-    '/payroll/generate': {
-      id: '/payroll/generate'
-      path: '/generate'
-      fullPath: '/payroll/generate'
-      preLoaderRoute: typeof PayrollGenerateRouteImport
-      parentRoute: typeof PayrollRoute
-    }
-    '/payroll/deductions': {
-      id: '/payroll/deductions'
-      path: '/deductions'
-      fullPath: '/payroll/deductions'
-      preLoaderRoute: typeof PayrollDeductionsRouteImport
-      parentRoute: typeof PayrollRoute
-    }
-    '/payroll/advances': {
-      id: '/payroll/advances'
-      path: '/advances'
-      fullPath: '/payroll/advances'
-      preLoaderRoute: typeof PayrollAdvancesRouteImport
-      parentRoute: typeof PayrollRoute
-    }
-    '/employees/new': {
-      id: '/employees/new'
-      path: '/new'
-      fullPath: '/employees/new'
-      preLoaderRoute: typeof EmployeesNewRouteImport
-      parentRoute: typeof EmployeesRoute
-    }
-    '/employees/departments': {
-      id: '/employees/departments'
-      path: '/departments'
-      fullPath: '/employees/departments'
-      preLoaderRoute: typeof EmployeesDepartmentsRouteImport
-      parentRoute: typeof EmployeesRoute
-    }
-    '/dashboard/payroll': {
-      id: '/dashboard/payroll'
+    '/payroll': {
+      id: '/payroll'
       path: '/payroll'
-      fullPath: '/dashboard/payroll'
-      preLoaderRoute: typeof DashboardPayrollRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/hierarchy': {
-      id: '/dashboard/hierarchy'
-      path: '/hierarchy'
-      fullPath: '/dashboard/hierarchy'
-      preLoaderRoute: typeof DashboardHierarchyRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/employee': {
-      id: '/dashboard/employee'
-      path: '/employee'
-      fullPath: '/dashboard/employee'
-      preLoaderRoute: typeof DashboardEmployeeRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/dashboard/attendance': {
-      id: '/dashboard/attendance'
-      path: '/attendance'
-      fullPath: '/dashboard/attendance'
-      preLoaderRoute: typeof DashboardAttendanceRouteImport
-      parentRoute: typeof DashboardRoute
-    }
-    '/attendance/mark': {
-      id: '/attendance/mark'
-      path: '/mark'
-      fullPath: '/attendance/mark'
-      preLoaderRoute: typeof AttendanceMarkRouteImport
-      parentRoute: typeof AttendanceRoute
-    }
-    '/attendance/holidays': {
-      id: '/attendance/holidays'
-      path: '/holidays'
-      fullPath: '/attendance/holidays'
-      preLoaderRoute: typeof AttendanceHolidaysRouteImport
-      parentRoute: typeof AttendanceRoute
-    }
-    '/attendance/history': {
-      id: '/attendance/history'
-      path: '/history'
-      fullPath: '/attendance/history'
-      preLoaderRoute: typeof AttendanceHistoryRouteImport
-      parentRoute: typeof AttendanceRoute
-    }
-    '/attendance/automarker': {
-      id: '/attendance/automarker'
-      path: '/automarker'
-      fullPath: '/attendance/automarker'
-      preLoaderRoute: typeof AttendanceAutomarkerRouteImport
-      parentRoute: typeof AttendanceRoute
-    }
-    '/api/notify-open-trips': {
-      id: '/api/notify-open-trips'
-      path: '/api/notify-open-trips'
-      fullPath: '/api/notify-open-trips'
-      preLoaderRoute: typeof ApiNotifyOpenTripsRouteImport
+      fullPath: '/payroll'
+      preLoaderRoute: typeof PayrollRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/notify-expiry': {
-      id: '/api/notify-expiry'
-      path: '/api/notify-expiry'
-      fullPath: '/api/notify-expiry'
-      preLoaderRoute: typeof ApiNotifyExpiryRouteImport
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/system': {
+      id: '/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof SystemRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tms': {
+      id: '/tms'
+      path: '/tms'
+      fullPath: '/tms'
+      preLoaderRoute: typeof TmsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/users': {
+      id: '/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/notify-admin': {
@@ -977,19 +849,180 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNotifyAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/employees/departments/': {
-      id: '/employees/departments/'
-      path: '/'
-      fullPath: '/employees/departments/'
-      preLoaderRoute: typeof EmployeesDepartmentsIndexRouteImport
-      parentRoute: typeof EmployeesDepartmentsRoute
+    '/api/notify-expiry': {
+      id: '/api/notify-expiry'
+      path: '/api/notify-expiry'
+      fullPath: '/api/notify-expiry'
+      preLoaderRoute: typeof ApiNotifyExpiryRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/employees/$id/': {
-      id: '/employees/$id/'
-      path: '/$id'
-      fullPath: '/employees/$id/'
-      preLoaderRoute: typeof EmployeesIdIndexRouteImport
+    '/api/notify-open-trips': {
+      id: '/api/notify-open-trips'
+      path: '/api/notify-open-trips'
+      fullPath: '/api/notify-open-trips'
+      preLoaderRoute: typeof ApiNotifyOpenTripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/attendance/': {
+      id: '/attendance/'
+      path: '/'
+      fullPath: '/attendance/'
+      preLoaderRoute: typeof AttendanceIndexRouteImport
+      parentRoute: typeof AttendanceRoute
+    }
+    '/attendance/automarker': {
+      id: '/attendance/automarker'
+      path: '/automarker'
+      fullPath: '/attendance/automarker'
+      preLoaderRoute: typeof AttendanceAutomarkerRouteImport
+      parentRoute: typeof AttendanceRoute
+    }
+    '/attendance/history': {
+      id: '/attendance/history'
+      path: '/history'
+      fullPath: '/attendance/history'
+      preLoaderRoute: typeof AttendanceHistoryRouteImport
+      parentRoute: typeof AttendanceRoute
+    }
+    '/attendance/holidays': {
+      id: '/attendance/holidays'
+      path: '/holidays'
+      fullPath: '/attendance/holidays'
+      preLoaderRoute: typeof AttendanceHolidaysRouteImport
+      parentRoute: typeof AttendanceRoute
+    }
+    '/attendance/mark': {
+      id: '/attendance/mark'
+      path: '/mark'
+      fullPath: '/attendance/mark'
+      preLoaderRoute: typeof AttendanceMarkRouteImport
+      parentRoute: typeof AttendanceRoute
+    }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/attendance': {
+      id: '/dashboard/attendance'
+      path: '/attendance'
+      fullPath: '/dashboard/attendance'
+      preLoaderRoute: typeof DashboardAttendanceRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/employee': {
+      id: '/dashboard/employee'
+      path: '/employee'
+      fullPath: '/dashboard/employee'
+      preLoaderRoute: typeof DashboardEmployeeRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/hierarchy': {
+      id: '/dashboard/hierarchy'
+      path: '/hierarchy'
+      fullPath: '/dashboard/hierarchy'
+      preLoaderRoute: typeof DashboardHierarchyRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/payroll': {
+      id: '/dashboard/payroll'
+      path: '/payroll'
+      fullPath: '/dashboard/payroll'
+      preLoaderRoute: typeof DashboardPayrollRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/employees/': {
+      id: '/employees/'
+      path: '/'
+      fullPath: '/employees/'
+      preLoaderRoute: typeof EmployeesIndexRouteImport
       parentRoute: typeof EmployeesRoute
+    }
+    '/employees/departments': {
+      id: '/employees/departments'
+      path: '/departments'
+      fullPath: '/employees/departments'
+      preLoaderRoute: typeof EmployeesDepartmentsRouteImport
+      parentRoute: typeof EmployeesRoute
+    }
+    '/employees/new': {
+      id: '/employees/new'
+      path: '/new'
+      fullPath: '/employees/new'
+      preLoaderRoute: typeof EmployeesNewRouteImport
+      parentRoute: typeof EmployeesRoute
+    }
+    '/payroll/': {
+      id: '/payroll/'
+      path: '/'
+      fullPath: '/payroll/'
+      preLoaderRoute: typeof PayrollIndexRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/advances': {
+      id: '/payroll/advances'
+      path: '/advances'
+      fullPath: '/payroll/advances'
+      preLoaderRoute: typeof PayrollAdvancesRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/deductions': {
+      id: '/payroll/deductions'
+      path: '/deductions'
+      fullPath: '/payroll/deductions'
+      preLoaderRoute: typeof PayrollDeductionsRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/generate': {
+      id: '/payroll/generate'
+      path: '/generate'
+      fullPath: '/payroll/generate'
+      preLoaderRoute: typeof PayrollGenerateRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/history': {
+      id: '/payroll/history'
+      path: '/history'
+      fullPath: '/payroll/history'
+      preLoaderRoute: typeof PayrollHistoryRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/ledger': {
+      id: '/payroll/ledger'
+      path: '/ledger'
+      fullPath: '/payroll/ledger'
+      preLoaderRoute: typeof PayrollLedgerRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/loans': {
+      id: '/payroll/loans'
+      path: '/loans'
+      fullPath: '/payroll/loans'
+      preLoaderRoute: typeof PayrollLoansRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/pending': {
+      id: '/payroll/pending'
+      path: '/pending'
+      fullPath: '/payroll/pending'
+      preLoaderRoute: typeof PayrollPendingRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/settings/attendance-module': {
+      id: '/settings/attendance-module'
+      path: '/attendance-module'
+      fullPath: '/settings/attendance-module'
+      preLoaderRoute: typeof SettingsAttendanceModuleRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/api/driver/theme': {
+      id: '/api/driver/theme'
+      path: '/api/driver/theme'
+      fullPath: '/api/driver/theme'
+      preLoaderRoute: typeof ApiDriverThemeRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/attendance/history/': {
       id: '/attendance/history/'
@@ -998,12 +1031,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AttendanceHistoryIndexRouteImport
       parentRoute: typeof AttendanceHistoryRoute
     }
-    '/employees/departments/new': {
-      id: '/employees/departments/new'
-      path: '/new'
-      fullPath: '/employees/departments/new'
-      preLoaderRoute: typeof EmployeesDepartmentsNewRouteImport
-      parentRoute: typeof EmployeesDepartmentsRoute
+    '/attendance/history/$id': {
+      id: '/attendance/history/$id'
+      path: '/$id'
+      fullPath: '/attendance/history/$id'
+      preLoaderRoute: typeof AttendanceHistoryIdRouteImport
+      parentRoute: typeof AttendanceHistoryRoute
+    }
+    '/employees/$id/': {
+      id: '/employees/$id/'
+      path: '/$id'
+      fullPath: '/employees/$id/'
+      preLoaderRoute: typeof EmployeesIdIndexRouteImport
+      parentRoute: typeof EmployeesRoute
     }
     '/employees/$id/edit': {
       id: '/employees/$id/edit'
@@ -1012,18 +1052,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmployeesIdEditRouteImport
       parentRoute: typeof EmployeesRoute
     }
-    '/attendance/history/$id': {
-      id: '/attendance/history/$id'
-      path: '/$id'
-      fullPath: '/attendance/history/$id'
-      preLoaderRoute: typeof AttendanceHistoryIdRouteImport
-      parentRoute: typeof AttendanceHistoryRoute
+    '/employees/departments/': {
+      id: '/employees/departments/'
+      path: '/'
+      fullPath: '/employees/departments/'
+      preLoaderRoute: typeof EmployeesDepartmentsIndexRouteImport
+      parentRoute: typeof EmployeesDepartmentsRoute
     }
-    '/api/driver/theme': {
-      id: '/api/driver/theme'
-      path: '/api/driver/theme'
-      fullPath: '/api/driver/theme'
-      preLoaderRoute: typeof ApiDriverThemeRouteImport
+    '/employees/departments/new': {
+      id: '/employees/departments/new'
+      path: '/new'
+      fullPath: '/employees/departments/new'
+      preLoaderRoute: typeof EmployeesDepartmentsNewRouteImport
+      parentRoute: typeof EmployeesDepartmentsRoute
+    }
+    '/api/driver/trips/claim': {
+      id: '/api/driver/trips/claim'
+      path: '/api/driver/trips/claim'
+      fullPath: '/api/driver/trips/claim'
+      preLoaderRoute: typeof ApiDriverTripsClaimRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/driver/trips/current': {
+      id: '/api/driver/trips/current'
+      path: '/api/driver/trips/current'
+      fullPath: '/api/driver/trips/current'
+      preLoaderRoute: typeof ApiDriverTripsCurrentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/driver/trips/end': {
+      id: '/api/driver/trips/end'
+      path: '/api/driver/trips/end'
+      fullPath: '/api/driver/trips/end'
+      preLoaderRoute: typeof ApiDriverTripsEndRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/driver/trips/location': {
+      id: '/api/driver/trips/location'
+      path: '/api/driver/trips/location'
+      fullPath: '/api/driver/trips/location'
+      preLoaderRoute: typeof ApiDriverTripsLocationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/employees/departments/$id/': {
@@ -1039,34 +1107,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/employees/departments/$id/edit'
       preLoaderRoute: typeof EmployeesDepartmentsIdEditRouteImport
       parentRoute: typeof EmployeesDepartmentsRoute
-    }
-    '/api/driver/trips/location': {
-      id: '/api/driver/trips/location'
-      path: '/api/driver/trips/location'
-      fullPath: '/api/driver/trips/location'
-      preLoaderRoute: typeof ApiDriverTripsLocationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/driver/trips/end': {
-      id: '/api/driver/trips/end'
-      path: '/api/driver/trips/end'
-      fullPath: '/api/driver/trips/end'
-      preLoaderRoute: typeof ApiDriverTripsEndRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/driver/trips/current': {
-      id: '/api/driver/trips/current'
-      path: '/api/driver/trips/current'
-      fullPath: '/api/driver/trips/current'
-      preLoaderRoute: typeof ApiDriverTripsCurrentRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/driver/trips/claim': {
-      id: '/api/driver/trips/claim'
-      path: '/api/driver/trips/claim'
-      fullPath: '/api/driver/trips/claim'
-      preLoaderRoute: typeof ApiDriverTripsClaimRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/api/driver/trips/checkpoints/verify': {
       id: '/api/driver/trips/checkpoints/verify'
@@ -1212,6 +1252,7 @@ const rootRouteChildren: RootRouteChildren = {
   EmployeesRoute: EmployeesRouteWithChildren,
   HomeRoute: HomeRoute,
   HrDashboardRoute: HrDashboardRoute,
+  HrmsRoute: HrmsRoute,
   ImportTripsRoute: ImportTripsRoute,
   MastersRoute: MastersRoute,
   OperationsRoute: OperationsRoute,
@@ -1220,6 +1261,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SystemRoute: SystemRoute,
+  TmsRoute: TmsRoute,
   UsersRoute: UsersRoute,
   ApiNotifyAdminRoute: ApiNotifyAdminRoute,
   ApiNotifyExpiryRoute: ApiNotifyExpiryRoute,

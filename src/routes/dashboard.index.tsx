@@ -85,13 +85,20 @@ const TABS = [
 ] as const;
 
 export type DashboardTabId = (typeof TABS)[number]["id"];
-
-export function DashboardPage({ initialTab }: { initialTab?: DashboardTabId }) {
+export type DashboardScope = "tms" | "hr";
+export function DashboardPage({
+  initialTab,
+  scope = "tms",
+}: {
+  initialTab?: DashboardTabId;
+  scope?: DashboardScope;
+}) {
   const { user } = useSession();
   const navigate = useNavigate();
-  const isManager = user?.role === "viewer";
-  const visibleTabs = isManager ? TABS.filter((item) => "hr" in item && item.hr) : TABS;
-  const fallbackTab: DashboardTabId = isManager ? "employee" : "pnl";
+  const visibleTabs = scope === "hr"
+    ? TABS.filter((item) => "hr" in item && item.hr)
+    : TABS.filter((item) => !("hr" in item && item.hr));
+  const fallbackTab: DashboardTabId = scope === "hr" ? "employee" : "pnl";
   const requestedTab = initialTab ?? fallbackTab;
   const [tab, setTab] = useState<DashboardTabId>(requestedTab);
   const [navOpen, setNavOpen] = useState(true);
@@ -113,7 +120,7 @@ export function DashboardPage({ initialTab }: { initialTab?: DashboardTabId }) {
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
-          <span className="text-foreground">Dashboard</span>
+            <span className="text-foreground">{scope === "hr" ? "HRMS Dashboard" : "TMS Dashboard"}</span>
         </span>
       }
       headerEnd={
