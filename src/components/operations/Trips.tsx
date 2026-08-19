@@ -218,7 +218,7 @@ export function Trips() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        {!isViewer && !isBasic ? (
+        {!isViewer ? (
         <Button
           size="sm"
           className="w-fit"

@@ -182,7 +182,8 @@ export function TripForm({
   const { user } = useSession();
   const isAdmin = user?.role === "admin";
   const isBasic = user?.role === "basic";
-  const isViewer = user?.role === "viewer";
+  // Viewers may operate on existing trips; New trip creation remains blocked in Trips.tsx.
+  const isViewer = false;
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 
   const TABS = isBasic ? TABS_BASIC : TABS_ALL;
