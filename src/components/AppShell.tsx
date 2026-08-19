@@ -25,7 +25,7 @@ export function AppShell({
   const isViewer = user?.role === "viewer";
 
   return (
-    <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "xl:mr-[calc(360px/var(--app-zoom))]" : "")}>
+    <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "lg:mr-[360px]" : "")}>
       <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-screen-xl items-center gap-1.5 px-3 sm:gap-3 sm:px-6">
           <Link to="/home" className="shrink-0">

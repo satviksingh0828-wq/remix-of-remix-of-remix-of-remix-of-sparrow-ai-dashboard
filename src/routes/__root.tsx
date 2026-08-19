@@ -180,7 +180,7 @@ function OrcaAIPanelMount() {
 
   if (!open || user?.role !== "admin") return null;
   return (
-    <div className="fixed inset-0 z-[60] overflow-hidden bg-card shadow-[-4px_0_32px_rgba(0,0,0,0.12)] xl:inset-y-0 xl:left-auto xl:right-0 xl:w-[360px] xl:max-w-[360px]">
+    <div className="fixed inset-0 z-[60] h-[100dvh] min-h-[100svh] w-screen max-w-none overflow-hidden bg-card shadow-[-4px_0_32px_rgba(0,0,0,0.12)] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-[100dvh] lg:w-[360px] lg:max-w-[360px]">
       <OrcaAIPanel />
     </div>
   );

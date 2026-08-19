@@ -87,7 +87,6 @@
 /* ── Default / light base ─────────────────────────────────────────────────── */
 :root {
   --radius: 0.75rem;
-  --app-zoom: 0.85;
 
   --primary: oklch(0.58 0.15 245);
   --primary-foreground: oklch(0.99 0 0);
@@ -646,10 +645,6 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    /* Keep the workspace at the requested 85% default scale. Unlike a
-       transform, zoom also recalculates layout so fixed and sticky UI keeps
-       its correct viewport position. */
-    zoom: var(--app-zoom);
     -webkit-font-smoothing: antialiased;
   }
 
