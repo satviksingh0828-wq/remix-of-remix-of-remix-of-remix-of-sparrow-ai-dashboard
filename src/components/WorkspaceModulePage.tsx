@@ -11,6 +11,7 @@ type WorkspaceTile = {
   desc: string;
   icon: LucideIcon;
   to: string;
+  roles?: readonly ("admin" | "viewer")[];
 };
 
 export function WorkspaceModulePage({
@@ -35,6 +36,8 @@ export function WorkspaceModulePage({
 
   if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
+  const visibleTiles = tiles.filter((tile) => !tile.roles || tile.roles.includes(user.role));
+
   return (
     <AppShell
       breadcrumb={
@@ -56,7 +59,7 @@ export function WorkspaceModulePage({
       </div>
 
       <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {tiles.map((tile, index) => {
+        {visibleTiles.map((tile, index) => {
           const Icon = tile.icon;
           return (
             <button

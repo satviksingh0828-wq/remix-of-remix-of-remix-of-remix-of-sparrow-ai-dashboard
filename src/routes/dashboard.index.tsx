@@ -105,7 +105,8 @@ export function DashboardPage({
 
   useEffect(() => {
     if (user?.role === "basic") navigate({ to: "/home", replace: true });
-  }, [user, navigate]);
+    if (user?.role === "viewer" && scope === "tms") navigate({ to: "/hrms", replace: true });
+  }, [scope, user, navigate]);
 
   if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
