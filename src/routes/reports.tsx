@@ -182,7 +182,7 @@ function ReportsPage() {
       <div className={`grid gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
         {/* ── Left nav (desktop) ── */}
         {navOpen && (
-          <nav className="app-sidebar-scroll hidden lg:block lg:sticky lg:top-16 lg:-mt-8 lg:h-[calc(100dvh-4rem)] lg:max-h-[calc(100dvh-4rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
+          <nav className="app-sidebar-scroll hidden lg:block lg:fixed lg:left-[max(1.5rem,calc((100vw-1280px)/2+1.5rem))] lg:top-16 lg:h-[calc(100dvh-4rem)] lg:w-[220px] lg:max-h-[calc(100dvh-4rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Reports
             </p>
@@ -218,7 +218,7 @@ function ReportsPage() {
         <MobileTabDropdown tabs={TABS} activeId={tab} label="Reports" onChange={setTab} />
 
         <ReportFiltersContext.Provider value={{ branchId, financialYear }}>
-          <div key={tab} className="animate-fade-in min-w-0">
+          <div key={tab} className={`animate-fade-in min-w-0 ${navOpen ? "lg:col-start-2" : ""}`}>
             <header className="mb-6">
               <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
