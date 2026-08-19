@@ -7,6 +7,8 @@ import { useEmployees, useDepartments, useHolidays, useAllAttendance } from '@/l
 import { periodRange, countWorkingDays, ymd } from '@/lib/attendance-utils';
 import type { Attendance } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { currentFinancialYearStart, financialYearLabel, financialYearOptions } from '@/lib/financial-year';
 
 type PeriodKind = 'day' | 'week' | 'month' | 'year' | 'past_year' | 'past_3_year';
 
@@ -45,7 +47,17 @@ function Stat({ icon, label, value, sub }: { icon: React.ReactNode; label: strin
 
 export function AttendanceDashboard() {
   const [period, setPeriod] = useState<PeriodKind>('month');
-  const range = computeRange(period);
+  const [financialYear, setFinancialYear] = useState('none');
+  const financialYears = useMemo(() => financialYearOptions(currentFinancialYearStart()), []);
+  const range = useMemo(() => {
+    if (financialYear === 'none') return computeRange(period);
+    const start = Number(financialYear);
+    return {
+      from: new Date(start, 3, 1),
+      to: new Date(start + 1, 2, 31),
+      label: `Financial Year ${financialYearLabel(start)} (April–March)`,
+    };
+  }, [period, financialYear]);
   const { data: employees, isLoading: le } = useEmployees();
   const { data: departments, isLoading: ld } = useDepartments();
   const { data: holidays } = useHolidays();
@@ -57,7 +69,7 @@ export function AttendanceDashboard() {
     const holidayList = holidays ?? [];
     const att = attendance ?? [];
     const dayCount = Math.max(1, Math.round((range.to.getTime() - range.from.getTime()) / 86400000) + 1);
-    const isMultiDay = period !== 'day';
+    const isMultiDay = financialYear !== 'none' || period !== 'day';
 
     // Overall counts
     const totalPresent = att.filter(a => a.status === 'present').length;
@@ -127,7 +139,7 @@ export function AttendanceDashboard() {
       chartData,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [employees, departments, holidays, attendance, period]);
+  }, [employees, departments, holidays, attendance, period, financialYear, range.from, range.to]);
 
   if (le || ld || la || !stats) {
     return <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>;
@@ -138,10 +150,17 @@ export function AttendanceDashboard() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-xl font-bold sm:text-2xl">Attendance dashboard</h1>
         <div className="ml-auto flex flex-wrap gap-1.5">
+          <Select value={financialYear} onValueChange={setFinancialYear}>
+            <SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue placeholder="Financial Year" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Financial Year: None</SelectItem>
+              {financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
           {PERIODS.map(p => (
             <button
               key={p.value}
-              onClick={() => setPeriod(p.value)}
+              onClick={() => { setFinancialYear('none'); setPeriod(p.value); }}
               className={cn('rounded-md border px-3 py-1.5 text-xs font-medium',
                 period === p.value ? 'bg-foreground text-background border-foreground' : 'hover:bg-muted')}
             >{p.label}</button>

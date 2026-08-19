@@ -149,7 +149,7 @@ export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?
     return (
       <nav
         aria-label={`${areaLabels[area]} sections`}
-        className="hidden xl:block xl:sticky xl:top-24 xl:self-start"
+        className="app-sidebar-scroll hidden xl:block xl:sticky xl:top-24 xl:max-h-[calc(100dvh-7rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
       >
         <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {areaLabels[area]}
@@ -188,19 +188,28 @@ export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-left shadow-sm outline-none transition-all hover:border-primary/30 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <ActiveIcon className="size-4 shrink-0 text-primary" />
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ActiveIcon className="size-4" />
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {areaLabels[area]} section
               </span>
               <span className="block truncate text-sm font-semibold">{activeLink.label}</span>
             </span>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <ChevronDown className="size-4" />
+            </span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+        <DropdownMenuContent
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="max-h-[min(70dvh,var(--radix-dropdown-menu-content-available-height))] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto overscroll-contain rounded-2xl border-border p-1.5 shadow-xl"
+        >
           {links.map(({ label, description, to, icon: Icon }) => {
             const active = linkIsActive(pathname, to);
             return (
@@ -208,12 +217,14 @@ export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?
                 <Link
                   to={to}
                   aria-current={active ? "page" : undefined}
-                  className="flex cursor-pointer items-center gap-3 py-2.5"
+                  className={`min-h-12 flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 ${active ? "bg-primary/10" : ""}`}
                 >
-                  <Icon className={`size-4 shrink-0 ${active ? "text-primary" : ""}`} />
+                  <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                    <Icon className="size-4" />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{label}</span>
-                    <span className="block truncate text-xs text-muted-foreground">
+                    <span className="block text-xs leading-snug text-muted-foreground">
                       {description}
                     </span>
                   </span>

@@ -201,7 +201,7 @@ function OperationsPage() {
       <div className={`grid gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
         {/* Desktop left nav */}
         {navOpen && (
-          <nav className="hidden lg:block lg:sticky lg:top-24 lg:self-start">
+          <nav className="app-sidebar-scroll hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100dvh-7rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">
             <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               Operations
             </p>

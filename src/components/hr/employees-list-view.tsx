@@ -1,20 +1,21 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Plus, Pencil, Trash2, Search, Download, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { toast } from 'sonner';
-import { useEmployees, useDeleteEmployee, useDepartments, useBulkCreateEmployees } from '@/lib/hooks';
+import { useEmployees, useDeleteEmployee, useDepartments, useBulkCreateEmployees, useAllPositions } from '@/lib/hooks';
 import { fullName } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { exportEmployees, parseEmployees, readWorkbookFromFile, sheetToRows } from '@/lib/excel-io';
+import { downloadEmployeeTemplate, exportEmployees, parseEmployees, readWorkbookFromFile, sheetToRows } from '@/lib/excel-io';
 
 export function EmployeesListView() {
   const { data, isLoading } = useEmployees();
   const { data: departments = [] } = useDepartments();
+  const { data: positions = [] } = useAllPositions();
   const del = useDeleteEmployee();
   const bulk = useBulkCreateEmployees();
   const [q, setQ] = useState('');
@@ -22,6 +23,7 @@ export function EmployeesListView() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const deptById = useMemo(() => new Map(departments.map(d => [d.id, d] as const)), [departments]);
+  const positionById = useMemo(() => new Map(positions.map(p => [p.id, p] as const)), [positions]);
 
   const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -30,7 +32,7 @@ export function EmployeesListView() {
     try {
       const wb = await readWorkbookFromFile(file);
       const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = parseEmployees(sheetToRows(ws), departments);
+      const rows = parseEmployees(sheetToRows(ws), departments, positions);
       if (!rows.length) { toast.error('No valid rows found'); return; }
       const n = await bulk.mutateAsync(rows);
       toast.success(`Imported ${n} employees`);
@@ -69,7 +71,10 @@ export function EmployeesListView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold sm:text-2xl">Employees</h1>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => data && exportEmployees(data, deptById)} disabled={!data?.length}>
+          <Button variant="outline" size="sm" onClick={downloadEmployeeTemplate}>
+            <FileSpreadsheet className="mr-1 h-4 w-4" /> Template
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => data && exportEmployees(data, deptById, positionById)} disabled={!data?.length}>
             <Download className="mr-1 h-4 w-4" /> Export
           </Button>
           <label>

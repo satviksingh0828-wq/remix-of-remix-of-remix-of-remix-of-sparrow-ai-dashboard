@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Plus, Pencil, Trash2, Search, Building2, Download, Upload, Cpu, KeyRound, Copy, Check } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Building2, Download, Upload, Cpu, KeyRound, Copy, Check, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { useDepartments, useDeleteDepartment, useEmployees, useAllPositions, useBulkCreateDepartments, useAppSettings } from '@/lib/hooks';
-import { exportDepartments, parseDepartments, readWorkbookFromFile, sheetToRows } from '@/lib/excel-io';
+import { downloadDepartmentTemplate, exportDepartments, parseDepartments, readWorkbookFromFile, sheetToRows } from '@/lib/excel-io';
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -45,8 +45,12 @@ export function DepartmentsListView() {
     if (!file) return;
     try {
       const wb = await readWorkbookFromFile(file);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = parseDepartments(sheetToRows(ws));
+      const departmentsSheet = wb.Sheets['Departments'] ?? wb.Sheets[wb.SheetNames[0]];
+      const positionsSheet = wb.Sheets['Positions'];
+      const rows = parseDepartments(
+        sheetToRows(departmentsSheet),
+        positionsSheet ? sheetToRows(positionsSheet) : [],
+      );
       if (!rows.length) { toast.error('No valid rows found'); return; }
       const n = await bulk.mutateAsync(rows);
       toast.success(`Imported ${n} departments`);
@@ -79,6 +83,9 @@ export function DepartmentsListView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold sm:text-2xl">Departments</h1>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={downloadDepartmentTemplate}>
+            <FileSpreadsheet className="mr-1 h-4 w-4" /> Template
+          </Button>
           <Button variant="outline" size="sm" onClick={() => data && exportDepartments(data, positions)} disabled={!data?.length}>
             <Download className="mr-1 h-4 w-4" /> Export
           </Button>
