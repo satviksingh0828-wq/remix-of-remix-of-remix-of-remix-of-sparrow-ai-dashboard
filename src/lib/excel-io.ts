@@ -48,10 +48,45 @@ export function exportEmployees(employees: Employee[], departmentById: Map<strin
     'Inactive Reason': e.inactive_reason ?? '',
     'Date of Leaving': e.date_of_leaving ?? '',
     'Department': e.department_id ? (departmentById.get(e.department_id)?.name ?? '') : '',
+    'Unpaid Leave Deduction Rate': e.unpaid_leave_deduction_rate,
+    'Paid Leave Payout Rate': e.paid_leave_payout_rate,
+    'Pay Per Extra Work Day': e.pay_per_extra_work_day,
+    'Location': e.location ?? '',
+    'Bank Account Number': e.bank_account_number ?? '',
+    'Bank Branch Name': e.bank_branch_name ?? '',
+    'Bank Branch Address': e.bank_branch_address ?? '',
+    'Bank IFSC Code': e.bank_ifsc_code ?? '',
+    'Aadhaar Number': e.aadhaar_number ?? '',
+    'PAN Number': e.pan_number ?? '',
+    'Qualifications': (e.qualifications ?? []).join(', '),
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, makeSheet(rows), 'Employees');
   saveWorkbook(wb, `employees-${ymd(new Date())}.xlsx`);
+}
+
+const EMPLOYEE_IMPORT_HEADERS = [
+  'First Name', 'Middle Name', 'Last Name', 'Mobile', 'Address', 'DOB', 'Gender',
+  'Joining Date', 'Work Start', 'Work End', 'Basic Salary', 'HRA', 'Travel Allowance',
+  'Special Allowance', 'Other Allowance', 'PF Deduction', 'Tax Deduction',
+  'Paid Holidays / Month', 'Emergency Contact', 'Status', 'Inactive Reason',
+  'Date of Leaving', 'Department', 'Unpaid Leave Deduction Rate',
+  'Paid Leave Payout Rate', 'Pay Per Extra Work Day', 'Location', 'Bank Account Number',
+  'Bank Branch Name', 'Bank Branch Address', 'Bank IFSC Code', 'Aadhaar Number',
+  'PAN Number', 'Qualifications',
+];
+
+export function downloadEmployeeTemplate() {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, makeSheet([], EMPLOYEE_IMPORT_HEADERS), 'Employees');
+  XLSX.utils.book_append_sheet(wb, makeSheet([
+    { Field: 'Dates', Guidance: 'Use YYYY-MM-DD. Work times use HH:MM.' },
+    { Field: 'Gender', Guidance: 'male, female, or other' },
+    { Field: 'Status', Guidance: 'active or inactive' },
+    { Field: 'Department', Guidance: 'Must exactly match an existing department name.' },
+    { Field: 'Qualifications', Guidance: 'Separate multiple values with commas.' },
+  ]), 'Instructions');
+  saveWorkbook(wb, 'employee-import-template.xlsx');
 }
 
 const s = (v: unknown) => String(v ?? '').trim();
@@ -120,33 +155,70 @@ export function parseEmployees(rawRows: Record<string, unknown>[], departments: 
 
 export function exportDepartments(
   departments: Department[],
-  positions: { id: string; department_id: string; name: string; is_head: boolean }[],
+  positions: { id: string; department_id: string; name: string; is_head: boolean; reports_to_position_id?: string | null }[],
 ) {
-  const rows = departments.map(d => {
-    const pos = positions.filter(p => p.department_id === d.id);
-    const head = pos.find(p => p.is_head)?.name ?? '';
-    const others = pos.filter(p => !p.is_head).map(p => p.name).join(', ');
-    return {
-      'Name': d.name,
-      'Address': d.address,
-      'Working Days': (d.working_days_of_week ?? []).join(','),
-      'Head Position': head,
-      'Other Positions': others,
-    };
-  });
+  const rows = departments.map(d => ({
+    'Department Name': d.name,
+    'Address': d.address,
+    'Working Days': (d.working_days_of_week ?? []).join(','),
+  }));
+  const positionById = new Map(positions.map(p => [p.id, p]));
+  const departmentById = new Map(departments.map(d => [d.id, d]));
+  const positionRows = positions.map(p => ({
+    'Department Name': departmentById.get(p.department_id)?.name ?? '',
+    'Position Name': p.name,
+    'Reports To': p.reports_to_position_id ? positionById.get(p.reports_to_position_id)?.name ?? '' : '',
+    'Head': p.is_head ? 'Yes' : 'No',
+  }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, makeSheet(rows), 'Departments');
+  XLSX.utils.book_append_sheet(wb, makeSheet(positionRows, ['Department Name', 'Position Name', 'Reports To', 'Head']), 'Positions');
   saveWorkbook(wb, `departments-${ymd(new Date())}.xlsx`);
 }
 
-export function parseDepartments(rawRows: Record<string, unknown>[]): Array<{ department: DepartmentInput; positionNames: string[] }> {
-  const out: Array<{ department: DepartmentInput; positionNames: string[] }> = [];
+export type ImportedDepartmentPosition = { name: string; reportsTo: string | null; isHead: boolean };
+export type ImportedDepartment = { department: DepartmentInput; positions: ImportedDepartmentPosition[] };
+
+export function downloadDepartmentTemplate() {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, makeSheet([], ['Department Name', 'Address', 'Working Days']), 'Departments');
+  XLSX.utils.book_append_sheet(wb, makeSheet([], ['Department Name', 'Position Name', 'Reports To', 'Head']), 'Positions');
+  XLSX.utils.book_append_sheet(wb, makeSheet([
+    { Sheet: 'Departments', Guidance: 'Add one row per department. Working Days: Mon,Tue,Wed,Thu,Fri.' },
+    { Sheet: 'Positions', Guidance: 'Add positions using the exact Department Name. Head: Yes/No.' },
+    { Sheet: 'Positions', Guidance: 'Reports To must be blank or another Position Name in the same department.' },
+    { Sheet: 'Positions', Guidance: 'At least one position in each department must have Head set to Yes.' },
+  ]), 'Instructions');
+  saveWorkbook(wb, 'department-position-import-template.xlsx');
+}
+
+export function parseDepartments(rawRows: Record<string, unknown>[], rawPositionRows: Record<string, unknown>[] = []): ImportedDepartment[] {
+  const out: ImportedDepartment[] = [];
   for (const r of rawRows) {
-    const name = s(r['Name']);
+    const name = s(r['Department Name'] ?? r['Name']);
     if (!name) continue;
     const days = s(r['Working Days']).split(/[,;|]/).map(x => x.trim()).filter(Boolean);
-    const head = s(r['Head Position']) || 'Head';
-    const others = s(r['Other Positions']).split(/[,;|]/).map(x => x.trim()).filter(Boolean);
+    const importedPositions = rawPositionRows
+      .filter(p => s(p['Department Name']).toLowerCase() === name.toLowerCase())
+      .map(p => ({
+        name: s(p['Position Name']),
+        reportsTo: s(p['Reports To']) || null,
+        isHead: ['yes', 'true', '1', 'head'].includes(s(p['Head']).toLowerCase()),
+      }))
+      .filter(p => p.name);
+    // Continue to understand exports from older app versions.
+    const legacyHead = s(r['Head Position']);
+    const legacyOthers = s(r['Other Positions']).split(/[,;|]/).map(x => x.trim()).filter(Boolean);
+    const positions = importedPositions.length
+      ? importedPositions
+      : [
+          { name: legacyHead || 'Head', reportsTo: null, isHead: true },
+          ...legacyOthers.map(positionName => ({ name: positionName, reportsTo: legacyHead || 'Head', isHead: false })),
+        ];
+    if (!positions.some(p => p.isHead)) throw new Error(`Department "${name}" needs at least one Head position.`);
+    const positionNames = new Set(positions.map(p => p.name.toLowerCase()));
+    const invalidReport = positions.find(p => p.reportsTo && !positionNames.has(p.reportsTo.toLowerCase()));
+    if (invalidReport) throw new Error(`"${invalidReport.name}" reports to an unknown position in department "${name}".`);
     out.push({
       department: {
         name,
@@ -154,7 +226,7 @@ export function parseDepartments(rawRows: Record<string, unknown>[]): Array<{ de
         working_days_of_week: days.length ? days : ['Mon','Tue','Wed','Thu','Fri'],
         reports_to_department_id: null as string | null,
       },
-      positionNames: [head, ...others],
+      positions,
     });
   }
   return out;
