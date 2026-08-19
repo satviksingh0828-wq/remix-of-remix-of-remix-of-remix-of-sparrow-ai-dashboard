@@ -448,6 +448,22 @@ export const serverListUsers = createServerFn({ method: "GET" }).handler(
   },
 );
 
+// ── List Basic users for optional HR employee association ───────────────────
+
+export type BasicUserOption = Pick<AppUserPublic, "id" | "username" | "full_name" | "is_active">;
+
+export const serverListBasicUsers = createServerFn({ method: "GET" }).handler(
+  async (): Promise<BasicUserOption[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("app_users")
+      .select("id, username, full_name, is_active")
+      .eq("role", "basic")
+      .order("full_name", { ascending: true });
+    return (data ?? []) as BasicUserOption[];
+  },
+);
+
 // ── Get a single user's branch access (admin-only) ───────────────────────────
 
 export const serverGetUserBranches = createServerFn({ method: "POST" })

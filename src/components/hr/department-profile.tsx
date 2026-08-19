@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useDepartment, useDepartments, usePositions, useEmployees } from '@/lib/hooks';
 import { computeSalary, dailyHours, fullName } from '@/lib/types';
+import { useBranches, branchName } from '@/lib/use-branches';
 
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
@@ -20,6 +21,7 @@ export function DepartmentProfile({ id }: { id: string }) {
   const { data: allDepts = [] } = useDepartments();
   const { data: positions = [] } = usePositions(id);
   const { data: allEmployees = [] } = useEmployees();
+  const branches = useBranches();
 
   if (isLoading) return <div className="space-y-3"><Skeleton className="h-8 w-64" /><Skeleton className="h-40 w-full" /></div>;
   if (error || !dept) return <div className="text-sm text-muted-foreground">Department not found. <Link to="/employees/departments" className="underline">Back</Link></div>;
@@ -54,6 +56,7 @@ export function DepartmentProfile({ id }: { id: string }) {
           ))}
         </div>
         {parent && <p className="mt-3 text-xs text-muted-foreground">Reports to: <b className="text-foreground">{parent.name}</b></p>}
+        <p className="mt-2 text-xs text-muted-foreground">Branch: <b className="text-foreground">{branchName(branches, dept.branch_id) || '—'}</b></p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

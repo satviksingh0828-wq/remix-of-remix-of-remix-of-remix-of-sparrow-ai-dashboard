@@ -4,6 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { useNavigate, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useSession } from "@/lib/session";
+import { PoweredBy } from "@/components/PoweredBy";
 
 type WorkspaceTile = {
   key: string;
@@ -79,6 +80,8 @@ export function WorkspaceModulePage({
           );
         })}
       </div>
+
+      <PoweredBy className="mt-12 text-[10px] uppercase tracking-[0.22em] text-muted-foreground/50" />
     </AppShell>
   );
 }

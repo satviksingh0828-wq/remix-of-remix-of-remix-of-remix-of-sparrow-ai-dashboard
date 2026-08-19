@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { DAYS_OF_WEEK, type Department, type Position } from '@/lib/types';
 import { useDepartments, useSaveDepartment, usePositions } from '@/lib/hooks';
+import { useBranches } from '@/lib/use-branches';
 
 type PositionRow = {
   tempId: string;
@@ -40,6 +41,7 @@ function wouldCreateCycle(depts: Department[], currentId: string, selectedParent
 export function DepartmentForm({ department, existingPositions }: { department?: Department; existingPositions?: Position[] }) {
   const navigate = useNavigate();
   const { data: departments = [] } = useDepartments();
+  const branches = useBranches();
   const save = useSaveDepartment();
 
   const initialPositions: PositionRow[] = existingPositions?.length
@@ -50,6 +52,7 @@ export function DepartmentForm({ department, existingPositions }: { department?:
   const [address, setAddress] = useState(department?.address ?? '');
   const [days, setDays] = useState<string[]>(department?.working_days_of_week ?? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
   const [reportsTo, setReportsTo] = useState<string>(department?.reports_to_department_id ?? '');
+  const [branchId, setBranchId] = useState<string>(department?.branch_id ?? '');
   const [positions, setPositions] = useState<PositionRow[]>(initialPositions);
 
   function toggleDay(d: string) {
@@ -106,6 +109,7 @@ export function DepartmentForm({ department, existingPositions }: { department?:
             address: address.trim(),
             working_days_of_week: days,
             reports_to_department_id: reportsTo || null,
+            branch_id: branchId || null,
             latitude: department?.latitude ?? null,
             longitude: department?.longitude ?? null,
             device_id: department?.device_id ?? null,
@@ -159,6 +163,16 @@ export function DepartmentForm({ department, existingPositions }: { department?:
             {parentOptions.length < departments.length - 1 && (
               <p className="text-xs text-muted-foreground">Some departments are hidden to prevent circular hierarchy.</p>
             )}
+          </div>
+          <div className="space-y-2">
+            <Label>Branch (optional)</Label>
+            <Select value={branchId || 'none'} onValueChange={v => setBranchId(v === 'none' ? '' : v)}>
+              <SelectTrigger className={inputCls}><SelectValue placeholder="No branch" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No branch</SelectItem>
+                {branches.map(b => <SelectItem key={b.id} value={b.id}>{b.branch_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2 sm:col-span-2">
             <Label>Address *</Label>

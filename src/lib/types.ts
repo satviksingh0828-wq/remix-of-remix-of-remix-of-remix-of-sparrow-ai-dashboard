@@ -42,6 +42,8 @@ export interface Employee {
   bank_ifsc_code: string | null;
   aadhaar_number: string | null;
   pan_number: string | null;
+  /** Optional Basic app user linked to this employee. */
+  basic_user_id?: string | null;
   qualifications: string[];
   created_at: string;
   updated_at: string;
@@ -73,6 +75,8 @@ export interface Department {
   device_id: string | null;
   /** Device password assigned by the attendance module service after sync */
   device_password: string | null;
+  /** Optional TMS branch associated with this HR department. */
+  branch_id?: string | null;
   created_at: string;
   updated_at: string;
 }

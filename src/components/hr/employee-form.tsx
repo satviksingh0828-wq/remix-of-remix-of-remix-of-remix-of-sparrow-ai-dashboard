@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { computeSalary, type Employee, type EmployeeInput, type Gender, type EmployeeStatus } from '@/lib/types';
 import { useCreateEmployee, useUpdateEmployee, useDepartments, useAllPositions } from '@/lib/hooks';
 import { employeeDocumentsApi, type EmployeeDocumentRecord } from '@/lib/employee-documents';
+import { serverListBasicUsers, type BasicUserOption } from '@/lib/user-auth';
 
 type FormState = {
   employee_number: string;
@@ -42,6 +43,7 @@ type FormState = {
   date_of_leaving: string;
   department_id: string;
   position_id: string;
+  basic_user_id: string;
   bank_account_number: string;
   bank_branch_name: string;
   bank_branch_address: string;
@@ -88,6 +90,7 @@ function fromEmployee(e?: Employee): FormState {
     date_of_leaving:              e?.date_of_leaving ?? '',
     department_id:                e?.department_id ?? '',
     position_id:                  e?.position_id ?? '',
+    basic_user_id:                e?.basic_user_id ?? '',
     bank_account_number:          e?.bank_account_number ?? '',
     bank_branch_name:             e?.bank_branch_name ?? '',
     bank_branch_address:          e?.bank_branch_address ?? '',
@@ -105,6 +108,7 @@ export function EmployeeForm({ employee }: { employee?: Employee }) {
   const update     = useUpdateEmployee();
   const { data: departments = [] } = useDepartments();
   const { data: allPositions = [] } = useAllPositions();
+  const [basicUsers, setBasicUsers] = useState<BasicUserOption[]>([]);
   const [step, setStep] = useState(0);
   const [f, setF] = useState<FormState>(() => fromEmployee(employee));
   const [qualifications, setQualifications] = useState<Qualification[]>(
@@ -115,6 +119,10 @@ export function EmployeeForm({ employee }: { employee?: Employee }) {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    serverListBasicUsers().then(setBasicUsers).catch(() => setBasicUsers([]));
+  }, []);
 
   useEffect(() => {
     if (!employee) return;
@@ -204,8 +212,9 @@ export function EmployeeForm({ employee }: { employee?: Employee }) {
       status:                      f.status,
       inactive_reason:             f.status === 'inactive' ? f.inactive_reason.trim() : null,
       date_of_leaving:             f.status === 'inactive' ? f.date_of_leaving : null,
-      department_id:               f.department_id || null,
-      position_id:                 f.department_id && f.position_id ? f.position_id : null,
+            department_id:               f.department_id || null,
+      position_id:                  f.department_id && f.position_id ? f.position_id : null,
+      basic_user_id:                f.basic_user_id || null,
       bank_account_number:         f.bank_account_number.trim() || null,
       bank_branch_name:            f.bank_branch_name.trim() || null,
       bank_branch_address:         f.bank_branch_address.trim() || null,
@@ -572,6 +581,20 @@ export function EmployeeForm({ employee }: { employee?: Employee }) {
                     <SelectItem value="none">None</SelectItem>
                     {availablePositions.map(p => (
                       <SelectItem key={p.id} value={p.id}>{p.name}{p.is_head ? ' (Head)' : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Basic user (optional)</Label>
+                <Select value={f.basic_user_id || 'none'} onValueChange={v => set('basic_user_id', v === 'none' ? '' : v)}>
+                  <SelectTrigger className={inputCls}><SelectValue placeholder="No linked user" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No linked user</SelectItem>
+                    {basicUsers.map(u => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {(u.full_name || u.username) + (u.is_active ? '' : ' (inactive)')}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

@@ -73,7 +73,9 @@ export function AppShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto min-w-0 max-w-screen-xl overflow-x-hidden [overflow-anchor:none] px-3 py-5 sm:px-6 sm:py-8">{children}</main>
+      <main className="mx-auto min-w-0 max-w-screen-xl overflow-x-hidden [overflow-anchor:none] px-3 py-5 sm:px-6 sm:py-8">
+        {children}
+      </main>
     </div>
   );
 }
