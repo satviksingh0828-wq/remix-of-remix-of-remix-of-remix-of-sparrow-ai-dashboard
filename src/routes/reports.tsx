@@ -155,6 +155,8 @@ function ReportsPage() {
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
+          <Link to="/tms" className="hover:text-foreground">TMS</Link>
+          <ChevronRight className="size-3.5" />
           <span className="text-foreground">Reports</span>
         </span>
       }

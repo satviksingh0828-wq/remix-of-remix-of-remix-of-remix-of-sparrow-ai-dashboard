@@ -120,7 +120,11 @@ export function DashboardPage({
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
-            <span className="text-foreground">{scope === "hr" ? "HRMS Dashboard" : "TMS Dashboard"}</span>
+            <Link to={scope === "hr" ? "/hrms" : "/tms"} className="hover:text-foreground">
+              {scope === "hr" ? "HRMS" : "TMS"}
+            </Link>
+            <ChevronRight className="size-3.5" />
+            <span className="text-foreground">Dashboard</span>
         </span>
       }
       headerEnd={

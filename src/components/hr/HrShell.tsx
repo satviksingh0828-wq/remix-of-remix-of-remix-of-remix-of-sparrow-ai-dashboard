@@ -23,6 +23,8 @@ export function HrShell({ area, children }: { area: HrArea; children: ReactNode 
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
+          <Link to="/hrms" className="hover:text-foreground">HRMS</Link>
+          <ChevronRight className="size-3.5" />
           <span className="text-foreground">{label}</span>
         </span>
       }

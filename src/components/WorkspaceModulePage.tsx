@@ -43,7 +43,9 @@ export function WorkspaceModulePage({
             Workspace
           </Link>
           <span aria-hidden="true">/</span>
-          <span className="text-foreground">{title}</span>
+          <span>{title}</span>
+          <span aria-hidden="true">/</span>
+          <span className="text-foreground">Modules</span>
         </span>
       }
     >

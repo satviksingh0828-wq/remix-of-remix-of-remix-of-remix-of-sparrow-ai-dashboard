@@ -197,9 +197,6 @@ function PasskeySecurityPanel() {
             {enabled ? "Disable protection" : "Enable protection"}
           </Button>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Before enabling, apply the supplied <code>passkey_protection_enabled</code> column SQL in Supabase. The current default is disabled.
-        </p>
       </section>
     </div>
   );

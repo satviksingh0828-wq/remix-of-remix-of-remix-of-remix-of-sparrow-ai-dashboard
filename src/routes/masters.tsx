@@ -73,6 +73,8 @@ function MastersPage() {
         <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <Link to="/home" className="hover:text-foreground">Workspace</Link>
           <ChevronRight className="size-3.5" />
+          <Link to="/tms" className="hover:text-foreground">TMS</Link>
+          <ChevronRight className="size-3.5" />
           <span className="text-foreground">Masters</span>
         </span>
       }
