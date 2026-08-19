@@ -1189,7 +1189,7 @@ export function OrcaAIPanel() {
   const isExecuting = messages.some((m) => m.executing);
 
   return (
-    <div className="flex flex-col h-full bg-card border-l border-border" role="complementary" aria-label="ORCA AI">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden border-l border-border bg-card" role="complementary" aria-label="ORCA AI">
 
       {/* ── Header ── */}
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
@@ -1224,7 +1224,7 @@ export function OrcaAIPanel() {
       </div>
 
       {/* ── Messages ── */}
-      <div className="orca-scroll flex-1 overflow-y-auto px-4 py-4 space-y-3 text-sm">
+      <div className="orca-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 space-y-3 text-sm">
 
         {messages.map((msg) => (
           <div
@@ -1360,7 +1360,7 @@ export function OrcaAIPanel() {
       )}
 
       {/* ── Input box ── */}
-      <div className="shrink-0 p-3">
+      <div className="shrink-0 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <div className={cn(
           "rounded-2xl border border-border bg-muted/30 transition-colors",
           "focus-within:border-primary/50 focus-within:bg-background focus-within:shadow-sm",

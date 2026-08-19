@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useEmployees, useAllPayrolls, useLoans, useAdvances, useLossDeductions } from '@/lib/hooks';
 import { fullName } from '@/lib/types';
 import { loanRemaining } from '@/lib/payroll-utils';
+import { currentFinancialYearStart, dateInFinancialYear, financialYearLabel, financialYearOptions } from '@/lib/financial-year';
 
 function money(n: number) {
   return '₹' + Math.round(Number(n) || 0).toLocaleString('en-IN');
@@ -17,6 +18,8 @@ export function PayrollDashboard() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState<number | 'all'>('all');
+  const [financialYear, setFinancialYear] = useState('none');
+  const financialYears = useMemo(() => financialYearOptions(currentFinancialYearStart()), []);
 
   const { data: payrolls, isLoading: lp } = useAllPayrolls();
   const { data: employees, isLoading: le } = useEmployees();
@@ -28,6 +31,7 @@ export function PayrollDashboard() {
     const emps = employees ?? [];
     const empMap = new Map(emps.map(e => [e.id, e] as const));
     const pays = (payrolls ?? []).filter(p => {
+      if (financialYear !== 'none') return dateInFinancialYear(p.period_start, financialYear);
       const d = new Date(p.period_start);
       if (d.getFullYear() !== year) return false;
       if (month !== 'all' && d.getMonth() !== month) return false;
@@ -35,7 +39,9 @@ export function PayrollDashboard() {
     });
 
     const monthly = MONTHS.map((m) => ({ month: m, gross: 0, net: 0, deductions: 0 }));
-    (payrolls ?? []).filter(p => new Date(p.period_start).getFullYear() === year).forEach(p => {
+    (payrolls ?? []).filter(p => financialYear !== 'none'
+      ? dateInFinancialYear(p.period_start, financialYear)
+      : new Date(p.period_start).getFullYear() === year).forEach(p => {
       const mi = new Date(p.period_start).getMonth();
       monthly[mi].gross += Number(p.gross);
       monthly[mi].net += Number(p.net);
@@ -74,11 +80,13 @@ export function PayrollDashboard() {
       loanRem, advRem, dedPending, breakdown,
       payrollCount: pays.length,
     };
-  }, [payrolls, employees, loans, advances, deductions, year, month]);
+  }, [payrolls, employees, loans, advances, deductions, year, month, financialYear]);
 
   if (lp || le) return <div className="space-y-3"><Skeleton className="h-24 w-full" /><Skeleton className="h-64 w-full" /></div>;
 
-  const scope = month === 'all' ? String(year) : `${MONTHS[month]} ${year}`;
+  const scope = financialYear !== 'none'
+    ? `FY ${financialYearLabel(Number(financialYear))}`
+    : month === 'all' ? String(year) : `${MONTHS[month]} ${year}`;
   const hasBreakdownData = stats.breakdown.some(b => b.value > 0);
 
   return (
@@ -86,7 +94,14 @@ export function PayrollDashboard() {
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl"><Wallet className="h-5 w-5" /> Payroll dashboard</h1>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Select value={String(month)} onValueChange={v => setMonth(v === 'all' ? 'all' : Number(v))}>
+          <Select value={financialYear} onValueChange={setFinancialYear}>
+            <SelectTrigger className="h-8 w-[180px] text-xs"><SelectValue placeholder="Financial Year" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Financial Year: None</SelectItem>
+              {financialYears.map(fy => <SelectItem key={fy.value} value={fy.value}>FY {fy.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={String(month)} onValueChange={v => { setFinancialYear('none'); setMonth(v === 'all' ? 'all' : Number(v)); }}>
             <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All months</SelectItem>
@@ -95,7 +110,7 @@ export function PayrollDashboard() {
           </Select>
           <div className="flex gap-1.5">
             {[year - 1, year, year + 1].map(y => (
-              <button key={y} onClick={() => setYear(y)} className={'rounded-md border px-3 py-1.5 text-xs font-medium ' + (y === year ? 'bg-foreground text-background border-foreground' : 'hover:bg-muted')}>{y}</button>
+              <button key={y} onClick={() => { setFinancialYear('none'); setYear(y); }} className={'rounded-md border px-3 py-1.5 text-xs font-medium ' + (financialYear === 'none' && y === year ? 'bg-foreground text-background border-foreground' : 'hover:bg-muted')}>{y}</button>
             ))}
           </div>
         </div>
@@ -116,7 +131,7 @@ export function PayrollDashboard() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-lg border bg-card p-4">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Monthly payroll — {year}</h2>
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Monthly payroll — {scope}</h2>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={stats.monthly}>

@@ -48,7 +48,7 @@ export function MobileTabDropdown<T extends MobileTab>({
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+        <DropdownMenuContent align="start" className="max-h-[min(70dvh,var(--radix-dropdown-menu-content-available-height))] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto overscroll-contain">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const selected = tab.id === activeId;

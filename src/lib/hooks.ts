@@ -131,21 +131,28 @@ export function useDeleteDepartment() {
 export function useBulkCreateDepartments() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (rows: Array<{ department: DepartmentInput; positionNames: string[] }>) => {
+    mutationFn: async (rows: Array<{ department: DepartmentInput; positions: Array<{ name: string; reportsTo: string | null; isHead: boolean }> }>) => {
       if (!rows.length) return 0;
       const insertRows = rows.map(r => r.department);
       const { data, error } = await sb.from('departments').insert(insertRows).select();
       if (error) throw error;
       const created = data as Department[];
-      const positionsPayload: Array<{ department_id: string; name: string; is_head: boolean; reports_to_position_id: string | null }> = [];
-      created.forEach((d, i) => {
-        rows[i].positionNames.forEach((name, j) =>
-          positionsPayload.push({ department_id: d.id, name, is_head: j === 0, reports_to_position_id: null }),
-        );
-      });
-      if (positionsPayload.length) {
-        const { error: pErr } = await sb.from('positions').insert(positionsPayload);
+      for (let i = 0; i < created.length; i++) {
+        const specs = rows[i].positions;
+        const { data: made, error: pErr } = await sb.from('positions').insert(specs.map(p => ({
+          department_id: created[i].id, name: p.name, is_head: p.isHead, reports_to_position_id: null,
+        }))).select();
         if (pErr) throw pErr;
+        const idByName = new Map((made as Position[]).map(p => [p.name.toLowerCase(), p.id]));
+        for (const spec of specs) {
+          if (!spec.reportsTo) continue;
+          const id = idByName.get(spec.name.toLowerCase());
+          const reportsToId = idByName.get(spec.reportsTo.toLowerCase());
+          if (id && reportsToId) {
+            const { error: updateError } = await sb.from('positions').update({ reports_to_position_id: reportsToId }).eq('id', id);
+            if (updateError) throw updateError;
+          }
+        }
       }
       return rows.length;
     },

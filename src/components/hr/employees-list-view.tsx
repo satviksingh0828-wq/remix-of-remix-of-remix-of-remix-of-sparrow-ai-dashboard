@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { Plus, Pencil, Trash2, Search, Download, Upload } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Download, Upload, FileSpreadsheet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import { useEmployees, useDeleteEmployee, useDepartments, useBulkCreateEmployees } from '@/lib/hooks';
 import { fullName } from '@/lib/types';
 import { cn } from '@/lib/utils';
-import { exportEmployees, parseEmployees, readWorkbookFromFile, sheetToRows } from '@/lib/excel-io';
+import { downloadEmployeeTemplate, exportEmployees, parseEmployees, readWorkbookFromFile, sheetToRows } from '@/lib/excel-io';
 
 export function EmployeesListView() {
   const { data, isLoading } = useEmployees();
@@ -69,6 +69,9 @@ export function EmployeesListView() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-xl font-bold sm:text-2xl">Employees</h1>
         <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={downloadEmployeeTemplate}>
+            <FileSpreadsheet className="mr-1 h-4 w-4" /> Template
+          </Button>
           <Button variant="outline" size="sm" onClick={() => data && exportEmployees(data, deptById)} disabled={!data?.length}>
             <Download className="mr-1 h-4 w-4" /> Export
           </Button>

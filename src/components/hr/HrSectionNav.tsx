@@ -149,7 +149,7 @@ export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?
     return (
       <nav
         aria-label={`${areaLabels[area]} sections`}
-        className="hidden xl:block xl:sticky xl:top-24 xl:self-start"
+        className="hidden xl:block xl:sticky xl:top-24 xl:max-h-[calc(100dvh-7rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
       >
         <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {areaLabels[area]}
@@ -200,7 +200,7 @@ export function HrSectionNav({ area, desktop = false }: { area: HrArea; desktop?
             <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+        <DropdownMenuContent align="start" className="max-h-[min(70dvh,var(--radix-dropdown-menu-content-available-height))] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto overscroll-contain">
           {links.map(({ label, description, to, icon: Icon }) => {
             const active = linkIsActive(pathname, to);
             return (
