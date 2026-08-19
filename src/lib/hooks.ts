@@ -131,12 +131,24 @@ export function useDeleteDepartment() {
 export function useBulkCreateDepartments() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (rows: Array<{ department: DepartmentInput; positions: Array<{ name: string; reportsTo: string | null; isHead: boolean }> }>) => {
+    mutationFn: async (rows: Array<{ department: DepartmentInput; reportsToDepartment: string | null; positions: Array<{ name: string; reportsTo: string | null; isHead: boolean }> }>) => {
       if (!rows.length) return 0;
       const insertRows = rows.map(r => r.department);
       const { data, error } = await sb.from('departments').insert(insertRows).select();
       if (error) throw error;
       const created = data as Department[];
+      const createdDepartmentByName = new Map(created.map(d => [d.name.toLowerCase(), d.id]));
+      for (let i = 0; i < created.length; i++) {
+        const parentName = rows[i].reportsToDepartment;
+        if (!parentName) continue;
+        const parentId = createdDepartmentByName.get(parentName.toLowerCase());
+        if (!parentId) throw new Error(`Reports To Department "${parentName}" was not found in this workbook.`);
+        if (parentId === created[i].id) throw new Error(`Department "${created[i].name}" cannot report to itself.`);
+        const { error: departmentUpdateError } = await sb.from('departments')
+          .update({ reports_to_department_id: parentId })
+          .eq('id', created[i].id);
+        if (departmentUpdateError) throw departmentUpdateError;
+      }
       for (let i = 0; i < created.length; i++) {
         const specs = rows[i].positions;
         const { data: made, error: pErr } = await sb.from('positions').insert(specs.map(p => ({

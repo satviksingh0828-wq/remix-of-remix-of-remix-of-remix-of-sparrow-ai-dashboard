@@ -36,19 +36,28 @@ export function MobileTabDropdown<T extends MobileTab>({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-sm outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-left shadow-sm outline-none transition-all hover:border-primary/30 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <ActiveIcon className="size-4 shrink-0 text-primary" />
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <ActiveIcon className="size-4" />
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {label} section
               </span>
               <span className="block truncate text-sm font-semibold">{active.label}</span>
             </span>
-            <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+              <ChevronDown className="size-4" />
+            </span>
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="max-h-[min(70dvh,var(--radix-dropdown-menu-content-available-height))] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto overscroll-contain">
+        <DropdownMenuContent
+          align="start"
+          sideOffset={6}
+          collisionPadding={12}
+          className="max-h-[min(70dvh,var(--radix-dropdown-menu-content-available-height))] w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto overscroll-contain rounded-2xl border-border p-1.5 shadow-xl"
+        >
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const selected = tab.id === activeId;
@@ -56,12 +65,14 @@ export function MobileTabDropdown<T extends MobileTab>({
               <DropdownMenuItem
                 key={tab.id}
                 onSelect={() => onChange(tab.id)}
-                className="flex cursor-pointer items-center gap-3 py-2.5"
+                className={`min-h-12 flex cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 ${selected ? "bg-primary/10" : ""}`}
               >
-                <Icon className={`size-4 shrink-0 ${selected ? "text-primary" : ""}`} />
+                <span className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${selected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                  <Icon className="size-4" />
+                </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{tab.label}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{tab.desc}</span>
+                  <span className="block text-xs leading-snug text-muted-foreground">{tab.desc}</span>
                 </span>
                 {selected && <Check className="size-4 shrink-0 text-primary" />}
               </DropdownMenuItem>
