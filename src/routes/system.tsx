@@ -10,6 +10,7 @@ import {
   Server,
   ShieldCheck,
   ShieldHalf,
+  ScrollText,
   Wrench,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -21,6 +22,7 @@ import { ProjectStats } from "@/components/system/ProjectStats";
 import { SecurityPanel } from "@/components/system/SecurityPanel";
 import { TurnstilePanel } from "@/components/system/TurnstilePanel";
 import { CorrectionPanel } from "@/components/system/CorrectionPanel";
+import { LogsPanel } from "@/components/users/LogsPanel";
 import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/system")({
@@ -76,6 +78,12 @@ const TABS = [
     label: "Project Stats",
     desc: "Supabase project & Management API info",
     icon: BarChart3,
+  },
+  {
+    id: "logs",
+    label: "Activity Logs",
+    desc: "Full app and HR audit trail",
+    icon: ScrollText,
   },
 ] as const;
 
@@ -180,6 +188,7 @@ function SystemPage() {
           {tab === "security" && <SecurityPanel />}
           {tab === "turnstile" && <TurnstilePanel />}
           {tab === "project" && <ProjectStats />}
+          {tab === "logs" && <LogsPanel />}
         </div>
       </div>
     </AppShell>

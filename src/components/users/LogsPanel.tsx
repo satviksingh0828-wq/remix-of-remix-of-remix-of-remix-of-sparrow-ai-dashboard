@@ -27,6 +27,18 @@ const ENTITY_TYPES = [
   { value: "user", label: "Users" },
   { value: "settings", label: "Settings" },
   { value: "branch", label: "Branches" },
+  { value: "employee", label: "HR Employees" },
+  { value: "department", label: "HR Departments" },
+  { value: "attendance", label: "HR Attendance" },
+  { value: "holiday", label: "HR Holidays" },
+  { value: "hr_settings", label: "HR Settings" },
+  { value: "payroll", label: "HR Payroll" },
+  { value: "loan", label: "HR Loans" },
+  { value: "advance", label: "HR Advances" },
+  { value: "loan_installment", label: "Loan Installments" },
+  { value: "advance_installment", label: "Advance Installments" },
+  { value: "loss_deduction", label: "Loss Deductions" },
+  { value: "checkin_log", label: "Check-in Logs" },
 ];
 
 function actionBadgeClass(action: string): string {

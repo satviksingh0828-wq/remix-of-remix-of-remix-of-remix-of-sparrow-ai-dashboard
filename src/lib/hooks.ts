@@ -12,6 +12,11 @@ import type {
 } from './types';
 import { generateInstallmentSchedule } from './payroll-utils';
 import { ymd } from './attendance-utils';
+import { logAction } from './log-actions';
+
+function hrLog(action: string, entityType: string): void {
+  logAction(action, entityType);
+}
 
 /* ── Employees ────────────────────────────────────────────────────────────── */
 
@@ -46,7 +51,10 @@ export function useCreateEmployee() {
       if (error) throw error;
       return data as Employee;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
+    onSuccess: () => {
+      hrLog('created', 'employee');
+      qc.invalidateQueries({ queryKey: ['employees'] });
+    },
   });
 }
 
@@ -59,6 +67,7 @@ export function useUpdateEmployee() {
       return data as Employee;
     },
     onSuccess: (_r, v) => {
+      hrLog('updated', 'employee');
       qc.invalidateQueries({ queryKey: ['employees'] });
       qc.invalidateQueries({ queryKey: ['employees', v.id] });
     },
@@ -72,7 +81,10 @@ export function useDeleteEmployee() {
       const { error } = await sb.from('employees').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
+    onSuccess: () => {
+      hrLog('deleted', 'employee');
+      qc.invalidateQueries({ queryKey: ['employees'] });
+    },
   });
 }
 
@@ -85,7 +97,10 @@ export function useBulkCreateEmployees() {
       if (error) throw error;
       return rows.length;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['employees'] }),
+    onSuccess: () => {
+      hrLog('imported', 'employee');
+      qc.invalidateQueries({ queryKey: ['employees'] });
+    },
   });
 }
 
@@ -122,6 +137,7 @@ export function useDeleteDepartment() {
       if (error) throw error;
     },
     onSuccess: () => {
+      hrLog('deleted', 'department');
       qc.invalidateQueries({ queryKey: ['departments'] });
       qc.invalidateQueries({ queryKey: ['positions'] });
     },
@@ -169,6 +185,7 @@ export function useBulkCreateDepartments() {
       return rows.length;
     },
     onSuccess: () => {
+      hrLog('imported', 'department');
       qc.invalidateQueries({ queryKey: ['departments'] });
       qc.invalidateQueries({ queryKey: ['positions'] });
     },
@@ -182,7 +199,10 @@ export function useUpdateDepartment() {
       const { error } = await sb.from('departments').update(values).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
+    onSuccess: () => {
+      hrLog('updated', 'department');
+      qc.invalidateQueries({ queryKey: ['departments'] });
+    },
   });
 }
 
@@ -256,6 +276,7 @@ export function useSaveDepartment() {
       return departmentId;
     },
     onSuccess: () => {
+      hrLog('saved', 'department');
       qc.invalidateQueries({ queryKey: ['departments'] });
       qc.invalidateQueries({ queryKey: ['positions'] });
     },
@@ -317,7 +338,10 @@ export function useUpsertAttendance() {
       const { error } = await sb.from('attendance').upsert(rows, { onConflict: 'employee_id,date' });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['attendance'] }),
+    onSuccess: () => {
+      hrLog('saved', 'attendance');
+      qc.invalidateQueries({ queryKey: ['attendance'] });
+    },
   });
 }
 
@@ -328,7 +352,10 @@ export function useDeleteAttendance() {
       const { error } = await sb.from('attendance').delete().eq('employee_id', employee_id).eq('date', date);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['attendance'] }),
+    onSuccess: () => {
+      hrLog('deleted', 'attendance');
+      qc.invalidateQueries({ queryKey: ['attendance'] });
+    },
   });
 }
 
@@ -353,7 +380,10 @@ export function useCreateHoliday() {
       if (error) throw error;
       return data as Holiday;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays'] }),
+    onSuccess: () => {
+      hrLog('created', 'holiday');
+      qc.invalidateQueries({ queryKey: ['holidays'] });
+    },
   });
 }
 
@@ -366,7 +396,10 @@ export function useBulkCreateHolidays() {
       if (error) throw error;
       return rows.length;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays'] }),
+    onSuccess: () => {
+      hrLog('imported', 'holiday');
+      qc.invalidateQueries({ queryKey: ['holidays'] });
+    },
   });
 }
 
@@ -377,7 +410,10 @@ export function useUpdateHoliday() {
       const { error } = await sb.from('holidays').update(values).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays'] }),
+    onSuccess: () => {
+      hrLog('updated', 'holiday');
+      qc.invalidateQueries({ queryKey: ['holidays'] });
+    },
   });
 }
 
@@ -388,7 +424,10 @@ export function useDeleteHoliday() {
       const { error } = await sb.from('holidays').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['holidays'] }),
+    onSuccess: () => {
+      hrLog('deleted', 'holiday');
+      qc.invalidateQueries({ queryKey: ['holidays'] });
+    },
   });
 }
 
@@ -417,7 +456,10 @@ export function useUpdateAppSettings() {
         if (error) throw error;
       }
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['app_settings'] }),
+    onSuccess: () => {
+      hrLog('updated', 'hr_settings');
+      qc.invalidateQueries({ queryKey: ['app_settings'] });
+    },
   });
 }
 
@@ -456,6 +498,7 @@ export function useCreatePayroll() {
       return data as Payroll;
     },
     onSuccess: () => {
+      hrLog('created', 'payroll');
       qc.invalidateQueries({ queryKey: ['payrolls'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
       qc.invalidateQueries({ queryKey: ['advances'] });
@@ -497,6 +540,7 @@ export function useMarkPayrollPaid() {
       if (error) throw error;
     },
     onSuccess: () => {
+      hrLog('paid', 'payroll');
       qc.invalidateQueries({ queryKey: ['payrolls'] });
     },
   });
@@ -552,6 +596,7 @@ export function useDeletePayroll() {
       void p;
     },
     onSuccess: () => {
+      hrLog('deleted', 'payroll');
       qc.invalidateQueries({ queryKey: ['payrolls'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
       qc.invalidateQueries({ queryKey: ['advances'] });
@@ -591,6 +636,7 @@ export function useCreateLoan() {
       return loan;
     },
     onSuccess: () => {
+      hrLog('created', 'loan');
       qc.invalidateQueries({ queryKey: ['loans'] });
       qc.invalidateQueries({ queryKey: ['loan_installments'] });
     },
@@ -604,7 +650,10 @@ export function useUpdateLoan() {
       const { error } = await sb.from('loans').update(values).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['loans'] }),
+    onSuccess: () => {
+      hrLog('updated', 'loan');
+      qc.invalidateQueries({ queryKey: ['loans'] });
+    },
   });
 }
 
@@ -617,6 +666,7 @@ export function useDeleteLoan() {
       if (error) throw error;
     },
     onSuccess: () => {
+      hrLog('deleted', 'loan');
       qc.invalidateQueries({ queryKey: ['loans'] });
       qc.invalidateQueries({ queryKey: ['loan_installments'] });
     },
@@ -652,6 +702,7 @@ export function useCreateAdvance() {
       return advance;
     },
     onSuccess: () => {
+      hrLog('created', 'advance');
       qc.invalidateQueries({ queryKey: ['advances'] });
       qc.invalidateQueries({ queryKey: ['advance_installments'] });
     },
@@ -665,7 +716,10 @@ export function useUpdateAdvance() {
       const { error } = await sb.from('advances').update(values).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['advances'] }),
+    onSuccess: () => {
+      hrLog('updated', 'advance');
+      qc.invalidateQueries({ queryKey: ['advances'] });
+    },
   });
 }
 
@@ -678,6 +732,7 @@ export function useDeleteAdvance() {
       if (error) throw error;
     },
     onSuccess: () => {
+      hrLog('deleted', 'advance');
       qc.invalidateQueries({ queryKey: ['advances'] });
       qc.invalidateQueries({ queryKey: ['advance_installments'] });
     },
@@ -827,6 +882,7 @@ export function useMarkLoanInstallmentPaid() {
       return { wasPayroll: currentStatus === 'paid_payroll', payrollId };
     },
     onSuccess: () => {
+      hrLog('paid', 'loan_installment');
       qc.invalidateQueries({ queryKey: ['loan_installments'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
     },
@@ -850,6 +906,7 @@ export function useMarkLoanInstallmentPartialPaid() {
       // paid_months unchanged — installment is not fully settled yet
     },
     onSuccess: () => {
+      hrLog('partial_paid', 'loan_installment');
       qc.invalidateQueries({ queryKey: ['loan_installments'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
     },
@@ -872,6 +929,7 @@ export function useMarkLoanInstallmentUnpaid() {
       await sb.from('loans').update({ paid_months: paid, status: 'active', paid_off_date: null }).eq('id', loanId);
     },
     onSuccess: () => {
+      hrLog('unpaid', 'loan_installment');
       qc.invalidateQueries({ queryKey: ['loan_installments'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
     },
@@ -898,6 +956,7 @@ export function useMarkLoanInstallmentPayroll() {
       }).eq('id', loanId);
     },
     onSuccess: () => {
+      hrLog('paid_payroll', 'loan_installment');
       qc.invalidateQueries({ queryKey: ['loan_installments'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
     },
@@ -940,6 +999,7 @@ export function useSkipLoanInstallment() {
       }).eq('id', loanId);
     },
     onSuccess: () => {
+      hrLog('skipped', 'loan_installment');
       qc.invalidateQueries({ queryKey: ['loan_installments'] });
       qc.invalidateQueries({ queryKey: ['loans'] });
     },
@@ -995,6 +1055,7 @@ export function useMarkAdvanceInstallmentPaid() {
       return { wasPayroll: currentStatus === 'paid_payroll', payrollId };
     },
     onSuccess: () => {
+      hrLog('paid', 'advance_installment');
       qc.invalidateQueries({ queryKey: ['advance_installments'] });
       qc.invalidateQueries({ queryKey: ['advances'] });
     },
@@ -1017,6 +1078,7 @@ export function useMarkAdvanceInstallmentPartialPaid() {
       }).eq('id', installmentId);
     },
     onSuccess: () => {
+      hrLog('partial_paid', 'advance_installment');
       qc.invalidateQueries({ queryKey: ['advance_installments'] });
       qc.invalidateQueries({ queryKey: ['advances'] });
     },
@@ -1038,6 +1100,7 @@ export function useMarkAdvanceInstallmentUnpaid() {
       await sb.from('advances').update({ paid_months: paid, status: 'active', paid_off_date: null }).eq('id', advanceId);
     },
     onSuccess: () => {
+      hrLog('unpaid', 'advance_installment');
       qc.invalidateQueries({ queryKey: ['advance_installments'] });
       qc.invalidateQueries({ queryKey: ['advances'] });
     },
@@ -1064,6 +1127,7 @@ export function useMarkAdvanceInstallmentPayroll() {
       }).eq('id', advanceId);
     },
     onSuccess: () => {
+      hrLog('paid_payroll', 'advance_installment');
       qc.invalidateQueries({ queryKey: ['advance_installments'] });
       qc.invalidateQueries({ queryKey: ['advances'] });
     },
@@ -1106,6 +1170,7 @@ export function useSkipAdvanceInstallment() {
       }).eq('id', advanceId);
     },
     onSuccess: () => {
+      hrLog('skipped', 'advance_installment');
       qc.invalidateQueries({ queryKey: ['advance_installments'] });
       qc.invalidateQueries({ queryKey: ['advances'] });
     },
@@ -1133,7 +1198,10 @@ export function useCreateLossDeduction() {
       if (error) throw error;
       return data as LossDeduction;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['loss_deductions'] }),
+    onSuccess: () => {
+      hrLog('created', 'loss_deduction');
+      qc.invalidateQueries({ queryKey: ['loss_deductions'] });
+    },
   });
 }
 
@@ -1144,7 +1212,10 @@ export function useUpdateLossDeduction() {
       const { error } = await sb.from('loss_deductions').update(values).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['loss_deductions'] }),
+    onSuccess: () => {
+      hrLog('updated', 'loss_deduction');
+      qc.invalidateQueries({ queryKey: ['loss_deductions'] });
+    },
   });
 }
 
@@ -1155,7 +1226,10 @@ export function useDeleteLossDeduction() {
       const { error } = await sb.from('loss_deductions').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['loss_deductions'] }),
+    onSuccess: () => {
+      hrLog('deleted', 'loss_deduction');
+      qc.invalidateQueries({ queryKey: ['loss_deductions'] });
+    },
   });
 }
 
@@ -1182,7 +1256,10 @@ export function useSaveCheckinLogs() {
       const { error } = await sb.from('checkin_logs').upsert(logs, { onConflict: 'id' });
       if (error) throw error;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['checkin_logs'] }),
+    onSuccess: () => {
+      hrLog('saved', 'checkin_log');
+      qc.invalidateQueries({ queryKey: ['checkin_logs'] });
+    },
   });
 }
 
