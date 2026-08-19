@@ -76,13 +76,15 @@ export function NotificationBell() {
     }
   }
 
-  // Load on mount and every 2 minutes
+  const canDismiss = user?.role === "admin";
+
+  // Load on mount and every 2 minutes for Admin and Viewer/Manager users.
   useEffect(() => {
-    if (user?.role === "admin") {
+    if (user?.role === "admin" || user?.role === "viewer") {
       load();
     }
     const t = setInterval(() => {
-      if (user?.role === "admin") load();
+      if (user?.role === "admin" || user?.role === "viewer") load();
     }, 120_000);
     return () => clearInterval(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -227,16 +229,18 @@ export function NotificationBell() {
                         {item.detail}
                       </p>
                     </div>
-                    {/* Dismiss button — clears for all admins */}
-                    <button
-                      type="button"
-                      disabled={dismissing.has(item.id)}
-                      onClick={() => dismiss(item)}
-                      title="Dismiss for all admins"
-                      className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
-                    >
-                      <X className="size-3.5" />
-                    </button>
+                    {/* Only Admins can dismiss; Viewers/Managers remain read-only. */}
+                    {canDismiss && (
+                      <button
+                        type="button"
+                        disabled={dismissing.has(item.id)}
+                        onClick={() => dismiss(item)}
+                        title="Dismiss for all admins"
+                        className="mt-0.5 shrink-0 rounded p-0.5 text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

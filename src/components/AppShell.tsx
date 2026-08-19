@@ -43,7 +43,7 @@ export function AppShell({
                 <Server className="size-4" />
               </Link>
             )}
-            {user?.role === "admin" && <NotificationBell />}
+            {(user?.role === "admin" || user?.role === "viewer") && <NotificationBell />}
             {user?.role === "admin" && <OrcaAITrigger />}
             <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex min-w-0">
               {user?.role === "admin" ? (

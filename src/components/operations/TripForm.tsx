@@ -349,43 +349,43 @@ export function TripForm({
   const payload = vehicle ? num(vehicle.payload_capacity_kg) : 0;
   const deadWeight = isOwn && payload > 0 ? payload - totalWeight : null;
 
-  async function saveTrip(e?: React.FormEvent) {
+  async function saveTrip(e?: React.FormEvent): Promise<string | null> {
     e?.preventDefault();
 
     // ── Validation ──────────────────────────────────────────────────────────
     if (!trip.start_date) {
       toast.error("Start date is required");
-      return;
+      return null;
     }
     if (isBasic && !isBasicStartDateAllowed(trip.start_date)) {
       toast.error("Basic users can select only today or yesterday as the trip start date");
-      return;
+      return null;
     }
     if (!trip.start_time) {
       toast.error("Start time is required");
-      return;
+      return null;
     }
     if (!trip.branch_id) {
       toast.error("Branch is required");
-      return;
+      return null;
     }
     if (isOwn) {
       if (!trip.vehicle_id) {
         toast.error("Vehicle is required for own-vehicle trips");
-        return;
+        return null;
       }
       if (!trip.driver_id) {
         toast.error("Driver is required for own-vehicle trips");
-        return;
+        return null;
       }
       if (!trip.odometer_start) {
         toast.error("Odometer start is required for own-vehicle trips");
-        return;
+        return null;
       }
     }
     if (isRented && !trip.transporter_id) {
       toast.error("Transporter is required for rented trips — please select one before saving");
-      return;
+      return null;
     }
 
     setSaving(true);
@@ -405,7 +405,10 @@ export function TripForm({
           .select("id")
           .single();
     setSaving(false);
-    if (res.error) return toast.error(res.error.message);
+    if (res.error) {
+      toast.error(res.error.message);
+      return null;
+    }
     const newId = (res.data as { id: string }).id;
     if (!id) setTrip((t) => ({ ...t, id: newId }));
     const isNew = !id;
@@ -512,8 +515,10 @@ export function TripForm({
       return;
     }
 
-    // Save any unsaved changes first (e.g. end_date/end_time just entered)
-    await saveTrip();
+    // Save any unsaved changes first (e.g. end_date/end_time just entered).
+    // Do not close if this write fails; otherwise closeTrip would snapshot stale dates.
+    const savedId = await saveTrip();
+    if (!savedId) return;
     // Silently flush both income and expense lines so closeTrip reads the latest values
     await saveLines("trip_other_income", incomes, "income_name", true);
     await saveLines("trip_expenses", expenses, "expense_name", true);

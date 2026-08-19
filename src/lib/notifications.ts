@@ -199,10 +199,9 @@ export async function syncScheduledNotificationEmails(): Promise<{ notifications
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
 /**
- * Verifies that the caller is an active admin. Throws on any failure.
- * Mirrors the pattern in vehicle-coverage.ts / requireAdmin().
+ * Verifies that the caller is an active Admin or Viewer. Throws on any failure.
  */
-async function requireAdmin(userId: string): Promise<void> {
+async function requireNotificationUser(userId: string): Promise<"admin" | "viewer"> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabaseAdmin as any;
@@ -214,7 +213,14 @@ async function requireAdmin(userId: string): Promise<void> {
   if (error) throw new Error(`Auth check failed: ${error.message}`);
   if (!data) throw new Error("Forbidden: user not found.");
   if (!(data as { is_active: boolean }).is_active) throw new Error("Forbidden: account is inactive.");
-  if ((data as { role: string }).role !== "admin") throw new Error("Forbidden: admin access required.");
+  const role = (data as { role: string }).role;
+  if (role !== "admin" && role !== "viewer") throw new Error("Forbidden: notification access required.");
+  return role;
+}
+
+async function requireAdmin(userId: string): Promise<void> {
+  const role = await requireNotificationUser(userId);
+  if (role !== "admin") throw new Error("Forbidden: admin access required.");
 }
 
 // ── Compute notifications from live data ──────────────────────────────────────
@@ -486,7 +492,7 @@ async function computeItems(db: any): Promise<ComputedItem[]> {
 export const serverSyncNotifications = createServerFn({ method: "POST" })
   .validator(z.object({ userId: z.string() }))
   .handler(async ({ data: { userId } }): Promise<NotificationItem[]> => {
-    await requireAdmin(userId);
+    const notificationRole = await requireNotificationUser(userId);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -534,9 +540,11 @@ export const serverSyncNotifications = createServerFn({ method: "POST" })
       if (deleteError) throw new Error(`Failed to delete resolved notifications: ${deleteError.message}`);
     }
 
-    // Mirror every new bell notification to both configured admin inboxes.
-    // Delivery failures are non-fatal and remain eligible for retry.
-    await emailPendingNotifications(db);
+    // Only Admin notification loads may trigger the existing alert email delivery.
+    // Viewer/Manager reads remain read-only and do not send duplicate email.
+    if (notificationRole === "admin") {
+      await emailPendingNotifications(db);
+    }
 
     // Return all unread
     const { data, error: readError } = await db

@@ -50,6 +50,7 @@ export type TripAveragesRow = {
   start_date: string;
   end_date: string;
   ownership: string;
+  vehicle_number: string;
   distance_travelled: number | null;
   manifests: ManifestDetail[];
 };
@@ -588,7 +589,7 @@ async function fetchTripAveragesData(
       db
         .from("closed_trips")
         .select(
-          "id,trip_code,branch_id,branch_name,total_income,total_expense,net_income,closed_at,snapshot",
+          "id,trip_code,branch_id,branch_name,vehicle_id,total_income,total_expense,net_income,closed_at,snapshot",
         )
         .gte("closed_at", start)
         .lt("closed_at", end)
@@ -611,6 +612,16 @@ async function fetchTripAveragesData(
     db.from("contracts").select("fixed_monthly_charge,fixed_yearly_charge").eq("status", "active"),
     db.from("locations").select("id,location_name,pin_code"),
   ]);
+
+  const vehicleIds = [...new Set(
+    tripsRows.map((row: Record<string, unknown>) => row.vehicle_id as string | null).filter(Boolean) as string[],
+  )];
+  const { data: vehicleRows } = vehicleIds.length
+    ? await db.from("vehicles").select("id,registration_number").in("id", vehicleIds)
+    : { data: [] };
+  const vehicleMap = new Map<string, string>(
+    (vehicleRows ?? []).map((row: Record<string, unknown>) => [String(row.id), String(row.registration_number ?? "")]),
+  );
 
   // Build location id → name map
   const locMap = new Map<string, { name: string; pin: string }>();
@@ -661,6 +672,11 @@ async function fetchTripAveragesData(
     const { weight, quantity } = extractWeightQty(r.snapshot);
     const snapshot = (r.snapshot ?? {}) as Record<string, unknown>;
     const tripSnapshot = (snapshot.trip ?? snapshot) as Record<string, unknown>;
+    const vehicleSnapshot = (snapshot.vehicle ?? {}) as Record<string, unknown>;
+    const ownership = String(tripSnapshot.ownership ?? "");
+    const vehicleNumber = ownership === "third_party"
+      ? String(tripSnapshot.third_party_vehicle_number ?? "")
+      : String(vehicleSnapshot.registration_number ?? vehicleMap.get(String(r.vehicle_id ?? "")) ?? "");
     const hasOdometerReadings =
       String(tripSnapshot.odometer_start ?? "").trim() !== "" &&
       String(tripSnapshot.odometer_end ?? "").trim() !== "";
@@ -691,7 +707,8 @@ async function fetchTripAveragesData(
       closed_at: r.closed_at as string,
       start_date: String(tripSnapshot.start_date ?? ""),
       end_date: String(tripSnapshot.end_date ?? ""),
-      ownership: String(tripSnapshot.ownership ?? ""),
+      ownership,
+      vehicle_number: vehicleNumber,
       distance_travelled: distanceTravelled,
       manifests: extractManifests(r.snapshot),
     };

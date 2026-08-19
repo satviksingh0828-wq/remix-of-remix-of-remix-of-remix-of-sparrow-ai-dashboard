@@ -316,6 +316,7 @@ export function TripDetailsPanel() {
           "Quantity",
           "Distance Travelled (km)",
           "Type (Renter/Own)",
+          "Vehicle Number",
           "Distributed Expense (₹)",
           "Trip Income (₹)",
           "Trip Expense (₹)",
@@ -323,8 +324,8 @@ export function TripDetailsPanel() {
           "Final Profit (₹)",
         ]
       : canSeeExpense
-        ? ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Trip Expense (₹)"]
-        : ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)"];
+        ? ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Vehicle Number", "Trip Expense (₹)"]
+        : ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Vehicle Number"];
     const tripRows: (string | number)[][] = [
       tripHeaders,
       ...filteredRows.map((row) =>
@@ -339,6 +340,7 @@ export function TripDetailsPanel() {
               row.total_quantity,
               row.distance_travelled ?? "—",
               ownershipLabel(row.ownership),
+              row.vehicle_number || "—",
               row.expenseDistribution,
               row.total_income,
               row.total_expense,
@@ -356,9 +358,10 @@ export function TripDetailsPanel() {
                 row.total_quantity,
                 row.distance_travelled ?? "—",
                 ownershipLabel(row.ownership),
+                row.vehicle_number || "—",
                 row.total_expense,
               ]
-            : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), row.manifests.length, row.total_weight, row.total_quantity, row.distance_travelled ?? "—", ownershipLabel(row.ownership)],
+              : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), row.manifests.length, row.total_weight, row.total_quantity, row.distance_travelled ?? "—", ownershipLabel(row.ownership), row.vehicle_number || "—"],
       ),
     ];
     if (canSeeMoney) {
@@ -375,9 +378,9 @@ export function TripDetailsPanel() {
         total("distributedProfit"),
       ]);
     } else if (canSeeExpense) {
-      tripRows.push(["TOTALS", "", "", "", "", "", "", "", "", total("total_expense")]);
+      tripRows.push(["TOTALS", "", "", "", "", "", "", "", "", "", total("total_expense")]);
     } else {
-      tripRows.push(["TOTALS", "", "", "", "", "", "", "", ""]);
+      tripRows.push(["TOTALS", "", "", "", "", "", "", "", "", ""]);
     }
 
     const manifestHeaders = canSeeMoney
@@ -492,7 +495,7 @@ export function TripDetailsPanel() {
 
     const tripSheet = XLSX.utils.aoa_to_sheet(tripRows);
     tripSheet["!cols"] = (
-      canSeeMoney ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 18, 18, 18, 18, 18] : canSeeExpense ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 18] : [18, 18, 16, 16, 16, 14, 12, 22, 18]
+      canSeeMoney ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 20, 18, 18, 18, 18, 18] : canSeeExpense ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 20, 18] : [18, 18, 16, 16, 16, 14, 12, 22, 18, 20]
     ).map((wch) => ({ wch }));
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
@@ -689,6 +692,7 @@ export function TripDetailsPanel() {
                     <th className="px-4 py-3 text-right">Quantity</th>
                     <th className="px-4 py-3 text-right">Distance Travelled</th>
                     <th className="px-4 py-3">Type</th>
+                    <th className="px-4 py-3">Vehicle Number</th>
                     {canSeeMoney && (
                       <>
                         <th className="px-4 py-3 text-right">Trip Expense</th>
@@ -735,6 +739,7 @@ export function TripDetailsPanel() {
                           <td className="px-4 py-3 text-right">{row.total_quantity.toLocaleString()}</td>
                           <td className="px-4 py-3 text-right">{row.distance_travelled === null ? "—" : `${row.distance_travelled.toLocaleString()} km`}</td>
                           <td className="px-4 py-3">{ownershipLabel(row.ownership)}</td>
+                          <td className="px-4 py-3">{row.vehicle_number || "—"}</td>
                           {canSeeMoney && (
                             <>
                               <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
@@ -768,7 +773,7 @@ export function TripDetailsPanel() {
                             className="border-b border-border bg-muted/10"
                           >
                             <td
-                              colSpan={canSeeMoney ? 15 : canSeeExpense ? 11 : 10}
+                              colSpan={canSeeMoney ? 16 : canSeeExpense ? 12 : 11}
                               className="px-6 py-3"
                             >
                               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -864,7 +869,7 @@ export function TripDetailsPanel() {
                   <tfoot>
                     <tr className="border-t-2 border-border bg-muted/40 font-semibold">
                       <td className="px-2 py-3" />
-                      <td className="px-4 py-3" colSpan={9}>
+                      <td className="px-4 py-3" colSpan={10}>
                         Totals
                       </td>
                       <td className="px-4 py-3 text-right">{inr(total("total_income"))}</td>
@@ -886,7 +891,7 @@ export function TripDetailsPanel() {
                   <tfoot>
                     <tr className="border-t-2 border-border bg-muted/40 font-semibold">
                       <td className="px-2 py-3" />
-                      <td className="px-4 py-3" colSpan={9}>
+                      <td className="px-4 py-3" colSpan={10}>
                         Totals
                       </td>
                       <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
