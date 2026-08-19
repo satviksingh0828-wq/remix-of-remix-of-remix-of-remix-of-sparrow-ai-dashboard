@@ -722,6 +722,7 @@
 /* Independent app navigation: fills the available viewport and only reveals
    its slim scrollbar while the user is interacting with the sidebar. */
 .app-sidebar-scroll {
+  overflow-anchor: none;
   scrollbar-width: thin;
   scrollbar-color: transparent transparent;
 }

@@ -25,7 +25,7 @@ export function AppShell({
   const isViewer = user?.role === "viewer";
 
   return (
-    <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "lg:mr-[360px]" : "")}>
+    <div className={cn("min-h-screen bg-background transition-all duration-300", isAdmin && open ? "xl:mr-[calc(360px/var(--app-zoom))]" : "")}>
       <header className="sticky top-0 z-30 border-b border-border bg-card/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-screen-xl items-center gap-1.5 px-3 sm:gap-3 sm:px-6">
           <Link to="/home" className="shrink-0">
@@ -73,7 +73,7 @@ export function AppShell({
           </div>
         </div>
       </header>
-      <main className="mx-auto min-w-0 max-w-screen-xl overflow-x-hidden px-3 py-5 sm:px-6 sm:py-8">{children}</main>
+      <main className="mx-auto min-w-0 max-w-screen-xl overflow-x-hidden [overflow-anchor:none] px-3 py-5 sm:px-6 sm:py-8">{children}</main>
     </div>
   );
 }
