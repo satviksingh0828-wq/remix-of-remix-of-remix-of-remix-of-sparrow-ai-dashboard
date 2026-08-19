@@ -168,9 +168,19 @@ function SessionExpiredListener() {
 function OrcaAIPanelMount() {
   const { open } = useOrcaAI();
   const { user } = useSession();
+
+  useEffect(() => {
+    if (!open || user?.role !== "admin") return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open, user?.role]);
+
   if (!open || user?.role !== "admin") return null;
   return (
-    <div className="fixed inset-x-0 inset-y-0 z-[60] h-[100dvh] max-h-[100dvh] w-full overflow-hidden shadow-[-4px_0_32px_rgba(0,0,0,0.12)] sm:inset-x-auto sm:right-0 sm:w-[360px]">
+    <div className="fixed inset-0 z-[60] h-[100dvh] min-h-[100svh] w-screen max-w-none overflow-hidden bg-card shadow-[-4px_0_32px_rgba(0,0,0,0.12)] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-[100dvh] lg:w-[min(360px,100vw)] lg:max-w-[360px]">
       <OrcaAIPanel />
     </div>
   );
