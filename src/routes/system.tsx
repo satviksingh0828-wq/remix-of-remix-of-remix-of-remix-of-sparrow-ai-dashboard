@@ -95,6 +95,7 @@ function SystemPage() {
   if (user?.role !== "admin") return null;
 
   const active = TABS.find((t) => t.id === tab) ?? TABS[0];
+  const safeTab = active.id;
 
   return (
     <AppShell
