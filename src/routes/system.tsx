@@ -9,7 +9,6 @@ import {
   PanelLeftOpen,
   Server,
   ShieldCheck,
-  ShieldHalf,
   ScrollText,
   Wrench,
 } from "lucide-react";
@@ -20,7 +19,6 @@ import { ErrorPanel } from "@/components/system/ErrorPanel";
 import { DatabaseStats } from "@/components/system/DatabaseStats";
 import { ProjectStats } from "@/components/system/ProjectStats";
 import { SecurityPanel } from "@/components/system/SecurityPanel";
-import { TurnstilePanel } from "@/components/system/TurnstilePanel";
 import { CorrectionPanel } from "@/components/system/CorrectionPanel";
 import { LogsPanel } from "@/components/users/LogsPanel";
 import { useSession } from "@/lib/session";
@@ -66,12 +64,6 @@ const TABS = [
     label: "Security",
     desc: "Passkeys, sessions & failed logins",
     icon: ShieldCheck,
-  },
-  {
-    id: "turnstile",
-    label: "Turnstile",
-    desc: "Cloudflare CAPTCHA analytics",
-    icon: ShieldHalf,
   },
   {
     id: "project",
@@ -186,7 +178,6 @@ function SystemPage() {
           {tab === "corrections" && <CorrectionPanel />}
           {tab === "db" && <DatabaseStats />}
           {tab === "security" && <SecurityPanel />}
-          {tab === "turnstile" && <TurnstilePanel />}
           {tab === "project" && <ProjectStats />}
           {tab === "logs" && <LogsPanel />}
         </div>

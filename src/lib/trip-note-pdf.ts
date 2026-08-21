@@ -521,7 +521,7 @@ function buildBodyHtml(data: TripNoteData, logoDataUri: string): string {
     <div class="tn-sig-box"><div class="tn-sig-line">Authorised Signatory</div></div>
   </div>
 
-  <div class="tn-powered">POWERED BY ORCA SOLUTIONS</div>
+  <div class="tn-powered">POWERED BY ORCA DEVS SURF</div>
 
 </div>`;
 }
@@ -690,7 +690,7 @@ iframe{flex:1;width:100%;border:none;border-radius:8px;
   </div>
 </div>
 <div class="wrap"><iframe id="f" src="${pdfDataUri}"></iframe></div>
-<div class="foot">Powered by ${ORCA_LOGO_SVG} Orca Solutions</div>
+<div class="foot"><a href="https://orca.devs.surf" target="_blank" rel="noreferrer" style="color:inherit;text-decoration:none">Powered by ${ORCA_LOGO_SVG} ORCA DEVS SURF</a></div>
 <script>
 var _d="${pdfDataUri}";
 function dl(){var a=document.createElement("a");a.href=_d;a.download="TripNote-${tripCode}.pdf";a.click();}

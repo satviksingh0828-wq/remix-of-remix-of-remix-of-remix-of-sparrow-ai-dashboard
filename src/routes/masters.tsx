@@ -19,7 +19,7 @@ import {
 export const Route = createFileRoute("/masters")({
   head: () => ({
     meta: [
-      { title: "Masters — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Masters — Garuda Logistics Solutions | ORCA DEVS SURF" },
       {
         name: "description",
         content:

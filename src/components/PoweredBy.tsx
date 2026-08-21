@@ -14,10 +14,15 @@ export const PoweredBy: React.FC<PoweredByProps> = ({
   isFullUppercase = false 
 }) => {
   return (
-    <div className={cn("flex items-center justify-center gap-1.5", className)}>
+    <a
+      href="https://orca.devs.surf"
+      target="_blank"
+      rel="noreferrer"
+      className={cn("flex items-center justify-center gap-1.5", className)}
+    >
       <span className="opacity-70">POWERED BY</span>
       <OrcaLogo className={cn("size-3.5", logoClassName)} />
-      <span className="font-semibold">ORCA SOLUTIONS</span>
-    </div>
+      <span className="font-semibold">ORCA DEVS SURF</span>
+    </a>
   );
 };

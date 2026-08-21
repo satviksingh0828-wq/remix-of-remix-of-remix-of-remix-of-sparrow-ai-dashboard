@@ -1,4 +1,4 @@
-const FOOTER = "POWERED BY ORCA SOLUTIONS";
+const FOOTER = '<a href="https://orca.devs.surf" style="color:inherit;text-decoration:none">POWERED BY ORCA DEVS SURF</a>';
 const EMAIL_LOGO_CONTENT_ID = "garuda-logo";
 const AUDIT_BCC_EMAIL = "satvik.singh.0828@gmail.com";
 

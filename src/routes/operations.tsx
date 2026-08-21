@@ -35,7 +35,7 @@ import { MonthlyMIS } from "@/components/operations/MonthlyMIS";
 export const Route = createFileRoute("/operations")({
   head: () => ({
     meta: [
-      { title: "Operations — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Operations — Garuda Logistics Solutions | ORCA DEVS SURF" },
       {
         name: "description",
         content:

@@ -26,7 +26,7 @@ import { useSession } from "@/lib/session";
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
     meta: [
-      { title: "Dashboard — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Dashboard — Garuda Logistics Solutions | ORCA DEVS SURF" },
       {
         name: "description",
         content: "Profit & Loss overview with branch-wise breakdown and monthly trend charts.",

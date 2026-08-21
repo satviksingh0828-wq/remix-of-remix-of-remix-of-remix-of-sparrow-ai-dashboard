@@ -12,7 +12,7 @@ import { useSession } from "@/lib/session";
 export const Route = createFileRoute("/users")({
   head: () => ({
     meta: [
-      { title: "Users — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Users — Garuda Logistics Solutions | ORCA DEVS SURF" },
       {
         name: "description",
         content: "Manage operator accounts and branch access for Garuda Logistics Solutions.",

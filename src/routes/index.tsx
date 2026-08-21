@@ -31,7 +31,7 @@ import { usePasskeyContext } from "@/components/PasskeyGate";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Sign in — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Sign in — Garuda Logistics Solutions | ORCA DEVS SURF" },
       { name: "description", content: "Secure operator sign-in for Garuda Logistics Solutions." },
       { name: "robots", content: "noindex, nofollow, noarchive" },
     ],

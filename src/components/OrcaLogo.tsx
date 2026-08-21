@@ -1,4 +1,4 @@
-// Static Orca Solutions logo mark — no animation, theme-aware via currentColor.
+// Static ORCA DEVS SURF logo mark — no animation, theme-aware via currentColor.
 // Pass className / style to size and colour it.
 export function OrcaLogo({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (

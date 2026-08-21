@@ -44,7 +44,7 @@ import {
 export const Route = createFileRoute("/reports")({
   head: () => ({
     meta: [
-      { title: "Reports — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Reports — Garuda Logistics Solutions | ORCA DEVS SURF" },
       {
         name: "description",
         content: "Compare P&L between two periods with detailed charts and breakdowns.",

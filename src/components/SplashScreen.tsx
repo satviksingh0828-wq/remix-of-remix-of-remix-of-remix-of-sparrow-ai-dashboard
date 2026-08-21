@@ -1755,7 +1755,14 @@ export function SplashScreen() {
 <circle cx="685.50" cy="1198.86" r="2.11" style={{ "--delay": "0.900s" }} />
             </svg>
           </div>
-          <div className="orca-splash-caption">Powered by Orca Solutions</div>
+          <a
+            href="https://orca.devs.surf"
+            target="_blank"
+            rel="noreferrer"
+            className="orca-splash-caption"
+          >
+            Powered by ORCA DEVS SURF
+          </a>
         </div>
       </div>
     </>

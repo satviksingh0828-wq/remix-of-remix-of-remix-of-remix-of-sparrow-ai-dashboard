@@ -21,7 +21,7 @@ import { PoweredBy } from "@/components/PoweredBy";
 export const Route = createFileRoute("/home")({
   head: () => ({
     meta: [
-      { title: "Workspace — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Workspace — Garuda Logistics Solutions | ORCA DEVS SURF" },
       {
         name: "description",
         content:

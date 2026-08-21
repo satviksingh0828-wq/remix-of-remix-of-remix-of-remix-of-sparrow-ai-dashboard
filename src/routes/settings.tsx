@@ -21,7 +21,7 @@ import { useSession } from "@/lib/session";
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — Garuda Logistics Solutions | Orca Solutions" },
+      { title: "Settings — Garuda Logistics Solutions | ORCA DEVS SURF" },
       {
         name: "description",
         content:
