@@ -151,14 +151,14 @@ export const DRIVER_CONFIG: MasterConfig = {
         { key: "bank_account_holder", label: "Account Holder Name", required: true },
         { key: "bank_account_number", label: "Account Number", required: true },
         { key: "bank_ifsc", label: "IFSC Code", required: true },
-        { key: "upi_id", label: "UPI ID", required: true },
+        { key: "upi_id", label: "UPI ID" },
       ],
     },
     {
       title: "Identity",
       fields: [
         { key: "aadhaar_number", label: "Aadhaar Number", required: true },
-        { key: "pan_number", label: "PAN Number", required: true },
+        { key: "pan_number", label: "PAN Number" },
       ],
     },
     {
