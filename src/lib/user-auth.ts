@@ -12,6 +12,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import type { PermissionMap } from "@/lib/access-control";
 
 // ── Public user shape (safe to store in localStorage / send to client) ──────
 
@@ -22,6 +23,8 @@ export type SessionUser = {
   role: "admin" | "basic" | "viewer";
   /** IDs of branches this user may access. Admin ignores this; basic users are filtered to these. */
   branchIds: string[];
+  /** Database-driven rights; absent means exact legacy role defaults. */
+  permissions?: PermissionMap;
   /**
    * HMAC-signed server session token used to authorize admin server functions.
    * Format: `{userId}:{role}:{expiresMs}:{hmacHex}`
@@ -217,6 +220,19 @@ export const serverSignIn = createServerFn({ method: "POST" })
       .select("branch_id")
       .eq("user_id", user.id);
 
+    // Safe rollout: missing access tables retain the legacy role defaults.
+    const permissionMap: PermissionMap = {};
+    try {
+      const { data: permissionRows } = await supabaseAdmin
+        .from("role_permissions")
+        .select("scope_key, action, allowed")
+        .eq("role", user.role as string);
+      for (const row of permissionRows ?? []) {
+        permissionMap[row.scope_key] ??= {};
+        permissionMap[row.scope_key][row.action] = row.allowed;
+      }
+    } catch { /* migration not installed yet */ }
+
     // ── 5b. Single-session enforcement: first login wins ──────────────────────
     // If a live session row exists (last_seen_at within 2 minutes) the account
     // is actively in use — reject this login attempt.
@@ -306,6 +322,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
         branchIds: ((branchData ?? []) as { branch_id: string }[]).map(
           (r) => r.branch_id,
         ),
+        permissions: permissionMap,
         sessionToken,
       },
     };
