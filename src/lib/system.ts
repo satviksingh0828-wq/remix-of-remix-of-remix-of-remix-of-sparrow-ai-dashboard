@@ -36,7 +36,7 @@ async function requireAdminToken(token: string): Promise<string> {
   const expiresMs = Number(expiresStr);
   if (!uid || !role || !Number.isFinite(expiresMs)) throw new Error("Forbidden: malformed token.");
   if (Date.now() > expiresMs) throw new Error("Forbidden: session token has expired.");
-  if (role !== "admin") throw new Error("Forbidden: admin access required.");
+  if (role !== "admin" && role !== "semi_admin") throw new Error("Forbidden: admin access required.");
 
   try {
     const { createHmac, timingSafeEqual } = await import("crypto");

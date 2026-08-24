@@ -67,7 +67,7 @@ const BASIC_MODULES = [
     icon: Users,
     active: true,
     to: "/employees" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {
     key: "hr-attendance",
@@ -76,7 +76,7 @@ const BASIC_MODULES = [
     icon: CalendarCheck,
     active: true,
     to: "/attendance" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {
     key: "hr-payroll",
@@ -85,7 +85,7 @@ const BASIC_MODULES = [
     icon: Wallet,
     active: true,
     to: "/payroll" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {
     key: "dashboard",
@@ -94,7 +94,7 @@ const BASIC_MODULES = [
     icon: BarChart3,
     active: true,
     to: "/dashboard" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {
     key: "reports",
@@ -103,7 +103,7 @@ const BASIC_MODULES = [
     icon: FileText,
     active: true,
     to: "/reports" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {
     key: "users",
@@ -133,7 +133,7 @@ const ADMIN_VIEWER_MODULES = [
     icon: Truck,
     active: true,
     to: "/tms" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {
     key: "hrms",
@@ -142,7 +142,7 @@ const ADMIN_VIEWER_MODULES = [
     icon: Users,
     active: true,
     to: "/hrms" as const,
-    roles: ["admin", "viewer"] as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {
     key: "settings",

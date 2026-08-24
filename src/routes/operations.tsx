@@ -30,6 +30,7 @@ import { YearlyExpenseScheduler } from "@/components/operations/YearlyExpenseSch
 import { DriverPayroll } from "@/components/operations/DriverPayroll";
 import { TripImport } from "@/components/import/TripImport";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { MonthlyMIS } from "@/components/operations/MonthlyMIS";
 
 export const Route = createFileRoute("/operations")({
@@ -153,7 +154,7 @@ type TabId = (typeof ALL_TABS)[number]["id"];
 
 function OperationsPage() {
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const isViewer = user?.role === "viewer";
 
   const TABS = ALL_TABS.filter((t) => {

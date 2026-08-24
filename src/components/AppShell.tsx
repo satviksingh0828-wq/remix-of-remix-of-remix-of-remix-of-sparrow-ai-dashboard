@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { OrcaAITrigger } from "@/components/OrcaAI";
 import { NotificationBell } from "@/components/NotificationBell";
 import { cn } from "@/lib/utils";
+import { isAdminLike } from "@/lib/roles";
 
 export function AppShell({
   children,
@@ -21,7 +22,7 @@ export function AppShell({
   const { signOut, user } = useSession();
   const navigate = useNavigate();
   const { open } = useOrcaAI();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const isViewer = user?.role === "viewer";
 
   return (
@@ -34,7 +35,7 @@ export function AppShell({
           {breadcrumb && <div className="ml-2 hidden md:block shrink-0">{breadcrumb}</div>}
           {headerEnd && <div className="ml-2 hidden lg:block">{headerEnd}</div>}
           <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-3">
-            {user?.role === "admin" && (
+            {isAdmin && (
               <Link
                 to="/system"
                 title="System"
@@ -43,10 +44,10 @@ export function AppShell({
                 <Server className="size-4" />
               </Link>
             )}
-            {(user?.role === "admin" || user?.role === "viewer") && <NotificationBell />}
-            {user?.role === "admin" && <OrcaAITrigger />}
+            {(isAdmin || user?.role === "viewer") && <NotificationBell />}
+            {isAdmin && <OrcaAITrigger />}
             <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex min-w-0">
-              {user?.role === "admin" ? (
+              {isAdmin ? (
                 <ShieldCheck className="size-3.5 text-primary shrink-0" />
               ) : (
                 <User className="size-3.5 shrink-0" />
@@ -55,7 +56,7 @@ export function AppShell({
                 {user?.fullName ?? user?.username}
               </span>
               <span className="hidden md:inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide shrink-0">
-                {user?.role === "admin" ? "Admin" : isViewer ? "Viewer" : "User"}
+                {isAdmin ? (user?.role === "semi_admin" ? "Semi-Admin" : "Admin") : isViewer ? "Viewer" : "User"}
               </span>
             </span>
             <Button

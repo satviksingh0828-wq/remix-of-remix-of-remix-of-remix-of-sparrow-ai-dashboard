@@ -27,6 +27,7 @@ import { CsvIO } from "@/components/CsvIO";
 import { BranchSelect } from "@/components/BranchSelect";
 import { useBranches, branchName } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { fetchAll } from "@/lib/fetch-all";
 import { logAction } from "@/lib/log-actions";
 import { ItemLogsButton } from "@/components/shared/ItemLogsDrawer";
@@ -159,7 +160,7 @@ export function MasterList({
   const [locationOffset, setLocationOffset] = useState(0);
   const branches = useBranches();
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const isViewer = user?.role === "viewer";
 
   // For basic/viewer users, restrict data to their allowed branches

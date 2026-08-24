@@ -179,7 +179,7 @@ function OrcaAIPanelMount() {
   const { user } = useSession();
 
   useEffect(() => {
-    if (!open || user?.role !== "admin") return;
+    if (!open || (user?.role !== "admin" && user?.role !== "semi_admin")) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -187,7 +187,7 @@ function OrcaAIPanelMount() {
     };
   }, [open, user?.role]);
 
-  if (!open || user?.role !== "admin") return null;
+  if (!open || (user?.role !== "admin" && user?.role !== "semi_admin")) return null;
   return (
     <div className="fixed inset-0 z-[60] h-[100dvh] min-h-[100svh] w-screen max-w-none overflow-hidden bg-card shadow-[-4px_0_32px_rgba(0,0,0,0.12)] lg:inset-y-0 lg:left-auto lg:right-0 lg:h-[100dvh] lg:w-[360px] lg:max-w-[360px]">
       <OrcaAIPanel />

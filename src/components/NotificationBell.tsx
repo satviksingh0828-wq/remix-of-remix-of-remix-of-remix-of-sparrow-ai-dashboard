@@ -76,15 +76,15 @@ export function NotificationBell() {
     }
   }
 
-  const canDismiss = user?.role === "admin";
+  const canDismiss = user?.role === "admin" || user?.role === "semi_admin";
 
   // Load on mount and every 2 minutes for Admin and Viewer/Manager users.
   useEffect(() => {
-    if (user?.role === "admin" || user?.role === "viewer") {
+    if (user?.role === "admin" || user?.role === "semi_admin" || user?.role === "viewer") {
       load();
     }
     const t = setInterval(() => {
-      if (user?.role === "admin" || user?.role === "viewer") load();
+      if (user?.role === "admin" || user?.role === "semi_admin" || user?.role === "viewer") load();
     }, 120_000);
     return () => clearInterval(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -9,6 +9,7 @@ import { Contracts } from "@/components/masters/Contracts";
 import { VehicleInsuranceSection } from "@/components/masters/VehicleInsuranceSection";
 import { VehicleRoadTaxSection } from "@/components/masters/VehicleRoadTaxSection";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import {
   DRIVER_CONFIG,
   LOCATION_CONFIG,
@@ -51,7 +52,7 @@ type TabId = (typeof ALL_TABS)[number]["id"];
 
 function MastersPage() {
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const isViewer = user?.role === "viewer";
 
   // viewer (Manager) sees all tabs except Sources; basic users see non-adminOnly tabs only

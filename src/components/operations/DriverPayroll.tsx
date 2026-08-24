@@ -43,6 +43,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { fetchAll } from "@/lib/fetch-all";
 import { isDriverActive } from "@/lib/drivers";
 import { inr, num } from "@/lib/trip-calc";
@@ -154,7 +155,7 @@ function today(): string {
 export function DriverPayroll() {
   const { user } = useSession();
   const allBranches = useBranches();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const isBasic = user?.role === "basic";
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
 

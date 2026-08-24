@@ -25,6 +25,7 @@ import { inr, num } from "@/lib/trip-calc";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
 import type { TripNoteBranch } from "@/lib/trip-note-pdf";
 
@@ -115,7 +116,7 @@ export function ClosedTripDetail({
   onReopened: () => void;
 }) {
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const TABS = isAdmin ? TABS_ALL : TABS_BASIC;
 
   const [record, setRecord] = useState<FullClosedTrip | null>(null);

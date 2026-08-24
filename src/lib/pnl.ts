@@ -830,7 +830,7 @@ export const serverFetchTripDetails = createServerFn({ method: "POST" })
     if (!timingSafeEqual(Buffer.from(suppliedSig), Buffer.from(expected))) {
       throw new Error("Forbidden: invalid session.");
     }
-    if (role !== "admin" && role !== "viewer" && role !== "basic") {
+    if (role !== "admin" && role !== "semi_admin" && role !== "viewer" && role !== "basic") {
       throw new Error("Forbidden: invalid role.");
     }
 

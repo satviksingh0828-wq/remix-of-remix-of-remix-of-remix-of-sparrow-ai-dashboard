@@ -31,6 +31,7 @@ import { useLocations } from "@/lib/use-locations";
 import { isDriverActive } from "@/lib/drivers";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { closeTrip } from "@/lib/close-trip";
 import { serverRequireTripCheckpointVerification } from "@/lib/driver-checkpoint-status";
 import { invalidManifestDates } from "@/lib/manifest-date-validation";
@@ -180,7 +181,7 @@ export function TripForm({
   onSaved: () => void;
 }) {
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const isBasic = user?.role === "basic";
   // Viewers may operate on existing trips; New trip creation remains blocked in Trips.tsx.
   const isViewer = false;

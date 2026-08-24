@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Download, Lock, LockOpen, Save, Send } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { useBranches } from "@/lib/use-branches";
 import {
   serverLoadMisForm,
@@ -24,8 +25,9 @@ const currentMonth = new Date().toISOString().slice(0, 7);
 export function MonthlyMIS() {
   const { user } = useSession();
   const allBranches = useBranches();
+  const isAdmin = isAdminLike(user?.role);
   const allowedBranches =
-    user?.role === "admin"
+    isAdmin
       ? allBranches
       : allBranches.filter((b) => user?.branchIds.includes(b.id));
   const [branchId, setBranchId] = useState("");
@@ -156,7 +158,7 @@ export function MonthlyMIS() {
                 <Lock className="size-3.5" />
                 Submitted & locked
               </span>
-              {user?.role === "admin" && (
+              {isAdmin && (
                 <Button variant="outline" disabled={saving} onClick={reopen}>
                   <LockOpen className="size-4" />
                   Reopen MIS

@@ -20,6 +20,7 @@ import { z } from "zod";
 import { manifestCharges, findEntry, num, type EntryLite, type ManifestLite } from "@/lib/trip-calc";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
 import { shouldEmailNotification } from "@/lib/notification-email-policy";
+import type { AppRole } from "@/lib/roles";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -201,7 +202,7 @@ export async function syncScheduledNotificationEmails(): Promise<{ notifications
 /**
  * Verifies that the caller is an active Admin or Viewer. Throws on any failure.
  */
-async function requireNotificationUser(userId: string): Promise<"admin" | "viewer"> {
+async function requireNotificationUser(userId: string): Promise<AppRole> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabaseAdmin as any;
@@ -214,13 +215,13 @@ async function requireNotificationUser(userId: string): Promise<"admin" | "viewe
   if (!data) throw new Error("Forbidden: user not found.");
   if (!(data as { is_active: boolean }).is_active) throw new Error("Forbidden: account is inactive.");
   const role = (data as { role: string }).role;
-  if (role !== "admin" && role !== "viewer") throw new Error("Forbidden: notification access required.");
+  if (role !== "admin" && role !== "semi_admin" && role !== "viewer") throw new Error("Forbidden: notification access required.");
   return role;
 }
 
 async function requireAdmin(userId: string): Promise<void> {
   const role = await requireNotificationUser(userId);
-  if (role !== "admin") throw new Error("Forbidden: admin access required.");
+  if (role !== "admin" && role !== "semi_admin") throw new Error("Forbidden: admin access required.");
 }
 
 // ── Compute notifications from live data ──────────────────────────────────────
@@ -542,7 +543,7 @@ export const serverSyncNotifications = createServerFn({ method: "POST" })
 
     // Only Admin notification loads may trigger the existing alert email delivery.
     // Viewer/Manager reads remain read-only and do not send duplicate email.
-    if (notificationRole === "admin") {
+    if (notificationRole === "admin" || notificationRole === "semi_admin") {
       await emailPendingNotifications(db);
     }
 

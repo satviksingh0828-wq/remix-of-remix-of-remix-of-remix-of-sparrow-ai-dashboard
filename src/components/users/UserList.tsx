@@ -24,6 +24,7 @@ import {
   type SaveUserInput,
 } from "@/lib/user-auth";
 import { logAction } from "@/lib/log-actions";
+import type { AppRole } from "@/lib/roles";
 
 type EditingUser = SaveUserInput;
 
@@ -119,7 +120,7 @@ export function UserList() {
   }
 
   function startUnpause(u: AppUserPublic) {
-    if (u.role === "admin") {
+    if (u.role === "admin" || u.role === "semi_admin") {
       // Admin accounts require the emailed code — open the dialog
       setUnpauseDialog({ user: u, code: "", busy: false });
     } else {
@@ -210,13 +211,14 @@ export function UserList() {
               <Label className="text-xs font-medium text-muted-foreground">Role</Label>
               <Select
                 value={editing.role}
-                onValueChange={(v) => setEditing({ ...editing, role: v as "admin" | "basic" | "viewer" })}
+                onValueChange={(v) => setEditing({ ...editing, role: v as AppRole })}
               >
                 <SelectTrigger className="h-10">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Admin — full access</SelectItem>
+                  <SelectItem value="semi_admin">Semi-Admin — admin access except Settings and Users</SelectItem>
                   <SelectItem value="basic">Basic user — branch-restricted</SelectItem>
                   <SelectItem value="viewer">Manager — read-only access, all branches</SelectItem>
                 </SelectContent>
@@ -390,7 +392,7 @@ export function UserList() {
               className="surface-card animate-fade-up flex items-center gap-4 p-4 transition-shadow hover:shadow-[var(--shadow-lift)]"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
-                {u.role === "admin" ? (
+                {u.role === "admin" || u.role === "semi_admin" ? (
                   <ShieldCheck className="size-5" />
                 ) : (
                   <User className="size-5" />
@@ -404,12 +406,12 @@ export function UserList() {
                   {u.username} ·{" "}
                   <span
                     className={
-                      u.role === "admin"
+                      u.role === "admin" || u.role === "semi_admin"
                         ? "font-medium text-primary"
                         : "text-muted-foreground"
                     }
                   >
-                    {u.role === "admin" ? "Admin" : u.role === "viewer" ? "Manager" : "Basic user"}
+                    {u.role === "admin" ? "Admin" : u.role === "semi_admin" ? "Semi-Admin" : u.role === "viewer" ? "Manager" : "Basic user"}
                   </span>
                   {u.is_paused ? (
                     <span className="ml-2 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">

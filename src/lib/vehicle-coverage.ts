@@ -31,7 +31,7 @@ async function requireAdmin(userId: string): Promise<void> {
   if (error) throw new Error(`Auth check failed: ${error.message}`);
   if (!data) throw new Error("Forbidden: user not found.");
   if (!(data as { is_active: boolean }).is_active) throw new Error("Forbidden: account is inactive.");
-  if ((data as { role: string }).role !== "admin") throw new Error("Forbidden: admin access required.");
+  if ((data as { role: string }).role !== "admin" && (data as { role: string }).role !== "semi_admin") throw new Error("Forbidden: admin access required.");
 }
 
 // ── Shared month helpers ───────────────────────────────────────────────────────

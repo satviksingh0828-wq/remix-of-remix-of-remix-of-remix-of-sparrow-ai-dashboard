@@ -61,8 +61,8 @@ export function ItemLogsButton({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // Only render for admins
-  if (user?.role !== "admin") return null;
+  // Only render for admins and semi-admins
+  if (user?.role !== "admin" && user?.role !== "semi_admin") return null;
 
   async function load() {
     setLoading(true);

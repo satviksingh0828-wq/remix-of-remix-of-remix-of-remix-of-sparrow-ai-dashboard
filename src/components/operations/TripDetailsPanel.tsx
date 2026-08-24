@@ -143,7 +143,7 @@ function buildBranchPools(
 
 export function TripDetailsPanel() {
   const { user } = useSession();
-  const canSeeMoney = user?.role === "admin" || user?.role === "viewer";
+  const canSeeMoney = user?.role === "admin" || user?.role === "semi_admin" || user?.role === "viewer";
   const canSeeExpense = canSeeMoney || user?.role === "basic";
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;

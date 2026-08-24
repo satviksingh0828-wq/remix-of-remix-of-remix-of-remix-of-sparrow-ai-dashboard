@@ -17,6 +17,7 @@ import {
   type EntryRow,
 } from "./ContractEntryForm";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { useBranches } from "@/lib/use-branches";
 
 const CONTRACT_COLUMNS = [
@@ -62,7 +63,7 @@ export function Contracts() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("active");
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const branches = useBranches();
 
   async function load() {

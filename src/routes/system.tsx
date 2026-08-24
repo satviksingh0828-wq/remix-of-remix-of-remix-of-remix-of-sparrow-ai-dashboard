@@ -87,12 +87,12 @@ function SystemPage() {
   const [tab, setTab] = useState<TabId>("errors");
   const [navOpen, setNavOpen] = useState(true);
 
-  // Admin-only guard
+  // Admin-equivalent guard; Settings and Users remain separate Admin-only routes.
   useEffect(() => {
-    if (user && user.role !== "admin") navigate({ to: "/home", replace: true });
+    if (user && user.role !== "admin" && user.role !== "semi_admin") navigate({ to: "/home", replace: true });
   }, [user, navigate]);
 
-  if (user?.role !== "admin") return null;
+  if (user?.role !== "admin" && user?.role !== "semi_admin") return null;
 
   const active = TABS.find((t) => t.id === tab) ?? TABS[0];
   const safeTab = active.id;

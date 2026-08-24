@@ -12,6 +12,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import type { AppRole } from "@/lib/roles";
 
 // ── Public user shape (safe to store in localStorage / send to client) ──────
 
@@ -19,7 +20,7 @@ export type SessionUser = {
   id: string;
   username: string;
   fullName: string;
-  role: "admin" | "basic" | "viewer";
+  role: AppRole;
   /** IDs of branches this user may access. Admin ignores this; basic users are filtered to these. */
   branchIds: string[];
   /**
@@ -35,7 +36,7 @@ export type AppUserPublic = {
   id: string;
   username: string;
   full_name: string;
-  role: "admin" | "basic" | "viewer";
+  role: AppRole;
   is_active: boolean;
   is_paused: boolean;
   failed_login_attempts: number;
@@ -47,7 +48,7 @@ export type SaveUserInput = {
   username: string;
   full_name: string;
   password: string; // blank = keep existing (update only)
-  role: "admin" | "basic" | "viewer";
+  role: AppRole;
   is_active: boolean;
   branchIds: string[];
 };
@@ -57,7 +58,7 @@ export type SaveUserInput = {
 export type SignInResult =
   | { ok: true; user: SessionUser }
   | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "already_logged_in"; message: string }
-  | { ok: false; reason: "account_paused"; message: string; role: "admin" | "basic" | "viewer" };
+  | { ok: false; reason: "account_paused"; message: string; role: AppRole };
 
 export const serverSignIn = createServerFn({ method: "POST" })
   .validator((data: {
@@ -115,7 +116,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
         ok: false,
         reason: "account_paused",
         message: "Your account has been locked.",
-        role: user.role as "admin" | "basic" | "viewer",
+        role: user.role as AppRole,
       };
     }
 
@@ -135,7 +136,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
           .eq("id", user.id as string);
 
         // ── 3c. Email alert + one-time code when an admin account gets paused ──
-        if (shouldPause && (user.role as string) === "admin") {
+        if (shouldPause && ((user.role as string) === "admin" || (user.role as string) === "semi_admin")) {
           // Generate a 6-character alphanumeric code (e.g. "A3FX9K")
           const unpauseCode = Math.random().toString(36).slice(2, 8).toUpperCase();
           // Store the code on the user row (cleared on unpause)
@@ -302,7 +303,7 @@ export const serverSignIn = createServerFn({ method: "POST" })
         id: user.id as string,
         username: user.username as string,
         fullName: (user.full_name as string) || (user.username as string),
-        role: user.role as "admin" | "basic" | "viewer",
+        role: user.role as AppRole,
         branchIds: ((branchData ?? []) as { branch_id: string }[]).map(
           (r) => r.branch_id,
         ),
@@ -495,7 +496,7 @@ export const serverSaveUser = createServerFn({ method: "POST" })
       const payload: Record<string, unknown> = {
         username: data.username.trim().toLowerCase(),
         full_name: data.full_name.trim(),
-        role: data.role,
+        role: data.role as AppRole,
         is_active: data.is_active,
       };
       if (data.password.trim()) payload.password = data.password;
@@ -513,7 +514,7 @@ export const serverSaveUser = createServerFn({ method: "POST" })
           username: data.username.trim().toLowerCase(),
           full_name: data.full_name.trim(),
           password: data.password,
-          role: data.role,
+          role: data.role as AppRole,
           is_active: data.is_active,
         })
         .select("id")

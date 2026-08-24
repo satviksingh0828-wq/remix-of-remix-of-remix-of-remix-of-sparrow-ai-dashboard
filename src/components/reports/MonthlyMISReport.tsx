@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Download, Eye, Plus, Save, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { useBranches } from "@/lib/use-branches";
 import {
   serverLoadMisForm,
@@ -31,6 +32,7 @@ const monthNow = new Date().toISOString().slice(0, 7);
 
 export function MonthlyMISReport() {
   const { user } = useSession();
+  const isAdmin = isAdminLike(user?.role);
   const branches = useBranches();
   const [month, setMonth] = useState(monthNow);
   const [branchId, setBranchId] = useState("all");
@@ -142,7 +144,7 @@ export function MonthlyMISReport() {
             <Download className="size-4" />
             Export depot-wise Excel
           </Button>
-          {user?.role === "admin" && (
+          {isAdmin && (
             <Button onClick={openConfig}>
               <Plus className="size-4" />
               Configure depot form

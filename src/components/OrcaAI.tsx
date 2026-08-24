@@ -6,7 +6,7 @@ import { useOrcaAI } from "@/lib/orca-context";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
-import { ADMIN_ROUTES, BASIC_ROUTES, VIEWER_ROUTES, buildCapabilitySummary } from "@/lib/ai/capability-map";
+import { ADMIN_ROUTES, BASIC_ROUTES, SEMI_ADMIN_ROUTES, VIEWER_ROUTES, buildCapabilitySummary } from "@/lib/ai/capability-map";
 import { getCompactPageInventory } from "@/lib/ai/dom-inventory";
 import { classifyButtonAction } from "@/lib/ai/safety";
 import { parseExpenseFile, summarizeDrafts } from "@/lib/ai/file-ingestion";
@@ -70,7 +70,7 @@ function asksCurrentMonthInsurancePremium(text: string) {
 }
 
 async function answerCurrentMonthInsurancePremium(text: string, role: string, branchIds: string[] | undefined) {
-  const allowedBranchIds = role !== "admin" ? (branchIds ?? []) : null;
+  const allowedBranchIds = role !== "admin" && role !== "semi_admin" ? (branchIds ?? []) : null;
   if (allowedBranchIds !== null && allowedBranchIds.length === 0) {
     return "No insurance premium data is accessible because your account has no assigned branches.";
   }
@@ -801,16 +801,17 @@ function buildSystemPrompt(
   pageContext: string,
 ): string {
   const isAdmin = role === "admin";
+  const isSemiAdmin = role === "semi_admin";
   const isViewer = role === "viewer";
-  const routes = isAdmin ? ADMIN_ROUTES : isViewer ? VIEWER_ROUTES : BASIC_ROUTES;
+  const routes = isAdmin ? ADMIN_ROUTES : isSemiAdmin ? SEMI_ADMIN_ROUTES : isViewer ? VIEWER_ROUTES : BASIC_ROUTES;
 
   return `You are ORCA AI — a smart assistant embedded in a Transport Management System (TMS) for Garuda Logistics Solutions.
 
-USER: ${userName} | ROLE: ${isAdmin ? "Admin" : isViewer ? "Manager (read-only)" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
+USER: ${userName} | ROLE: ${isAdmin ? "Admin" : isSemiAdmin ? "Semi-Admin" : isViewer ? "Manager (read-only)" : "Basic User"} | CURRENT PAGE: ${currentPath}${pageContext ? ` | ${pageContext}` : ""}
 
 ━━━ CORE RULES ━━━
 - Be concise (under 80 words). State what you're doing, then do it.
-- ${isAdmin ? "Full admin access to all modules." : isViewer ? "Manager: read-only access to Operations, Masters, Dashboard, and Reports. Never create, edit, save, close, delete, or submit records. You CAN generate CSV/Excel report downloads from live data." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
+- ${isAdmin ? "Full admin access to all modules." : isSemiAdmin ? "Semi-Admin: full operational access, including TMS Dashboard, but never navigate to or expose Users or Settings." : isViewer ? "Manager: read-only access to Operations, Masters, Dashboard, and Reports. Never create, edit, save, close, delete, or submit records. You CAN generate CSV/Excel report downloads from live data." : "Basic user: NEVER use admin routes (Dashboard, Reports, Users, Settings)."}
 - You CAN navigate, click safe buttons, fill text/date/number fields, choose dropdowns/pickers, check boxes, and prepare records. You CANNOT press Save, Delete, Submit, Close Trip, or destructive confirmation buttons; pause and ask the user to do those.
 - ALWAYS include <<ORCA_ACTIONS>> whenever you interact with the app.
 - If information is missing or ambiguous, use an ask_user action and explain exactly what is needed.
@@ -981,10 +982,10 @@ export function OrcaAIPanel() {
   const fileRef = useRef<HTMLInputElement>(null);
 
   const role = user?.role ?? "basic";
-  const isAdmin = role === "admin";
+  const isAdmin = role === "admin" || role === "semi_admin";
   const displayName = (user?.fullName ?? user?.username ?? "there").split(" ")[0];
   const chips = isAdmin ? ADMIN_CHIPS : BASIC_CHIPS;
-  const allowedRoutes = isAdmin ? ADMIN_ROUTES : role === "viewer" ? VIEWER_ROUTES : BASIC_ROUTES;
+  const allowedRoutes = role === "admin" ? ADMIN_ROUTES : role === "semi_admin" ? SEMI_ADMIN_ROUTES : role === "viewer" ? VIEWER_ROUTES : BASIC_ROUTES;
 
   const STORAGE_KEY = `sparrow_history_${user?.id ?? "guest"}`;
   const MAX_STORED = 50;
@@ -1199,7 +1200,7 @@ export function OrcaAIPanel() {
           </div>
           <span className="text-sm font-semibold tracking-tight text-foreground">ORCA AI</span>
           <span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
-            {isAdmin ? "Admin" : role === "viewer" ? "Manager" : "User"}
+            {isAdmin ? (role === "semi_admin" ? "Semi-Admin" : "Admin") : role === "viewer" ? "Manager" : "User"}
           </span>
         </div>
         <div className="flex items-center gap-1">

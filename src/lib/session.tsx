@@ -4,6 +4,7 @@ import { serverSignIn, serverSignOut, serverVerifySession } from "@/lib/user-aut
 import type { SessionUser } from "@/lib/user-auth";
 import { secureSession } from "@/lib/storage";
 import { setLoggerUser } from "@/lib/log-actions";
+import type { AppRole } from "@/lib/roles";
 
 export type { SessionUser };
 
@@ -20,7 +21,7 @@ const HEARTBEAT_MS = 30 * 1000; // 30 seconds
 export type SignInOutcome =
   | { ok: true }
   | { ok: false; reason: "invalid_credentials" | "server_error" | "device_not_authorized" | "captcha_failed" | "session_expired" | "logged_in_elsewhere" | "already_logged_in"; message: string }
-  | { ok: false; reason: "account_paused"; message: string; role: "admin" | "basic" | "viewer" };
+  | { ok: false; reason: "account_paused"; message: string; role: AppRole };
 
 type SessionValue = {
   ready: boolean;

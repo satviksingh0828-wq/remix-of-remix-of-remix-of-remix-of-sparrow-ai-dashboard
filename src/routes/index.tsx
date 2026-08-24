@@ -27,6 +27,7 @@ import { useTheme } from "@/lib/theme";
 import { serverRequestUnpauseOtp, serverSubmitUnpauseOtp } from "@/lib/user-auth";
 import { PoweredBy } from "@/components/PoweredBy";
 import { usePasskeyContext } from "@/components/PasskeyGate";
+import type { AppRole } from "@/lib/roles";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -94,7 +95,7 @@ function LoginPage() {
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Paused-account OTP flow ────────────────────────────────────────────────
-  const [pausedRole, setPausedRole] = useState<"admin" | "basic" | "viewer" | null>(null);
+  const [pausedRole, setPausedRole] = useState<AppRole | null>(null);
   const [otpSent, setOtpSent]       = useState(false);
   const [otpCode, setOtpCode]       = useState("");
   const [otpBusy, setOtpBusy]       = useState(false);

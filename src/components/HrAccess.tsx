@@ -9,7 +9,7 @@ import { useSession } from "@/lib/session";
 export function HrAccess({ children }: { children: ReactNode }) {
   const { user } = useSession();
 
-  if (user?.role === "admin" || user?.role === "viewer") return <>{children}</>;
+  if (user?.role === "admin" || user?.role === "semi_admin" || user?.role === "viewer") return <>{children}</>;
 
   return (
     <AppShell>

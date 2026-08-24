@@ -9,6 +9,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { reopenTrip } from "@/lib/reopen-trip";
 import { inr } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
@@ -43,7 +44,7 @@ export function Trips() {
   const [branches, setBranches] = useState<BranchOption[]>([]);
 
   const { user } = useSession();
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const isBasic = user?.role === "basic";
   const isViewer = user?.role === "viewer";
   const allowedBranchIds = user?.role === "basic" ? (user?.branchIds ?? []) : null;

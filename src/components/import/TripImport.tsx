@@ -15,6 +15,7 @@ import { CheckCircle2, Download, Loader2, Upload, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { isDriverActive } from "@/lib/drivers";
 import { readCsvFile, downloadCsv, toCsv } from "@/lib/csv";
 import { ensureLocationsForPins } from "@/lib/ensure-location";
@@ -389,7 +390,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
   // redirect non-admins only in standalone mode
   useEffect(() => {
     if (embedded) return;
-    if (!sessionLoading && (!user || user.role !== "admin")) {
+    if (!sessionLoading && (!user || !isAdminLike(user.role))) {
       navigate({ to: "/home", replace: true });
     }
   }, [user, sessionLoading, navigate, embedded]);
@@ -412,7 +413,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
 
   // Load masters once on mount
   useEffect(() => {
-    if (!user || user.role !== "admin") return;
+    if (!user || !isAdminLike(user.role)) return;
     setLoadingMasters(true);
     Promise.all([
       supabase.from("branches").select("id,branch_name"),
@@ -581,7 +582,7 @@ export function TripImport({ embedded = false }: { embedded?: boolean }) {
     );
   }
 
-  if (!embedded && (!user || user.role !== "admin")) return null;
+  if (!embedded && (!user || !isAdminLike(user.role))) return null;
 
   const goodCount = validated?.filter(v => v.ok).length ?? 0;
   const badCount  = validated?.filter(v => !v.ok).length ?? 0;

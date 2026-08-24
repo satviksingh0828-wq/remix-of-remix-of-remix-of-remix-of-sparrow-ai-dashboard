@@ -17,6 +17,7 @@ import { EntityPicker, type PickerOption } from "@/components/EntityPicker";
 import { CsvIO } from "@/components/CsvIO";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
+import { isAdminLike } from "@/lib/roles";
 import { inr, num } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
 import { logAction } from "@/lib/log-actions";
@@ -56,7 +57,7 @@ export function FinanceList({ kind }: { kind: FinanceKind }) {
 
   // Basic users: filter to their allowed branches only
   const isBasic = user?.role === "basic";
-  const isAdmin = user?.role === "admin";
+  const isAdmin = isAdminLike(user?.role);
   const allowedBranchIds = isBasic ? (user?.branchIds ?? []) : null;
   const branches = allowedBranchIds !== null
     ? allBranches.filter((b) => allowedBranchIds.includes(b.id))

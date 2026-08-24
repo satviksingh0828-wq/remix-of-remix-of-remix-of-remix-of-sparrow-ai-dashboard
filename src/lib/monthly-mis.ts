@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { verifyAppToken } from "@/lib/user-auth";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import type { AppRole } from "@/lib/roles";
 
 export type MisScheduleType = "daily" | "weekly" | "day_of_month" | "twice_monthly";
 export type MisActivity = {
@@ -65,7 +66,7 @@ async function caller(token: string) {
   return {
     db,
     userId: parsed.uid,
-    role: user.role as "admin" | "viewer" | "basic",
+    role: user.role as AppRole,
     branchIds: (access ?? []).map((x: { branch_id: string }) => x.branch_id),
   };
 }
@@ -188,7 +189,7 @@ export const serverSaveMisForm = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const auth = await caller(data.token);
-    if (auth.role !== "basic" && auth.role !== "admin")
+    if (auth.role === "viewer")
       throw new Error("Viewer accounts are read-only.");
     if (auth.role === "basic" && !auth.branchIds.includes(data.branchId))
       throw new Error("You do not have access to this branch.");
@@ -289,7 +290,7 @@ export const serverSaveMisActivities = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const auth = await caller(data.token);
-    if (auth.role !== "admin") throw new Error("Admin access required.");
+    if (auth.role !== "admin" && auth.role !== "semi_admin") throw new Error("Admin access required.");
     const { data: current } = await auth.db
       .from("monthly_mis_activities")
       .select("id")
@@ -345,7 +346,7 @@ export const serverReopenMisForm = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const auth = await caller(data.token);
-    if (auth.role !== "admin") throw new Error("Admin access required.");
+    if (auth.role !== "admin" && auth.role !== "semi_admin") throw new Error("Admin access required.");
     const { data: instance } = await auth.db
       .from("monthly_mis_instances")
       .select("id,status,snapshot")
