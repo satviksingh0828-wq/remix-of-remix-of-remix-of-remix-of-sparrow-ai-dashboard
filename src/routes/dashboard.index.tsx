@@ -103,15 +103,12 @@ export function DashboardPage({
   const [tab, setTab] = useState<DashboardTabId>(requestedTab);
   const [navOpen, setNavOpen] = useState(true);
 
-  const canAccess = scope === "tms"
-    ? user?.role === "admin"
-    : user?.role === "admin" || user?.role === "basic" || user?.role === "viewer";
-
   useEffect(() => {
-    if (user && !canAccess) navigate({ to: "/home", replace: true });
-  }, [canAccess, navigate, user]);
+    if (user?.role === "basic") navigate({ to: "/home", replace: true });
+    if (user?.role === "viewer" && scope === "tms") navigate({ to: "/hrms", replace: true });
+  }, [scope, user, navigate]);
 
-  if (!canAccess) return null;
+  if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
   const safeTab = visibleTabs.some((item) => item.id === tab) ? tab : fallbackTab;
   const active = TABS.find((t) => t.id === safeTab) ?? TABS[0];

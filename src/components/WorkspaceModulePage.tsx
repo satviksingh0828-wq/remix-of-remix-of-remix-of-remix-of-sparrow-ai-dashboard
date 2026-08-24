@@ -12,7 +12,7 @@ type WorkspaceTile = {
   desc: string;
   icon: LucideIcon;
   to: string;
-  roles?: readonly ("admin" | "basic" | "viewer")[];
+  roles?: readonly ("admin" | "viewer")[];
 };
 
 export function WorkspaceModulePage({
@@ -20,24 +20,22 @@ export function WorkspaceModulePage({
   description,
   tiles,
   eyebrow,
-  allowedRoles = ["admin", "basic", "viewer"],
 }: {
   title: string;
   description: string;
   tiles: WorkspaceTile[];
   eyebrow: string;
-  allowedRoles?: readonly ("admin" | "basic" | "viewer")[];
 }) {
   const navigate = useNavigate();
   const { user } = useSession();
 
   useEffect(() => {
-    if (user && !allowedRoles.includes(user.role)) {
+    if (user && user.role !== "admin" && user.role !== "viewer") {
       navigate({ to: "/home", replace: true });
     }
-  }, [allowedRoles, navigate, user]);
+  }, [navigate, user]);
 
-  if (!user || !allowedRoles.includes(user.role)) return null;
+  if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
   const visibleTiles = tiles.filter((tile) => !tile.roles || tile.roles.includes(user.role));
 

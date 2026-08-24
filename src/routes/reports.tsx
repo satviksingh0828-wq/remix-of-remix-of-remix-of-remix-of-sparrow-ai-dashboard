@@ -137,13 +137,14 @@ function ReportsPage() {
   const financialYears = financialYearOptions();
 
   useEffect(() => {
-    if (user && user.role !== "admin" && user.role !== "basic" && user.role !== "viewer")
+    if (user && user.role !== "admin" && user.role !== "viewer")
       navigate({ to: "/home", replace: true });
+    if (user?.role === "viewer" && tab === "pnl-compare") setTab("monthly-mis");
   }, [user, navigate, tab]);
 
-  if (user?.role !== "admin" && user?.role !== "basic" && user?.role !== "viewer") return null;
+  if (user?.role !== "admin" && user?.role !== "viewer") return null;
 
-  const visibleTabs = TABS;
+  const visibleTabs = user?.role === "viewer" ? TABS.filter((t) => t.id !== "pnl-compare") : TABS;
   const active = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0];
 
   return (

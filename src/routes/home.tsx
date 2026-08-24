@@ -2,11 +2,14 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   ArrowRight,
+  BarChart3,
+  CalendarCheck,
   Database,
   FileText,
   Settings2,
   Truck,
   Users,
+  Wallet,
 } from "lucide-react";
 import { toast } from "sonner";
 import { RequireAuth } from "@/components/RequireAuth";
@@ -38,16 +41,7 @@ export const Route = createFileRoute("/home")({
   ),
 });
 
-const ADMIN_VIEWER_MODULES = [
-  {
-    key: "tms",
-    label: "TMS",
-    desc: "Operations, masters, dashboards & reports",
-    icon: Truck,
-    active: true,
-    to: "/tms" as const,
-    roles: ["admin"] as const,
-  },
+const BASIC_MODULES = [
   {
     key: "operation",
     label: "Operation",
@@ -67,13 +61,79 @@ const ADMIN_VIEWER_MODULES = [
     roles: ["admin", "basic", "viewer"] as const,
   },
   {
+    key: "hr-master",
+    label: "HR Master",
+    desc: "Employees, departments & positions",
+    icon: Users,
+    active: true,
+    to: "/employees" as const,
+    roles: ["admin", "viewer"] as const,
+  },
+  {
+    key: "hr-attendance",
+    label: "HR Attendance",
+    desc: "Marking, history & holidays",
+    icon: CalendarCheck,
+    active: true,
+    to: "/attendance" as const,
+    roles: ["admin", "viewer"] as const,
+  },
+  {
+    key: "hr-payroll",
+    label: "HR Payroll",
+    desc: "Salary, loans & deductions",
+    icon: Wallet,
+    active: true,
+    to: "/payroll" as const,
+    roles: ["admin", "viewer"] as const,
+  },
+  {
+    key: "dashboard",
+    label: "Dashboard",
+    desc: "Profit & loss, revenue overview",
+    icon: BarChart3,
+    active: true,
+    to: "/dashboard" as const,
+    roles: ["admin", "viewer"] as const,
+  },
+  {
     key: "reports",
     label: "Reports",
     desc: "P&L comparison & period reports",
     icon: FileText,
     active: true,
     to: "/reports" as const,
-    roles: ["admin", "basic", "viewer"] as const,
+    roles: ["admin", "viewer"] as const,
+  },
+  {
+    key: "users",
+    label: "Users",
+    desc: "Roles, access & activity log",
+    icon: Users,
+    active: true,
+    to: "/users" as const,
+    roles: ["admin"] as const,
+  },
+  {
+    key: "settings",
+    label: "Settings",
+    desc: "Company, branches, departments & appearance",
+    icon: Settings2,
+    active: true,
+    to: "/settings" as const,
+    roles: ["admin"] as const,
+  },
+] as const;
+
+const ADMIN_VIEWER_MODULES = [
+  {
+    key: "tms",
+    label: "TMS",
+    desc: "Operations, masters, dashboards & reports",
+    icon: Truck,
+    active: true,
+    to: "/tms" as const,
+    roles: ["admin", "viewer"] as const,
   },
   {
     key: "hrms",
@@ -82,7 +142,7 @@ const ADMIN_VIEWER_MODULES = [
     icon: Users,
     active: true,
     to: "/hrms" as const,
-    roles: ["admin", "basic", "viewer"] as const,
+    roles: ["admin", "viewer"] as const,
   },
   {
     key: "settings",
@@ -115,7 +175,7 @@ function HomePage() {
   }, []);
 
   const role = user?.role ?? "basic";
-  const moduleSource = ADMIN_VIEWER_MODULES;
+  const moduleSource = role === "basic" ? BASIC_MODULES : ADMIN_VIEWER_MODULES;
   const MODULES = moduleSource.filter((m) => (m.roles as readonly string[]).includes(role));
 
   return (

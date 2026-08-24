@@ -10,7 +10,6 @@ export const Route = createFileRoute("/tms")({
         eyebrow="Workspace / TMS"
         title="TMS"
         description="Operations, masters, dashboards and reports for transport management."
-        allowedRoles={["admin"]}
         tiles={[
           { key: "operation", label: "Operation", desc: "Trips, consignments & dispatch", icon: Truck, to: "/operations" },
           { key: "masters", label: "Masters", desc: "Vehicles, drivers, transporters & locations", icon: Database, to: "/masters" },
