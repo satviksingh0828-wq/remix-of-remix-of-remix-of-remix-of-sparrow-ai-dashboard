@@ -55,7 +55,7 @@ export function AppShell({
                 {user?.fullName ?? user?.username}
               </span>
               <span className="hidden md:inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide shrink-0">
-                {user?.role === "admin" ? "Admin" : isViewer ? "Viewer" : "User"}
+                {user?.role === "admin" ? "Admin" : isViewer ? "Viewer" : "Manager"}
               </span>
             </span>
             <Button
