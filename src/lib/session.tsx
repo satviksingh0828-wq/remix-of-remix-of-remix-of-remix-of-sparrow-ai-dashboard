@@ -89,10 +89,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (heartbeatTimer.current) clearInterval(heartbeatTimer.current);
     heartbeatTimer.current = setInterval(async () => {
       try {
-        const { valid } = await serverVerifySession({ data: token });
+        const { valid, permissions } = await serverVerifySession({ data: token });
         if (!valid) {
           clearSession(); // token already gone from DB — don't try to delete again
           window.dispatchEvent(new CustomEvent("tms:session-expired", { detail: { reason: "elsewhere" } }));
+        } else if (permissions && userRef.current) {
+          const refreshed = { ...userRef.current, permissions };
+          userRef.current = refreshed;
+          setUser(refreshed);
+          secureSession.setItem(KEY, JSON.stringify(refreshed));
         }
       } catch {
         // Network hiccup — don't sign the user out; just wait for next tick

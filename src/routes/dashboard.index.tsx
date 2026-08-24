@@ -22,6 +22,7 @@ import { AttendanceDashboard } from "@/components/hr/attendance-dashboard";
 import { PayrollDashboard } from "@/components/hr/payroll-dashboard";
 import { HierarchyView } from "@/components/hr/hierarchy-view";
 import { useSession } from "@/lib/session";
+import { canAccess } from "@/lib/access-control";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
@@ -43,16 +44,47 @@ export const Route = createFileRoute("/dashboard/")({
 });
 
 const TABS = [
-  { id: "pnl", label: "Profit & Loss", desc: "Revenue, costs & net P&L", icon: TrendingUp },
-  { id: "vehicles", label: "Vehicles", desc: "Vehicle-wise P&L & distribution", icon: Car },
-  { id: "drivers", label: "Drivers", desc: "Driver-wise P&L & performance", icon: Users },
-  { id: "transporters", label: "Transporters", desc: "Transporter-wise P&L", icon: BarChart3 },
-  { id: "trips", label: "Trips", desc: "All trips — income & net", icon: RouteIcon },
+  {
+    id: "pnl",
+    label: "Profit & Loss",
+    desc: "Revenue, costs & net P&L",
+    icon: TrendingUp,
+    scope: "dashboard.pnl",
+  },
+  {
+    id: "vehicles",
+    label: "Vehicles",
+    desc: "Vehicle-wise P&L & distribution",
+    icon: Car,
+    scope: "dashboard.vehicles",
+  },
+  {
+    id: "drivers",
+    label: "Drivers",
+    desc: "Driver-wise P&L & performance",
+    icon: Users,
+    scope: "dashboard.drivers",
+  },
+  {
+    id: "transporters",
+    label: "Transporters",
+    desc: "Transporter-wise P&L",
+    icon: BarChart3,
+    scope: "dashboard.transporters",
+  },
+  {
+    id: "trips",
+    label: "Trips",
+    desc: "All trips — income & net",
+    icon: RouteIcon,
+    scope: "dashboard.trips",
+  },
   {
     id: "own-vs-transporter",
     label: "Own vs Transporter",
     desc: "Compare own vehicles and hired transporters",
     icon: Car,
+    scope: "dashboard.own_vs_transporter",
   },
   {
     id: "employee",
@@ -60,6 +92,7 @@ const TABS = [
     desc: "Employee and department insights",
     icon: Users,
     hr: true,
+    scope: "dashboard.employees",
   },
   {
     id: "attendance",
@@ -67,6 +100,7 @@ const TABS = [
     desc: "Attendance trends and summaries",
     icon: Users,
     hr: true,
+    scope: "dashboard.attendance",
   },
   {
     id: "payroll",
@@ -74,6 +108,7 @@ const TABS = [
     desc: "Salary, loans and deductions",
     icon: BarChart3,
     hr: true,
+    scope: "dashboard.payroll",
   },
   {
     id: "hierarchy",
@@ -81,6 +116,7 @@ const TABS = [
     desc: "Department reporting structure",
     icon: Users,
     hr: true,
+    scope: "dashboard.hierarchy",
   },
 ] as const;
 
@@ -95,22 +131,23 @@ export function DashboardPage({
 }) {
   const { user } = useSession();
   const navigate = useNavigate();
-  const visibleTabs = scope === "hr"
-    ? TABS.filter((item) => "hr" in item && item.hr)
-    : TABS.filter((item) => !("hr" in item && item.hr));
+  const visibleTabs = (
+    scope === "hr"
+      ? TABS.filter((item) => "hr" in item && item.hr)
+      : TABS.filter((item) => !("hr" in item && item.hr))
+  ).filter((item) => canAccess(user, item.scope));
   const fallbackTab: DashboardTabId = scope === "hr" ? "employee" : "pnl";
   const requestedTab = initialTab ?? fallbackTab;
   const [tab, setTab] = useState<DashboardTabId>(requestedTab);
   const [navOpen, setNavOpen] = useState(true);
 
   useEffect(() => {
-    if (user?.role === "basic") navigate({ to: "/home", replace: true });
-    if (user?.role === "viewer" && scope === "tms") navigate({ to: "/hrms", replace: true });
-  }, [scope, user, navigate]);
+    if (user && visibleTabs.length === 0) navigate({ to: "/home", replace: true });
+  }, [user, navigate, visibleTabs.length]);
 
-  if (user?.role !== "admin" && user?.role !== "viewer") return null;
+  if (visibleTabs.length === 0) return null;
 
-  const safeTab = visibleTabs.some((item) => item.id === tab) ? tab : fallbackTab;
+  const safeTab = visibleTabs.some((item) => item.id === tab) ? tab : visibleTabs[0].id;
   const active = TABS.find((t) => t.id === safeTab) ?? TABS[0];
 
   return (
@@ -121,11 +158,11 @@ export function DashboardPage({
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
-            <Link to={scope === "hr" ? "/hrms" : "/tms"} className="hover:text-foreground">
-              {scope === "hr" ? "HRMS" : "TMS"}
-            </Link>
-            <ChevronRight className="size-3.5" />
-            <span className="text-foreground">Dashboard</span>
+          <Link to={scope === "hr" ? "/hrms" : "/tms"} className="hover:text-foreground">
+            {scope === "hr" ? "HRMS" : "TMS"}
+          </Link>
+          <ChevronRight className="size-3.5" />
+          <span className="text-foreground">Dashboard</span>
         </span>
       }
       headerEnd={

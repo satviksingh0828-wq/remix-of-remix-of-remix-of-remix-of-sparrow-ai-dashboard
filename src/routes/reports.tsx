@@ -30,6 +30,7 @@ import { ApprovalChargeAdvanceReport } from "@/components/reports/ApprovalCharge
 import { MonthlyMISReport } from "@/components/reports/MonthlyMISReport";
 import { TripDetailsPanel } from "@/components/operations/TripDetailsPanel";
 import { useSession } from "@/lib/session";
+import { canAccess } from "@/lib/access-control";
 import { ReportFiltersContext } from "@/lib/report-filters";
 import { useBranches } from "@/lib/use-branches";
 import { financialYearOptions } from "@/lib/financial-year";
@@ -66,61 +67,77 @@ const TABS = [
     label: "Booking Report",
     desc: "Trip and manifest booking details",
     icon: CalendarRange,
+    scope: "reports.booking",
   },
   {
     id: "monthly-mis",
     label: "Monthly MIS",
     desc: "Depot submissions & compliance",
     icon: ClipboardList,
+    scope: "reports.monthly_mis",
   },
   {
     id: "pnl-compare",
     label: "P&L Comparison",
     desc: "Compare two periods side-by-side",
     icon: FileBarChart,
+    scope: "reports.pnl_comparison",
   },
   {
     id: "insurance",
     label: "Insurance Premium Ledger",
     desc: "Vehicle insurance expenses",
     icon: Shield,
+    scope: "reports.insurance",
   },
-  { id: "road-tax", label: "Road Tax Ledger", desc: "Vehicle road tax expenses", icon: FileText },
+  {
+    id: "road-tax",
+    label: "Road Tax Ledger",
+    desc: "Vehicle road tax expenses",
+    icon: FileText,
+    scope: "reports.road_tax",
+  },
   {
     id: "fastag",
     label: "Fastag Balance",
     desc: "Vehicle-wise fastag balance & recharges",
     icon: CreditCard,
+    scope: "reports.fastag",
   },
   {
     id: "vehicle-expenses",
     label: "Vehicle Expenses",
     desc: "Fuel, parking & distance per vehicle",
     icon: Truck,
+    scope: "reports.vehicle_expenses",
   },
   {
     id: "driver-expenses",
     label: "Driver Expenses",
     desc: "Bata, morning & night exp per driver",
     icon: Users,
+    scope: "reports.driver_expenses",
   },
   {
     id: "transporter-expenses",
     label: "TRANSPORTER Expenses",
     desc: "Hire charges & approval charge per transporter",
     icon: Car,
+    scope: "reports.transporter_expenses",
   },
   {
     id: "approval-advances",
     label: "Transpoter advance",
     desc: "Transporter paid amount and balance by date",
     icon: WalletCards,
+    scope: "reports.transporter_advances",
   },
   {
     id: "other-expenses",
     label: "Other Expenses",
     desc: "Dala, unloading, Sunday & other trip costs",
     icon: BarChart3,
+    scope: "reports.other_expenses",
   },
 ] as const;
 
@@ -135,17 +152,16 @@ function ReportsPage() {
   const [financialYear, setFinancialYear] = useState("none");
   const branches = useBranches();
   const financialYears = financialYearOptions();
+  const visibleTabs = TABS.filter((item) => canAccess(user, item.scope));
 
   useEffect(() => {
-    if (user && user.role !== "admin" && user.role !== "viewer")
-      navigate({ to: "/home", replace: true });
-    if (user?.role === "viewer" && tab === "pnl-compare") setTab("monthly-mis");
-  }, [user, navigate, tab]);
+    if (user && visibleTabs.length === 0) navigate({ to: "/home", replace: true });
+  }, [user, navigate, visibleTabs.length]);
 
-  if (user?.role !== "admin" && user?.role !== "viewer") return null;
+  if (visibleTabs.length === 0) return null;
 
-  const visibleTabs = user?.role === "viewer" ? TABS.filter((t) => t.id !== "pnl-compare") : TABS;
   const active = visibleTabs.find((t) => t.id === tab) ?? visibleTabs[0];
+  const safeTab = active.id;
 
   return (
     <AppShell
@@ -155,7 +171,9 @@ function ReportsPage() {
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
-          <Link to="/tms" className="hover:text-foreground">TMS</Link>
+          <Link to="/tms" className="hover:text-foreground">
+            TMS
+          </Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Reports</span>
         </span>
@@ -217,15 +235,23 @@ function ReportsPage() {
         )}
 
         {/* Mobile dropdown navigation */}
-        <MobileTabDropdown tabs={TABS} activeId={tab} label="Reports" onChange={setTab} />
+        <MobileTabDropdown
+          tabs={visibleTabs}
+          activeId={safeTab}
+          label="Reports"
+          onChange={setTab}
+        />
 
         <ReportFiltersContext.Provider value={{ branchId, financialYear }}>
-          <div key={tab} className={`animate-fade-in min-w-0 ${navOpen ? "lg:col-start-2" : ""}`}>
+          <div
+            key={safeTab}
+            className={`animate-fade-in min-w-0 ${navOpen ? "lg:col-start-2" : ""}`}
+          >
             <header className="mb-6">
               <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
             </header>
-            {tab !== "pnl-compare" && tab !== "monthly-mis" && (
+            {safeTab !== "pnl-compare" && safeTab !== "monthly-mis" && (
               <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-border bg-muted/30 p-3">
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger className="h-9 w-44">
@@ -255,17 +281,17 @@ function ReportsPage() {
                 </Select>
               </div>
             )}
-            {tab === "pnl-compare" && <ProfitLossComparison />}
-            {tab === "monthly-mis" && <MonthlyMISReport />}
-            {tab === "booking-report" && <TripDetailsPanel />}
-            {tab === "insurance" && <CoverageLedger type="insurance" />}
-            {tab === "road-tax" && <CoverageLedger type="road_tax" />}
-            {tab === "fastag" && <FastagLedger />}
-            {tab === "vehicle-expenses" && <VehicleExpenseReport />}
-            {tab === "driver-expenses" && <DriverExpenseReport />}
-            {tab === "transporter-expenses" && <TransporterExpenseReport />}
-            {tab === "approval-advances" && <ApprovalChargeAdvanceReport />}
-            {tab === "other-expenses" && <OtherExpenseReport />}
+            {safeTab === "pnl-compare" && <ProfitLossComparison />}
+            {safeTab === "monthly-mis" && <MonthlyMISReport />}
+            {safeTab === "booking-report" && <TripDetailsPanel />}
+            {safeTab === "insurance" && <CoverageLedger type="insurance" />}
+            {safeTab === "road-tax" && <CoverageLedger type="road_tax" />}
+            {safeTab === "fastag" && <FastagLedger />}
+            {safeTab === "vehicle-expenses" && <VehicleExpenseReport />}
+            {safeTab === "driver-expenses" && <DriverExpenseReport />}
+            {safeTab === "transporter-expenses" && <TransporterExpenseReport />}
+            {safeTab === "approval-advances" && <ApprovalChargeAdvanceReport />}
+            {safeTab === "other-expenses" && <OtherExpenseReport />}
           </div>
         </ReportFiltersContext.Provider>
       </div>
