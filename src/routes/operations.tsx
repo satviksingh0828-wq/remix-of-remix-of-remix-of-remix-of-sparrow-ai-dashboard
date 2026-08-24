@@ -30,6 +30,7 @@ import { YearlyExpenseScheduler } from "@/components/operations/YearlyExpenseSch
 import { DriverPayroll } from "@/components/operations/DriverPayroll";
 import { TripImport } from "@/components/import/TripImport";
 import { useSession } from "@/lib/session";
+import { canAccess } from "@/lib/access-control";
 import { MonthlyMIS } from "@/components/operations/MonthlyMIS";
 
 export const Route = createFileRoute("/operations")({
@@ -60,6 +61,7 @@ export const Route = createFileRoute("/operations")({
 const ALL_TABS = [
   {
     id: "monthly-mis",
+    scope: "operations.monthly_mis",
     label: "Monthly MIS",
     desc: "Monthly branch compliance",
     icon: ClipboardList,
@@ -68,6 +70,7 @@ const ALL_TABS = [
   },
   {
     id: "trip",
+    scope: "operations.trips",
     label: "Trip",
     desc: "Manifests, income & expenses",
     icon: RouteIcon,
@@ -76,6 +79,7 @@ const ALL_TABS = [
   },
   {
     id: "income",
+    scope: "operations.income",
     label: "Income",
     desc: "Other income, branch-wise",
     icon: TrendingUp,
@@ -84,6 +88,7 @@ const ALL_TABS = [
   },
   {
     id: "expenditure",
+    scope: "operations.expenditure",
     label: "Expenditure",
     desc: "Other spend, branch-wise",
     icon: TrendingDown,
@@ -92,6 +97,7 @@ const ALL_TABS = [
   },
   {
     id: "driver-payroll",
+    scope: "operations.driver_payroll",
     label: "Driver Payroll",
     desc: "Salary, advances & deductions",
     icon: Users,
@@ -100,6 +106,7 @@ const ALL_TABS = [
   },
   {
     id: "fixed-income",
+    scope: "operations.fixed_income",
     label: "Fixed Income",
     desc: "Contract recurring charges",
     icon: DollarSign,
@@ -108,6 +115,7 @@ const ALL_TABS = [
   },
   {
     id: "trip-averages",
+    scope: "operations.trip_averages",
     label: "Trip Averages",
     desc: "Monthly distribution analysis",
     icon: BarChart2,
@@ -116,6 +124,7 @@ const ALL_TABS = [
   },
   {
     id: "trip-details",
+    scope: "reports.booking",
     label: "Booking Report",
     desc: "Your branch booking and expense report",
     icon: FileText,
@@ -125,6 +134,7 @@ const ALL_TABS = [
   },
   {
     id: "emi-scheduler",
+    scope: "operations.emi",
     label: "EMI Scheduler",
     desc: "Vehicle loan & EMI tracker",
     icon: CalendarCheck,
@@ -133,6 +143,7 @@ const ALL_TABS = [
   },
   {
     id: "yearly-expenses",
+    scope: "operations.yearly_expenses",
     label: "Yearly Expenses",
     desc: "Fixed yearly cost tracker",
     icon: CalendarRange,
@@ -141,6 +152,7 @@ const ALL_TABS = [
   },
   {
     id: "import-trips",
+    scope: "operations.import",
     label: "Import Trips",
     desc: "Bulk import historical trips",
     icon: Upload,
@@ -156,10 +168,7 @@ function OperationsPage() {
   const isAdmin = user?.role === "admin";
   const isViewer = user?.role === "viewer";
 
-  const TABS = ALL_TABS.filter((t) => {
-    if ("basicOnly" in t && t.basicOnly && user?.role !== "basic") return false;
-    return isViewer ? t.id !== "import-trips" && t.id !== "monthly-mis" : isAdmin || !t.adminOnly;
-  });
+  const TABS = ALL_TABS.filter((t) => canAccess(user, t.scope));
   const [tab, setTab] = useState<TabId>("trip");
   const [navOpen, setNavOpen] = useState(true);
 
@@ -174,7 +183,9 @@ function OperationsPage() {
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
-          <Link to="/tms" className="hover:text-foreground">TMS</Link>
+          <Link to="/tms" className="hover:text-foreground">
+            TMS
+          </Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Operations</span>
         </span>
@@ -200,7 +211,9 @@ function OperationsPage() {
         </button>
       }
     >
-      <div className={`grid items-start gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
+      <div
+        className={`grid items-start gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}
+      >
         {/* Desktop left nav */}
         {navOpen && (
           <nav className="app-sidebar-scroll hidden lg:block lg:fixed lg:left-[max(1.5rem,calc((100vw-1280px)/2+1.5rem))] lg:top-20 lg:h-[calc(100dvh-5rem)] lg:w-[220px] lg:max-h-[calc(100dvh-5rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-1">

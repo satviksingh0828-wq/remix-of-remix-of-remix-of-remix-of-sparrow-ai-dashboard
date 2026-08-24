@@ -9,6 +9,7 @@ import { Contracts } from "@/components/masters/Contracts";
 import { VehicleInsuranceSection } from "@/components/masters/VehicleInsuranceSection";
 import { VehicleRoadTaxSection } from "@/components/masters/VehicleRoadTaxSection";
 import { useSession } from "@/lib/session";
+import { canAccess } from "@/lib/access-control";
 import {
   DRIVER_CONFIG,
   LOCATION_CONFIG,
@@ -40,11 +41,11 @@ export const Route = createFileRoute("/masters")({
 });
 
 const ALL_TABS = [
-  { id: "vehicle",     label: "Vehicle",    desc: "Fleet & specifications",  icon: Truck,     adminOnly: true  },
-  { id: "driver",      label: "Driver",     desc: "Staff & licences",        icon: User,      adminOnly: false },
-  { id: "transporter", label: "Transporter",desc: "Owners & brokers",        icon: Building2, adminOnly: false },
-  { id: "location",    label: "Locations",  desc: "Pickup & drop points",    icon: MapPin,    adminOnly: true  },
-  { id: "contract",    label: "Sources",    desc: "Rates & slabs",           icon: FileText,  adminOnly: true  },
+  { id: "vehicle",     label: "Vehicle",    desc: "Fleet & specifications",  icon: Truck,     scope: "masters.vehicles" },
+  { id: "driver",      label: "Driver",     desc: "Staff & licences",        icon: User,      scope: "masters.drivers" },
+  { id: "transporter", label: "Transporter",desc: "Owners & brokers",        icon: Building2, scope: "masters.transporters" },
+  { id: "location",    label: "Locations",  desc: "Pickup & drop points",    icon: MapPin,    scope: "masters.locations" },
+  { id: "contract",    label: "Sources",    desc: "Rates & slabs",           icon: FileText,  scope: "masters.sources" },
 ] as const;
 
 type TabId = (typeof ALL_TABS)[number]["id"];
@@ -54,12 +55,7 @@ function MastersPage() {
   const isAdmin = user?.role === "admin";
   const isViewer = user?.role === "viewer";
 
-  // viewer (Manager) sees all tabs except Sources; basic users see non-adminOnly tabs only
-  const TABS = isAdmin
-    ? ALL_TABS
-    : isViewer
-      ? ALL_TABS.filter((t) => t.id !== "contract")
-      : ALL_TABS.filter((t) => !t.adminOnly);
+  const TABS = ALL_TABS.filter((tab) => canAccess(user, tab.scope));
 
   const [tab, setTab] = useState<TabId>(isAdmin || isViewer ? "vehicle" : "driver");
   const [navOpen, setNavOpen] = useState(true);
