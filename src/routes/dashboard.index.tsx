@@ -104,7 +104,7 @@ export function DashboardPage({
   const [navOpen, setNavOpen] = useState(true);
 
   const canAccess = scope === "tms"
-    ? user?.role === "admin" || user?.role === "semi_admin"
+    ? user?.role === "admin"
     : user?.role === "admin" || user?.role === "semi_admin" || user?.role === "viewer";
 
   useEffect(() => {

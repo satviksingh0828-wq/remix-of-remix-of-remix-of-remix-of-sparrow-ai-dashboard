@@ -1,5 +1,5 @@
 export const ADMIN_ROUTES = ["/home", "/operations", "/masters", "/dashboard", "/reports", "/users", "/settings"] as const;
-export const SEMI_ADMIN_ROUTES = ["/home", "/operations", "/masters", "/dashboard", "/reports"] as const;
+export const SEMI_ADMIN_ROUTES = ["/home", "/operations", "/masters", "/reports"] as const;
 export const BASIC_ROUTES = ["/home", "/operations", "/masters"] as const;
 export const VIEWER_ROUTES = ["/home", "/operations", "/masters", "/dashboard", "/reports"] as const;
 
@@ -76,7 +76,7 @@ export function buildCapabilitySummary(role: string) {
   const isSemiAdmin = role === "semi_admin";
   const isElevated = isAdmin || isSemiAdmin;
   return AI_CAPABILITY_MAP
-    .filter((m) => isAdmin || !m.adminOnly || (isSemiAdmin && m.route !== "/users" && m.route !== "/settings"))
+    .filter((m) => isAdmin || !m.adminOnly || (isSemiAdmin && m.route !== "/users" && m.route !== "/settings" && m.route !== "/dashboard"))
     .map((m) => {
       const tabs = (m.tabs ?? []).filter((t) => isElevated || !t.adminOnly);
       const tabText = tabs.length ? ` tabs: ${tabs.map((t) => `${t.label}${t.openButton ? ` (button: ${t.openButton})` : ""}`).join(", ")}` : "";

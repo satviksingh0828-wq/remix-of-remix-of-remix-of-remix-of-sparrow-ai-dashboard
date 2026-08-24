@@ -75,7 +75,7 @@ function Screen({ children }: { children: ReactNode }) {
       </div>
 
       <p className="absolute bottom-6 left-1/2 w-full -translate-x-1/2 px-6 text-center text-[10px] font-medium uppercase tracking-[0.22em] text-muted-foreground/60">
-        Powered by Sparrow AI Solutions
+        Powered by ORCA One
       </p>
     </div>
   );
