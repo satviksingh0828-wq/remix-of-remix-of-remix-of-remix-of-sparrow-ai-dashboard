@@ -400,7 +400,8 @@ function LoginPage() {
           </picture>
           {/* Logo overlaid top-left on the banner image */}
           <div className="absolute left-6 top-6 rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm shadow-md">
-            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-14 w-auto" />
+            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
+            <p className="mt-1 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-900">Garuda ERP</p>
           </div>
           <LiveClock dark />
         </aside>
@@ -412,10 +413,11 @@ function LoginPage() {
           <div className="pointer-events-none absolute -left-24 -top-24 size-96 rounded-full bg-white/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-32 -right-16 size-[26rem] rounded-full bg-white/10 blur-3xl" />
           <div className="relative animate-fade-up text-center text-primary-foreground">
-            <div className="mx-auto w-64 xl:w-72 rounded-2xl bg-white p-3">
+            <div className="mx-auto w-52 rounded-2xl bg-white p-3 xl:w-60">
               <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="w-full" />
+              <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-900">Garuda ERP</p>
             </div>
-            <div className="mx-auto my-7 h-px w-24 bg-white/40" />
+            <div className="mx-auto my-6 h-px w-24 bg-white/40" />
             <p className="text-lg font-medium uppercase tracking-[0.42em] opacity-90">Garuda Logistics Solutions</p>
             <p className="mx-auto mt-8 max-w-sm text-sm leading-relaxed opacity-80">
               Transport management, masters and operations — unified in one clean workspace.

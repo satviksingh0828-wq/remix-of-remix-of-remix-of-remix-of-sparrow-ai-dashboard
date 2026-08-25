@@ -70,6 +70,7 @@ function Screen({ children }: { children: ReactNode }) {
       <div className="surface-card relative w-full max-w-md animate-fade-up px-6 py-8 text-center sm:px-8">
         <div className="mx-auto mb-6 flex w-40 items-center justify-center rounded-2xl bg-background p-3 shadow-sm ring-1 ring-border">
           <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-auto w-full" />
+          <p className="mt-2 text-xs font-semibold uppercase tracking-[0.22em] text-foreground">Garuda ERP</p>
         </div>
         {children}
       </div>
