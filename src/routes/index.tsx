@@ -399,9 +399,11 @@ function LoginPage() {
             />
           </picture>
           {/* Logo overlaid top-left on the banner image */}
-          <div className="absolute left-6 top-6 rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm shadow-md">
-            <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
-            <p className="mt-1 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-900">Garuda ERP</p>
+          <div className="absolute left-6 top-6 flex flex-col items-start">
+            <div className="rounded-xl bg-white/85 px-4 py-2.5 backdrop-blur-sm shadow-md">
+              <img src="/garuda-logo.png" alt="Garuda Logistics Solution" className="h-10 w-auto" />
+            </div>
+            <p className="mt-1.5 rounded-lg bg-white/85 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-900 backdrop-blur-sm shadow-md">Garuda ERP</p>
           </div>
           <LiveClock dark />
         </aside>
