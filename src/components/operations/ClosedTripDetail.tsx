@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { inr, num } from "@/lib/trip-calc";
 import { downloadCsv, toCsv } from "@/lib/csv";
-import { reopenTrip } from "@/lib/reopen-trip";
+import { serverReopenTrip } from "@/lib/reopen-trip";
 import { useSession } from "@/lib/session";
 import { isAdminLike } from "@/lib/roles";
 import { fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
@@ -163,7 +163,11 @@ export function ClosedTripDetail({
       return;
     setReopening(true);
     try {
-      await reopenTrip(closedId);
+      if (!user?.sessionToken)
+        throw new Error(
+          "Your session has expired. Please sign in again before reopening this trip.",
+        );
+      await serverReopenTrip({ data: { sessionToken: user.sessionToken, closedId } });
       toast.success("Trip reopened with current rates");
       onReopened();
     } catch (err) {
