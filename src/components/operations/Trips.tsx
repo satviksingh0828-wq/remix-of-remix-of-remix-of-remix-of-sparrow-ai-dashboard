@@ -6,11 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { useSession } from "@/lib/session";
 import { isAdminLike } from "@/lib/roles";
-import { reopenTrip } from "@/lib/reopen-trip";
+import { serverReopenTrip } from "@/lib/reopen-trip";
+import { serverDeleteTrip } from "@/lib/trip-actions";
 import { inr } from "@/lib/trip-calc";
 import { fetchAll } from "@/lib/fetch-all";
 import { logAction } from "@/lib/log-actions";
@@ -64,15 +69,13 @@ export function Trips() {
       }
 
       // Default: closed_trips last 15 days only; the list can extend in 15-day increments.
-      const closedSince = new Date(Date.now() - closedDaysToLoad * 24 * 60 * 60 * 1000)
-        .toISOString();
+      const closedSince = new Date(
+        Date.now() - closedDaysToLoad * 24 * 60 * 60 * 1000,
+      ).toISOString();
 
       const [live, archived] = await Promise.all([
         fetchAll<TripRow>(() => {
-          let q = supabase
-            .from("trips")
-            .select("*")
-            .order("created_at", { ascending: false });
+          let q = supabase.from("trips").select("*").order("created_at", { ascending: false });
           if (allowedBranchIds !== null) {
             q = q.in("branch_id", allowedBranchIds) as typeof q;
           }
@@ -108,7 +111,12 @@ export function Trips() {
       }
       const { data } = await q;
       if (data) {
-        setBranches((data as { id: string; branch_name: string }[]).map(b => ({ id: b.id, name: b.branch_name })));
+        setBranches(
+          (data as { id: string; branch_name: string }[]).map((b) => ({
+            id: b.id,
+            name: b.branch_name,
+          })),
+        );
       }
     }
     loadBranches();
@@ -122,19 +130,19 @@ export function Trips() {
 
   async function remove(trip: TripRow) {
     if (!window.confirm("Delete this trip? This cannot be undone.")) return;
-    // Delete advance/balance entry by trip_code (stable across open/close/reopen).
-    await supabase
-      .from("approval_charge_advances" as never)
-      .delete()
-      .eq("trip_code", trip.trip_code);
-    const { error } = await supabase.from("trips").delete().eq("id", trip.id!);
-    if (error) return toast.error(error.message);
+    try {
+      if (!user?.sessionToken)
+        throw new Error(
+          "Your session has expired. Please sign in again before deleting this trip.",
+        );
+      await serverDeleteTrip({ data: { sessionToken: user.sessionToken, tripId: trip.id! } });
+    } catch (err) {
+      return toast.error(err instanceof Error ? err.message : "Could not delete trip");
+    }
     logAction("deleted", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
     toast.success("Trip removed");
     load();
   }
-
-
 
   async function reopen(c: ClosedTrip) {
     if (!isAdmin) {
@@ -149,7 +157,13 @@ export function Trips() {
       return;
     setReopeningId(c.id);
     try {
-      const newId = await reopenTrip(c.id);
+      if (!user?.sessionToken)
+        throw new Error(
+          "Your session has expired. Please sign in again before reopening this trip.",
+        );
+      const newId = await serverReopenTrip({
+        data: { sessionToken: user.sessionToken, closedId: c.id },
+      });
       logAction("reopened", "trip", { entityId: newId, entityLabel: c.trip_code });
       toast.success("Trip reopened");
       load();
@@ -161,28 +175,33 @@ export function Trips() {
   }
 
   const normalizedSearch = searchTerm.trim().toLowerCase();
-  const matchesTripSearch = (id: string | null | undefined, tripCode: string | null | undefined) => {
+  const matchesTripSearch = (
+    id: string | null | undefined,
+    tripCode: string | null | undefined,
+  ) => {
     if (!normalizedSearch) return true;
-    return [id, tripCode].some((value) =>
-      (value ?? "").toLowerCase().includes(normalizedSearch),
-    );
+    return [id, tripCode].some((value) => (value ?? "").toLowerCase().includes(normalizedSearch));
   };
 
-  const visibleTrips = useMemo(() =>
-    trips.filter((t) =>
-      matchesTripSearch(t.id, t.trip_code) &&
-      (branchFilter === "all" || t.branch_id === branchFilter)
-    ),
+  const visibleTrips = useMemo(
+    () =>
+      trips.filter(
+        (t) =>
+          matchesTripSearch(t.id, t.trip_code) &&
+          (branchFilter === "all" || t.branch_id === branchFilter),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [trips, normalizedSearch, branchFilter]
+    [trips, normalizedSearch, branchFilter],
   );
-  const visibleClosed = useMemo(() =>
-    closed.filter((c) =>
-      matchesTripSearch(c.id, c.trip_code) &&
-      (branchFilter === "all" || c.branch_id === branchFilter)
-    ),
+  const visibleClosed = useMemo(
+    () =>
+      closed.filter(
+        (c) =>
+          matchesTripSearch(c.id, c.trip_code) &&
+          (branchFilter === "all" || c.branch_id === branchFilter),
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [closed, normalizedSearch, branchFilter]
+    [closed, normalizedSearch, branchFilter],
   );
 
   // ── Inline detail views (replace the list) ────────────────────────────────
@@ -220,19 +239,19 @@ export function Trips() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         {!isViewer ? (
-        <Button
-          size="sm"
-          className="w-fit"
-          onClick={() => {
-            const t = emptyTrip();
-            // Auto-fill branch when user has exactly one allowed branch
-            if (allowedBranchIds?.length === 1) t.branch_id = allowedBranchIds[0];
-            setEditing(t);
-          }}
-        >
-          <Plus className="size-4" />
-          New trip
-        </Button>
+          <Button
+            size="sm"
+            className="w-fit"
+            onClick={() => {
+              const t = emptyTrip();
+              // Auto-fill branch when user has exactly one allowed branch
+              if (allowedBranchIds?.length === 1) t.branch_id = allowedBranchIds[0];
+              setEditing(t);
+            }}
+          >
+            <Plus className="size-4" />
+            New trip
+          </Button>
         ) : null}
         <div className="relative w-full sm:max-w-xs">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
@@ -253,8 +272,10 @@ export function Trips() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Branches</SelectItem>
-              {branches.map(b => (
-                <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -289,22 +310,14 @@ export function Trips() {
               >
                 <span className="block text-sm font-medium">{t.trip_code}</span>
                 <span className="block text-xs text-muted-foreground">
-                  {[
-                    t.ownership === "own" ? "Own vehicle" : "Rented",
-                    t.start_date,
-                    t.start_time,
-                  ]
+                  {[t.ownership === "own" ? "Own vehicle" : "Rented", t.start_date, t.start_time]
                     .filter(Boolean)
                     .join(" · ")}
                 </span>
               </button>
               {/* Admin-only: per-row logs */}
               {isAdmin && t.id ? (
-                <ItemLogsButton
-                  entityType="trip"
-                  entityId={t.id}
-                  entityLabel={t.trip_code}
-                />
+                <ItemLogsButton entityType="trip" entityId={t.id} entityLabel={t.trip_code} />
               ) : null}
               <DriverTripActions trip={t} />
               {!isViewer && (
@@ -332,8 +345,7 @@ export function Trips() {
             </span>
           </h3>
           <p className="text-xs text-muted-foreground">
-            Archived snapshots. Later changes to masters, contracts or rates never affect
-            these.
+            Archived snapshots. Later changes to masters, contracts or rates never affect these.
           </p>
           {visibleClosed.length === 0 ? (
             <p className="rounded-xl bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
@@ -353,9 +365,7 @@ export function Trips() {
                   >
                     <span className="block text-sm font-medium">{c.trip_code}</span>
                     <span className="block text-xs text-muted-foreground">
-                      {[c.branch_name, c.start_date, c.end_date]
-                        .filter(Boolean)
-                        .join(" · ") || "—"}
+                      {[c.branch_name, c.start_date, c.end_date].filter(Boolean).join(" · ") || "—"}
                     </span>
                   </button>
                   {/* Net income shown to admins only */}
@@ -384,7 +394,6 @@ export function Trips() {
                         <RotateCcw className="size-4" />
                         Reopen
                       </Button>
-
                     </>
                   ) : null}
                 </li>

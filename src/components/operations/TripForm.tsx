@@ -32,7 +32,8 @@ import { isDriverActive } from "@/lib/drivers";
 import { useBranches } from "@/lib/use-branches";
 import { useSession } from "@/lib/session";
 import { isAdminLike } from "@/lib/roles";
-import { closeTrip } from "@/lib/close-trip";
+import { serverCloseTrip } from "@/lib/close-trip";
+import { serverSaveTripLines } from "@/lib/trip-actions";
 import { serverRequireTripCheckpointVerification } from "@/lib/driver-checkpoint-status";
 import { invalidManifestDates } from "@/lib/manifest-date-validation";
 import { logAction } from "@/lib/log-actions";
@@ -285,6 +286,16 @@ export function TripForm({
         .eq("trip_id", tripId)
         .maybeSingle(),
     ]);
+    if (m.error || i.error || e.error || approvalAdvance.error) {
+      toast.error(
+        m.error?.message ??
+          i.error?.message ??
+          e.error?.message ??
+          approvalAdvance.error?.message ??
+          "Could not load trip details",
+      );
+      return;
+    }
     setManifests((m.data as unknown as ManifestRow[]) ?? []);
     const savedApprovalAdvance = String(
       ((approvalAdvance.data as { advance?: string | number } | null)?.advance ?? "") || "",
@@ -335,8 +346,7 @@ export function TripForm({
 
   const lines = manifests.map((m) => {
     const mContract = contracts.find((c) => c.id === m.source_id) as
-      | (AnyRow & ContractLite)
-      | undefined;
+      (AnyRow & ContractLite) | undefined;
     const mEntries = allEntries.filter((e) => e.contract_id === m.source_id);
     return {
       m,
@@ -352,6 +362,7 @@ export function TripForm({
 
   async function saveTrip(e?: React.FormEvent): Promise<string | null> {
     e?.preventDefault();
+    if (saving) return null;
 
     // ── Validation ──────────────────────────────────────────────────────────
     if (!trip.start_date) {
@@ -432,46 +443,60 @@ export function TripForm({
   async function saveLines(
     table: "trip_other_income" | "trip_expenses",
     rows: LineRow[],
-    nameCol: "income_name" | "expense_name",
+    _nameCol: "income_name" | "expense_name",
     silent = false,
-  ) {
+  ): Promise<boolean> {
     const tripId = await requireTripId();
-    if (!tripId) return;
-    await supabase.from(table).delete().eq("trip_id", tripId);
-    const payloadRows = rows
-      .filter((r) => r.name.trim() !== "")
-      .map((r, idx) => ({
-        trip_id: tripId,
-        [nameCol]: r.name,
-        amount: r.amount,
-        note: r.note,
-        ...(table === "trip_expenses" ? { sort_order: idx } : {}),
-      }));
-    if (payloadRows.length > 0) {
-      const { error } = await supabase.from(table).insert(payloadRows as never);
-      if (error) return toast.error(error.message);
+    if (!tripId || !user?.sessionToken) {
+      toast.error("Your session has expired. Please sign in again.");
+      return false;
     }
-    if (table === "trip_expenses") {
-      const hireChargeRow = rows.find((r) => r.name.trim().toLowerCase() === "hire charges");
-      await supabase
-        .from("approval_charge_advances" as never)
-        .delete()
-        .eq("trip_id", tripId);
-      if (hireChargeRow && trip.transporter_id) {
-        const amount = num(hireChargeRow.amount);
-        const advance = num(hireChargeRow.advance ?? "");
-        const balance = Math.max(amount - advance, 0);
-        if (amount > 0 || advance > 0) {
-          const { error } = await supabase.from("approval_charge_advances" as never).insert({
-            trip_id: tripId,
+
+    const incomeRows = (table === "trip_other_income" ? rows : incomes)
+      .filter((row) => row.name.trim() !== "")
+      .map((row) => ({ income_name: row.name, amount: row.amount, note: row.note }));
+    const expenseRows = (table === "trip_expenses" ? rows : expenses)
+      .filter((row) => row.name.trim() !== "")
+      .map((row, index) => ({
+        expense_name: row.name,
+        amount: row.amount,
+        note: row.note,
+        sort_order: index,
+      }));
+    const hireChargeRow = expenseRows.find(
+      (row) => row.expense_name.trim().toLowerCase() === "hire charges",
+    );
+    const amount = hireChargeRow ? num(hireChargeRow.amount) : 0;
+    const advance = hireChargeRow
+      ? num(
+          (table === "trip_expenses" ? rows : expenses).find(
+            (row) => row.name.trim().toLowerCase() === "hire charges",
+          )?.advance ?? "",
+        )
+      : 0;
+    const approval =
+      trip.transporter_id && (amount > 0 || advance > 0)
+        ? {
             trip_code: trip.trip_code,
             transporter_id: trip.transporter_id,
             advance,
-            balance,
-          });
-          if (error) return toast.error(error.message);
-        }
-      }
+            balance: Math.max(amount - advance, 0),
+          }
+        : null;
+
+    try {
+      await serverSaveTripLines({
+        data: {
+          sessionToken: user.sessionToken,
+          tripId,
+          income: incomeRows,
+          expenses: expenseRows,
+          approval,
+        },
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save trip details");
+      return false;
     }
     logAction("updated", "trip", {
       entityId: tripId,
@@ -479,7 +504,8 @@ export function TripForm({
       details: { section: table },
     });
     if (!silent) toast.success("Saved");
-    loadChildren(tripId);
+    await loadChildren(tripId);
+    return true;
   }
 
   async function handleClose() {
@@ -499,17 +525,36 @@ export function TripForm({
     }
 
     // ── Close validation ─────────────────────────────────────────────────────
-    if (!isRented && !trip.end_date) {
+    if (!trip.end_date) {
       toast.error("End date is required to close the trip");
       return;
     }
-    if (!isRented && !trip.end_time) {
+    if (!trip.end_time) {
       toast.error("End time is required to close the trip");
       return;
     }
-    if (isOwn && !trip.odometer_end) {
-      toast.error("Odometer end reading is required to close an own-vehicle trip");
+    if (
+      trip.end_date < trip.start_date ||
+      (trip.end_date === trip.start_date && trip.end_time < trip.start_time)
+    ) {
+      toast.error("End date/time cannot be before start date/time");
       return;
+    }
+    if (isOwn) {
+      const startOdo = Number(trip.odometer_start);
+      const endOdo = Number(trip.odometer_end);
+      if (!trip.odometer_end) {
+        toast.error("Odometer end reading is required to close an own-vehicle trip");
+        return;
+      }
+      if (!Number.isFinite(startOdo) || startOdo < 0 || !Number.isFinite(endOdo) || endOdo < 0) {
+        toast.error("Odometer readings must be non-negative numbers");
+        return;
+      }
+      if (endOdo < startOdo) {
+        toast.error("Odometer end cannot be less than odometer start");
+        return;
+      }
     }
     if (isRented && !trip.third_party_vehicle_number?.trim()) {
       toast.error("Vehicle Number (3rd party) is required to close a rented trip");
@@ -533,12 +578,17 @@ export function TripForm({
     setClosing(true);
     try {
       if (isOwn) {
-        if (!user?.sessionToken) throw new Error("Your session has expired. Please sign in again before verifying driver checkpoints.");
+        if (!user?.sessionToken)
+          throw new Error(
+            "Your session has expired. Please sign in again before verifying driver checkpoints.",
+          );
         await serverRequireTripCheckpointVerification({
           data: { sessionToken: user.sessionToken, tripId: trip.id },
         });
       }
-      await closeTrip(trip.id);
+      if (!user?.sessionToken)
+        throw new Error("Your session has expired. Please sign in again before closing this trip.");
+      await serverCloseTrip({ data: { sessionToken: user.sessionToken, tripId: trip.id } });
       logAction("closed", "trip", { entityId: trip.id, entityLabel: trip.trip_code });
       toast.success("Trip closed and archived");
       onSaved();
@@ -921,23 +971,21 @@ export function TripForm({
             onChange={(v) => patch({ start_time: v })}
           />
 
-          {/* End date & time — required to close (own vehicle only) */}
-          {!isRented ? (
-            <>
-              <Field
-                label="End Date (required to close)"
-                type="date"
-                value={trip.end_date}
-                onChange={(v) => patch({ end_date: v })}
-              />
-              <Field
-                label="End Time (required to close)"
-                type="time"
-                value={trip.end_time}
-                onChange={(v) => patch({ end_time: v })}
-              />
-            </>
-          ) : null}
+          {/* End date & time — required to close for every trip */}
+          <>
+            <Field
+              label="End Date (required to close)"
+              type="date"
+              value={trip.end_date}
+              onChange={(v) => patch({ end_date: v })}
+            />
+            <Field
+              label="End Time (required to close)"
+              type="time"
+              value={trip.end_time}
+              onChange={(v) => patch({ end_time: v })}
+            />
+          </>
 
           {/* Odometer — only shown & required for own vehicle */}
           {isOwn ? (
@@ -1092,7 +1140,8 @@ function Field({
   return (
     <div className="space-y-1.5">
       <Label className="text-xs font-medium text-muted-foreground">
-        {label}{required ? " *" : ""}
+        {label}
+        {required ? " *" : ""}
       </Label>
       <Input
         className="h-10"
@@ -1293,9 +1342,7 @@ function ManifestTab({
       trip_id: id,
       manifest_number: r["Cnmt No."] ?? r.manifest_number ?? "",
       manifest_date: normalizeImportedDate(r.Date ?? r.date ?? r.manifest_date) || null,
-      source_id: r.source
-        ? (sourceIdByName.get(r.source.trim().toLowerCase()) ?? null)
-        : null,
+      source_id: r.source ? (sourceIdByName.get(r.source.trim().toLowerCase()) ?? null) : null,
       from_location_id:
         idByName.get((r.from_location ?? "").toLowerCase()) ??
         pinToId.get((r.from_pin_code ?? "").trim()) ??
@@ -1476,7 +1523,9 @@ function ManifestTab({
                   onChange={(v) => setEditing({ ...editing, manifest_date: v || null })}
                 />
                 {validationAttempted && !editing.manifest_date?.trim() ? (
-                  <p className="text-xs text-destructive" role="alert">Manifest date is required.</p>
+                  <p className="text-xs text-destructive" role="alert">
+                    Manifest date is required.
+                  </p>
                 ) : null}
               </div>
               <div className="space-y-1.5 sm:col-span-2">
@@ -1501,7 +1550,9 @@ function ManifestTab({
                   </SelectContent>
                 </Select>
                 {validationAttempted && !editing.source_id?.trim() ? (
-                  <p className="text-xs text-destructive" role="alert">Source is required.</p>
+                  <p className="text-xs text-destructive" role="alert">
+                    Source is required.
+                  </p>
                 ) : null}
               </div>
               <LocationPinPair

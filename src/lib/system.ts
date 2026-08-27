@@ -304,15 +304,13 @@ export const serverFixMissingEndDates = createServerFn({ method: "POST" })
       if (row.end_date) continue;
       const snapshot = (row.snapshot ?? {}) as Record<string, unknown>;
       const trip = { ...((snapshot.trip ?? {}) as Record<string, unknown>) };
-      const start = String(row.start_date ?? trip.start_date ?? "");
-      if (!start) continue;
-      const end = new Date(`${start.slice(0, 10)}T00:00:00Z`);
-      end.setUTCDate(end.getUTCDate() + data.daysAfterStart);
-      const endDate = end.toISOString().slice(0, 10);
-      trip.end_date = endDate;
+      // Never fabricate an operational end date from the start date. A date may
+      // only be repaired when a trusted source already contains the real value.
+      const snapshotEndDate = String(trip.end_date ?? "").trim();
+      if (!snapshotEndDate) continue;
       const { error: updateError } = await supabaseAdmin
         .from("closed_trips")
-        .update({ end_date: endDate, snapshot: { ...snapshot, trip } })
+        .update({ end_date: snapshotEndDate, snapshot: { ...snapshot, trip } })
         .eq("id", id);
       if (updateError) throw new Error(updateError.message);
       updated += 1;
