@@ -47,7 +47,13 @@ import {
   type ContractLite,
   type EntryLite,
 } from "@/lib/trip-calc";
-import { fetchBranch, fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
+import {
+  fetchBranch,
+  fetchCompany,
+  fetchLocationMap,
+  printInternalNote,
+  printTripNote,
+} from "@/lib/trip-note-pdf";
 
 export type TripRow = {
   id?: string;
@@ -672,7 +678,7 @@ export function TripForm({
     sub: b.branch_type ?? undefined,
   }));
 
-  async function handleTripNote() {
+  async function handleTripNote(internal = false) {
     setGeneratingPdf(true);
     try {
       let tripQrDataUri: string | null = null;
@@ -726,7 +732,7 @@ export function TripForm({
       }
       const fromLoc = locations.find((l) => l.id === trip.start_location_id);
       const toLoc = locations.find((l) => l.id === trip.end_location_id);
-      await printTripNote({
+      const pdfData = {
         company,
         branch,
         trip: {
@@ -789,7 +795,12 @@ export function TripForm({
           from_location_name: locMap.get(m.from_location_id ?? "") || m.from_pin_code || null,
           to_location_name: locMap.get(m.to_location_id ?? "") || m.to_pin_code || null,
         })),
-      });
+      };
+      if (internal) {
+        await printInternalNote(pdfData, expenses);
+      } else {
+        await printTripNote(pdfData);
+      }
     } finally {
       setGeneratingPdf(false);
     }
@@ -817,7 +828,7 @@ export function TripForm({
           variant="outline"
           size="sm"
           className="ml-auto"
-          onClick={handleTripNote}
+          onClick={() => handleTripNote(false)}
           disabled={generatingPdf}
           title="Generate Trip Note PDF"
         >
@@ -827,6 +838,20 @@ export function TripForm({
             <Printer className="size-4" />
           )}
           Trip Note
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleTripNote(true)}
+          disabled={generatingPdf}
+          title="Generate Internal Note PDF with expenses"
+        >
+          {generatingPdf ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Printer className="size-4" />
+          )}
+          Internal Note
         </Button>
         {!isViewer && (
           <Button onClick={() => saveTrip()} disabled={saving}>

@@ -26,7 +26,12 @@ import { downloadCsv, toCsv } from "@/lib/csv";
 import { serverReopenTrip } from "@/lib/reopen-trip";
 import { useSession } from "@/lib/session";
 import { isAdminLike } from "@/lib/roles";
-import { fetchCompany, fetchLocationMap, printTripNote } from "@/lib/trip-note-pdf";
+import {
+  fetchCompany,
+  fetchLocationMap,
+  printInternalNote,
+  printTripNote,
+} from "@/lib/trip-note-pdf";
 import type { TripNoteBranch } from "@/lib/trip-note-pdf";
 
 // ── Snapshot shape (mirrors what closeTrip() writes) ──────────────────────────
@@ -177,7 +182,7 @@ export function ClosedTripDetail({
     }
   }
 
-  async function handleTripNote() {
+  async function handleTripNote(internal = false) {
     if (!record) return;
     setGeneratingPdf(true);
     try {
@@ -195,7 +200,7 @@ export function ClosedTripDetail({
         locMap.get(firstM.from_location_id as string) || String(firstM.from_pin_code ?? "");
       const lastName =
         locMap.get(lastM.to_location_id as string) || String(lastM.to_pin_code ?? "");
-      await printTripNote({
+      const pdfData = {
         company,
         branch: snap.branch as TripNoteBranch | null,
         trip: {
@@ -219,7 +224,19 @@ export function ClosedTripDetail({
           to_location_name:
             locMap.get(m.to_location_id as string) || String(m.to_pin_code ?? "") || null,
         })),
-      });
+      };
+      if (internal) {
+        await printInternalNote(
+          pdfData,
+          (snap.expenses ?? []).map((expense) => ({
+            name: expense.expense_name,
+            amount: expense.amount,
+            note: expense.note,
+          })),
+        );
+      } else {
+        await printTripNote(pdfData);
+      }
     } finally {
       setGeneratingPdf(false);
     }
@@ -259,7 +276,7 @@ export function ClosedTripDetail({
           size="sm"
           className="ml-auto"
           disabled={generatingPdf}
-          onClick={handleTripNote}
+          onClick={() => handleTripNote(false)}
           title="Generate Trip Note PDF"
         >
           {generatingPdf ? (
@@ -268,6 +285,20 @@ export function ClosedTripDetail({
             <Printer className="size-4" />
           )}
           Trip Note
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={generatingPdf}
+          onClick={() => handleTripNote(true)}
+          title="Generate Internal Note PDF with expenses"
+        >
+          {generatingPdf ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <Printer className="size-4" />
+          )}
+          Internal Note
         </Button>
         {isAdmin ? (
           <Button variant="outline" size="sm" disabled={reopening} onClick={handleReopen}>
