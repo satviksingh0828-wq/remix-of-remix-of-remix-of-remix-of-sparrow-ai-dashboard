@@ -36,7 +36,8 @@ async function requireAdminToken(token: string): Promise<string> {
   const expiresMs = Number(expiresStr);
   if (!uid || !role || !Number.isFinite(expiresMs)) throw new Error("Forbidden: malformed token.");
   if (Date.now() > expiresMs) throw new Error("Forbidden: session token has expired.");
-  if (role !== "admin" && role !== "semi_admin") throw new Error("Forbidden: admin access required.");
+  if (role !== "admin" && role !== "semi_admin")
+    throw new Error("Forbidden: admin access required.");
 
   try {
     const { createHmac, timingSafeEqual } = await import("crypto");
@@ -143,7 +144,7 @@ export const serverGetCorrectionTrips = createServerFn({ method: "POST" })
   .validator(
     z.object({
       sessionToken: z.string(),
-      purpose: z.enum(["missing_end_date", "freight"]),
+      purpose: z.enum(["missing_end_date", "freight", "missing_manifest_date"]),
       search: z.string().optional(),
     }),
   )
@@ -176,10 +177,20 @@ export const serverGetCorrectionTrips = createServerFn({ method: "POST" })
         };
       });
       const endDate = String(row.end_date ?? trip.end_date ?? "").trim();
+      const mapMoneyRows = (value: unknown) =>
+        ((value ?? []) as Record<string, unknown>[]).map((item) => ({
+          type: String(item.income_type ?? item.expense_type ?? item.type ?? item.name ?? "Other"),
+          amount: Number(item.amount ?? 0),
+        }));
+      const otherIncome = mapMoneyRows(snapshot.other_income);
+      const hasNoOtherIncome = otherIncome.reduce((sum, item) => sum + item.amount, 0) === 0;
       const matchesPurpose =
         data.purpose === "missing_end_date"
           ? !endDate
-          : mappedManifests.some((manifest) => manifest.freight === 0 || manifest.loading === 0);
+          : data.purpose === "missing_manifest_date"
+            ? mappedManifests.some((manifest) => !manifest.manifest_date)
+            : hasNoOtherIncome &&
+              mappedManifests.some((manifest) => manifest.freight === 0 || manifest.loading === 0);
       const matchesSearch =
         !search ||
         String(row.trip_code ?? "")
@@ -190,11 +201,6 @@ export const serverGetCorrectionTrips = createServerFn({ method: "POST" })
           .includes(search);
       if (!matchesPurpose || !matchesSearch) return [];
 
-      const mapMoneyRows = (value: unknown) =>
-        ((value ?? []) as Record<string, unknown>[]).map((item) => ({
-          type: String(item.income_type ?? item.expense_type ?? item.type ?? item.name ?? "Other"),
-          amount: Number(item.amount ?? 0),
-        }));
       return [
         {
           id: row.id,
@@ -203,15 +209,77 @@ export const serverGetCorrectionTrips = createServerFn({ method: "POST" })
           start_date: row.start_date || String(trip.start_date ?? "") || null,
           end_date: endDate || null,
           ownership: String(trip.ownership ?? "own") === "rented" ? "rented" : "own",
-          manifests: mappedManifests.filter(
-            (manifest) =>
-              data.purpose !== "freight" || manifest.freight === 0 || manifest.loading === 0,
-          ),
-          other_income: mapMoneyRows(snapshot.other_income),
+          // Charge correction shows the complete trip context. Date correction
+          // only needs the manifests whose date is absent.
+          manifests:
+            data.purpose === "missing_manifest_date"
+              ? mappedManifests.filter((manifest) => !manifest.manifest_date)
+              : mappedManifests,
+          other_income: otherIncome,
           expenses: mapMoneyRows(snapshot.expenses),
         },
       ];
     });
+  });
+
+const manifestDateCorrectionSchema = z.object({
+  tripId: z.string(),
+  manifestIndex: z.number().int().nonnegative(),
+  manifestNumber: z.string(),
+  manifestDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use a valid date in YYYY-MM-DD format."),
+});
+
+export const serverUpdateCorrectionManifestDates = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      sessionToken: z.string(),
+      corrections: z.array(manifestDateCorrectionSchema).min(1).max(1000),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireAdminToken(data.sessionToken);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const byTrip = new Map<string, typeof data.corrections>();
+    for (const correction of data.corrections) {
+      const parsed = new Date(`${correction.manifestDate}T00:00:00Z`);
+      if (
+        Number.isNaN(parsed.getTime()) ||
+        parsed.toISOString().slice(0, 10) !== correction.manifestDate
+      ) {
+        throw new Error(`Invalid manifest date for ${correction.manifestNumber || "manifest"}.`);
+      }
+      byTrip.set(correction.tripId, [...(byTrip.get(correction.tripId) ?? []), correction]);
+    }
+
+    let updated = 0;
+    for (const [tripId, corrections] of byTrip) {
+      const { data: row, error } = await supabaseAdmin
+        .from("closed_trips")
+        .select("snapshot")
+        .eq("id", tripId)
+        .single();
+      if (error) throw new Error(error.message);
+      const snapshot = (row.snapshot ?? {}) as Record<string, unknown>;
+      const manifests = [...((snapshot.manifests ?? []) as Record<string, unknown>[])];
+      for (const correction of corrections) {
+        const manifest = manifests[correction.manifestIndex];
+        if (!manifest) throw new Error("Manifest was not found in the closed trip.");
+        if (String(manifest.manifest_number ?? "") !== correction.manifestNumber) {
+          throw new Error("Manifest details changed. Refresh the correction panel and try again.");
+        }
+        manifests[correction.manifestIndex] = {
+          ...manifest,
+          manifest_date: correction.manifestDate,
+        };
+        updated += 1;
+      }
+      const { error: updateError } = await supabaseAdmin
+        .from("closed_trips")
+        .update({ snapshot: { ...snapshot, manifests } })
+        .eq("id", tripId);
+      if (updateError) throw new Error(updateError.message);
+    }
+    return updated;
   });
 
 export const serverFixMissingEndDates = createServerFn({ method: "POST" })
