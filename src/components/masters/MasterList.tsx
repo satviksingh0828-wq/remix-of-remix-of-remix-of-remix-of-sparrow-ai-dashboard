@@ -4,6 +4,7 @@ import {
   Loader2,
   MapPin,
   Plus,
+  Search,
   Save,
   Trash2,
   Upload,
@@ -158,6 +159,8 @@ export function MasterList({
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [locationOffset, setLocationOffset] = useState(0);
+  const [locationSearch, setLocationSearch] = useState("");
+  const [locationSearchBy, setLocationSearchBy] = useState<"location_name" | "pin_code">("location_name");
   const branches = useBranches();
   const { user } = useSession();
   const isAdmin = isAdminLike(user?.role);
@@ -189,11 +192,13 @@ export function MasterList({
       }
 
       if (isLocations) {
-        const res = await (supabase
+        let locationsQuery = supabase
           .from("locations")
           .select("*")
-          .order("created_at", { ascending: true })
-          .range(0, PAGE_SIZE - 1) as unknown as Promise<{
+          .order("created_at", { ascending: true });
+        const search = locationSearch.trim();
+        if (search) locationsQuery = locationsQuery.ilike(locationSearchBy, `%${search}%`);
+        const res = await (locationsQuery.range(0, PAGE_SIZE - 1) as unknown as Promise<{
           data: Row[] | null;
           error: { message: string } | null;
         }>);
@@ -244,7 +249,7 @@ export function MasterList({
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [config.table, user?.id]);
+  }, [config.table, user?.id, locationSearch, locationSearchBy]);
 
   const set = (k: string) => (v: string) => setEditing((f) => (f ? { ...f, [k]: v } : f));
 
@@ -549,6 +554,37 @@ export function MasterList({
         </div>
       </div>
 
+      {isLocations ? (
+        <div className="surface-card flex flex-wrap items-center gap-2 p-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Search className="size-4 text-muted-foreground" />
+            <span className="sr-only">Search locations</span>
+            <Select value={locationSearchBy} onValueChange={(value) => setLocationSearchBy(value as "location_name" | "pin_code")}>
+              <SelectTrigger className="h-9 w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="location_name">By name</SelectItem>
+                <SelectItem value="pin_code">By PIN code</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            value={locationSearch}
+            onChange={(event) => setLocationSearch(event.target.value)}
+            placeholder={locationSearchBy === "pin_code" ? "Search by PIN code" : "Search by location name"}
+            inputMode={locationSearchBy === "pin_code" ? "numeric" : "text"}
+            className="h-9 min-w-[220px] flex-1"
+            aria-label={locationSearchBy === "pin_code" ? "Search locations by PIN code" : "Search locations by name"}
+          />
+          {locationSearch ? (
+            <Button type="button" variant="ghost" size="sm" onClick={() => setLocationSearch("")}>
+              Clear
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -560,7 +596,11 @@ export function MasterList({
           <span className="flex size-12 items-center justify-center rounded-2xl bg-primary-soft text-primary">
             <Icon className="size-6" />
           </span>
-          <p className="mt-4 text-sm font-medium">No {config.entityLabel.toLowerCase()} yet</p>
+          <p className="mt-4 text-sm font-medium">
+            {isLocations && locationSearch.trim()
+              ? "No locations match your search"
+              : `No ${config.entityLabel.toLowerCase()} yet`}
+          </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {isBasic
               ? "No records found for your assigned branches."
