@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
   AlertTriangle,
-  BarChart3,
   ChevronRight,
   Database,
   PanelLeftClose,
@@ -17,7 +16,6 @@ import { AppShell } from "@/components/AppShell";
 import { MobileTabDropdown } from "@/components/MobileTabDropdown";
 import { ErrorPanel } from "@/components/system/ErrorPanel";
 import { DatabaseStats } from "@/components/system/DatabaseStats";
-import { ProjectStats } from "@/components/system/ProjectStats";
 import { SecurityPanel } from "@/components/system/SecurityPanel";
 import { CorrectionPanel } from "@/components/system/CorrectionPanel";
 import { LogsPanel } from "@/components/users/LogsPanel";
@@ -64,12 +62,6 @@ const TABS = [
     label: "Security",
     desc: "Passkeys, sessions & failed logins",
     icon: ShieldCheck,
-  },
-  {
-    id: "project",
-    label: "Project Stats",
-    desc: "Supabase project & Management API info",
-    icon: BarChart3,
   },
   {
     id: "logs",
@@ -178,7 +170,6 @@ function SystemPage() {
           {tab === "corrections" && <CorrectionPanel />}
           {tab === "db" && <DatabaseStats />}
           {tab === "security" && <SecurityPanel />}
-          {tab === "project" && <ProjectStats />}
           {tab === "logs" && <LogsPanel />}
         </div>
       </div>

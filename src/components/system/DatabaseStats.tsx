@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Database,
+  ExternalLink,
   HardDrive,
   RefreshCw,
   Server,
@@ -95,6 +96,30 @@ export function DatabaseStats() {
 
   return (
     <div className="space-y-8">
+      {/* Connection Info */}
+      <div>
+        <SectionTitle>Connection Info</SectionTitle>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">API URL</p>
+              <p className="mt-1 break-all font-mono text-sm text-foreground">
+                https://github.com/satviksingh0828-wq/remix-of-remix-of-remix-of-remix-of-sparrow-ai-dashboard
+              </p>
+            </div>
+            <a
+              href="https://github.com/satviksingh0828-wq/remix-of-remix-of-remix-of-remix-of-sparrow-ai-dashboard"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            >
+              Open URL
+              <ExternalLink className="size-3.5" />
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Top row refresh */}
       <div className="flex items-center justify-between">
         <p className="text-xs text-muted-foreground">Live stats from PostgreSQL system views.</p>
