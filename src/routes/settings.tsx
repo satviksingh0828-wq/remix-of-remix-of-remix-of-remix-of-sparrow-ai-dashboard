@@ -1,6 +1,8 @@
 import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  Building,
+  Building2,
   Check,
   ChevronRight,
   PanelLeftClose,
@@ -8,10 +10,14 @@ import {
   Loader2,
   Palette,
   ShieldCheck,
+  Wifi,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
 import { MobileTabDropdown } from "@/components/MobileTabDropdown";
+import { CompanySettings } from "@/components/settings/CompanySettings";
+import { BranchSettings } from "@/components/settings/BranchSettings";
+import { AttendanceModuleSettings } from "@/components/settings/AttendanceModuleSettings";
 import { THEMES, useTheme, type ThemeId } from "@/lib/theme";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -48,7 +54,10 @@ function SettingsRouteContent() {
 }
 
 const TABS = [
+  { id: "company", label: "Company", desc: "Profile & registration", icon: Building },
+  { id: "branch", label: "Branch", desc: "Locations & managers", icon: Building2 },
   { id: "theme", label: "Theme Settings", desc: "Universal app appearance", icon: Palette },
+  { id: "attendance", label: "Attendance Module", desc: "Device & service connection", icon: Wifi },
   { id: "passkey", label: "Passkey Security", desc: "Admin-controlled device protection", icon: ShieldCheck },
 ] as const;
 
@@ -57,7 +66,7 @@ type TabId = (typeof TABS)[number]["id"];
 function SettingsPage() {
   const { user } = useSession();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<TabId>("theme");
+  const [tab, setTab] = useState<TabId>("company");
   const [navOpen, setNavOpen] = useState(true);
 
   useEffect(() => {
@@ -143,7 +152,10 @@ function SettingsPage() {
             <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
             <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
           </header>
+          {tab === "company" ? <CompanySettings /> : null}
+          {tab === "branch" ? <BranchSettings /> : null}
           {tab === "theme" ? <ThemePanel /> : null}
+          {tab === "attendance" ? <AttendanceModuleSettings /> : null}
           {tab === "passkey" ? <PasskeySecurityPanel /> : null}
         </div>
       </div>
