@@ -14,7 +14,7 @@ import {
   Table2,
   Zap,
 } from "lucide-react";
-import { serverGetDbStats, type DbStats } from "@/lib/system";
+import { serverGetDbStats, serverGetProjectStats, type DbStats } from "@/lib/system";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -57,17 +57,24 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export function DatabaseStats() {
   const { user } = useSession();
-  const [stats,   setStats]   = useState<DbStats | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [stats,       setStats]       = useState<DbStats | null>(null);
+  const [supabaseUrl, setSupabaseUrl] = useState<string | null>(null);
+  const [loading,     setLoading]     = useState(false);
+  const [error,       setError]       = useState<string | null>(null);
 
   async function load() {
     if (!user?.sessionToken) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await serverGetDbStats({ data: { sessionToken: user.sessionToken } });
-      setStats(data);
+      const [dbResult, projectResult] = await Promise.allSettled([
+        serverGetDbStats({ data: { sessionToken: user.sessionToken } }),
+        serverGetProjectStats({ data: { sessionToken: user.sessionToken } }),
+      ]);
+
+      if (dbResult.status === "rejected") throw dbResult.reason;
+      setStats(dbResult.value);
+      setSupabaseUrl(projectResult.status === "fulfilled" ? projectResult.value.supabase_url : null);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -104,18 +111,18 @@ export function DatabaseStats() {
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">API URL</p>
               <p className="mt-1 break-all font-mono text-sm text-foreground">
-                https://github.com/satviksingh0828-wq/remix-of-remix-of-remix-of-remix-of-sparrow-ai-dashboard
+                {supabaseUrl ?? (loading ? "Loading…" : "Unavailable")}
               </p>
             </div>
-            <a
-              href="https://github.com/satviksingh0828-wq/remix-of-remix-of-remix-of-remix-of-sparrow-ai-dashboard"
+            {supabaseUrl && <a
+              href={supabaseUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex shrink-0 items-center gap-1.5 text-xs font-medium text-primary hover:underline"
             >
               Open URL
               <ExternalLink className="size-3.5" />
-            </a>
+            </a>}
           </div>
         </div>
       </div>
