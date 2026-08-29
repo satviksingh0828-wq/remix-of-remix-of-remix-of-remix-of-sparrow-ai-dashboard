@@ -76,8 +76,18 @@ function excelDate(value: string) {
   if (!match) return value;
   const [, year, month, day] = match;
   const monthName = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ][Number(month) - 1];
   return monthName ? `${day}-${monthName}-${year}` : value;
 }
@@ -143,7 +153,8 @@ function buildBranchPools(
 
 export function TripDetailsPanel() {
   const { user } = useSession();
-  const canSeeMoney = user?.role === "admin" || user?.role === "semi_admin" || user?.role === "viewer";
+  const canSeeMoney =
+    user?.role === "admin" || user?.role === "semi_admin" || user?.role === "viewer";
   const canSeeExpense = canSeeMoney || user?.role === "basic";
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
@@ -324,8 +335,31 @@ export function TripDetailsPanel() {
           "Final Profit (₹)",
         ]
       : canSeeExpense
-        ? ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Vehicle Number", "Trip Expense (₹)"]
-        : ["Branch", "Trip", "Trip Start Date", "Trip End Date", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Vehicle Number"];
+        ? [
+            "Branch",
+            "Trip",
+            "Trip Start Date",
+            "Trip End Date",
+            "No. of Manifest",
+            "Weight (kg)",
+            "Quantity",
+            "Distance Travelled (km)",
+            "Type (Renter/Own)",
+            "Vehicle Number",
+            "Trip Expense (₹)",
+          ]
+        : [
+            "Branch",
+            "Trip",
+            "Trip Start Date",
+            "Trip End Date",
+            "No. of Manifest",
+            "Weight (kg)",
+            "Quantity",
+            "Distance Travelled (km)",
+            "Type (Renter/Own)",
+            "Vehicle Number",
+          ];
     const tripRows: (string | number)[][] = [
       tripHeaders,
       ...filteredRows.map((row) =>
@@ -361,7 +395,18 @@ export function TripDetailsPanel() {
                 row.vehicle_number || "—",
                 row.total_expense,
               ]
-              : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), row.manifests.length, row.total_weight, row.total_quantity, row.distance_travelled ?? "—", ownershipLabel(row.ownership), row.vehicle_number || "—"],
+            : [
+                row.branch_name || "—",
+                row.trip_code || "—",
+                excelDate(row.start_date),
+                excelDate(row.end_date),
+                row.manifests.length,
+                row.total_weight,
+                row.total_quantity,
+                row.distance_travelled ?? "—",
+                ownershipLabel(row.ownership),
+                row.vehicle_number || "—",
+              ],
       ),
     ];
     if (canSeeMoney) {
@@ -370,7 +415,11 @@ export function TripDetailsPanel() {
         "",
         "",
         "",
-        "", "", "", "", "",
+        "",
+        "",
+        "",
+        "",
+        "",
         total("expenseDistribution"),
         total("total_income"),
         total("total_expense"),
@@ -392,7 +441,9 @@ export function TripDetailsPanel() {
           "Manifest Date",
           "Manifest No.",
           "From Location",
+          "From Location Pin Code",
           "To Location",
+          "To Location Pin Code",
           "Weight (kg)",
           "Quantity",
           "Trip Expense (₹)",
@@ -409,7 +460,9 @@ export function TripDetailsPanel() {
             "Manifest Date",
             "Manifest No.",
             "From Location",
+            "From Location Pin Code",
             "To Location",
+            "To Location Pin Code",
             "Weight (kg)",
             "Quantity",
             "Trip Expense (₹)",
@@ -422,7 +475,9 @@ export function TripDetailsPanel() {
             "Manifest Date",
             "Manifest No.",
             "From Location",
+            "From Location Pin Code",
             "To Location",
+            "To Location Pin Code",
             "Weight (kg)",
             "Quantity",
           ];
@@ -437,10 +492,54 @@ export function TripDetailsPanel() {
       if (row.manifestRows.length === 0) {
         manifestRows.push(
           canSeeMoney
-            ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", "", "", "", "", ""]
+            ? [
+                row.branch_name || "—",
+                row.trip_code || "—",
+                excelDate(row.start_date),
+                excelDate(row.end_date),
+                "—",
+                "—",
+                "—",
+                "—",
+                "—",
+                "—",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+              ]
             : canSeeExpense
-              ? [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", "", ""]
-              : [row.branch_name || "—", row.trip_code || "—", excelDate(row.start_date), excelDate(row.end_date), "—", "—", "—", "—", "", ""],
+              ? [
+                  row.branch_name || "—",
+                  row.trip_code || "—",
+                  excelDate(row.start_date),
+                  excelDate(row.end_date),
+                  "—",
+                  "—",
+                  "—",
+                  "—",
+                  "—",
+                  "—",
+                  "",
+                  "",
+                  "",
+                ]
+              : [
+                  row.branch_name || "—",
+                  row.trip_code || "—",
+                  excelDate(row.start_date),
+                  excelDate(row.end_date),
+                  "—",
+                  "—",
+                  "—",
+                  "—",
+                  "—",
+                  "—",
+                  "",
+                  "",
+                ],
         );
         continue;
       }
@@ -459,7 +558,9 @@ export function TripDetailsPanel() {
           excelDate(manifest.manifest_date),
           manifest.manifest_number || "—",
           manifest.from_location || "—",
+          manifest.from_pin_code || "—",
           manifest.to_location || "—",
+          manifest.to_pin_code || "—",
           manifest.weight_kg,
           manifest.quantity,
         ];
@@ -479,7 +580,18 @@ export function TripDetailsPanel() {
       }
     }
     const manifestTotals: (string | number)[] = [
-      "TOTALS", "", "", "", "", "", "", "", "", "",
+      "TOTALS",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
     ];
     if (canSeeMoney) {
       manifestTotals.push(
@@ -495,15 +607,19 @@ export function TripDetailsPanel() {
 
     const tripSheet = XLSX.utils.aoa_to_sheet(tripRows);
     tripSheet["!cols"] = (
-      canSeeMoney ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 20, 18, 18, 18, 18, 18] : canSeeExpense ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 20, 18] : [18, 18, 16, 16, 16, 14, 12, 22, 18, 20]
+      canSeeMoney
+        ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 20, 18, 18, 18, 18, 18]
+        : canSeeExpense
+          ? [18, 18, 16, 16, 16, 14, 12, 22, 18, 20, 18]
+          : [18, 18, 16, 16, 16, 14, 12, 22, 18, 20]
     ).map((wch) => ({ wch }));
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
       canSeeMoney
-        ? [18, 18, 16, 16, 16, 18, 20, 20, 12, 12, 18, 20, 20, 16]
+        ? [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18, 20, 20, 16]
         : canSeeExpense
-          ? [18, 18, 16, 16, 16, 18, 20, 20, 12, 12, 18]
-          : [18, 18, 16, 16, 16, 18, 20, 20, 12, 12]
+          ? [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18]
+          : [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12]
     ).map((wch) => ({ wch }));
 
     const workbook = XLSX.utils.book_new();
@@ -735,9 +851,17 @@ export function TripDetailsPanel() {
                             {displayDate(row.end_date)}
                           </td>
                           <td className="px-4 py-3 text-right">{row.manifests.length}</td>
-                          <td className="px-4 py-3 text-right">{row.total_weight.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-right">{row.total_quantity.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-right">{row.distance_travelled === null ? "—" : `${row.distance_travelled.toLocaleString()} km`}</td>
+                          <td className="px-4 py-3 text-right">
+                            {row.total_weight.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {row.total_quantity.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {row.distance_travelled === null
+                              ? "—"
+                              : `${row.distance_travelled.toLocaleString()} km`}
+                          </td>
                           <td className="px-4 py-3">{ownershipLabel(row.ownership)}</td>
                           <td className="px-4 py-3">{row.vehicle_number || "—"}</td>
                           {canSeeMoney && (
