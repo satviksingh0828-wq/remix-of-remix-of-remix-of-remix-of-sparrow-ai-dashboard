@@ -7,6 +7,7 @@ import {
   ClipboardList,
   ChevronRight,
   DollarSign,
+  CreditCard,
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
@@ -32,6 +33,8 @@ import { TripImport } from "@/components/import/TripImport";
 import { useSession } from "@/lib/session";
 import { isAdminLike } from "@/lib/roles";
 import { MonthlyMIS } from "@/components/operations/MonthlyMIS";
+import { FastagLedger } from "@/components/reports/FastagLedger";
+import { ReportFiltersContext } from "@/lib/report-filters";
 
 export const Route = createFileRoute("/operations")({
   head: () => ({
@@ -120,6 +123,15 @@ const ALL_TABS = [
     label: "Booking Report",
     desc: "Your branch booking and expense report",
     icon: FileText,
+    adminOnly: false,
+    basicOnly: true,
+    dividerBefore: false,
+  },
+  {
+    id: "fastag-report",
+    label: "Fastag Report",
+    desc: "Branch vehicle balances & recharges",
+    icon: CreditCard,
     adminOnly: false,
     basicOnly: true,
     dividerBefore: false,
@@ -283,6 +295,13 @@ function OperationsPage() {
           {safeTab === "trip-details" && user?.role === "basic" && (
             <TabErrorBoundary label="Booking Report">
               <TripDetailsPanel />
+            </TabErrorBoundary>
+          )}
+          {safeTab === "fastag-report" && user?.role === "basic" && (
+            <TabErrorBoundary label="Fastag Report">
+              <ReportFiltersContext.Provider value={{ branchId: "all", financialYear: "none" }}>
+                <FastagLedger />
+              </ReportFiltersContext.Provider>
             </TabErrorBoundary>
           )}
           {safeTab === "emi-scheduler" && (isAdmin || isViewer) && (

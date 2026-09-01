@@ -15,6 +15,7 @@ import {
   Users,
   WalletCards,
   CalendarRange,
+  Wallet,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -29,6 +30,7 @@ import { OtherExpenseReport } from "@/components/reports/OtherExpenseReport";
 import { ApprovalChargeAdvanceReport } from "@/components/reports/ApprovalChargeAdvanceReport";
 import { MonthlyMISReport } from "@/components/reports/MonthlyMISReport";
 import { TripDetailsPanel } from "@/components/operations/TripDetailsPanel";
+import { CashLedger } from "@/components/reports/CashLedger";
 import { useSession } from "@/lib/session";
 import { ReportFiltersContext } from "@/lib/report-filters";
 import { useBranches } from "@/lib/use-branches";
@@ -93,6 +95,12 @@ const TABS = [
     icon: CreditCard,
   },
   {
+    id: "cash-ledger",
+    label: "Cash Ledger",
+    desc: "Monthly cash receipts, payments & trip movement",
+    icon: Wallet,
+  },
+  {
     id: "vehicle-expenses",
     label: "Vehicle Expenses",
     desc: "Fuel, parking & distance per vehicle",
@@ -155,7 +163,9 @@ function ReportsPage() {
             Workspace
           </Link>
           <ChevronRight className="size-3.5" />
-          <Link to="/tms" className="hover:text-foreground">TMS</Link>
+          <Link to="/tms" className="hover:text-foreground">
+            TMS
+          </Link>
           <ChevronRight className="size-3.5" />
           <span className="text-foreground">Reports</span>
         </span>
@@ -225,7 +235,7 @@ function ReportsPage() {
               <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
             </header>
-            {tab !== "pnl-compare" && tab !== "monthly-mis" && (
+            {tab !== "pnl-compare" && tab !== "monthly-mis" && tab !== "cash-ledger" && (
               <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-border bg-muted/30 p-3">
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger className="h-9 w-44">
@@ -261,6 +271,7 @@ function ReportsPage() {
             {tab === "insurance" && <CoverageLedger type="insurance" />}
             {tab === "road-tax" && <CoverageLedger type="road_tax" />}
             {tab === "fastag" && <FastagLedger />}
+            {tab === "cash-ledger" && <CashLedger />}
             {tab === "vehicle-expenses" && <VehicleExpenseReport />}
             {tab === "driver-expenses" && <DriverExpenseReport />}
             {tab === "transporter-expenses" && <TransporterExpenseReport />}
