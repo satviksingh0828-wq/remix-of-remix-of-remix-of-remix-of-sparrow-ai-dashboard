@@ -34,6 +34,7 @@ import { fetchAll } from "@/lib/fetch-all";
 import { downloadCsv, toCsv } from "@/lib/csv";
 import { financialYearRange } from "@/lib/financial-year";
 import { useReportFilters } from "@/lib/report-filters";
+import { useSession } from "@/lib/session";
 
 interface Vehicle {
   id: string;
@@ -61,6 +62,9 @@ interface FastagTransaction {
 
 export function FastagLedger() {
   const { branchId, financialYear } = useReportFilters();
+  const { user } = useSession();
+  const isBasic = user?.role === "basic";
+  const assignedBranchIds = user?.branchIds ?? [];
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [balances, setBalances] = useState<FastagBalance[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,13 +86,37 @@ export function FastagLedger() {
   async function loadData() {
     setLoading(true);
     try {
+      // Basic users may view and recharge only vehicles assigned to their branches.
+      // Do not fall back to all vehicles when their account has no branch assignment.
+      if (isBasic && assignedBranchIds.length === 0) {
+        setVehicles([]);
+        setBalances([]);
+        return;
+      }
+
+      const branchIds = isBasic
+        ? branchId === "all"
+          ? assignedBranchIds
+          : assignedBranchIds.includes(branchId)
+            ? [branchId]
+            : []
+        : branchId === "all"
+          ? null
+          : [branchId];
+
+      if (branchIds?.length === 0) {
+        setVehicles([]);
+        setBalances([]);
+        return;
+      }
+
       // 1. Load all vehicles
       const vehiclesData = await fetchAll<any>(() => {
         let query = supabase
           .from("vehicles")
           .select("id,registration_number,nickname,branch_id")
           .order("registration_number");
-        if (branchId !== "all") query = query.eq("branch_id", branchId);
+        if (branchIds) query = query.in("branch_id", branchIds);
         return query;
       });
       setVehicles(vehiclesData);
@@ -193,7 +221,7 @@ export function FastagLedger() {
 
   useEffect(() => {
     loadData();
-  }, [branchId, financialYear]);
+  }, [branchId, financialYear, isBasic, assignedBranchIds.join(",")]);
 
   const filteredBalances = useMemo(() => {
     const s = search.toLowerCase();
