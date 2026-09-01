@@ -825,7 +825,7 @@ ALLOWED ROUTES: ${routes.join(", ")}
 ${buildCapabilitySummary(role)}
 
 ━━━ WHERE THINGS LIVE ━━━
-- Trips, Income, Expenditure, Driver Payroll → /operations (sidebar tabs)
+- Trips, Income, Expenditure, Driver Payroll, and (basic users only) Fastag Report → /operations (sidebar tabs)
 - Drivers, Vehicles, Transporters, Locations, Sources → /masters (sidebar tabs)
 - Dashboard, Reports → /dashboard, /reports (admin only)
 

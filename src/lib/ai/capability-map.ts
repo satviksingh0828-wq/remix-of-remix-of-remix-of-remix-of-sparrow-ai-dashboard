@@ -14,7 +14,7 @@ export type CapabilityField = {
 export type CapabilityModule = {
   route: string;
   adminOnly?: boolean;
-  tabs?: { label: string; adminOnly?: boolean; openButton?: string; fields?: CapabilityField[] }[];
+  tabs?: { label: string; adminOnly?: boolean; basicOnly?: boolean; openButton?: string; fields?: CapabilityField[] }[];
 };
 
 export const AI_CAPABILITY_MAP: CapabilityModule[] = [
@@ -44,6 +44,12 @@ export const AI_CAPABILITY_MAP: CapabilityModule[] = [
         { label: "Transporter", type: "picker", optionsSource: "transporters" },
       ] },
       { label: "Driver Payroll" },
+      { label: "Fastag Report", basicOnly: true, openButton: "Add Recharge", fields: [
+        { label: "Vehicle", type: "dropdown", required: true, optionsSource: "vehicles" },
+        { label: "Amount (₹)", type: "number", required: true },
+        { label: "Date", type: "date", required: true },
+        { label: "Note (Optional)", type: "text" },
+      ] },
       { label: "Fixed Income", adminOnly: true },
       { label: "Trip Averages", adminOnly: true },
       { label: "EMI Scheduler", adminOnly: true },
@@ -78,7 +84,10 @@ export function buildCapabilitySummary(role: string) {
   return AI_CAPABILITY_MAP
     .filter((m) => isAdmin || !m.adminOnly || (isSemiAdmin && m.route !== "/users" && m.route !== "/settings" && m.route !== "/dashboard"))
     .map((m) => {
-      const tabs = (m.tabs ?? []).filter((t) => isElevated || !t.adminOnly);
+      const tabs = (m.tabs ?? []).filter((t) => {
+        if (t.basicOnly) return role === "basic";
+        return isElevated || !t.adminOnly;
+      });
       const tabText = tabs.length ? ` tabs: ${tabs.map((t) => `${t.label}${t.openButton ? ` (button: ${t.openButton})` : ""}`).join(", ")}` : "";
       const fields = tabs.flatMap((t) => (t.fields ?? []).map((f) => `${t.label}.${f.label}:${f.type}${f.required ? ":required" : ""}`));
       return `${m.route}${tabText}${fields.length ? ` fields: ${fields.join("; ")}` : ""}`;
