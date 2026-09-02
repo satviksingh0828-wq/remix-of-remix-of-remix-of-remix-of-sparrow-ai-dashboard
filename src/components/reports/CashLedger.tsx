@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, FileDown, Plus, RefreshCw, Wallet } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,6 +8,7 @@ import { inr } from "@/lib/trip-calc";
 import { useSession } from "@/lib/session";
 import { isAdminLike } from "@/lib/roles";
 import { useBranches } from "@/lib/use-branches";
+import { openBrandedTablePdf } from "@/lib/branded-pdf";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,7 +39,11 @@ type CashRow = {
     | "Income"
     | "Expenditure"
     | "Trip income"
-    | "Trip expense";
+    | "Trip expense"
+    | "Fastag Balance"
+    | "Hire Charges"
+    | "Freight/Loading"
+    | "Approval Charge";
   narration: string;
   amount: number;
 };
@@ -77,7 +80,16 @@ export function CashLedger() {
       const { start, end } = monthRange(month);
       const scope = <T extends { eq: (column: string, value: string) => T }>(query: T) =>
         branchId === "all" ? query : query.eq("branch_id", branchId);
-      const [manual, incomes, expenditures, openTrips, closedTrips] = await Promise.all([
+      const [
+        manual,
+        incomes,
+        expenditures,
+        closedTrips,
+        fastagRecharges,
+        freightReceipts,
+        approvalReceipts,
+        hirePayments,
+      ] = await Promise.all([
         fetchAll<any>(() =>
           scope(
             supabase
@@ -103,8 +115,9 @@ export function CashLedger() {
           scope(
             supabase
               .from("expenditures")
-              .select("id,branch_id,expenditure_name,amount,note,paid_date")
+              .select("id,branch_id,expenditure_name,amount,note,paid_date,is_fastag_recharge")
               .eq("is_paid", true)
+              .eq("is_fastag_recharge", false)
               .gte("paid_date", start)
               .lt("paid_date", end)
               .order("paid_date", { ascending: false }),
@@ -113,125 +126,161 @@ export function CashLedger() {
         fetchAll<any>(() =>
           scope(
             supabase
-              .from("trips")
-              .select("id,trip_code,branch_id,start_date")
-              .gte("start_date", start)
-              .lt("start_date", end),
+              .from("closed_trips")
+              .select("id,trip_code,branch_id,end_date,snapshot")
+              .gte("end_date", start)
+              .lt("end_date", end),
+          ),
+        ),
+        fetchAll<any>(() =>
+          supabase
+            .from("fastag_transactions")
+            .select(
+              "id,vehicle_id,amount,transaction_date,note,vehicles(branch_id,registration_number)",
+            )
+            .eq("transaction_type", "recharge")
+            .gte("transaction_date", start)
+            .lt("transaction_date", end),
+        ),
+        fetchAll<any>(() =>
+          scope(
+            supabase
+              .from("freight_loading_receipts" as any)
+              .select("*")
+              .eq("is_received", true)
+              .gte("received_date", start)
+              .lt("received_date", end) as any,
           ),
         ),
         fetchAll<any>(() =>
           scope(
             supabase
-              .from("closed_trips")
-              .select("id,trip_code,branch_id,end_date,total_income,total_expense")
-              .gte("end_date", start)
-              .lt("end_date", end),
+              .from("approval_charge_receipts" as any)
+              .select("*")
+              .eq("is_received", true)
+              .gte("received_date", start)
+              .lt("received_date", end) as any,
           ),
         ),
+        fetchAll<any>(
+          () =>
+            supabase
+              .from("approval_charge_advances" as any)
+              .select("id,trip_code,advance,updated_at")
+              .gt("advance", 0)
+              .gte("updated_at", start)
+              .lt("updated_at", end) as any,
+        ),
       ]);
-
-      const openIds = openTrips.map((trip) => trip.id);
-      const [openIncome, openExpenses] = await Promise.all([
-        openIds.length
-          ? fetchAll<any>(() =>
-              supabase
-                .from("trip_other_income")
-                .select("trip_id,income_name,amount,note")
-                .in("trip_id", openIds),
-            )
-          : Promise.resolve([]),
-        openIds.length
-          ? fetchAll<any>(() =>
-              supabase
-                .from("trip_expenses")
-                .select("trip_id,expense_name,amount,note")
-                .in("trip_id", openIds),
-            )
-          : Promise.resolve([]),
-      ]);
-      const openTripById = new Map(openTrips.map((trip) => [trip.id, trip]));
+      const normal = (value: unknown) =>
+        String(value ?? "")
+          .trim()
+          .toLowerCase();
       const ledgerRows: CashRow[] = [
-        ...manual.map((entry) => ({
-          id: `manual-${entry.id}`,
-          date: entry.entry_date,
-          branchId: entry.branch_id,
-          type: entry.entry_type === "refill" ? "cash_in" : "cash_out",
-          source: entry.entry_type === "refill" ? "Cash refill" : "Cash withdrawal",
+        ...manual.map((e) => ({
+          id: `manual-${e.id}`,
+          date: e.entry_date,
+          branchId: e.branch_id,
+          type: e.entry_type === "refill" ? ("cash_in" as const) : ("cash_out" as const),
+          source:
+            e.entry_type === "refill" ? ("Cash refill" as const) : ("Cash withdrawal" as const),
           narration:
-            entry.note ||
-            (entry.entry_type === "refill" ? "Cash refill receipt" : "Cash withdrawal"),
-          amount: money(entry.amount),
+            e.note || (e.entry_type === "refill" ? "Cash refill receipt" : "Cash withdrawal"),
+          amount: money(e.amount),
         })),
-        ...incomes.map((income) => ({
-          id: `income-${income.id}`,
-          date: income.received_date,
-          branchId: income.branch_id,
+        ...incomes.map((e) => ({
+          id: `income-${e.id}`,
+          date: e.received_date,
+          branchId: e.branch_id,
           type: "cash_in" as const,
           source: "Income" as const,
-          narration: `${income.income_name}${income.note ? ` — ${income.note}` : ""}`,
-          amount: money(income.amount),
+          narration: `${e.income_name}${e.note ? ` — ${e.note}` : ""}`,
+          amount: money(e.amount),
         })),
-        ...expenditures.map((expense) => ({
-          id: `expense-${expense.id}`,
-          date: expense.paid_date,
-          branchId: expense.branch_id,
-          type: "cash_out" as const,
-          source: "Expenditure" as const,
-          narration: `${expense.expenditure_name}${expense.note ? ` — ${expense.note}` : ""}`,
-          amount: money(expense.amount),
-        })),
-        ...openIncome.map((income) => {
-          const trip = openTripById.get(income.trip_id);
-          return {
-            id: `open-income-${income.trip_id}-${income.income_name}-${income.amount}`,
-            date: trip?.start_date ?? start,
-            branchId: trip?.branch_id ?? null,
-            type: "cash_in" as const,
-            source: "Trip income" as const,
-            narration: `${trip?.trip_code ?? "Trip"}: ${income.income_name}${income.note ? ` — ${income.note}` : ""}`,
-            amount: money(income.amount),
-          };
-        }),
-        ...openExpenses.map((expense) => {
-          const trip = openTripById.get(expense.trip_id);
-          return {
-            id: `open-expense-${expense.trip_id}-${expense.expense_name}-${expense.amount}`,
-            date: trip?.start_date ?? start,
-            branchId: trip?.branch_id ?? null,
+        ...expenditures
+          .filter((e) => normal(e.expenditure_name) !== "toll charges")
+          .map((e) => ({
+            id: `expense-${e.id}`,
+            date: e.paid_date,
+            branchId: e.branch_id,
             type: "cash_out" as const,
-            source: "Trip expense" as const,
-            narration: `${trip?.trip_code ?? "Trip"}: ${expense.expense_name}${expense.note ? ` — ${expense.note}` : ""}`,
-            amount: money(expense.amount),
-          };
+            source: "Expenditure" as const,
+            narration: `${e.expenditure_name}${e.note ? ` — ${e.note}` : ""}`,
+            amount: money(e.amount),
+          })),
+        ...closedTrips.flatMap((trip) => {
+          const snap = trip.snapshot && typeof trip.snapshot === "object" ? trip.snapshot : {};
+          const income = Array.isArray(snap.other_income) ? snap.other_income : [];
+          const expenses = Array.isArray(snap.expenses) ? snap.expenses : [];
+          return [
+            ...income
+              .filter(
+                (e: any) => money(e.amount) > 0 && normal(e.income_name) !== "approval charge",
+              )
+              .map((e: any, i: number) => ({
+                id: `closed-income-${trip.id}-${e.id ?? i}`,
+                date: trip.end_date,
+                branchId: trip.branch_id,
+                type: "cash_in" as const,
+                source: "Trip income" as const,
+                narration: `${trip.trip_code}: ${e.income_name}${e.note ? ` — ${e.note}` : ""}`,
+                amount: money(e.amount),
+              })),
+            ...expenses
+              .filter(
+                (e: any) =>
+                  money(e.amount) > 0 &&
+                  !["toll charges", "hire charges"].includes(normal(e.expense_name)),
+              )
+              .map((e: any, i: number) => ({
+                id: `closed-expense-${trip.id}-${e.id ?? i}`,
+                date: trip.end_date,
+                branchId: trip.branch_id,
+                type: "cash_out" as const,
+                source: "Trip expense" as const,
+                narration: `${trip.trip_code}: ${e.expense_name}${e.note ? ` — ${e.note}` : ""}`,
+                amount: money(e.amount),
+              })),
+          ];
         }),
-        ...closedTrips.flatMap((trip) => [
-          ...(money(trip.total_income) > 0
-            ? [
-                {
-                  id: `closed-income-${trip.id}`,
-                  date: trip.end_date,
-                  branchId: trip.branch_id,
-                  type: "cash_in" as const,
-                  source: "Trip income" as const,
-                  narration: `${trip.trip_code}: closed trip income`,
-                  amount: money(trip.total_income),
-                },
-              ]
-            : []),
-          ...(money(trip.total_expense) > 0
-            ? [
-                {
-                  id: `closed-expense-${trip.id}`,
-                  date: trip.end_date,
-                  branchId: trip.branch_id,
-                  type: "cash_out" as const,
-                  source: "Trip expense" as const,
-                  narration: `${trip.trip_code}: closed trip expense`,
-                  amount: money(trip.total_expense),
-                },
-              ]
-            : []),
-        ]),
+        ...fastagRecharges
+          .filter((e: any) => branchId === "all" || e.vehicles?.branch_id === branchId)
+          .map((e: any) => ({
+            id: `fastag-${e.id}`,
+            date: e.transaction_date,
+            branchId: e.vehicles?.branch_id ?? null,
+            type: "cash_out" as const,
+            source: "Fastag Balance" as const,
+            narration: `Fastag Balance recharge: ${e.vehicles?.registration_number ?? "Vehicle"}${e.note ? ` — ${e.note}` : ""}`,
+            amount: money(e.amount),
+          })),
+        ...freightReceipts.map((e) => ({
+          id: `freight-${e.id}`,
+          date: e.received_date,
+          branchId: e.branch_id,
+          type: "cash_in" as const,
+          source: "Freight/Loading" as const,
+          narration: `${e.trip_code}: ${e.manifest_number || "Manifest"} (Freight ${money(e.freight_amount).toLocaleString("en-IN")}, Loading ${money(e.loading_amount).toLocaleString("en-IN")})`,
+          amount: money(e.freight_amount) + money(e.loading_amount),
+        })),
+        ...approvalReceipts.map((e) => ({
+          id: `approval-${e.id}`,
+          date: e.received_date,
+          branchId: e.branch_id,
+          type: "cash_in" as const,
+          source: "Approval Charge" as const,
+          narration: `${e.trip_code}: Approval Charge`,
+          amount: money(e.amount),
+        })),
+        ...hirePayments.map((e) => ({
+          id: `hire-${e.id}`,
+          date: String(e.updated_at).slice(0, 10),
+          branchId: null,
+          type: "cash_out" as const,
+          source: "Hire Charges" as const,
+          narration: `${e.trip_code || "Trip"}: paid Hire Charges`,
+          amount: money(e.advance),
+        })),
       ];
       setRows(
         ledgerRows.sort((a, b) => b.date.localeCompare(a.date) || a.source.localeCompare(b.source)),
@@ -326,40 +375,31 @@ export function CashLedger() {
     );
   }
 
-  function exportPdf() {
-    const doc = new jsPDF({ unit: "pt", format: "a4", orientation: "landscape" });
-    doc.setFontSize(16);
-    doc.text("Cash Ledger", 36, 38);
-    doc.setFontSize(9);
-    doc.text(
-      `Month: ${month}   |   Branch: ${branchId === "all" ? "All branches" : (branches.find((branch) => branch.id === branchId)?.branch_name ?? "—")}`,
-      36,
-      54,
-    );
-    doc.text(
-      `Cash In: ${inr(totals.cashIn)}   Cash Out: ${inr(totals.cashOut)}   Closing: ${inr(totals.cashIn - totals.cashOut)}`,
-      36,
-      68,
-    );
-    autoTable(doc, {
-      startY: 80,
-      head: [["Date", "Branch", "Source", "Narration", "Cash In", "Cash Out", "Balance"]],
-      body: [...reportRows]
+  async function exportPdf() {
+    const rs = (value: number) =>
+      `Rs. ${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+    await openBrandedTablePdf({
+      title: "Cash Ledger",
+      subtitle: `Month: ${month} | Branch: ${branchId === "all" ? "All branches" : (branches.find((branch) => branch.id === branchId)?.branch_name ?? "-")}`,
+      filename: `cash-ledger-${month}.pdf`,
+      columns: ["Date", "Branch", "Source", "Narration", "Cash In", "Cash Out", "Balance"],
+      rows: [...reportRows]
         .reverse()
         .map((row) => [
           row.date,
-          branches.find((branch) => branch.id === row.branchId)?.branch_name ?? "—",
+          branches.find((branch) => branch.id === row.branchId)?.branch_name ?? "-",
           row.source,
-          row.narration,
-          row.type === "cash_in" ? inr(row.amount) : "—",
-          row.type === "cash_out" ? inr(row.amount) : "—",
-          inr(row.balance),
+          row.narration.replaceAll("—", "-"),
+          row.type === "cash_in" ? rs(row.amount) : "-",
+          row.type === "cash_out" ? rs(row.amount) : "-",
+          rs(row.balance),
         ]),
-      styles: { fontSize: 7 },
-      headStyles: { fillColor: [155, 28, 28] },
-      margin: { left: 28, right: 28 },
+      summary: [
+        ["Cash In", rs(totals.cashIn)],
+        ["Cash Out", rs(totals.cashOut)],
+        ["Closing", rs(totals.cashIn - totals.cashOut)],
+      ],
     });
-    doc.save(`cash-ledger-${month}.pdf`);
   }
 
   return (

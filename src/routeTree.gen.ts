@@ -21,6 +21,7 @@ import { Route as MastersRouteImport } from './routes/masters'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as PayrollRouteImport } from './routes/payroll'
 import { Route as ReportsRouteImport } from './routes/reports'
+import { Route as CashReportsRouteImport } from './routes/cash-reports'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SystemRouteImport } from './routes/system'
@@ -119,6 +120,11 @@ const OperationsRoute = OperationsRouteImport.update({
 const PayrollRoute = PayrollRouteImport.update({
   id: '/payroll',
   path: '/payroll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CashReportsRoute = CashReportsRouteImport.update({
+  id: '/cash-reports',
+  path: '/cash-reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -364,6 +370,7 @@ export interface FileRoutesByFullPath {
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
   '/payroll': typeof PayrollRouteWithChildren
+  '/cash-reports': typeof CashReportsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -418,6 +425,7 @@ export interface FileRoutesByTo {
   '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
+  '/cash-reports': typeof CashReportsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -475,6 +483,7 @@ export interface FileRoutesById {
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
   '/payroll': typeof PayrollRouteWithChildren
+  '/cash-reports': typeof CashReportsRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -535,6 +544,7 @@ export interface FileRouteTypes {
     | '/masters'
     | '/operations'
     | '/payroll'
+    | '/cash-reports'
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
@@ -589,6 +599,7 @@ export interface FileRouteTypes {
     | '/import-trips'
     | '/masters'
     | '/operations'
+    | '/cash-reports'
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
@@ -645,6 +656,7 @@ export interface FileRouteTypes {
     | '/masters'
     | '/operations'
     | '/payroll'
+    | '/cash-reports'
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
@@ -704,6 +716,7 @@ export interface RootRouteChildren {
   MastersRoute: typeof MastersRoute
   OperationsRoute: typeof OperationsRoute
   PayrollRoute: typeof PayrollRouteWithChildren
+  CashReportsRoute: typeof CashReportsRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -798,6 +811,13 @@ declare module '@tanstack/react-router' {
       path: '/payroll'
       fullPath: '/payroll'
       preLoaderRoute: typeof PayrollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cash-reports': {
+      id: '/cash-reports'
+      path: '/cash-reports'
+      fullPath: '/cash-reports'
+      preLoaderRoute: typeof CashReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -1257,6 +1277,7 @@ const rootRouteChildren: RootRouteChildren = {
   MastersRoute: MastersRoute,
   OperationsRoute: OperationsRoute,
   PayrollRoute: PayrollRouteWithChildren,
+  CashReportsRoute: CashReportsRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
