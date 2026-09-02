@@ -584,7 +584,14 @@ async function fetchTripAveragesData(
     end = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
   }
 
-  const [tripsRows, incomesRows, expendituresRows, contractsRes, locationsRes] = await Promise.all([
+  const [
+    tripsRows,
+    incomesRows,
+    rawExpenditureRows,
+    emiInstallmentRows,
+    contractsRes,
+    locationsRes,
+  ] = await Promise.all([
     fetchAllAdmin<Record<string, unknown>>(() =>
       db
         .from("closed_trips")
@@ -605,22 +612,36 @@ async function fetchTripAveragesData(
     fetchAllAdmin<Record<string, unknown>>(() =>
       db
         .from("expenditures")
-        .select("branch_id,amount,entry_date")
+        .select("id,branch_id,amount,entry_date,is_emi,emi_installment_id,paid_date")
         .gte("entry_date", start)
         .lt("entry_date", end),
+    ),
+    fetchAllAdmin<Record<string, unknown>>(() =>
+      db
+        .from("emi_installments")
+        .select("id,expenditure_id,due_date")
+        .gte("due_date", start)
+        .lt("due_date", end),
     ),
     db.from("contracts").select("fixed_monthly_charge,fixed_yearly_charge").eq("status", "active"),
     db.from("locations").select("id,location_name,pin_code"),
   ]);
 
-  const vehicleIds = [...new Set(
-    tripsRows.map((row: Record<string, unknown>) => row.vehicle_id as string | null).filter(Boolean) as string[],
-  )];
+  const vehicleIds = [
+    ...new Set(
+      tripsRows
+        .map((row: Record<string, unknown>) => row.vehicle_id as string | null)
+        .filter(Boolean) as string[],
+    ),
+  ];
   const { data: vehicleRows } = vehicleIds.length
     ? await db.from("vehicles").select("id,registration_number").in("id", vehicleIds)
     : { data: [] };
   const vehicleMap = new Map<string, string>(
-    (vehicleRows ?? []).map((row: Record<string, unknown>) => [String(row.id), String(row.registration_number ?? "")]),
+    (vehicleRows ?? []).map((row: Record<string, unknown>) => [
+      String(row.id),
+      String(row.registration_number ?? ""),
+    ]),
   );
 
   // Build location id → name map
@@ -674,9 +695,12 @@ async function fetchTripAveragesData(
     const tripSnapshot = (snapshot.trip ?? snapshot) as Record<string, unknown>;
     const vehicleSnapshot = (snapshot.vehicle ?? {}) as Record<string, unknown>;
     const ownership = String(tripSnapshot.ownership ?? "");
-    const vehicleNumber = ownership === "third_party"
-      ? String(tripSnapshot.third_party_vehicle_number ?? "")
-      : String(vehicleSnapshot.registration_number ?? vehicleMap.get(String(r.vehicle_id ?? "")) ?? "");
+    const vehicleNumber =
+      ownership === "third_party"
+        ? String(tripSnapshot.third_party_vehicle_number ?? "")
+        : String(
+            vehicleSnapshot.registration_number ?? vehicleMap.get(String(r.vehicle_id ?? "")) ?? "",
+          );
     const hasOdometerReadings =
       String(tripSnapshot.odometer_start ?? "").trim() !== "" &&
       String(tripSnapshot.odometer_end ?? "").trim() !== "";
@@ -744,10 +768,36 @@ async function fetchTripAveragesData(
           const branchId = (r.branch_id as string | null) ?? null;
           return branchId !== null && allowedBranchIds.includes(branchId);
         });
+  // Report expenses on their accounting date. EMI rows are always anchored to
+  // the installment due date; paid_date is cash-flow metadata and must not move
+  // an EMI into the month in which someone happened to pay it.
+  const dueDateByExpenditureId = new Map<string, string>();
+  for (const installment of emiInstallmentRows) {
+    if (installment.expenditure_id && installment.due_date) {
+      dueDateByExpenditureId.set(String(installment.expenditure_id), String(installment.due_date));
+    }
+  }
+  const expenditureById = new Map<string, Record<string, unknown>>();
+  for (const row of rawExpenditureRows) expenditureById.set(String(row.id), row);
+  for (const installment of emiInstallmentRows) {
+    const id = installment.expenditure_id ? String(installment.expenditure_id) : "";
+    if (id && !expenditureById.has(id)) {
+      const linked = await db
+        .from("expenditures")
+        .select("id,branch_id,amount,entry_date,is_emi,emi_installment_id,paid_date")
+        .eq("id", id)
+        .maybeSingle();
+      if (linked.data) expenditureById.set(id, linked.data as Record<string, unknown>);
+    }
+  }
+  const accountingExpenditureRows = Array.from(expenditureById.values()).filter((row) => {
+    const reportDate = dueDateByExpenditureId.get(String(row.id)) ?? String(row.entry_date ?? "");
+    return reportDate >= start && reportDate < end;
+  });
   const scopedExpenditureRows =
     allowedBranchIds === undefined
-      ? expendituresRows
-      : expendituresRows.filter((r: Record<string, unknown>) => {
+      ? accountingExpenditureRows
+      : accountingExpenditureRows.filter((r: Record<string, unknown>) => {
           const branchId = (r.branch_id as string | null) ?? null;
           return branchId !== null && allowedBranchIds.includes(branchId);
         });
