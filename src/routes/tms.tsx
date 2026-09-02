@@ -46,6 +46,7 @@ export const Route = createFileRoute("/tms")({
             desc: "Cash ledger, receipts & transporter payments",
             icon: Wallet,
             to: "/cash-reports",
+            roles: ["admin", "semi_admin", "viewer"],
           },
         ]}
       />

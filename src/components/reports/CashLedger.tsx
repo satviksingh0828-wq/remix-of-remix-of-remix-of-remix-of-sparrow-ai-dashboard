@@ -33,17 +33,7 @@ type CashRow = {
   date: string;
   branchId: string | null;
   type: "cash_in" | "cash_out";
-  source:
-    | "Cash refill"
-    | "Cash withdrawal"
-    | "Income"
-    | "Expenditure"
-    | "Trip income"
-    | "Trip expense"
-    | "Fastag Balance"
-    | "Hire Charges"
-    | "Freight/Loading"
-    | "Approval Charge";
+  source: string;
   narration: string;
   amount: number;
 };
@@ -193,7 +183,7 @@ export function CashLedger() {
           date: e.received_date,
           branchId: e.branch_id,
           type: "cash_in" as const,
-          source: "Income" as const,
+          source: String(e.income_name || "Income"),
           narration: `${e.income_name}${e.note ? ` — ${e.note}` : ""}`,
           amount: money(e.amount),
         })),
@@ -204,7 +194,7 @@ export function CashLedger() {
             date: e.paid_date,
             branchId: e.branch_id,
             type: "cash_out" as const,
-            source: "Expenditure" as const,
+            source: String(e.expenditure_name || "Expenditure"),
             narration: `${e.expenditure_name}${e.note ? ` — ${e.note}` : ""}`,
             amount: money(e.amount),
           })),
@@ -222,7 +212,7 @@ export function CashLedger() {
                 date: trip.end_date,
                 branchId: trip.branch_id,
                 type: "cash_in" as const,
-                source: "Trip income" as const,
+                source: String(e.income_name || "Trip income"),
                 narration: `${trip.trip_code}: ${e.income_name}${e.note ? ` — ${e.note}` : ""}`,
                 amount: money(e.amount),
               })),
@@ -237,7 +227,7 @@ export function CashLedger() {
                 date: trip.end_date,
                 branchId: trip.branch_id,
                 type: "cash_out" as const,
-                source: "Trip expense" as const,
+                source: String(e.expense_name || "Trip expense"),
                 narration: `${trip.trip_code}: ${e.expense_name}${e.note ? ` — ${e.note}` : ""}`,
                 amount: money(e.amount),
               })),
@@ -352,7 +342,7 @@ export function CashLedger() {
     const data = [...reportRows].reverse().map((row) => ({
       Date: row.date,
       Branch: branches.find((branch) => branch.id === row.branchId)?.branch_name ?? "—",
-      Source: row.source,
+      "Income / Expense Name": row.source,
       Narration: row.narration,
       "Cash In": row.type === "cash_in" ? row.amount : 0,
       "Cash Out": row.type === "cash_out" ? row.amount : 0,
@@ -361,7 +351,7 @@ export function CashLedger() {
     data.push({
       Date: "",
       Branch: "",
-      Source: "TOTAL",
+      "Income / Expense Name": "TOTAL",
       Narration: "",
       "Cash In": totals.cashIn,
       "Cash Out": totals.cashOut,
@@ -382,7 +372,15 @@ export function CashLedger() {
       title: "Cash Ledger",
       subtitle: `Month: ${month} | Branch: ${branchId === "all" ? "All branches" : (branches.find((branch) => branch.id === branchId)?.branch_name ?? "-")}`,
       filename: `cash-ledger-${month}.pdf`,
-      columns: ["Date", "Branch", "Source", "Narration", "Cash In", "Cash Out", "Balance"],
+      columns: [
+        "Date",
+        "Branch",
+        "Income / Expense Name",
+        "Narration",
+        "Cash In",
+        "Cash Out",
+        "Balance",
+      ],
       rows: [...reportRows]
         .reverse()
         .map((row) => [
@@ -542,9 +540,9 @@ export function CashLedger() {
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        This monthly ledger automatically includes received Income, paid Expenditure, and
-        open/closed trip income and expenses. Manual cash refills and withdrawals are recorded as
-        separate receipt entries.
+        This monthly ledger includes received income and paid expenditure from closed trips, with
+        every income and expense shown by its saved name. Manual cash refills and withdrawals are
+        recorded as separate receipt entries.
       </p>
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <div className="overflow-x-auto">
@@ -553,7 +551,7 @@ export function CashLedger() {
               <tr className="border-b border-border bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Source</th>
+                <th className="px-4 py-3">Income / Expense name</th>
                 <th className="px-4 py-3">Narration</th>
                 <th className="px-4 py-3 text-right">Cash in</th>
                 <th className="px-4 py-3 text-right">Cash out</th>

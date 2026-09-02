@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, RefreshCw, Search, Undo2 } from "lucide-react";
+import { CheckCircle2, Download, RefreshCw, Search, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAll } from "@/lib/fetch-all";
@@ -7,6 +7,7 @@ import { inr } from "@/lib/trip-calc";
 import { useReportFilters } from "@/lib/report-filters";
 import { useSession } from "@/lib/session";
 import { isAdminLike } from "@/lib/roles";
+import { downloadCsv, toCsv } from "@/lib/csv";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -28,6 +29,18 @@ const norm = (v: unknown) =>
   String(v ?? "")
     .trim()
     .toLowerCase();
+const dateInput = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+const initialRange = () => {
+  const now = new Date();
+  return {
+    month: dateInput(now).slice(0, 7),
+    start: dateInput(new Date(now.getFullYear(), now.getMonth(), 1)),
+    end: dateInput(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+  };
+};
 
 export function ClosedTripReceiptReport({ kind }: { kind: Kind }) {
   const { branchId } = useReportFilters();
@@ -36,6 +49,10 @@ export function ClosedTripReceiptReport({ kind }: { kind: Kind }) {
   const [rows, setRows] = useState<Candidate[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
+  const defaults = initialRange();
+  const [month, setMonth] = useState(defaults.month);
+  const [startDate, setStartDate] = useState(defaults.start);
+  const [endDate, setEndDate] = useState(defaults.end);
   const table =
     kind === "freight_loading" ? "freight_loading_receipts" : "approval_charge_receipts";
 
@@ -45,6 +62,8 @@ export function ClosedTripReceiptReport({ kind }: { kind: Kind }) {
       let closedQuery = supabase
         .from("closed_trips")
         .select("id,trip_code,branch_id,snapshot")
+        .gte("end_date", startDate)
+        .lte("end_date", endDate)
         .order("end_date", { ascending: false });
       if (branchId !== "all") closedQuery = closedQuery.eq("branch_id", branchId);
       const [closed, saved] = await Promise.all([
@@ -114,7 +133,7 @@ export function ClosedTripReceiptReport({ kind }: { kind: Kind }) {
 
   useEffect(() => {
     void load();
-  }, [kind, branchId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [kind, branchId, startDate, endDate]); // eslint-disable-line react-hooks/exhaustive-deps
   const visible = useMemo(
     () =>
       rows.filter((r) => `${r.tripCode} ${r.detail}`.toLowerCase().includes(search.toLowerCase())),
@@ -149,6 +168,34 @@ export function ClosedTripReceiptReport({ kind }: { kind: Kind }) {
     await load();
   }
 
+  function changeMonth(value: string) {
+    setMonth(value);
+    if (!value) return;
+    const [year, monthNumber] = value.split("-").map(Number);
+    setStartDate(`${value}-01`);
+    setEndDate(dateInput(new Date(year, monthNumber, 0)));
+  }
+
+  function exportRows() {
+    const data = visible.map((row) => ({
+      Trip: row.tripCode,
+      [kind === "freight_loading" ? "Manifest" : "Income"]: row.detail,
+      ...(kind === "freight_loading" ? { Freight: row.freight, Loading: row.loading } : {}),
+      Total: row.amount,
+      Status: row.received ? "Received" : "Not received",
+      "Received Date": row.receivedDate ?? "",
+    }));
+    const columns = [
+      "Trip",
+      kind === "freight_loading" ? "Manifest" : "Income",
+      ...(kind === "freight_loading" ? ["Freight", "Loading"] : []),
+      "Total",
+      "Status",
+      "Received Date",
+    ];
+    downloadCsv(toCsv(data, columns), `${kind}-${startDate}-to-${endDate}.csv`);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 rounded-xl border border-border bg-muted/30 p-3">
@@ -161,6 +208,30 @@ export function ClosedTripReceiptReport({ kind }: { kind: Kind }) {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <Input
+          aria-label="Month"
+          className="h-9 w-40"
+          type="month"
+          value={month}
+          onChange={(event) => changeMonth(event.target.value)}
+        />
+        <Input
+          aria-label="Start date"
+          className="h-9 w-40"
+          type="date"
+          value={startDate}
+          onChange={(event) => setStartDate(event.target.value)}
+        />
+        <Input
+          aria-label="End date"
+          className="h-9 w-40"
+          type="date"
+          value={endDate}
+          onChange={(event) => setEndDate(event.target.value)}
+        />
+        <Button className="h-9 gap-2" variant="outline" onClick={exportRows}>
+          <Download className="size-4" /> Export
+        </Button>
         <Button className="ml-auto h-9" variant="ghost" onClick={load}>
           <RefreshCw className={`size-4 ${loading ? "animate-spin" : ""}`} />
         </Button>
