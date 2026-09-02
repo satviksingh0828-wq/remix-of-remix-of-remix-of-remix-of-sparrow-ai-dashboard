@@ -42,7 +42,7 @@ export const Route = createFileRoute("/tms")({
           },
           {
             key: "cash-reports",
-            label: "Cash Reports",
+            label: "CASH REPORTS",
             desc: "Cash ledger, receipts & transporter payments",
             icon: Wallet,
             to: "/cash-reports",

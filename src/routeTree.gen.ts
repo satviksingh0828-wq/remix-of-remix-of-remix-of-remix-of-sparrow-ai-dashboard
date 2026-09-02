@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AttendanceRouteImport } from './routes/attendance'
+import { Route as CashReportsRouteImport } from './routes/cash-reports'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as EmployeesRouteImport } from './routes/employees'
 import { Route as HomeRouteImport } from './routes/home'
@@ -75,6 +76,11 @@ const IndexRoute = IndexRouteImport.update({
 const AttendanceRoute = AttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CashReportsRoute = CashReportsRouteImport.update({
+  id: '/cash-reports',
+  path: '/cash-reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DashboardRoute = DashboardRouteImport.update({
@@ -361,6 +367,7 @@ const ApiDriverTripsCheckpointsVerifyRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRouteWithChildren
+  '/cash-reports': typeof CashReportsRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/employees': typeof EmployeesRouteWithChildren
   '/home': typeof HomeRoute
@@ -419,6 +426,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cash-reports': typeof CashReportsRoute
   '/home': typeof HomeRoute
   '/hr-dashboard': typeof HrDashboardRoute
   '/hrms': typeof HrmsRoute
@@ -474,6 +482,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/attendance': typeof AttendanceRouteWithChildren
+  '/cash-reports': typeof CashReportsRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/employees': typeof EmployeesRouteWithChildren
   '/home': typeof HomeRoute
@@ -535,6 +544,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/attendance'
+    | '/cash-reports'
     | '/dashboard'
     | '/employees'
     | '/home'
@@ -593,6 +603,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/cash-reports'
     | '/home'
     | '/hr-dashboard'
     | '/hrms'
@@ -647,6 +658,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/attendance'
+    | '/cash-reports'
     | '/dashboard'
     | '/employees'
     | '/home'
@@ -707,6 +719,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AttendanceRoute: typeof AttendanceRouteWithChildren
+  CashReportsRoute: typeof CashReportsRoute
   DashboardRoute: typeof DashboardRouteWithChildren
   EmployeesRoute: typeof EmployeesRouteWithChildren
   HomeRoute: typeof HomeRoute
@@ -748,6 +761,13 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/attendance'
       preLoaderRoute: typeof AttendanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cash-reports': {
+      id: '/cash-reports'
+      path: '/cash-reports'
+      fullPath: '/cash-reports'
+      preLoaderRoute: typeof CashReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dashboard': {
@@ -1268,6 +1288,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AttendanceRoute: AttendanceRouteWithChildren,
+  CashReportsRoute: CashReportsRoute,
   DashboardRoute: DashboardRouteWithChildren,
   EmployeesRoute: EmployeesRouteWithChildren,
   HomeRoute: HomeRoute,

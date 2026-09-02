@@ -315,7 +315,7 @@ function ReadMe() {
             <tbody className="text-muted-foreground">
               {[
                 ["trip_code",    "Must match the trip_code in trips.csv"],
-                ["expense_name", "e.g. Fuel Expense, Toll Charges, Driver Bata"],
+                ["expense_name", "e.g. Fuel Expense, Toll Charges, Toll Charges (paid in cash), Driver Bata"],
                 ["amount",       "Numeric, e.g. 4500"],
                 ["note",         "Optional note"],
               ].map(([col, note]) => (
