@@ -95,7 +95,7 @@ function CashReportsPage() {
         </button>
       }
     >
-      <div className={`grid gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}>
+      <div className={`grid gap-6 ${navOpen ? "lg:grid-cols-[260px_1fr]" : "grid-cols-1"}`}>
         {navOpen && (
           <nav className="hidden lg:block">
             <p className="mb-3 px-2 text-[11px] font-semibold tracking-[.18em] text-muted-foreground">
@@ -110,10 +110,12 @@ function CashReportsPage() {
                       onClick={() => setTab(t.id)}
                       className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left ${tab === t.id ? "bg-primary-soft" : "text-muted-foreground hover:bg-muted"}`}
                     >
-                      <Icon className="size-4" />
-                      <span>
-                        <span className="block text-sm font-medium">{t.label}</span>
-                        <span className="block text-[11px] opacity-70">{t.desc}</span>
+                      <Icon className="size-4 shrink-0" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">{t.label}</span>
+                        <span className="block whitespace-nowrap text-[11px] opacity-70">
+                          {t.desc}
+                        </span>
                       </span>
                     </button>
                   </li>

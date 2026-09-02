@@ -166,6 +166,24 @@ export function CashLedger() {
         String(value ?? "")
           .trim()
           .toLowerCase();
+      const hireTripCodes = Array.from(
+        new Set(hirePayments.map((entry) => String(entry.trip_code ?? "").trim()).filter(Boolean)),
+      );
+      const hireTripBranches = hireTripCodes.length
+        ? await fetchAll<any>(() =>
+            supabase
+              .from("closed_trips")
+              .select("trip_code,branch_id")
+              .in("trip_code", hireTripCodes),
+          )
+        : [];
+      const branchByTripCode = new Map(
+        hireTripBranches.map((trip) => [String(trip.trip_code), trip.branch_id as string | null]),
+      );
+      const visibleHirePayments = hirePayments.filter((entry) => {
+        if (branchId === "all") return true;
+        return branchByTripCode.get(String(entry.trip_code ?? "")) === branchId;
+      });
       const ledgerRows: CashRow[] = [
         ...manual.map((e) => ({
           id: `manual-${e.id}`,
@@ -262,10 +280,10 @@ export function CashLedger() {
           narration: `${e.trip_code}: Approval Charge`,
           amount: money(e.amount),
         })),
-        ...hirePayments.map((e) => ({
+        ...visibleHirePayments.map((e) => ({
           id: `hire-${e.id}`,
           date: String(e.updated_at).slice(0, 10),
-          branchId: null,
+          branchId: branchByTripCode.get(String(e.trip_code ?? "")) ?? null,
           type: "cash_out" as const,
           source: "Hire Charges" as const,
           narration: `${e.trip_code || "Trip"}: paid Hire Charges`,
@@ -372,6 +390,7 @@ export function CashLedger() {
       title: "Cash Ledger",
       subtitle: `Month: ${month} | Branch: ${branchId === "all" ? "All branches" : (branches.find((branch) => branch.id === branchId)?.branch_name ?? "-")}`,
       filename: `cash-ledger-${month}.pdf`,
+      orientation: "landscape",
       columns: [
         "Date",
         "Branch",
