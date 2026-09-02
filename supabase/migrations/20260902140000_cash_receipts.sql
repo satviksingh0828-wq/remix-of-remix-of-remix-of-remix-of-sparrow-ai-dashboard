@@ -40,16 +40,26 @@ create index if not exists approval_charge_receipts_cash_idx
 
 alter table public.freight_loading_receipts enable row level security;
 alter table public.approval_charge_receipts enable row level security;
+drop policy if exists "app can manage freight loading receipts" on public.freight_loading_receipts;
 create policy "app can manage freight loading receipts" on public.freight_loading_receipts
   for all to anon, authenticated using (true) with check (true);
+drop policy if exists "app can manage approval charge receipts" on public.approval_charge_receipts;
 create policy "app can manage approval charge receipts" on public.approval_charge_receipts
   for all to anon, authenticated using (true) with check (true);
 
+drop trigger if exists freight_loading_receipts_updated_at on public.freight_loading_receipts;
 create trigger freight_loading_receipts_updated_at before update on public.freight_loading_receipts
   for each row execute function public.set_updated_at();
+drop trigger if exists approval_charge_receipts_updated_at on public.approval_charge_receipts;
 create trigger approval_charge_receipts_updated_at before update on public.approval_charge_receipts
   for each row execute function public.set_updated_at();
 
 -- Older builds wrote Fastag recharges into Operations expenditure. Remove those
 -- shadow rows: fastag_transactions is the single source for recharge cash-out.
+-- Some databases never received the older Fastag migration, so create the marker
+-- defensively before using it. This also keeps the Cash Ledger query compatible.
+alter table public.expenditures
+  add column if not exists is_fastag_recharge boolean not null default false;
+create index if not exists idx_expenditures_fastag_recharge
+  on public.expenditures(is_fastag_recharge) where is_fastag_recharge = true;
 delete from public.expenditures where is_fastag_recharge = true;
