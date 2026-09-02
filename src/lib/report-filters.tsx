@@ -17,15 +17,17 @@ export function reportDateRange(
   return financialYear === "none" ? fallback() : financialYearRange(Number(financialYear));
 }
 
-export async function tripCodesForBranch(branchId: string, range?: { start: string; end: string }) {
-  if (branchId === "all" && !range) return null;
+export async function tripCodesForBranch(
+  branchId: string,
+  _range?: { start: string; end: string },
+) {
+  // The caller already filters its report rows by that report's own date field
+  // (trip_date, created_at, etc.). Do not additionally filter closed_trips by
+  // closed_at: a trip can be logged in the selected period but closed earlier
+  // or later, which would incorrectly remove it from branch-scoped reports.
+  if (branchId === "all") return null;
   const rows = await fetchAll<{ trip_code: string }>(() =>
-    (() => {
-      let query = supabase.from("closed_trips").select("trip_code");
-      if (branchId !== "all") query = query.eq("branch_id", branchId);
-      if (range) query = query.gte("closed_at", range.start).lt("closed_at", range.end);
-      return query;
-    })(),
+    supabase.from("closed_trips").select("trip_code").eq("branch_id", branchId),
   );
   return new Set(rows.map((row) => row.trip_code));
 }

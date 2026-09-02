@@ -254,7 +254,7 @@ export function TripAveragesPanel() {
         ? branchTrips.reduce((s, bt) => s + bt.total_weight, 0)
         : branchTrips.reduce((s, bt) => s + bt.total_quantity, 0);
 
-      // This branch's other net P&L pool.
+      // This branch's other-expenditure pool.
       // Trips with no branch_id get a zero pool (their unassigned
       // income/expenditure was already spread across known branches).
       const branchPnL = (bid ? branchPnLMap.get(bid) : undefined) ?? { otherIncome: 0, fixedIncome: 0, expenditure: 0, net: 0 };
@@ -267,11 +267,15 @@ export function TripAveragesPanel() {
       let distAmount: number;
       if (branchTotalBase > 0) {
         distRatio  = base / branchTotalBase;
-        distAmount = distRatio * branchPnL.net;
+        // Distribution is an expense allocation only. Other income and fixed
+        // income remain in the summary P&L and are never added to this column.
+        distAmount = -distRatio * branchPnL.expenditure;
       } else {
         // Equal-per-trip fallback
         distRatio  = branchTrips.length > 0 ? 1 / branchTrips.length : 0;
-        distAmount = distRatio * branchPnL.net;
+        // Distribution is an expense allocation only. Other income and fixed
+        // income remain in the summary P&L and are never added to this column.
+        distAmount = -distRatio * branchPnL.expenditure;
       }
       const finalNet = t.net_income + distAmount;
 
@@ -328,7 +332,7 @@ export function TripAveragesPanel() {
     const tripSheetData: (string | number)[][] = [
       ["Branch", "Trip", "No. of Manifest", "Weight (kg)", "Quantity", "Distance Travelled (km)", "Type (Renter/Own)", "Income (₹)", "Expense (₹)", "Trip Net (₹)",
        method === "weight" ? "Weight (kg)" : "Quantity",
-       "Share %", "Branch Other P&L (₹)", "Distribution (₹)", "Final Net (₹)"],
+       "Share %", "Branch Other P&L (₹)", "Other Expense Distributed (₹)", "Final Net (₹)"],
       ...exportRows.map(r => [
         r.branch_name,
         r.trip_code,
@@ -362,7 +366,7 @@ export function TripAveragesPanel() {
     const manifestSheetData: (string | number)[][] = [
       ["Branch", "Trip", "Trip Start Date", "Trip End Date", "Trip Income (₹)", "Trip Expense (₹)", "Trip Net (₹)",
        "Trip " + (method === "weight" ? "Weight (kg)" : "Quantity"),
-       "Trip Share %", "Distribution (₹)", "Trip Final Net (₹)",
+       "Trip Share %", "Other Expense Distributed (₹)", "Trip Final Net (₹)",
        "Manifest No.", "From", "To", "Weight (kg)", "Quantity",
        "Manifest Income (₹)", "Manifest Weight Share %", "Manifest Distribution (₹)", "Manifest Net (₹)"],
     ];
@@ -541,7 +545,7 @@ export function TripAveragesPanel() {
               <SummaryCard label="Other Net P&L" value={summaryNet} highlight />
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Distribution is <strong>branch-wise</strong> — each branch's own income &amp; expenditure pool is distributed only among that branch's trips by{" "}
+              Distribution is <strong>branch-wise</strong> — each branch's other-expenditure pool is distributed only among that branch's trips by{" "}
               <strong>{method}</strong>.
               {branchFilter !== "all"
                 ? <> Showing <strong>{branchFilteredRows.length}</strong> trip{branchFilteredRows.length !== 1 ? "s" : ""} for the selected branch.</>
@@ -583,7 +587,7 @@ export function TripAveragesPanel() {
                       {method === "weight" ? "Weight (kg)" : "Quantity"}
                     </th>
                     <th className="px-4 py-3 text-right">Branch Share %</th>
-                    <th className="px-4 py-3 text-right">Distribution</th>
+                    <th className="px-4 py-3 text-right">Other Expense Distributed</th>
                     <th className="px-4 py-3 text-right font-semibold text-foreground">Final Net</th>
                   </tr>
                 </thead>
@@ -653,7 +657,7 @@ export function TripAveragesPanel() {
                                         <th className="py-1.5 pr-4 text-right">Qty</th>
                                         <th className="py-1.5 pr-4 text-right">Manifest Income</th>
                                         <th className="py-1.5 pr-4 text-right">Weight Share %</th>
-                                        <th className="py-1.5 pr-4 text-right">Distribution (₹)</th>
+                                        <th className="py-1.5 pr-4 text-right">Other Expense Distributed (₹)</th>
                                         <th className="py-1.5 text-right font-semibold text-foreground">Net</th>
                                       </tr>
                                     </thead>
