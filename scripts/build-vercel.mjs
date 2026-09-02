@@ -111,6 +111,13 @@ fs.writeFileSync(
           headers: { 'cache-control': 'public, max-age=31536000, immutable' },
           continue: true,
         },
+        // Never cache SSR HTML: it contains hashed module URLs which must be
+        // refreshed whenever a deployment changes the client asset manifest.
+        {
+          src: '^(?!/assets/)(.*)$',
+          headers: { 'cache-control': 'no-store, max-age=0' },
+          continue: true,
+        },
         // Serve static files (favicon, robots, etc.) directly
         { handle: 'filesystem' },
         // Everything else → SSR function

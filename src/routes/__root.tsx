@@ -166,6 +166,27 @@ function SessionExpiredListener() {
   return null;
 }
 
+/** Recovers from a deploy/cache race where an old HTML document references a
+ * chunk that is no longer part of the active deployment. Reload once with a
+ * cache-busting query instead of leaving the user on a broken route. */
+function DynamicImportRecovery() {
+  useEffect(() => {
+    const key = "sparrow-dynamic-import-recovery";
+    const handleError = (event: ErrorEvent) => {
+      const message = String(event.message ?? "");
+      const isChunkError = /failed to fetch dynamically imported module|importing a module script failed|loading chunk/i.test(message);
+      if (!isChunkError || sessionStorage.getItem(key) === "1") return;
+      sessionStorage.setItem(key, "1");
+      const url = new URL(window.location.href);
+      url.searchParams.set("_app_reload", String(Date.now()));
+      window.location.replace(url.toString());
+    };
+    window.addEventListener("error", handleError);
+    return () => window.removeEventListener("error", handleError);
+  }, []);
+  return null;
+}
+
 /** Renders the SPARROW AI panel — admin only, persists across route changes */
 function PasskeyProtectionGate({ children }: { children: ReactNode }) {
   const { data: settings, isLoading } = useAppSettings();
@@ -221,6 +242,7 @@ function RootComponent() {
               <SplashScreen />
               <SecurityInit />
               <SessionExpiredListener />
+              <DynamicImportRecovery />
               <Outlet />
               <InactivityChallenge />
               <Toaster position="top-right" />
