@@ -97,6 +97,7 @@ type LineRow = { id?: string; name: string; amount: string; note: string; advanc
 const DEFAULT_EXPENSES = [
   "Fuel Expense",
   "Toll Charges",
+  "Toll Charges (paid in cash)",
   "Driver Bata",
   "Morning Exp.",
   "Night Exp.",
@@ -106,7 +107,7 @@ const DEFAULT_EXPENSES = [
   "Unloading",
 ];
 
-const THIRD_PARTY_EXPENSES = ["Hire Charges"];
+const THIRD_PARTY_EXPENSES = ["Hire Charges", "Toll Charges (paid in cash)"];
 
 const THIRD_PARTY_DEFAULT_INCOMES = ["Approval Charge"];
 

@@ -13,9 +13,7 @@ import {
   Shield,
   Truck,
   Users,
-  WalletCards,
   CalendarRange,
-  Wallet,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -27,10 +25,8 @@ import { VehicleExpenseReport } from "@/components/reports/VehicleExpenseReport"
 import { DriverExpenseReport } from "@/components/reports/DriverExpenseReport";
 import { TransporterExpenseReport } from "@/components/reports/TransporterExpenseReport";
 import { OtherExpenseReport } from "@/components/reports/OtherExpenseReport";
-import { ApprovalChargeAdvanceReport } from "@/components/reports/ApprovalChargeAdvanceReport";
 import { MonthlyMISReport } from "@/components/reports/MonthlyMISReport";
 import { TripDetailsPanel } from "@/components/operations/TripDetailsPanel";
-import { CashLedger } from "@/components/reports/CashLedger";
 import { useSession } from "@/lib/session";
 import { ReportFiltersContext } from "@/lib/report-filters";
 import { useBranches } from "@/lib/use-branches";
@@ -95,12 +91,6 @@ const TABS = [
     icon: CreditCard,
   },
   {
-    id: "cash-ledger",
-    label: "Cash Ledger",
-    desc: "Monthly cash receipts, payments & trip movement",
-    icon: Wallet,
-  },
-  {
     id: "vehicle-expenses",
     label: "Vehicle Expenses",
     desc: "Fuel, parking & distance per vehicle",
@@ -117,12 +107,6 @@ const TABS = [
     label: "TRANSPORTER Expenses",
     desc: "Hire charges & approval charge per transporter",
     icon: Car,
-  },
-  {
-    id: "approval-advances",
-    label: "Transpoter advance",
-    desc: "Transporter paid amount and balance by date",
-    icon: WalletCards,
   },
   {
     id: "other-expenses",
@@ -235,7 +219,7 @@ function ReportsPage() {
               <h1 className="text-2xl font-semibold tracking-tight">{active.label}</h1>
               <p className="mt-1 text-sm text-muted-foreground">{active.desc}</p>
             </header>
-            {tab !== "pnl-compare" && tab !== "monthly-mis" && tab !== "cash-ledger" && (
+            {tab !== "pnl-compare" && tab !== "monthly-mis" && (
               <div className="mb-4 flex flex-wrap gap-2 rounded-xl border border-border bg-muted/30 p-3">
                 <Select value={branchId} onValueChange={setBranchId}>
                   <SelectTrigger className="h-9 w-44">
@@ -271,11 +255,9 @@ function ReportsPage() {
             {tab === "insurance" && <CoverageLedger type="insurance" />}
             {tab === "road-tax" && <CoverageLedger type="road_tax" />}
             {tab === "fastag" && <FastagLedger />}
-            {tab === "cash-ledger" && <CashLedger />}
             {tab === "vehicle-expenses" && <VehicleExpenseReport />}
             {tab === "driver-expenses" && <DriverExpenseReport />}
             {tab === "transporter-expenses" && <TransporterExpenseReport />}
-            {tab === "approval-advances" && <ApprovalChargeAdvanceReport />}
             {tab === "other-expenses" && <OtherExpenseReport />}
           </div>
         </ReportFiltersContext.Provider>

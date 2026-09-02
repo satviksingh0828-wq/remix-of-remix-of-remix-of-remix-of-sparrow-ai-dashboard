@@ -56,6 +56,7 @@ export function ApprovalChargeAdvanceReport() {
   const defaults = currentMonthRange();
   const [startDate, setStartDate] = useState(defaults.start);
   const [endDate, setEndDate] = useState(defaults.end);
+  const [month, setMonth] = useState(defaults.start.slice(0, 7));
   const [rows, setRows] = useState<TransporterRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -245,6 +246,21 @@ export function ApprovalChargeAdvanceReport() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+        <Input
+          aria-label="Month"
+          className="h-9 w-40"
+          type="month"
+          value={month}
+          onChange={(e) => {
+            const value = e.target.value;
+            setMonth(value);
+            if (!value) return;
+            const [year, monthNumber] = value.split("-").map(Number);
+            setStartDate(`${value}-01`);
+            setEndDate(formatDateInput(new Date(year, monthNumber, 0)));
+            setSelectedId(null);
+          }}
+        />
         <Input
           className="h-9 w-40"
           type="date"
