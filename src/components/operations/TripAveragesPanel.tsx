@@ -267,17 +267,17 @@ export function TripAveragesPanel() {
       let distAmount: number;
       if (branchTotalBase > 0) {
         distRatio  = base / branchTotalBase;
-        // Distribution is an expense allocation only. Other income and fixed
-        // income remain in the summary P&L and are never added to this column.
-        distAmount = -distRatio * branchPnL.expenditure;
+        // Keep distributed expense positive, matching Booking Report. It is
+        // subtracted only when calculating final net.
+        distAmount = distRatio * branchPnL.expenditure;
       } else {
         // Equal-per-trip fallback
         distRatio  = branchTrips.length > 0 ? 1 / branchTrips.length : 0;
-        // Distribution is an expense allocation only. Other income and fixed
-        // income remain in the summary P&L and are never added to this column.
-        distAmount = -distRatio * branchPnL.expenditure;
+        // Keep distributed expense positive, matching Booking Report. It is
+        // subtracted only when calculating final net.
+        distAmount = distRatio * branchPnL.expenditure;
       }
-      const finalNet = t.net_income + distAmount;
+      const finalNet = t.net_income - distAmount;
 
       // Distribute finalNet across manifests by weight
       const tripTotalWeight = t.manifests.reduce((s, m) => s + m.weight_kg, 0);

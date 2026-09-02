@@ -482,7 +482,6 @@ export function TripDetailsPanel() {
             "Quantity",
           ];
     const manifestRows: (string | number)[][] = [manifestHeaders];
-    let manifestIncomeTotal = 0;
     let tripExpenseTotal = 0;
     let distributedIncomeTotal = 0;
     let distributedExpenseTotal = 0;
@@ -545,7 +544,6 @@ export function TripDetailsPanel() {
       }
 
       for (const manifest of row.manifestRows) {
-        manifestIncomeTotal += manifest.manifest_income;
         tripExpenseTotal += manifest.allocatedTripExpense;
         distributedIncomeTotal += manifest.allocatedIncome;
         distributedExpenseTotal += manifest.allocatedDistributedExpense;
@@ -595,7 +593,7 @@ export function TripDetailsPanel() {
     ];
     if (canSeeMoney) {
       manifestTotals.push(
-        manifestIncomeTotal,
+        tripExpenseTotal,
         distributedIncomeTotal,
         distributedExpenseTotal,
         manifestProfitTotal,
@@ -996,10 +994,13 @@ export function TripDetailsPanel() {
                       <td className="px-4 py-3" colSpan={10}>
                         Totals
                       </td>
-                      <td className="px-4 py-3 text-right">{inr(total("total_income"))}</td>
                       <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
                         {inr(total("total_expense"))}
                       </td>
+                      <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
+                        {inr(total("expenseDistribution"))}
+                      </td>
+                      <td className="px-4 py-3 text-right">{inr(total("total_income"))}</td>
                       <td className={`px-4 py-3 text-right ${moneyColor(total("net_income"))}`}>
                         {inr(total("net_income"))}
                       </td>
