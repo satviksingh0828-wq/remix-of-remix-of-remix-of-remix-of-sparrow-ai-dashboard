@@ -14,6 +14,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { findEntry, manifestCharges, type ContractLite, type EntryLite } from "./trip-calc";
 
 // ── Token-based admin guard ────────────────────────────────────────────────────
 // Mirrors the verifyAppToken helper in user-auth.ts.
@@ -375,6 +376,53 @@ export const serverUpdateCorrectionManifest = createServerFn({ method: "POST" })
       .eq("id", data.tripId);
     if (updateError) throw new Error(updateError.message);
     return true;
+  });
+
+/** Recalculate a closed manifest from today's source/contract rates without saving it. */
+export const serverLoadCorrectionManifestCharges = createServerFn({ method: "POST" })
+  .validator(
+    z.object({
+      sessionToken: z.string(),
+      tripId: z.string(),
+      manifestIndex: z.number().int().nonnegative(),
+      manifestNumber: z.string(),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireAdminToken(data.sessionToken);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("closed_trips")
+      .select("snapshot")
+      .eq("id", data.tripId)
+      .single();
+    if (error) throw new Error(error.message);
+
+    const snapshot = (row.snapshot ?? {}) as Record<string, unknown>;
+    const trip = (snapshot.trip ?? {}) as Record<string, unknown>;
+    const manifests = (snapshot.manifests ?? []) as Record<string, unknown>[];
+    const manifest = manifests[data.manifestIndex];
+    if (!manifest) throw new Error("Manifest was not found in the closed trip.");
+    if (String(manifest.manifest_number ?? "") !== data.manifestNumber) {
+      throw new Error("Manifest details changed. Refresh the correction panel and try again.");
+    }
+
+    // A manifest-specific source takes precedence; otherwise use the trip contract.
+    const contractId = String(manifest.source_id ?? trip.contract_id ?? "").trim();
+    if (!contractId) throw new Error("This manifest has no source or trip contract to load from.");
+    const [{ data: contract, error: contractError }, { data: entries, error: entriesError }] =
+      await Promise.all([
+        supabaseAdmin.from("contracts").select("*").eq("id", contractId).maybeSingle(),
+        supabaseAdmin.from("contract_entries").select("*").eq("contract_id", contractId),
+      ]);
+    if (contractError) throw new Error(contractError.message);
+    if (entriesError) throw new Error(entriesError.message);
+    if (!contract) throw new Error("The selected source/contract no longer exists.");
+
+    const entry = findEntry((entries ?? []) as unknown as EntryLite[], manifest as never);
+    if (!entry) throw new Error("No source/contract route matches this manifest.");
+    const charges = manifestCharges(contract as unknown as ContractLite, entry, manifest as never);
+    return { freight: charges.freight, loading: charges.loading };
   });
 
 // ── Tab 1 – Error Panel ────────────────────────────────────────────────────────

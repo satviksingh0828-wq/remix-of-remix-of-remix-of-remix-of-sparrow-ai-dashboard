@@ -17,6 +17,7 @@ import { useSession } from "@/lib/session";
 import {
   serverFixMissingEndDates,
   serverGetCorrectionTrips,
+  serverLoadCorrectionManifestCharges,
   serverUpdateCorrectionManifest,
   serverUpdateCorrectionManifestDates,
   type CorrectionTrip,
@@ -44,6 +45,7 @@ export function CorrectionPanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [daysAfterStart, setDaysAfterStart] = useState<"1" | "2">("1");
+  const [loadingManifest, setLoadingManifest] = useState<string | null>(null);
   const importInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -109,6 +111,34 @@ export function CorrectionPanel() {
       load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update manifest charges");
+    }
+  }
+
+  async function loadManifestCharges(
+    tripId: string,
+    manifestIndex: number,
+    manifestNumber: string,
+  ) {
+    if (!user?.sessionToken) return;
+    const key = `${tripId}-${manifestIndex}`;
+    setLoadingManifest(key);
+    try {
+      const charges = await serverLoadCorrectionManifestCharges({
+        data: { sessionToken: user.sessionToken, tripId, manifestIndex, manifestNumber },
+      });
+      const freightInput = document.getElementById(
+        `freight-${tripId}-${manifestIndex}`,
+      ) as HTMLInputElement | null;
+      const loadingInput = document.getElementById(
+        `loading-${tripId}-${manifestIndex}`,
+      ) as HTMLInputElement | null;
+      if (freightInput) freightInput.value = String(charges.freight);
+      if (loadingInput) loadingInput.value = String(charges.loading);
+      toast.success("Loaded matching source/contract charges. Click Save to apply them.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not load manifest charges");
+    } finally {
+      setLoadingManifest(null);
     }
   }
 
@@ -380,7 +410,7 @@ export function CorrectionPanel() {
                             {row.manifests.map((manifest) => (
                               <div
                                 key={manifest.index}
-                                className="grid items-end gap-3 rounded-lg border border-border bg-card p-3 md:grid-cols-[1fr_140px_140px_auto]"
+                                className="grid items-end gap-3 rounded-lg border border-border bg-card p-3 md:grid-cols-[1fr_140px_140px_auto_auto]"
                               >
                                 <div>
                                   <p className="font-medium">
@@ -412,6 +442,27 @@ export function CorrectionPanel() {
                                     className="mt-1 h-9"
                                   />
                                 </label>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={loadingManifest === `${row.id}-${manifest.index}`}
+                                  onClick={() =>
+                                    loadManifestCharges(
+                                      row.id,
+                                      manifest.index,
+                                      manifest.manifest_number,
+                                    )
+                                  }
+                                >
+                                  <RefreshCw
+                                    className={`size-4 ${
+                                      loadingManifest === `${row.id}-${manifest.index}`
+                                        ? "animate-spin"
+                                        : ""
+                                    }`}
+                                  />{" "}
+                                  Load
+                                </Button>
                                 <Button
                                   size="sm"
                                   onClick={() => saveManifest(row.id, manifest.index)}
