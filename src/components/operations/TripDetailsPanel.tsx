@@ -37,6 +37,7 @@ import { useSession } from "@/lib/session";
 import { serverFetchTripDetails, type TripAveragesData, type TripAveragesRow } from "@/lib/pnl";
 import { inr } from "@/lib/trip-calc";
 import { financialYearLabel, financialYearOptions } from "@/lib/financial-year";
+import { buildBranchOperationalPools, distributionShare } from "@/lib/operational-distribution";
 
 const MONTHS = [
   { value: "1", label: "January" },
@@ -54,7 +55,7 @@ const MONTHS = [
 ];
 
 type DistMethod = "weight" | "quantity";
-type BranchPool = { income: number; expense: number };
+type BranchPool = { income: number; expense: number; net: number };
 
 function moneyColor(value: number) {
   return value >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
@@ -96,59 +97,12 @@ function ownershipLabel(value: string) {
   return value === "own" ? "Own" : value === "third_party" ? "Renter" : "—";
 }
 
-function buildBranchPools(
-  data: TripAveragesData,
-  branches: Array<{ id: string }>,
-  tripCounts: Map<string, number>,
-) {
-  const pools = new Map<string, BranchPool>();
-  for (const branch of branches) pools.set(branch.id, { income: 0, expense: 0 });
-
-  for (const row of data.incomeRows) {
-    if (row.branch_id && pools.has(row.branch_id)) {
-      pools.get(row.branch_id)!.income += row.amount;
-    }
-  }
-  for (const row of data.expenditureRows) {
-    if (row.branch_id && pools.has(row.branch_id)) {
-      pools.get(row.branch_id)!.expense += row.amount;
-    }
-  }
-
-  const recipients = branches.filter((branch) => {
-    const pool = pools.get(branch.id)!;
-    return pool.income > 0 || pool.expense > 0;
-  });
-  const usableRecipients = recipients.length > 0 ? recipients : branches;
-  const totalTrips = usableRecipients.reduce(
-    (sum, branch) => sum + (tripCounts.get(branch.id) ?? 0),
-    0,
+function buildBranchPools(data: TripAveragesData, branches: Array<{ id: string }>) {
+  return buildBranchOperationalPools(
+    branches.map((branch) => branch.id),
+    data.incomeRows,
+    data.expenditureRows,
   );
-  const share = (branchId: string) =>
-    totalTrips > 0
-      ? (tripCounts.get(branchId) ?? 0) / totalTrips
-      : usableRecipients.length > 0
-        ? 1 / usableRecipients.length
-        : 0;
-
-  for (const row of data.incomeRows) {
-    if (!row.branch_id || !pools.has(row.branch_id)) {
-      for (const branch of usableRecipients) {
-        pools.get(branch.id)!.income += row.amount * share(branch.id);
-      }
-    }
-  }
-  for (const row of data.expenditureRows) {
-    if (!row.branch_id || !pools.has(row.branch_id)) {
-      for (const branch of usableRecipients) {
-        pools.get(branch.id)!.expense += row.amount * share(branch.id);
-      }
-    }
-  }
-  for (const branch of usableRecipients) {
-    pools.get(branch.id)!.income += data.fixedIncome * share(branch.id);
-  }
-  return pools;
 }
 
 export function TripDetailsPanel() {
@@ -213,19 +167,9 @@ export function TripDetailsPanel() {
     );
   }, [data]);
 
-  const tripCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const trip of data?.trips ?? []) {
-      if (trip.branch_id) {
-        counts.set(trip.branch_id, (counts.get(trip.branch_id) ?? 0) + 1);
-      }
-    }
-    return counts;
-  }, [data]);
-
   const pools = useMemo(
-    () => (data ? buildBranchPools(data, branches, tripCounts) : new Map<string, BranchPool>()),
-    [data, branches, tripCounts],
+    () => (data ? buildBranchPools(data, branches) : new Map<string, BranchPool>()),
+    [data, branches],
   );
 
   const rows = useMemo(() => {
@@ -244,46 +188,43 @@ export function TripDetailsPanel() {
         0,
       );
       const branchPool = trip.branch_id
-        ? (pools.get(trip.branch_id) ?? { income: 0, expense: 0 })
-        : { income: 0, expense: 0 };
+        ? (pools.get(trip.branch_id) ?? { income: 0, expense: 0, net: 0 })
+        : { income: 0, expense: 0, net: 0 };
       const base = method === "weight" ? trip.total_weight : trip.total_quantity;
-      const tripShare = branchBase > 0 ? base / branchBase : 1 / Math.max(branchTrips.length, 1);
-      const incomeDistribution = branchPool.income * tripShare;
-      const expenseDistribution = branchPool.expense * tripShare;
-      const distributedIncome = trip.total_income + incomeDistribution;
-      const distributedExpense = trip.total_expense + expenseDistribution;
-      const distributedProfit = distributedIncome - distributedExpense;
-      const manifestWeight = trip.manifests.reduce((sum, manifest) => sum + manifest.weight_kg, 0);
+      const tripShare = distributionShare(base, branchBase, branchTrips.length);
+      const operationalDistribution = branchPool.net * tripShare;
+      const distributedProfit = trip.net_income + operationalDistribution;
+      const manifestBaseTotal = trip.manifests.reduce(
+        (sum, manifest) => sum + (method === "weight" ? manifest.weight_kg : manifest.quantity),
+        0,
+      );
       const manifestRows = trip.manifests.map((manifest) => {
-        const manifestShare =
-          manifestWeight > 0
-            ? manifest.weight_kg / manifestWeight
-            : 1 / Math.max(trip.manifests.length, 1);
+        const manifestBase = method === "weight" ? manifest.weight_kg : manifest.quantity;
+        const manifestShare = distributionShare(
+          manifestBase,
+          manifestBaseTotal,
+          trip.manifests.length,
+        );
+        const allocatedTripExpense = trip.total_expense * manifestShare;
+        const allocatedDistribution = operationalDistribution * manifestShare;
         return {
           ...manifest,
           manifestShare,
-          allocatedIncome: distributedIncome * manifestShare,
-          allocatedTripExpense: trip.total_expense * manifestShare,
-          allocatedDistributedExpense: expenseDistribution * manifestShare,
-          // Basic users need the expense belonging to this trip/manifest only;
-          // branch-wide overhead pools are an accounting view for admins/viewers.
-          allocatedExpense: (canSeeMoney ? distributedExpense : trip.total_expense) * manifestShare,
-          manifestProfit: distributedProfit * manifestShare,
+          allocatedTripExpense,
+          allocatedDistribution,
+          manifestProfit: trip.net_income * manifestShare + allocatedDistribution,
         };
       });
       return {
         ...trip,
         base,
         tripShare,
-        incomeDistribution,
-        expenseDistribution,
-        distributedIncome,
-        distributedExpense,
+        operationalDistribution,
         distributedProfit,
         manifestRows,
       };
     });
-  }, [canSeeMoney, data, method, pools]);
+  }, [data, method, pools]);
 
   const filteredRows = useMemo(
     () =>
@@ -305,8 +246,7 @@ export function TripDetailsPanel() {
       | "total_income"
       | "total_expense"
       | "net_income"
-      | "incomeDistribution"
-      | "expenseDistribution"
+      | "operationalDistribution"
       | "distributedProfit",
   ) => filteredRows.reduce((sum, row) => sum + row[field], 0);
 
@@ -328,7 +268,7 @@ export function TripDetailsPanel() {
           "Distance Travelled (km)",
           "Type (Renter/Own)",
           "Vehicle Number",
-          "Distributed Expense (₹)",
+          "Distribution (₹)",
           "Trip Income (₹)",
           "Trip Expense (₹)",
           "Trip Profit (₹)",
@@ -375,7 +315,7 @@ export function TripDetailsPanel() {
               row.distance_travelled ?? "—",
               ownershipLabel(row.ownership),
               row.vehicle_number || "—",
-              row.expenseDistribution,
+              row.operationalDistribution,
               row.total_income,
               row.total_expense,
               row.net_income,
@@ -409,28 +349,6 @@ export function TripDetailsPanel() {
               ],
       ),
     ];
-    if (canSeeMoney) {
-      tripRows.push([
-        "TOTALS",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        "",
-        total("expenseDistribution"),
-        total("total_income"),
-        total("total_expense"),
-        total("net_income"),
-        total("distributedProfit"),
-      ]);
-    } else if (canSeeExpense) {
-      tripRows.push(["TOTALS", "", "", "", "", "", "", "", "", "", total("total_expense")]);
-    } else {
-      tripRows.push(["TOTALS", "", "", "", "", "", "", "", "", ""]);
-    }
 
     const manifestHeaders = canSeeMoney
       ? [
@@ -447,8 +365,10 @@ export function TripDetailsPanel() {
           "Weight (kg)",
           "Quantity",
           "Trip Expense (₹)",
+          "Manifest Freight Income (₹)",
+          "Manifest Loading Income (₹)",
           "Manifest Income (₹)",
-          "Distributed Expense (₹)",
+          "Distribution (₹)",
           "Profit (₹)",
         ]
       : canSeeExpense
@@ -482,10 +402,6 @@ export function TripDetailsPanel() {
             "Quantity",
           ];
     const manifestRows: (string | number)[][] = [manifestHeaders];
-    let tripExpenseTotal = 0;
-    let distributedIncomeTotal = 0;
-    let distributedExpenseTotal = 0;
-    let manifestProfitTotal = 0;
 
     for (const row of filteredRows) {
       if (row.manifestRows.length === 0) {
@@ -502,6 +418,8 @@ export function TripDetailsPanel() {
                 "—",
                 "—",
                 "—",
+                "",
+                "",
                 "",
                 "",
                 "",
@@ -544,10 +462,6 @@ export function TripDetailsPanel() {
       }
 
       for (const manifest of row.manifestRows) {
-        tripExpenseTotal += manifest.allocatedTripExpense;
-        distributedIncomeTotal += manifest.allocatedIncome;
-        distributedExpenseTotal += manifest.allocatedDistributedExpense;
-        manifestProfitTotal += manifest.manifestProfit;
         const base: (string | number)[] = [
           row.branch_name || "—",
           row.trip_code || "—",
@@ -567,8 +481,10 @@ export function TripDetailsPanel() {
             ? [
                 ...base,
                 manifest.allocatedTripExpense,
+                manifest.freight_income,
+                manifest.loading_income,
                 manifest.manifest_income,
-                manifest.allocatedDistributedExpense,
+                manifest.allocatedDistribution,
                 manifest.manifestProfit,
               ]
             : canSeeExpense
@@ -577,31 +493,6 @@ export function TripDetailsPanel() {
         );
       }
     }
-    const manifestTotals: (string | number)[] = [
-      "TOTALS",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-      "",
-    ];
-    if (canSeeMoney) {
-      manifestTotals.push(
-        tripExpenseTotal,
-        distributedIncomeTotal,
-        distributedExpenseTotal,
-        manifestProfitTotal,
-      );
-    } else if (canSeeExpense) {
-      manifestTotals.push(tripExpenseTotal);
-    }
-    manifestRows.push(manifestTotals);
 
     const tripSheet = XLSX.utils.aoa_to_sheet(tripRows);
     tripSheet["!cols"] = (
@@ -614,7 +505,7 @@ export function TripDetailsPanel() {
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
       canSeeMoney
-        ? [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18, 20, 20, 16]
+        ? [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18, 28, 28, 20, 20, 16]
         : canSeeExpense
           ? [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18]
           : [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12]
@@ -773,8 +664,9 @@ export function TripDetailsPanel() {
             <p className="text-xs text-muted-foreground">
               {canSeeMoney ? (
                 <>
-                  Income and expense pools are distributed branch-wise by <strong>{method}</strong>.
-                  Click a trip to see its manifest details and distribution.
+                  Operational income less operational expense is distributed branch-wise by{" "}
+                  <strong>{method}</strong>. Click a trip to see its manifest details and
+                  distribution.
                 </>
               ) : canSeeExpense ? (
                 <>
@@ -810,7 +702,7 @@ export function TripDetailsPanel() {
                     {canSeeMoney && (
                       <>
                         <th className="px-4 py-3 text-right">Trip Expense</th>
-                        <th className="px-4 py-3 text-right">Distributed Expense</th>
+                        <th className="px-4 py-3 text-right">Distribution</th>
                         <th className="px-4 py-3 text-right">Trip Income</th>
                         <th className="px-4 py-3 text-right">Trip Profit</th>
                         <th className="px-4 py-3 text-right">Final Profit</th>
@@ -867,8 +759,10 @@ export function TripDetailsPanel() {
                               <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
                                 {inr(row.total_expense)}
                               </td>
-                              <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
-                                {inr(row.expenseDistribution)}
+                              <td
+                                className={`px-4 py-3 text-right ${moneyColor(row.operationalDistribution)}`}
+                              >
+                                {inr(row.operationalDistribution)}
                               </td>
                               <td className="px-4 py-3 text-right">{inr(row.total_income)}</td>
                               <td
@@ -920,9 +814,7 @@ export function TripDetailsPanel() {
                                           <>
                                             <th className="py-1.5 pr-4 text-right">Trip Expense</th>
                                             <th className="py-1.5 pr-4 text-right">Income</th>
-                                            <th className="py-1.5 pr-4 text-right">
-                                              Distributed Expense
-                                            </th>
+                                            <th className="py-1.5 pr-4 text-right">Distribution</th>
                                             <th className="py-1.5 text-right">Profit</th>
                                           </>
                                         )}
@@ -959,8 +851,10 @@ export function TripDetailsPanel() {
                                               <td className="py-1.5 pr-4 text-right text-green-600 dark:text-green-400">
                                                 {inr(manifest.manifest_income)}
                                               </td>
-                                              <td className="py-1.5 pr-4 text-right text-red-600 dark:text-red-400">
-                                                {inr(manifest.allocatedDistributedExpense)}
+                                              <td
+                                                className={`py-1.5 pr-4 text-right ${moneyColor(manifest.allocatedDistribution)}`}
+                                              >
+                                                {inr(manifest.allocatedDistribution)}
                                               </td>
                                               <td
                                                 className={`py-1.5 text-right font-semibold ${moneyColor(manifest.manifestProfit)}`}
@@ -998,7 +892,7 @@ export function TripDetailsPanel() {
                         {inr(total("total_expense"))}
                       </td>
                       <td className="px-4 py-3 text-right text-red-600 dark:text-red-400">
-                        {inr(total("expenseDistribution"))}
+                        {inr(total("operationalDistribution"))}
                       </td>
                       <td className="px-4 py-3 text-right">{inr(total("total_income"))}</td>
                       <td className={`px-4 py-3 text-right ${moneyColor(total("net_income"))}`}>
