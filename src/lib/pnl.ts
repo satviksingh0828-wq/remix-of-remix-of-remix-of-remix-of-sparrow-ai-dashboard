@@ -4,7 +4,13 @@
  */
 
 import { createServerFn } from "@tanstack/react-start";
-import { num, manifestCharges, findEntry, type ContractLite, type EntryLite } from "./trip-calc";
+import {
+  num,
+  manifestChargeDetails,
+  findEntry,
+  type ContractLite,
+  type EntryLite,
+} from "./trip-calc";
 import { financialYearRange } from "./financial-year";
 import { isDriverActive } from "./drivers";
 
@@ -36,6 +42,11 @@ export type ManifestDetail = {
   freight_income: number;
   loading_income: number;
   manifest_income: number; // freight + loading + fixed from manifest_lines
+  source_used: string;
+  freight_rate_type: "fixed" | "variable" | "—";
+  freight_rate_value: number;
+  loading_rate_type: "fixed" | "variable" | "—";
+  loading_rate_value: number;
 };
 
 export type TripAveragesRow = {
@@ -666,12 +677,21 @@ async function fetchTripAveragesData(
       const s = snapshot as Record<string, unknown>;
       const rawManifests = (s?.manifests as Record<string, unknown>[]) ?? [];
       const manifestLines = (s?.manifest_lines as Record<string, unknown>[]) ?? [];
-
+      const trip = (s?.trip ?? {}) as Record<string, unknown>;
+      const sources = (s?.sources ?? {}) as Record<string, ContractLite>;
+      const sourceEntries = (s?.source_entries as EntryLite[]) ?? [];
       return rawManifests.map((m, i) => {
         const line = manifestLines[i] as Record<string, unknown> | undefined;
         const freightIncome = Number(line?.freight ?? 0);
         const loadingIncome = Number(line?.loading ?? 0);
         const income = freightIncome + loadingIncome + Number(line?.fixed ?? 0);
+        const sourceId = String(m.source_id ?? trip.contract_id ?? "").trim();
+        const source = sources[sourceId];
+        const entry = findEntry(
+          sourceEntries.filter((item) => item.contract_id === sourceId),
+          m as never,
+        );
+        const rateDetails = manifestChargeDetails(source, entry, m as never);
         const from = resolveLocation(m.from_location_id, m.from_pin_code);
         const to = resolveLocation(m.to_location_id, m.to_pin_code);
         return {
@@ -686,6 +706,11 @@ async function fetchTripAveragesData(
           freight_income: freightIncome,
           loading_income: loadingIncome,
           manifest_income: income,
+          source_used: String(source?.contract_name ?? "—"),
+          freight_rate_type: rateDetails.freight.type,
+          freight_rate_value: rateDetails.freight.value,
+          loading_rate_type: rateDetails.loading.type,
+          loading_rate_value: rateDetails.loading.value,
         };
       });
     } catch {

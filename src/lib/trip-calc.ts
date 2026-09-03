@@ -70,10 +70,55 @@ function matchRouteRange(ranges: RouteRange[], value: number): RouteRange | unde
   let matched: RouteRange | undefined;
   for (const r of sorted) {
     const startOk = value >= num(r.start);
-    const endOk   = !r.end || r.end.trim() === "" || value <= num(r.end);
+    const endOk = !r.end || r.end.trim() === "" || value <= num(r.end);
     if (startOk && endOk) matched = r;
   }
   return matched;
+}
+
+export type ManifestRateDetail = {
+  type: "fixed" | "variable" | "—";
+  value: number;
+};
+
+export type ManifestChargeDetails = {
+  freight: ManifestRateDetail;
+  loading: ManifestRateDetail;
+  fixed: number;
+  matched: boolean;
+};
+
+/** Returns the contract/source rate selected for each charge, including the original rate value. */
+export function manifestChargeDetails(
+  contract: ContractLite | undefined,
+  entry: EntryLite | undefined,
+  m: ManifestLite,
+): ManifestChargeDetails {
+  if (!contract || !entry) {
+    return {
+      freight: { type: "—", value: 0 },
+      loading: { type: "—", value: 0 },
+      fixed: 0,
+      matched: false,
+    };
+  }
+
+  const pick = (ranges: RouteRange[], rangeType: "weight" | "quantity"): ManifestRateDetail => {
+    const value = rangeType === "weight" ? num(m.weight_kg) : num(m.quantity);
+    const r = matchRouteRange(ranges ?? [], value);
+    if (!r) return { type: "—", value: 0 };
+    return {
+      type: r.working === "fixed" ? "fixed" : "variable",
+      value: num(r.value),
+    };
+  };
+
+  return {
+    freight: pick(entry.freight_route_ranges ?? [], entry.freight_route_range_type ?? "weight"),
+    loading: pick(entry.loading_route_ranges ?? [], entry.loading_route_range_type ?? "weight"),
+    fixed: num(entry.per_manifest_amount),
+    matched: true,
+  };
 }
 
 export function manifestCharges(
@@ -81,27 +126,16 @@ export function manifestCharges(
   entry: EntryLite | undefined,
   m: ManifestLite,
 ): { freight: number; loading: number; fixed: number; matched: boolean } {
-  if (!contract || !entry) return { freight: 0, loading: 0, fixed: 0, matched: false };
-
-  const pick = (ranges: RouteRange[], rangeType: "weight" | "quantity"): number => {
+  const details = manifestChargeDetails(contract, entry, m);
+  const charge = (rate: ManifestRateDetail, rangeType: "weight" | "quantity") => {
     const value = rangeType === "weight" ? num(m.weight_kg) : num(m.quantity);
-    const r = matchRouteRange(ranges ?? [], value);
-    if (!r) return 0;
-    const rate = num(r.value);
-    return r.working === "fixed" ? rate : rate * value;
+    return rate.type === "fixed" ? rate.value : rate.type === "variable" ? rate.value * value : 0;
   };
-
   return {
-    freight: pick(
-      entry.freight_route_ranges ?? [],
-      entry.freight_route_range_type ?? "weight",
-    ),
-    loading: pick(
-      entry.loading_route_ranges ?? [],
-      entry.loading_route_range_type ?? "weight",
-    ),
-    fixed: num(entry.per_manifest_amount),
-    matched: true,
+    freight: charge(details.freight, entry?.freight_route_range_type ?? "weight"),
+    loading: charge(details.loading, entry?.loading_route_range_type ?? "weight"),
+    fixed: details.fixed,
+    matched: details.matched,
   };
 }
 

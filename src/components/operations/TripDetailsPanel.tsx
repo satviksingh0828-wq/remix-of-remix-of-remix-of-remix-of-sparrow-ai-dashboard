@@ -368,6 +368,11 @@ export function TripDetailsPanel() {
           "Manifest Freight Income (₹)",
           "Manifest Loading Income (₹)",
           "Manifest Income (₹)",
+          "Source Used",
+          "Freight Rate Type",
+          "Freight Rate Value (₹)",
+          "Loading Rate Type",
+          "Loading Rate Value (₹)",
           "Distribution (₹)",
           "Profit (₹)",
         ]
@@ -484,6 +489,11 @@ export function TripDetailsPanel() {
                 manifest.freight_income,
                 manifest.loading_income,
                 manifest.manifest_income,
+                manifest.source_used,
+                manifest.freight_rate_type,
+                manifest.freight_rate_value,
+                manifest.loading_rate_type,
+                manifest.loading_rate_value,
                 manifest.allocatedDistribution,
                 manifest.manifestProfit,
               ]
@@ -505,7 +515,10 @@ export function TripDetailsPanel() {
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestRows);
     manifestSheet["!cols"] = (
       canSeeMoney
-        ? [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18, 28, 28, 20, 20, 16]
+        ? [
+            18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18, 28, 28, 20, 18, 16, 18, 18, 16, 20,
+            20, 16,
+          ]
         : canSeeExpense
           ? [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12, 18]
           : [18, 18, 16, 16, 16, 18, 20, 22, 20, 22, 12, 12]
