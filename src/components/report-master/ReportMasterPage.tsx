@@ -877,9 +877,6 @@ function TemplatesPanel({
   const [draft, setDraft] = useState(empty);
   const [editing, setEditing] = useState<TemplateRow | null>(null);
   const [variableSearch, setVariableSearch] = useState("");
-  const compatible = variables.filter((item) =>
-    catalog.find((system) => system.key === item.system_value_key)?.scopes.includes(draft.scope),
-  );
   const visible = variables.filter((item) => {
     const system = catalog.find((value) => value.key === item.system_value_key);
     return `${item.name} ${item.variable_key} ${system?.label} ${system?.key} ${system?.group} ${item.description} ${system?.description}`
@@ -906,30 +903,12 @@ function TemplatesPanel({
       columns: row.columns,
     });
   };
-  const changeScope = (scope: ReportScope) => {
-    const invalid = draft.columns.some(
-      (column) =>
-        column.variableId &&
-        !variables.some(
-          (item) =>
-            item.id === column.variableId &&
-            catalog.find((system) => system.key === item.system_value_key)?.scopes.includes(scope),
-        ),
-    );
-    if (
-      invalid &&
-      !confirm(
-        "Some existing columns are incompatible with this scope. Keep them so you can fix them manually?",
-      )
-    )
-      return;
-    patch({ scope });
-  };
+  const changeScope = (scope: ReportScope) => patch({ scope });
   const addColumn = () =>
     patch({
       columns: [
         ...draft.columns,
-        { id: crypto.randomUUID(), heading: "", variableId: compatible[0]?.id, format: "auto" },
+        { id: crypto.randomUUID(), heading: "", variableId: variables[0]?.id, format: "auto" },
       ],
     });
   const save = async () => {
@@ -940,7 +919,7 @@ function TemplatesPanel({
     )
       return toast.error("Name the template and complete every column.");
     const formulaError = draft.columns.flatMap((c) =>
-      c.formula ? validateFormula(c.formula, compatible) : [],
+      c.formula ? validateFormula(c.formula, variables) : [],
     )[0];
     if (formulaError) return toast.error(formulaError);
     const payload = {
@@ -1091,6 +1070,10 @@ function TemplatesPanel({
               onChange={(e) => setVariableSearch(e.target.value)}
               placeholder="Search variables by name, key, category, or description…"
             />
+            <p className="mt-2 text-xs text-muted-foreground">
+              All variables are available in every report scope. Values that do not exist for a
+              particular row are left blank.
+            </p>
           </div>
           <div className="mt-5 space-y-3">
             {draft.columns.map((c, i) => (
@@ -1124,12 +1107,10 @@ function TemplatesPanel({
                   </SelectTrigger>
                   <SelectContent>
                     {visible.map((v) => {
-                      const ok = compatible.includes(v);
                       const system = catalog.find((x) => x.key === v.system_value_key);
                       return (
-                        <SelectItem key={v.id} value={v.id} disabled={!ok}>
+                        <SelectItem key={v.id} value={v.id}>
                           {system?.group} · {v.name}
-                          {ok ? "" : " — incompatible scope"}
                         </SelectItem>
                       );
                     })}
@@ -1137,7 +1118,7 @@ function TemplatesPanel({
                 </Select>
                 <FormulaInput
                   value={c.formula ?? ""}
-                  variables={compatible}
+                  variables={variables}
                   onChange={(formula) =>
                     patch({
                       columns: draft.columns.map((x) =>
@@ -1163,7 +1144,7 @@ function TemplatesPanel({
             ))}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button variant="outline" onClick={addColumn} disabled={!compatible.length}>
+            <Button variant="outline" onClick={addColumn} disabled={!variables.length}>
               <Plus className="mr-2 size-4" />
               Add Column
             </Button>
