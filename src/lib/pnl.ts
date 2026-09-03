@@ -33,6 +33,8 @@ export type ManifestDetail = {
   to_pin_code: string;
   weight_kg: number;
   quantity: number;
+  freight_income: number;
+  loading_income: number;
   manifest_income: number; // freight + loading + fixed from manifest_lines
 };
 
@@ -667,9 +669,9 @@ async function fetchTripAveragesData(
 
       return rawManifests.map((m, i) => {
         const line = manifestLines[i] as Record<string, unknown> | undefined;
-        const income = line
-          ? Number(line.freight ?? 0) + Number(line.loading ?? 0) + Number(line.fixed ?? 0)
-          : 0;
+        const freightIncome = Number(line?.freight ?? 0);
+        const loadingIncome = Number(line?.loading ?? 0);
+        const income = freightIncome + loadingIncome + Number(line?.fixed ?? 0);
         const from = resolveLocation(m.from_location_id, m.from_pin_code);
         const to = resolveLocation(m.to_location_id, m.to_pin_code);
         return {
@@ -681,6 +683,8 @@ async function fetchTripAveragesData(
           to_pin_code: to.pin,
           weight_kg: Number(m.weight_kg ?? 0),
           quantity: Number(m.quantity ?? 0),
+          freight_income: freightIncome,
+          loading_income: loadingIncome,
           manifest_income: income,
         };
       });
@@ -758,6 +762,8 @@ async function fetchTripAveragesData(
           net_income: 0,
           manifests: trip.manifests.map((manifest) => ({
             ...manifest,
+            freight_income: 0,
+            loading_income: 0,
             manifest_income: 0,
           })),
         }));

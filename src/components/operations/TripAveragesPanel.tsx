@@ -356,6 +356,8 @@ export function TripAveragesPanel() {
         "To",
         "Weight (kg)",
         "Quantity",
+        "Manifest Freight Income (₹)",
+        "Manifest Loading Income (₹)",
         "Manifest Income (₹)",
         `Manifest ${method === "weight" ? "Weight" : "Quantity"} Share %`,
         "Manifest Distribution (₹)",
@@ -385,6 +387,8 @@ export function TripAveragesPanel() {
           "",
           "",
           "",
+          "",
+          "",
         ]);
       } else {
         for (const m of r.manifestRows) {
@@ -405,6 +409,8 @@ export function TripAveragesPanel() {
             m.to_location,
             m.weight_kg,
             m.quantity,
+            parseFloat(m.freight_income.toFixed(2)),
+            parseFloat(m.loading_income.toFixed(2)),
             parseFloat(m.manifest_income.toFixed(2)),
             parseFloat((m.mShare * 100).toFixed(2)),
             parseFloat(m.mDist.toFixed(2)),
@@ -420,7 +426,7 @@ export function TripAveragesPanel() {
     }));
     const manifestSheet = XLSX.utils.aoa_to_sheet(manifestSheetData);
     manifestSheet["!cols"] = [
-      18, 16, 16, 16, 16, 16, 16, 16, 12, 18, 16, 18, 20, 20, 14, 12, 18, 24, 22, 18,
+      18, 16, 16, 16, 16, 16, 16, 16, 12, 18, 16, 18, 20, 20, 14, 12, 28, 28, 18, 24, 22, 18,
     ].map((w) => ({ wch: w }));
 
     const wb = XLSX.utils.book_new();
