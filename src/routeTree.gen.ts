@@ -49,7 +49,7 @@ import { Route as PayrollAdvancesRouteImport } from './routes/payroll.advances'
 import { Route as PayrollDeductionsRouteImport } from './routes/payroll.deductions'
 import { Route as PayrollGenerateRouteImport } from './routes/payroll.generate'
 import { Route as PayrollHistoryRouteImport } from './routes/payroll.history'
-import { Route as PayrollIncrementsRouteImport } from './routes/payroll.increments'
+import { Route as PayrollIncentivesRouteImport } from './routes/payroll.incentives'
 import { Route as PayrollLedgerRouteImport } from './routes/payroll.ledger'
 import { Route as PayrollLoansRouteImport } from './routes/payroll.loans'
 import { Route as PayrollPendingRouteImport } from './routes/payroll.pending'
@@ -269,9 +269,9 @@ const PayrollHistoryRoute = PayrollHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => PayrollRoute,
 } as any)
-const PayrollIncrementsRoute = PayrollIncrementsRouteImport.update({
-  id: '/increments',
-  path: '/increments',
+const PayrollIncentivesRoute = PayrollIncentivesRouteImport.update({
+  id: '/incentives',
+  path: '/incentives',
   getParentRoute: () => PayrollRoute,
 } as any)
 const PayrollLedgerRoute = PayrollLedgerRouteImport.update({
@@ -407,7 +407,7 @@ export interface FileRoutesByFullPath {
   '/payroll/deductions': typeof PayrollDeductionsRoute
   '/payroll/generate': typeof PayrollGenerateRoute
   '/payroll/history': typeof PayrollHistoryRoute
-  '/payroll/increments': typeof PayrollIncrementsRoute
+  '/payroll/incentives': typeof PayrollIncentivesRoute
   '/payroll/ledger': typeof PayrollLedgerRoute
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
@@ -462,7 +462,7 @@ export interface FileRoutesByTo {
   '/payroll/deductions': typeof PayrollDeductionsRoute
   '/payroll/generate': typeof PayrollGenerateRoute
   '/payroll/history': typeof PayrollHistoryRoute
-  '/payroll/increments': typeof PayrollIncrementsRoute
+  '/payroll/incentives': typeof PayrollIncentivesRoute
   '/payroll/ledger': typeof PayrollLedgerRoute
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
@@ -524,7 +524,7 @@ export interface FileRoutesById {
   '/payroll/deductions': typeof PayrollDeductionsRoute
   '/payroll/generate': typeof PayrollGenerateRoute
   '/payroll/history': typeof PayrollHistoryRoute
-  '/payroll/increments': typeof PayrollIncrementsRoute
+  '/payroll/incentives': typeof PayrollIncentivesRoute
   '/payroll/ledger': typeof PayrollLedgerRoute
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
@@ -587,7 +587,7 @@ export interface FileRouteTypes {
     | '/payroll/deductions'
     | '/payroll/generate'
     | '/payroll/history'
-    | '/payroll/increments'
+    | '/payroll/incentives'
     | '/payroll/ledger'
     | '/payroll/loans'
     | '/payroll/pending'
@@ -642,7 +642,7 @@ export interface FileRouteTypes {
     | '/payroll/deductions'
     | '/payroll/generate'
     | '/payroll/history'
-    | '/payroll/increments'
+    | '/payroll/incentives'
     | '/payroll/ledger'
     | '/payroll/loans'
     | '/payroll/pending'
@@ -703,7 +703,7 @@ export interface FileRouteTypes {
     | '/payroll/deductions'
     | '/payroll/generate'
     | '/payroll/history'
-    | '/payroll/increments'
+    | '/payroll/incentives'
     | '/payroll/ledger'
     | '/payroll/loans'
     | '/payroll/pending'
@@ -1041,11 +1041,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PayrollHistoryRouteImport
       parentRoute: typeof PayrollRoute
     }
-    '/payroll/increments': {
-      id: '/payroll/increments'
-      path: '/increments'
-      fullPath: '/payroll/increments'
-      preLoaderRoute: typeof PayrollIncrementsRouteImport
+    '/payroll/incentives': {
+      id: '/payroll/incentives'
+      path: '/incentives'
+      fullPath: '/payroll/incentives'
+      preLoaderRoute: typeof PayrollIncentivesRouteImport
       parentRoute: typeof PayrollRoute
     }
     '/payroll/ledger': {
@@ -1272,7 +1272,7 @@ interface PayrollRouteChildren {
   PayrollDeductionsRoute: typeof PayrollDeductionsRoute
   PayrollGenerateRoute: typeof PayrollGenerateRoute
   PayrollHistoryRoute: typeof PayrollHistoryRoute
-  PayrollIncrementsRoute: typeof PayrollIncrementsRoute
+  PayrollIncentivesRoute: typeof PayrollIncentivesRoute
   PayrollLedgerRoute: typeof PayrollLedgerRoute
   PayrollLoansRoute: typeof PayrollLoansRoute
   PayrollPendingRoute: typeof PayrollPendingRoute
@@ -1284,7 +1284,7 @@ const PayrollRouteChildren: PayrollRouteChildren = {
   PayrollDeductionsRoute: PayrollDeductionsRoute,
   PayrollGenerateRoute: PayrollGenerateRoute,
   PayrollHistoryRoute: PayrollHistoryRoute,
-  PayrollIncrementsRoute: PayrollIncrementsRoute,
+  PayrollIncentivesRoute: PayrollIncentivesRoute,
   PayrollLedgerRoute: PayrollLedgerRoute,
   PayrollLoansRoute: PayrollLoansRoute,
   PayrollPendingRoute: PayrollPendingRoute,

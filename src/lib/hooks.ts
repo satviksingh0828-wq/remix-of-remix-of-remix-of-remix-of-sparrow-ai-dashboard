@@ -525,7 +525,7 @@ export function useMarkPayrollPaid() {
       paymentDate: string;
       paymentAmount: number;
       partial: boolean;
-      /** The incremental amount being paid in this transaction */
+      /** The incentiveal amount being paid in this transaction */
       historyEntry: { date: string; amount: number };
       /** Existing payment_history from the payroll record */
       existingHistory: { date: string; amount: number }[] | null;
@@ -1321,4 +1321,4 @@ export async function fetchModuleLogs(
   }));
 }
 
-export { useIncrementAmounts, useCreateIncrementAmount, useMarkIncrementPaid, useDeleteIncrementAmount } from "./hr/hooks";
+export { useIncentiveAmounts, useCreateIncentiveAmount, useMarkIncentivePaid, useDeleteIncentiveAmount } from "./hr/hooks";

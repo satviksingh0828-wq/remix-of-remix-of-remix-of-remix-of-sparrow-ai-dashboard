@@ -11,7 +11,7 @@ import {
   useAllAttendance, usePayrolls, useCreatePayroll, useDeletePayroll,
   useLoans, useAdvances, useLossDeductions, useUpdateLossDeduction, useAppSettings,
   useAllLoanInstallments, useAllAdvanceInstallments,
-  useMarkLoanInstallmentPayroll, useMarkAdvanceInstallmentPayroll, useIncrementAmounts,
+  useMarkLoanInstallmentPayroll, useMarkAdvanceInstallmentPayroll, useIncentiveAmounts,
 } from '@/lib/hooks';
 import { fullName, effectivePaymentStatus } from '@/lib/types';
 import type { Employee, PayrollInput, Loan, Advance, LossDeduction, Payroll, LoanInstallment, AdvanceInstallment } from '@/lib/types';
@@ -44,7 +44,7 @@ export function PayrollGenerate() {
   const { data: settings } = useAppSettings();
   const { data: allLoanInst } = useAllLoanInstallments();
   const { data: allAdvInst } = useAllAdvanceInstallments();
-  const { data: incrementAmounts } = useIncrementAmounts(empId || undefined);
+  const { data: incentiveAmounts } = useIncentiveAmounts(empId || undefined);
 
   const [empId, setEmpId] = useState<string>('');
   const [year, setYear] = useState<number>(now.getFullYear());
@@ -185,18 +185,18 @@ export function PayrollGenerate() {
     const loanDed = activeLoans.reduce((s, l) => s + loanEmiAmount(l), 0);
     const advDed  = activeAdvances.reduce((s, a) => s + advEmiAmount(a), 0);
     const lossDed = pendingDeds.reduce((s, d) => s + Number(d.amount), 0);
-    const incrementAmount = (incrementAmounts ?? []).filter(i => i.status === 'pending').reduce((s, i) => s + Number(i.amount), 0);
+    const incentiveAmount = (incentiveAmounts ?? []).filter(i => i.status === 'pending').reduce((s, i) => s + Number(i.amount), 0);
 
     const n      = (v: number | string) => Number(v) || 0;
     const halfF  = periodType === 'half_month' ? 0.5 : 1;
     const pf     = n(emp.pf_deduction)  * halfF * c.joinLeaveFactor;
     const tax    = n(emp.tax_deduction) * halfF * c.joinLeaveFactor;
     const totalDed = pf + tax + loanDed + advDed + lossDed + c.unpaidLeaveDeduction;
-    const net = c.gross + c.extraWorkPay + incrementAmount - totalDed + c.paidLeavePayout;
+    const net = c.gross + c.extraWorkPay + incentiveAmount - totalDed + c.paidLeavePayout;
 
-    return { c, loanDed, advDed, lossDed, incrementAmount, pf, tax, net };
+    return { c, loanDed, advDed, lossDed, incentiveAmount, pf, tax, net };
   }, [emp, dept, holidays, allAttendance, period, periodType, activeLoans, activeAdvances,
-    pendingDeds, isLeavingPeriod, lastPayroll, loanEmiAmount, advEmiAmount, incrementAmounts]);
+    pendingDeds, isLeavingPeriod, lastPayroll, loanEmiAmount, advEmiAmount, incentiveAmounts]);
 
   const alreadyGenerated = useMemo(
     () => (history ?? []).some(p => p.period_start === ymd(period.from) && p.period_end === ymd(period.to)),
@@ -266,7 +266,7 @@ export function PayrollGenerate() {
       paid_leave_payout_amount:  c.paidLeavePayout,
       extra_work_days:           c.extraWorkDays,
       extra_work_pay:            extraWorkPay,
-      increment_amount:         incrementAmount,
+      incentive_amount:         incentiveAmount,
       net,
       working_days:              c.workingDays,
       present_days:              c.present,
@@ -324,10 +324,10 @@ export function PayrollGenerate() {
         }
       }
 
-      // Consume pending one-time increments exactly once.
-      for (const inc of (incrementAmounts ?? []).filter(i => i.status === 'pending')) {
+      // Consume pending one-time incentives exactly once.
+      for (const inc of (incentiveAmounts ?? []).filter(i => i.status === 'pending')) {
         const { supabase } = await import('@/integrations/supabase/client');
-        await supabase.from('increment_amounts').update({ status: 'added', payroll_id: created.id, added_on: ymd(new Date()) }).eq('id', inc.id).eq('status', 'pending');
+        await supabase.from('incentive_amounts').update({ status: 'added', payroll_id: created.id, added_on: ymd(new Date()) }).eq('id', inc.id).eq('status', 'pending');
       }
       // Mark loss deductions as deducted
       for (const d of pendingDeds) {
@@ -501,7 +501,7 @@ export function PayrollGenerate() {
                   {Number(existingPayroll.paid_leave_payout_amount) > 0 && (
                     <Row label="Paid leave payout (final settlement)" v={Number(existingPayroll.paid_leave_payout_amount)} />
                   )}
-                  {Number(existingPayroll.increment_amount) > 0 && <Row label="One-time increment" v={Number(existingPayroll.increment_amount)} />}
+                  {Number(existingPayroll.incentive_amount) > 0 && <Row label="One-time incentive" v={Number(existingPayroll.incentive_amount)} />}
                   <div className="mt-2 flex justify-between border-t pt-2 text-sm font-semibold">
                     <span>Gross</span>
                     <span>{money(Number(existingPayroll.gross) + Number(existingPayroll.extra_work_pay) + Number(existingPayroll.paid_leave_payout_amount))}</span>
@@ -520,10 +520,10 @@ export function PayrollGenerate() {
                   {preview.c.paidLeavePayout > 0 && (
                     <Row label={`Paid leave payout (${preview.c.paidLeavesLeftBefore} days × ${money(Number(emp.paid_leave_payout_rate))})`} v={preview.c.paidLeavePayout} />
                   )}
-                  <Row label="One-time increment" v={preview.incrementAmount} />
+                  <Row label="One-time incentive" v={preview.incentiveAmount} />
                   <div className="mt-2 flex justify-between border-t pt-2 text-sm font-semibold">
                     <span>Gross</span>
-                    <span>{money(preview.c.gross + preview.c.extraWorkPay + preview.incrementAmount + preview.c.paidLeavePayout)}</span>
+                    <span>{money(preview.c.gross + preview.c.extraWorkPay + preview.incentiveAmount + preview.c.paidLeavePayout)}</span>
                   </div>
                 </>
               )}

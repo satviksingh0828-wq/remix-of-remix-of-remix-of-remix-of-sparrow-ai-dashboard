@@ -114,9 +114,9 @@ const sectionLinks = {
       icon: ListChecks,
     },
     {
-      label: "Increment amounts",
+      label: "Incentive amounts",
       description: "One-time payroll additions",
-      to: "/payroll/increments",
+      to: "/payroll/incentives",
       icon: BadgePlus,
     },
   ],
