@@ -1,19 +1,11 @@
-const DEFAULT_WA_URL = "https://wa.garudalogistics.orca.devs.surf";
+const API_ROOT = "/api/whatsapp";
 
 function apiUrl(path: string) {
-  const base = (import.meta.env.VITE_WHATSAPP_API_URL || DEFAULT_WA_URL).replace(/\/$/, "");
-  return `${base}${path}`;
-}
-
-function apiKey() {
-  return import.meta.env.VITE_WHATSAPP_API_KEY || "";
+  return `${API_ROOT}${path}`;
 }
 
 function headers(json = false): HeadersInit {
-  return {
-    ...(json ? { "Content-Type": "application/json" } : {}),
-    ...(apiKey() ? { "x-api-key": apiKey() } : {}),
-  };
+  return json ? { "Content-Type": "application/json" } : {};
 }
 
 async function readError(response: Response) {
@@ -28,7 +20,7 @@ async function readError(response: Response) {
 export type WaStatus = "connected" | "ready" | "qr" | "connecting" | "disconnected" | "unknown";
 
 export async function getWaStatus(): Promise<{ status: WaStatus; raw: unknown }> {
-  const response = await fetch(apiUrl("/api/session/status"), { headers: headers() });
+  const response = await fetch(apiUrl("/session/status"));
   if (!response.ok) throw new Error(await readError(response));
   const raw = await response.json() as { status?: string };
   const status = raw.status as WaStatus;
@@ -45,13 +37,13 @@ export async function isWaConnected() {
 }
 
 export async function connectWa() {
-  const response = await fetch(apiUrl("/api/session/connect"), { method: "POST", headers: headers(true) });
+  const response = await fetch(apiUrl("/session/connect"), { method: "POST", headers: headers(true), body: "{}" });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
 
 export async function getWaQr(): Promise<string | null> {
-  const response = await fetch(apiUrl("/api/session/qr"), { headers: headers() });
+  const response = await fetch(apiUrl("/session/qr"));
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(await readError(response));
   const body = await response.json() as { qr?: string; data?: string; qrData?: string };
@@ -59,7 +51,7 @@ export async function getWaQr(): Promise<string | null> {
 }
 
 export async function disconnectWa() {
-  const response = await fetch(apiUrl("/api/session/disconnect"), { method: "POST", headers: headers(true) });
+  const response = await fetch(apiUrl("/session/disconnect"), { method: "POST", headers: headers(true), body: "{}" });
   if (!response.ok) throw new Error(await readError(response));
   return response.json();
 }
@@ -70,7 +62,7 @@ export function normalizeWaNumber(value: string | null | undefined) {
 }
 
 export async function sendWaMessage(to: string, message: string) {
-  const response = await fetch(apiUrl("/api/messages/send"), {
+  const response = await fetch(apiUrl("/messages/send"), {
     method: "POST",
     headers: headers(true),
     body: JSON.stringify({ to: normalizeWaNumber(to), message }),
@@ -91,16 +83,14 @@ export async function sendWaPdf(to: string, dataUrl: string, filename: string, c
   form.append("to", normalizeWaNumber(to));
   if (caption) form.append("caption", caption);
   form.append("file", pdfBlob(dataUrl), filename);
-  const response = await fetch(apiUrl("/api/messages/send-file"), {
-    method: "POST",
-    headers: headers(),
-    body: form,
-  });
+  const response = await fetch(apiUrl("/messages/send-file"), { method: "POST", body: form });
   if (!response.ok) throw new Error(await readError(response));
   await response.json().catch(() => undefined);
   return true;
 }
 
+// The real configuration is intentionally checked by the server. This keeps the
+// API key out of the browser bundle while allowing the existing UI to stay usable.
 export function whatsappApiConfigured() {
-  return Boolean(apiKey());
+  return true;
 }

@@ -128,7 +128,7 @@ export function WhatsAppSettings() {
               <Button type="button" variant="ghost" onClick={disconnect} disabled={busy || !connected}>Disconnect</Button>
             </div>
           </div>
-          {!whatsappApiConfigured() && <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">Set VITE_WHATSAPP_API_KEY in the deployment environment to enable the connection.</p>}
+          {!whatsappApiConfigured() && <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">Set WHATSAPP_API_KEY in the server deployment environment to enable the connection.</p>}
           {qr && <img src={qr} alt="WhatsApp connection QR code" className="mt-4 size-64 rounded-lg border bg-white p-3" />}
         </div>
       </section>

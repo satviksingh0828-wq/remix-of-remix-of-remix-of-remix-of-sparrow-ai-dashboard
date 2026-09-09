@@ -65,6 +65,12 @@ import { Route as ApiDriverTripsClaimRouteImport } from './routes/api/driver/tri
 import { Route as ApiDriverTripsCurrentRouteImport } from './routes/api/driver/trips/current'
 import { Route as ApiDriverTripsEndRouteImport } from './routes/api/driver/trips/end'
 import { Route as ApiDriverTripsLocationRouteImport } from './routes/api/driver/trips/location'
+import { Route as ApiWhatsappMessagesSendRouteImport } from './routes/api/whatsapp/messages/send'
+import { Route as ApiWhatsappMessagesSendFileRouteImport } from './routes/api/whatsapp/messages/send-file'
+import { Route as ApiWhatsappSessionConnectRouteImport } from './routes/api/whatsapp/session/connect'
+import { Route as ApiWhatsappSessionDisconnectRouteImport } from './routes/api/whatsapp/session/disconnect'
+import { Route as ApiWhatsappSessionQrRouteImport } from './routes/api/whatsapp/session/qr'
+import { Route as ApiWhatsappSessionStatusRouteImport } from './routes/api/whatsapp/session/status'
 import { Route as EmployeesDepartmentsIdIndexRouteImport } from './routes/employees.departments.$id.index'
 import { Route as EmployeesDepartmentsIdEditRouteImport } from './routes/employees.departments.$id.edit'
 import { Route as ApiDriverTripsCheckpointsVerifyRouteImport } from './routes/api/driver/trips/checkpoints/verify'
@@ -351,6 +357,40 @@ const ApiDriverTripsLocationRoute = ApiDriverTripsLocationRouteImport.update({
   path: '/api/driver/trips/location',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWhatsappMessagesSendRoute = ApiWhatsappMessagesSendRouteImport.update({
+  id: '/api/whatsapp/messages/send',
+  path: '/api/whatsapp/messages/send',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWhatsappMessagesSendFileRoute =
+  ApiWhatsappMessagesSendFileRouteImport.update({
+    id: '/api/whatsapp/messages/send-file',
+    path: '/api/whatsapp/messages/send-file',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiWhatsappSessionConnectRoute =
+  ApiWhatsappSessionConnectRouteImport.update({
+    id: '/api/whatsapp/session/connect',
+    path: '/api/whatsapp/session/connect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiWhatsappSessionDisconnectRoute =
+  ApiWhatsappSessionDisconnectRouteImport.update({
+    id: '/api/whatsapp/session/disconnect',
+    path: '/api/whatsapp/session/disconnect',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiWhatsappSessionQrRoute = ApiWhatsappSessionQrRouteImport.update({
+  id: '/api/whatsapp/session/qr',
+  path: '/api/whatsapp/session/qr',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWhatsappSessionStatusRoute =
+  ApiWhatsappSessionStatusRouteImport.update({
+    id: '/api/whatsapp/session/status',
+    path: '/api/whatsapp/session/status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const EmployeesDepartmentsIdIndexRoute =
   EmployeesDepartmentsIdIndexRouteImport.update({
     id: '/$id/',
@@ -427,6 +467,12 @@ export interface FileRoutesByFullPath {
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
+  '/api/whatsapp/messages/send': typeof ApiWhatsappMessagesSendRoute
+  '/api/whatsapp/messages/send-file': typeof ApiWhatsappMessagesSendFileRoute
+  '/api/whatsapp/session/connect': typeof ApiWhatsappSessionConnectRoute
+  '/api/whatsapp/session/disconnect': typeof ApiWhatsappSessionDisconnectRoute
+  '/api/whatsapp/session/qr': typeof ApiWhatsappSessionQrRoute
+  '/api/whatsapp/session/status': typeof ApiWhatsappSessionStatusRoute
   '/employees/departments/$id/edit': typeof EmployeesDepartmentsIdEditRoute
   '/employees/departments/$id/': typeof EmployeesDepartmentsIdIndexRoute
   '/api/driver/trips/checkpoints/verify': typeof ApiDriverTripsCheckpointsVerifyRoute
@@ -482,6 +528,12 @@ export interface FileRoutesByTo {
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
+  '/api/whatsapp/messages/send': typeof ApiWhatsappMessagesSendRoute
+  '/api/whatsapp/messages/send-file': typeof ApiWhatsappMessagesSendFileRoute
+  '/api/whatsapp/session/connect': typeof ApiWhatsappSessionConnectRoute
+  '/api/whatsapp/session/disconnect': typeof ApiWhatsappSessionDisconnectRoute
+  '/api/whatsapp/session/qr': typeof ApiWhatsappSessionQrRoute
+  '/api/whatsapp/session/status': typeof ApiWhatsappSessionStatusRoute
   '/employees/departments/$id/edit': typeof EmployeesDepartmentsIdEditRoute
   '/employees/departments/$id': typeof EmployeesDepartmentsIdIndexRoute
   '/api/driver/trips/checkpoints/verify': typeof ApiDriverTripsCheckpointsVerifyRoute
@@ -544,6 +596,12 @@ export interface FileRoutesById {
   '/api/driver/trips/current': typeof ApiDriverTripsCurrentRoute
   '/api/driver/trips/end': typeof ApiDriverTripsEndRoute
   '/api/driver/trips/location': typeof ApiDriverTripsLocationRoute
+  '/api/whatsapp/messages/send': typeof ApiWhatsappMessagesSendRoute
+  '/api/whatsapp/messages/send-file': typeof ApiWhatsappMessagesSendFileRoute
+  '/api/whatsapp/session/connect': typeof ApiWhatsappSessionConnectRoute
+  '/api/whatsapp/session/disconnect': typeof ApiWhatsappSessionDisconnectRoute
+  '/api/whatsapp/session/qr': typeof ApiWhatsappSessionQrRoute
+  '/api/whatsapp/session/status': typeof ApiWhatsappSessionStatusRoute
   '/employees/departments/$id/edit': typeof EmployeesDepartmentsIdEditRoute
   '/employees/departments/$id/': typeof EmployeesDepartmentsIdIndexRoute
   '/api/driver/trips/checkpoints/verify': typeof ApiDriverTripsCheckpointsVerifyRoute
@@ -607,6 +665,12 @@ export interface FileRouteTypes {
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
+    | '/api/whatsapp/messages/send'
+    | '/api/whatsapp/messages/send-file'
+    | '/api/whatsapp/session/connect'
+    | '/api/whatsapp/session/disconnect'
+    | '/api/whatsapp/session/qr'
+    | '/api/whatsapp/session/status'
     | '/employees/departments/$id/edit'
     | '/employees/departments/$id/'
     | '/api/driver/trips/checkpoints/verify'
@@ -662,6 +726,12 @@ export interface FileRouteTypes {
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
+    | '/api/whatsapp/messages/send'
+    | '/api/whatsapp/messages/send-file'
+    | '/api/whatsapp/session/connect'
+    | '/api/whatsapp/session/disconnect'
+    | '/api/whatsapp/session/qr'
+    | '/api/whatsapp/session/status'
     | '/employees/departments/$id/edit'
     | '/employees/departments/$id'
     | '/api/driver/trips/checkpoints/verify'
@@ -723,6 +793,12 @@ export interface FileRouteTypes {
     | '/api/driver/trips/current'
     | '/api/driver/trips/end'
     | '/api/driver/trips/location'
+    | '/api/whatsapp/messages/send'
+    | '/api/whatsapp/messages/send-file'
+    | '/api/whatsapp/session/connect'
+    | '/api/whatsapp/session/disconnect'
+    | '/api/whatsapp/session/qr'
+    | '/api/whatsapp/session/status'
     | '/employees/departments/$id/edit'
     | '/employees/departments/$id/'
     | '/api/driver/trips/checkpoints/verify'
@@ -756,6 +832,12 @@ export interface RootRouteChildren {
   ApiDriverTripsCurrentRoute: typeof ApiDriverTripsCurrentRoute
   ApiDriverTripsEndRoute: typeof ApiDriverTripsEndRoute
   ApiDriverTripsLocationRoute: typeof ApiDriverTripsLocationRoute
+  ApiWhatsappMessagesSendRoute: typeof ApiWhatsappMessagesSendRoute
+  ApiWhatsappMessagesSendFileRoute: typeof ApiWhatsappMessagesSendFileRoute
+  ApiWhatsappSessionConnectRoute: typeof ApiWhatsappSessionConnectRoute
+  ApiWhatsappSessionDisconnectRoute: typeof ApiWhatsappSessionDisconnectRoute
+  ApiWhatsappSessionQrRoute: typeof ApiWhatsappSessionQrRoute
+  ApiWhatsappSessionStatusRoute: typeof ApiWhatsappSessionStatusRoute
   ApiDriverTripsCheckpointsVerifyRoute: typeof ApiDriverTripsCheckpointsVerifyRoute
 }
 
@@ -1153,6 +1235,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDriverTripsLocationRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/whatsapp/messages/send': {
+      id: '/api/whatsapp/messages/send'
+      path: '/api/whatsapp/messages/send'
+      fullPath: '/api/whatsapp/messages/send'
+      preLoaderRoute: typeof ApiWhatsappMessagesSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/whatsapp/messages/send-file': {
+      id: '/api/whatsapp/messages/send-file'
+      path: '/api/whatsapp/messages/send-file'
+      fullPath: '/api/whatsapp/messages/send-file'
+      preLoaderRoute: typeof ApiWhatsappMessagesSendFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/whatsapp/session/connect': {
+      id: '/api/whatsapp/session/connect'
+      path: '/api/whatsapp/session/connect'
+      fullPath: '/api/whatsapp/session/connect'
+      preLoaderRoute: typeof ApiWhatsappSessionConnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/whatsapp/session/disconnect': {
+      id: '/api/whatsapp/session/disconnect'
+      path: '/api/whatsapp/session/disconnect'
+      fullPath: '/api/whatsapp/session/disconnect'
+      preLoaderRoute: typeof ApiWhatsappSessionDisconnectRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/whatsapp/session/qr': {
+      id: '/api/whatsapp/session/qr'
+      path: '/api/whatsapp/session/qr'
+      fullPath: '/api/whatsapp/session/qr'
+      preLoaderRoute: typeof ApiWhatsappSessionQrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/whatsapp/session/status': {
+      id: '/api/whatsapp/session/status'
+      path: '/api/whatsapp/session/status'
+      fullPath: '/api/whatsapp/session/status'
+      preLoaderRoute: typeof ApiWhatsappSessionStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/employees/departments/$id/': {
       id: '/employees/departments/$id/'
       path: '/$id'
@@ -1334,6 +1458,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiDriverTripsCurrentRoute: ApiDriverTripsCurrentRoute,
   ApiDriverTripsEndRoute: ApiDriverTripsEndRoute,
   ApiDriverTripsLocationRoute: ApiDriverTripsLocationRoute,
+  ApiWhatsappMessagesSendRoute: ApiWhatsappMessagesSendRoute,
+  ApiWhatsappMessagesSendFileRoute: ApiWhatsappMessagesSendFileRoute,
+  ApiWhatsappSessionConnectRoute: ApiWhatsappSessionConnectRoute,
+  ApiWhatsappSessionDisconnectRoute: ApiWhatsappSessionDisconnectRoute,
+  ApiWhatsappSessionQrRoute: ApiWhatsappSessionQrRoute,
+  ApiWhatsappSessionStatusRoute: ApiWhatsappSessionStatusRoute,
   ApiDriverTripsCheckpointsVerifyRoute: ApiDriverTripsCheckpointsVerifyRoute,
 }
 export const routeTree = rootRouteImport
