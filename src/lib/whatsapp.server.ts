@@ -19,6 +19,28 @@ function upstreamHeaders(request: Request, includeContentType = false) {
   return headers;
 }
 
+function proxyResponse(response: Response) {
+  // fetch() transparently decodes compressed upstream bodies. Forwarding the
+  // original Content-Encoding/Content-Length makes the browser try to decode
+  // an already-decoded response and causes ERR_CONTENT_DECODING_FAILED.
+  const headers = new Headers(response.headers);
+  for (const header of [
+    "content-encoding",
+    "content-length",
+    "transfer-encoding",
+    "connection",
+    "keep-alive",
+    "set-cookie",
+  ]) {
+    headers.delete(header);
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export async function proxyWhatsAppJson(request: Request, path: string, method = request.method) {
   if (!whatsappApiKey()) {
     return Response.json({ error: "WhatsApp service is not configured on the server." }, { status: 503 });
@@ -30,11 +52,7 @@ export async function proxyWhatsAppJson(request: Request, path: string, method =
       headers: upstreamHeaders(request, method !== "GET" && method !== "HEAD"),
       ...(method !== "GET" && method !== "HEAD" ? { body: await request.text() } : {}),
     });
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
+    return proxyResponse(response);
   } catch (error) {
     console.error(`[whatsapp] ${method} ${path} failed:`, error);
     return Response.json({ error: "Unable to reach the WhatsApp service." }, { status: 502 });
@@ -53,11 +71,7 @@ export async function proxyWhatsAppMultipart(request: Request, path: string) {
       headers: upstreamHeaders(request),
       body,
     });
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
+    return proxyResponse(response);
   } catch (error) {
     console.error(`[whatsapp] POST ${path} failed:`, error);
     return Response.json({ error: "Unable to reach the WhatsApp service." }, { status: 502 });
