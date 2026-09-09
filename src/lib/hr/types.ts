@@ -220,6 +220,8 @@ export interface Payroll {
   extra_work_days: number;
   /** Pay earned for extra work days (extra_work_days × pay_per_extra_work_day). */
   extra_work_pay: number;
+  /** One-time increment total snapshotted into this payroll. */
+  increment_amount?: number;
   /**
    * Payment status — new field; old records default to 'paid' for backwards compat.
    * Use effectivePaymentStatus() helper instead of reading this directly.
@@ -236,6 +238,18 @@ export interface Payroll {
   updated_at: string;
 }
 export type PayrollInput = Omit<Payroll, 'id' | 'created_at' | 'updated_at'>;
+export type IncrementStatus = 'pending' | 'added' | 'paid';
+export interface IncrementAmount {
+  id: string;
+  employee_id: string;
+  amount: number;
+  reason: string | null;
+  status: IncrementStatus;
+  payroll_id: string | null;
+  added_on: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 /** Returns the effective payment status, defaulting old records (null) to 'paid'. */
 export function effectivePaymentStatus(p: Pick<Payroll, 'payment_status'>): PayrollPaymentStatus {

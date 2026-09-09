@@ -8,7 +8,7 @@ import type {
   Payroll, PayrollInput, Loan, LoanInput, Advance, AdvanceInput,
   LossDeduction, LossDeductionInput,
   LoanInstallment, LoanInstallmentInput, AdvanceInstallment, AdvanceInstallmentInput,
-  CheckinLog,
+  CheckinLog, IncrementAmount,
 } from './types';
 import { generateInstallmentSchedule } from './payroll-utils';
 import { ymd } from './attendance-utils';
@@ -402,6 +402,47 @@ export function useUpdateAppSettings() {
   });
 }
 
+/* ── One-time payroll increments ─────────────────────────────────────────── */
+export function useIncrementAmounts(employeeId?: string) {
+  return useQuery({
+    queryKey: ['increment_amounts', employeeId ?? 'all'],
+    queryFn: async () => {
+      let q = sb.from('increment_amounts').select('*').order('created_at', { ascending: false });
+      if (employeeId) q = q.eq('employee_id', employeeId);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data as IncrementAmount[];
+    },
+  });
+}
+export function useCreateIncrementAmount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (values: { employee_id: string; amount: number; reason?: string | null }) => {
+      const { data, error } = await sb.from('increment_amounts').insert({ ...values, status: 'pending' }).select().single();
+      if (error) throw error;
+      return data as IncrementAmount;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['increment_amounts'] }),
+  });
+}
+export function useMarkIncrementPaid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await sb.from('increment_amounts').update({ status: 'paid', added_on: new Date().toISOString().slice(0, 10) }).eq('id', id).eq('status', 'pending');
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['increment_amounts'] }),
+  });
+}
+export function useDeleteIncrementAmount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => { const { error } = await sb.from('increment_amounts').delete().eq('id', id); if (error) throw error; },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['increment_amounts'] }),
+  });
+}
 /* ── Payrolls ─────────────────────────────────────────────────────────────── */
 
 export function usePayrolls(employeeId?: string) {
@@ -526,7 +567,9 @@ export function useDeletePayroll() {
         await sb.from('advances').update({ paid_months: paidCount, status: 'active', paid_off_date: null }).eq('id', inst.advance_id);
       }
 
-      // 4. Delete the payroll
+      // 4. Return one-time increments consumed by this payroll to pending.
+      await sb.from('increment_amounts').update({ status: 'pending', payroll_id: null, added_on: null }).eq('payroll_id', id).eq('status', 'added');
+      // 5. Delete the payroll
       const { error } = await sb.from('payrolls').delete().eq('id', id);
       if (error) throw error;
 

@@ -48,14 +48,6 @@ export const Route = createFileRoute("/tms")({
             to: "/cash-reports",
             roles: ["admin", "semi_admin", "viewer"],
           },
-          {
-            key: "report-master",
-            label: "Report Master",
-            desc: "Build variables, templates & Excel reports",
-            icon: FileCog,
-            to: "/report-master",
-            roles: ["admin", "semi_admin", "viewer"],
-          },
         ]}
       />
     </RequireAuth>

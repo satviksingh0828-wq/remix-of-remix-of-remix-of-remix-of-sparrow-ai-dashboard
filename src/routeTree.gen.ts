@@ -21,8 +21,8 @@ import { Route as ImportTripsRouteImport } from './routes/import-trips'
 import { Route as MastersRouteImport } from './routes/masters'
 import { Route as OperationsRouteImport } from './routes/operations'
 import { Route as PayrollRouteImport } from './routes/payroll'
+import { Route as ReportMasterRouteImport } from './routes/report-master'
 import { Route as ReportsRouteImport } from './routes/reports'
-import { Route as CashReportsRouteImport } from './routes/cash-reports'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SystemRouteImport } from './routes/system'
@@ -49,6 +49,7 @@ import { Route as PayrollAdvancesRouteImport } from './routes/payroll.advances'
 import { Route as PayrollDeductionsRouteImport } from './routes/payroll.deductions'
 import { Route as PayrollGenerateRouteImport } from './routes/payroll.generate'
 import { Route as PayrollHistoryRouteImport } from './routes/payroll.history'
+import { Route as PayrollIncrementsRouteImport } from './routes/payroll.increments'
 import { Route as PayrollLedgerRouteImport } from './routes/payroll.ledger'
 import { Route as PayrollLoansRouteImport } from './routes/payroll.loans'
 import { Route as PayrollPendingRouteImport } from './routes/payroll.pending'
@@ -128,9 +129,9 @@ const PayrollRoute = PayrollRouteImport.update({
   path: '/payroll',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CashReportsRoute = CashReportsRouteImport.update({
-  id: '/cash-reports',
-  path: '/cash-reports',
+const ReportMasterRoute = ReportMasterRouteImport.update({
+  id: '/report-master',
+  path: '/report-master',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReportsRoute = ReportsRouteImport.update({
@@ -268,6 +269,11 @@ const PayrollHistoryRoute = PayrollHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => PayrollRoute,
 } as any)
+const PayrollIncrementsRoute = PayrollIncrementsRouteImport.update({
+  id: '/increments',
+  path: '/increments',
+  getParentRoute: () => PayrollRoute,
+} as any)
 const PayrollLedgerRoute = PayrollLedgerRouteImport.update({
   id: '/ledger',
   path: '/ledger',
@@ -377,7 +383,7 @@ export interface FileRoutesByFullPath {
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
   '/payroll': typeof PayrollRouteWithChildren
-  '/cash-reports': typeof CashReportsRoute
+  '/report-master': typeof ReportMasterRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -401,6 +407,7 @@ export interface FileRoutesByFullPath {
   '/payroll/deductions': typeof PayrollDeductionsRoute
   '/payroll/generate': typeof PayrollGenerateRoute
   '/payroll/history': typeof PayrollHistoryRoute
+  '/payroll/increments': typeof PayrollIncrementsRoute
   '/payroll/ledger': typeof PayrollLedgerRoute
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
@@ -433,7 +440,7 @@ export interface FileRoutesByTo {
   '/import-trips': typeof ImportTripsRoute
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
-  '/cash-reports': typeof CashReportsRoute
+  '/report-master': typeof ReportMasterRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -455,6 +462,7 @@ export interface FileRoutesByTo {
   '/payroll/deductions': typeof PayrollDeductionsRoute
   '/payroll/generate': typeof PayrollGenerateRoute
   '/payroll/history': typeof PayrollHistoryRoute
+  '/payroll/increments': typeof PayrollIncrementsRoute
   '/payroll/ledger': typeof PayrollLedgerRoute
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
@@ -492,7 +500,7 @@ export interface FileRoutesById {
   '/masters': typeof MastersRoute
   '/operations': typeof OperationsRoute
   '/payroll': typeof PayrollRouteWithChildren
-  '/cash-reports': typeof CashReportsRoute
+  '/report-master': typeof ReportMasterRoute
   '/reports': typeof ReportsRoute
   '/settings': typeof SettingsRouteWithChildren
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -516,6 +524,7 @@ export interface FileRoutesById {
   '/payroll/deductions': typeof PayrollDeductionsRoute
   '/payroll/generate': typeof PayrollGenerateRoute
   '/payroll/history': typeof PayrollHistoryRoute
+  '/payroll/increments': typeof PayrollIncrementsRoute
   '/payroll/ledger': typeof PayrollLedgerRoute
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
@@ -554,7 +563,7 @@ export interface FileRouteTypes {
     | '/masters'
     | '/operations'
     | '/payroll'
-    | '/cash-reports'
+    | '/report-master'
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
@@ -578,6 +587,7 @@ export interface FileRouteTypes {
     | '/payroll/deductions'
     | '/payroll/generate'
     | '/payroll/history'
+    | '/payroll/increments'
     | '/payroll/ledger'
     | '/payroll/loans'
     | '/payroll/pending'
@@ -610,7 +620,7 @@ export interface FileRouteTypes {
     | '/import-trips'
     | '/masters'
     | '/operations'
-    | '/cash-reports'
+    | '/report-master'
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
@@ -632,6 +642,7 @@ export interface FileRouteTypes {
     | '/payroll/deductions'
     | '/payroll/generate'
     | '/payroll/history'
+    | '/payroll/increments'
     | '/payroll/ledger'
     | '/payroll/loans'
     | '/payroll/pending'
@@ -668,7 +679,7 @@ export interface FileRouteTypes {
     | '/masters'
     | '/operations'
     | '/payroll'
-    | '/cash-reports'
+    | '/report-master'
     | '/reports'
     | '/settings'
     | '/sitemap.xml'
@@ -692,6 +703,7 @@ export interface FileRouteTypes {
     | '/payroll/deductions'
     | '/payroll/generate'
     | '/payroll/history'
+    | '/payroll/increments'
     | '/payroll/ledger'
     | '/payroll/loans'
     | '/payroll/pending'
@@ -729,7 +741,7 @@ export interface RootRouteChildren {
   MastersRoute: typeof MastersRoute
   OperationsRoute: typeof OperationsRoute
   PayrollRoute: typeof PayrollRouteWithChildren
-  CashReportsRoute: typeof CashReportsRoute
+  ReportMasterRoute: typeof ReportMasterRoute
   ReportsRoute: typeof ReportsRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
@@ -833,11 +845,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PayrollRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/cash-reports': {
-      id: '/cash-reports'
-      path: '/cash-reports'
-      fullPath: '/cash-reports'
-      preLoaderRoute: typeof CashReportsRouteImport
+    '/report-master': {
+      id: '/report-master'
+      path: '/report-master'
+      fullPath: '/report-master'
+      preLoaderRoute: typeof ReportMasterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reports': {
@@ -1027,6 +1039,13 @@ declare module '@tanstack/react-router' {
       path: '/history'
       fullPath: '/payroll/history'
       preLoaderRoute: typeof PayrollHistoryRouteImport
+      parentRoute: typeof PayrollRoute
+    }
+    '/payroll/increments': {
+      id: '/payroll/increments'
+      path: '/increments'
+      fullPath: '/payroll/increments'
+      preLoaderRoute: typeof PayrollIncrementsRouteImport
       parentRoute: typeof PayrollRoute
     }
     '/payroll/ledger': {
@@ -1253,6 +1272,7 @@ interface PayrollRouteChildren {
   PayrollDeductionsRoute: typeof PayrollDeductionsRoute
   PayrollGenerateRoute: typeof PayrollGenerateRoute
   PayrollHistoryRoute: typeof PayrollHistoryRoute
+  PayrollIncrementsRoute: typeof PayrollIncrementsRoute
   PayrollLedgerRoute: typeof PayrollLedgerRoute
   PayrollLoansRoute: typeof PayrollLoansRoute
   PayrollPendingRoute: typeof PayrollPendingRoute
@@ -1264,6 +1284,7 @@ const PayrollRouteChildren: PayrollRouteChildren = {
   PayrollDeductionsRoute: PayrollDeductionsRoute,
   PayrollGenerateRoute: PayrollGenerateRoute,
   PayrollHistoryRoute: PayrollHistoryRoute,
+  PayrollIncrementsRoute: PayrollIncrementsRoute,
   PayrollLedgerRoute: PayrollLedgerRoute,
   PayrollLoansRoute: PayrollLoansRoute,
   PayrollPendingRoute: PayrollPendingRoute,
@@ -1298,7 +1319,7 @@ const rootRouteChildren: RootRouteChildren = {
   MastersRoute: MastersRoute,
   OperationsRoute: OperationsRoute,
   PayrollRoute: PayrollRouteWithChildren,
-  CashReportsRoute: CashReportsRoute,
+  ReportMasterRoute: ReportMasterRoute,
   ReportsRoute: ReportsRoute,
   SettingsRoute: SettingsRouteWithChildren,
   SitemapDotxmlRoute: SitemapDotxmlRoute,

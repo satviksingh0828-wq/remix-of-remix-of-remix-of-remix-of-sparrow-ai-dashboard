@@ -1320,3 +1320,5 @@ export async function fetchModuleLogs(
     created_at: new Date().toISOString(),
   }));
 }
+
+export { useIncrementAmounts, useCreateIncrementAmount, useMarkIncrementPaid, useDeleteIncrementAmount } from "./hr/hooks";

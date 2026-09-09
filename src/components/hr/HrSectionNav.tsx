@@ -12,6 +12,7 @@ import {
   History,
   Landmark,
   ListChecks,
+  BadgePlus,
   Plus,
   ReceiptIndianRupee,
   UserPlus,
@@ -111,6 +112,12 @@ const sectionLinks = {
       description: "Payroll account ledger",
       to: "/payroll/ledger",
       icon: ListChecks,
+    },
+    {
+      label: "Increment amounts",
+      description: "One-time payroll additions",
+      to: "/payroll/increments",
+      icon: BadgePlus,
     },
   ],
 } as const;
