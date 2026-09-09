@@ -11,6 +11,7 @@ import {
   Palette,
   ShieldCheck,
   Wifi,
+  MessageCircle,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -23,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useAppSettings, useUpdateAppSettings } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
+import { WhatsAppSettings } from "@/components/settings/WhatsAppSettings";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -58,6 +60,7 @@ const TABS = [
   { id: "branch", label: "Branch", desc: "Locations & managers", icon: Building2 },
   { id: "theme", label: "Theme Settings", desc: "Universal app appearance", icon: Palette },
   { id: "attendance", label: "Attendance Module", desc: "Device & service connection", icon: Wifi },
+  { id: "whatsapp", label: "WhatsApp", desc: "HR PDF sending & connection", icon: MessageCircle },
   { id: "passkey", label: "Passkey Security", desc: "Admin-controlled device protection", icon: ShieldCheck },
 ] as const;
 
@@ -156,6 +159,7 @@ function SettingsPage() {
           {tab === "branch" ? <BranchSettings /> : null}
           {tab === "theme" ? <ThemePanel /> : null}
           {tab === "attendance" ? <AttendanceModuleSettings /> : null}
+          {tab === "whatsapp" ? <WhatsAppSettings /> : null}
           {tab === "passkey" ? <PasskeySecurityPanel /> : null}
         </div>
       </div>

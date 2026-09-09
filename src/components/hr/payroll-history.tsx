@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link } from '@tanstack/react-router';
-import { History, Download } from 'lucide-react';
+import { History, Download, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,7 +12,10 @@ import {
 } from '@/lib/hooks';
 import { fullName } from '@/lib/types';
 import { exportPayrollPdf } from '@/lib/payroll-pdf';
+import { getPayrollPdfBase64 } from '@/lib/payroll-pdf';
 import { exportPayrollHistory } from '@/lib/excel-io';
+import { isWaConnected, normalizeWaNumber, sendWaPdf } from '@/lib/whatsapp';
+import { toast } from 'sonner';
 
 function money(n: number) {
   return '₹' + (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -58,6 +61,33 @@ export function PayrollHistory() {
   const selEmpObj = (employees ?? []).find(e => e.id === selEmp) ?? null;
   const selDept = selEmpObj && departments ? departments.find(d => d.id === selEmpObj.department_id) ?? null : null;
   const selPos = selEmpObj && positions ? positions.find(p => p.id === selEmpObj.position_id) ?? null : null;
+
+  async function sendPayroll(p: (typeof selEmpPayrolls)[number]) {
+    if (!selEmpObj?.mobile || !await isWaConnected()) {
+      toast.error(!selEmpObj?.mobile ? 'Employee has no mobile number' : 'WhatsApp is not connected');
+      return;
+    }
+    const empLoans = (allLoans ?? []).filter(l => l.employee_id === selEmpObj.id && l.status === 'active');
+    const empAdvances = (allAdvances ?? []).filter(a => a.employee_id === selEmpObj.id && a.status === 'active');
+    try {
+      const b64 = getPayrollPdfBase64({
+        payroll: p,
+        employee: selEmpObj,
+        department: selDept,
+        position: selPos,
+        settings,
+        loans: empLoans,
+        advances: empAdvances,
+        lossDeductions: (allDeductions ?? []).filter(d => d.payroll_id === p.id),
+        loanInstallments: (allLoanInst ?? []).filter(i => empLoans.some(l => l.id === i.loan_id)),
+        advanceInstallments: (allAdvInst ?? []).filter(i => empAdvances.some(a => a.id === i.advance_id)),
+      });
+      await sendWaPdf(normalizeWaNumber(selEmpObj.mobile), b64, `payslip-${p.period_start}.pdf`, `Your payslip for ${p.period_start} to ${p.period_end}`);
+      toast.success('Payslip sent via WhatsApp');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to send payslip');
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl space-y-4">
@@ -130,6 +160,7 @@ export function PayrollHistory() {
                     <div className="font-medium">{new Date(p.period_start).toLocaleDateString('en-IN')} — {new Date(p.period_end).toLocaleDateString('en-IN')}</div>
                     <div className="text-xs text-muted-foreground">{p.period_type === 'half_month' ? 'Half month' : 'Month'} · Gross {money(p.gross)} · Net {money(p.net)}</div>
                   </div>
+                  <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => {
                     const empLoans    = (allLoans    ?? []).filter(l => l.employee_id === selEmpObj.id && l.status === 'active');
                     const empAdvances = (allAdvances ?? []).filter(a => a.employee_id === selEmpObj.id && a.status === 'active');
@@ -146,6 +177,8 @@ export function PayrollHistory() {
                       advanceInstallments: (allAdvInst ?? []).filter(i => empAdvances.some(a => a.id === i.advance_id)),
                     });
                   }}><Download className="mr-1 h-3 w-3" />PDF</Button>
+                  <Button size="sm" variant="ghost" title="Send via WhatsApp" onClick={() => void sendPayroll(p)}><MessageCircle className="h-3 w-3 text-green-600" /></Button>
+                  </div>
                 </div>
               ))}
             </div>
