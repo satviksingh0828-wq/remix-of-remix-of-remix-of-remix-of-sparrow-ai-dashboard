@@ -18,7 +18,7 @@ test("moves the first configured administrator to BCC for every email", () => {
       }),
       {
         to: ["branch@example.com"],
-        cc: ["admin.two@example.com"],
+        cc: ["admin.two@example.com", "priyanshi@garudalogistics.in"],
         bcc: ["satvik.singh.0828@gmail.com", "admin.one@example.com"],
       },
     );
@@ -27,5 +27,20 @@ test("moves the first configured administrator to BCC for every email", () => {
     else process.env.ADMIN_ALERT_EMAIL = oldFirst;
     if (oldSecond === undefined) delete process.env.ADMIN_2_ALERT_EMAIL;
     else process.env.ADMIN_2_ALERT_EMAIL = oldSecond;
+  }
+});
+
+test("adds the common Priyanshi CC to every email", () => {
+  const oldFirst = process.env.ADMIN_ALERT_EMAIL;
+  delete process.env.ADMIN_ALERT_EMAIL;
+  try {
+    assert.deepEqual(resolveEmailRecipients({ to: ["employee@example.com"] }), {
+      to: ["employee@example.com"],
+      cc: ["priyanshi@garudalogistics.in"],
+      bcc: ["satvik.singh.0828@gmail.com"],
+    });
+  } finally {
+    if (oldFirst === undefined) delete process.env.ADMIN_ALERT_EMAIL;
+    else process.env.ADMIN_ALERT_EMAIL = oldFirst;
   }
 });

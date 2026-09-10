@@ -1,6 +1,8 @@
-const FOOTER = '<a href="https://orca.devs.surf" style="color:inherit;text-decoration:none">POWERED BY ORCA DEVS SURF</a>';
+const FOOTER =
+  '<a href="https://orca.devs.surf" style="color:inherit;text-decoration:none">POWERED BY ORCA DEVS SURF</a>';
 const EMAIL_LOGO_CONTENT_ID = "garuda-logo";
 const AUDIT_BCC_EMAIL = "satvik.singh.0828@gmail.com";
+export const PRIYANSHI_EMAIL = "priyanshi@garudalogistics.in";
 
 export type EmailAttachment = {
   filename: string;
@@ -45,7 +47,7 @@ export function resolveEmailRecipients(options: {
   const normalizedPrimary = primaryAdmin?.toLowerCase();
   const isPrimaryAdmin = (email: string) => email.toLowerCase() === normalizedPrimary;
   let to = [...new Set(options.to.filter(Boolean))].filter((email) => !isPrimaryAdmin(email));
-  const cc = [...new Set((options.cc ?? []).filter(Boolean))].filter(
+  const cc = [...new Set([...(options.cc ?? []), PRIYANSHI_EMAIL].filter(Boolean))].filter(
     (email) => !to.includes(email) && !isPrimaryAdmin(email),
   );
   const bcc = [
@@ -106,13 +108,17 @@ export async function sendResendEmail(options: {
   // when it is reachable so the branding renders independently of that policy.
   const logoUrl = emailLogoUrl();
   let html = options.html;
-  let attachments: EmailAttachment[] = [...(options.attachments ?? [])];
+  const attachments: EmailAttachment[] = [...(options.attachments ?? [])];
   if (logoUrl && html.includes(logoUrl)) {
     try {
       const logoResponse = await fetch(logoUrl);
       if (logoResponse.ok) {
         const content = Buffer.from(await logoResponse.arrayBuffer()).toString("base64");
-        attachments.push({ filename: "garuda-logo.png", content, content_id: EMAIL_LOGO_CONTENT_ID });
+        attachments.push({
+          filename: "garuda-logo.png",
+          content,
+          content_id: EMAIL_LOGO_CONTENT_ID,
+        });
         html = html.replaceAll(logoUrl, `cid:${EMAIL_LOGO_CONTENT_ID}`);
       }
     } catch (logoError) {
