@@ -1,5 +1,5 @@
-export type EmployeeStatus = 'active' | 'inactive';
-export type Gender = 'male' | 'female' | 'other';
+export type EmployeeStatus = "active" | "inactive";
+export type Gender = "male" | "female" | "other";
 
 export interface Employee {
   id: string;
@@ -48,7 +48,7 @@ export interface Employee {
   updated_at: string;
 }
 
-export type EmployeeInput = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
+export type EmployeeInput = Omit<Employee, "id" | "created_at" | "updated_at">;
 
 export interface EmployeeDocument {
   id: string;
@@ -78,7 +78,7 @@ export interface Department {
   updated_at: string;
 }
 
-export type DepartmentInput = Omit<Department, 'id' | 'created_at' | 'updated_at'>;
+export type DepartmentInput = Omit<Department, "id" | "created_at" | "updated_at">;
 
 export interface Position {
   id: string;
@@ -90,9 +90,9 @@ export interface Position {
   updated_at: string;
 }
 
-export type PositionInput = Omit<Position, 'id' | 'created_at' | 'updated_at'>;
+export type PositionInput = Omit<Position, "id" | "created_at" | "updated_at">;
 
-export type AttendanceStatus = 'present' | 'absent' | 'half_day' | 'extra_work' | 'half_extra_work';
+export type AttendanceStatus = "present" | "absent" | "half_day" | "extra_work" | "half_extra_work";
 
 export interface Attendance {
   id: string;
@@ -103,7 +103,7 @@ export interface Attendance {
   created_at: string;
   updated_at: string;
 }
-export type AttendanceInput = Omit<Attendance, 'id' | 'created_at' | 'updated_at'>;
+export type AttendanceInput = Omit<Attendance, "id" | "created_at" | "updated_at">;
 
 export interface Holiday {
   id: string;
@@ -115,7 +115,7 @@ export interface Holiday {
   created_at: string;
   updated_at: string;
 }
-export type HolidayInput = Omit<Holiday, 'id' | 'created_at' | 'updated_at'>;
+export type HolidayInput = Omit<Holiday, "id" | "created_at" | "updated_at">;
 
 export interface AppSettings {
   id: string;
@@ -128,7 +128,16 @@ export interface AppSettings {
   /** WhatsApp automation */
   wa_auto_send_payroll: boolean | null;
   /** Email automation */
-  email_auto_send_payroll?: boolean | null;
+  email_auto_send_payroll: boolean | null;
+  email_send_admin_notifications: boolean | null;
+  email_send_branch_open_trips: boolean | null;
+  email_send_expiry_notifications: boolean | null;
+  email_send_hr_notifications: boolean | null;
+  email_send_on_payment: boolean | null;
+  email_send_loan: boolean | null;
+  email_send_advance: boolean | null;
+  email_send_loss_deduction: boolean | null;
+  email_send_attendance_monthly: boolean | null;
   wa_send_on_payment: boolean | null;
   wa_send_loan: boolean | null;
   wa_send_advance: boolean | null;
@@ -139,10 +148,27 @@ export interface AppSettings {
 }
 export type AppSettingsInput = Pick<
   AppSettings,
-  'company_name' | 'company_address' |
-  'attendance_module_enabled' | 'attendance_module_url' | 'attendance_module_key' |
-  'wa_auto_send_payroll' | 'email_auto_send_payroll' | 'wa_send_on_payment' | 'wa_send_loan' |
-  'wa_send_advance' | 'wa_send_loss_deduction' | 'wa_send_attendance_monthly'
+  | "company_name"
+  | "company_address"
+  | "attendance_module_enabled"
+  | "attendance_module_url"
+  | "attendance_module_key"
+  | "wa_auto_send_payroll"
+  | "email_auto_send_payroll"
+  | "email_send_admin_notifications"
+  | "email_send_branch_open_trips"
+  | "email_send_expiry_notifications"
+  | "email_send_hr_notifications"
+  | "email_send_on_payment"
+  | "email_send_loan"
+  | "email_send_advance"
+  | "email_send_loss_deduction"
+  | "email_send_attendance_monthly"
+  | "wa_send_on_payment"
+  | "wa_send_loan"
+  | "wa_send_advance"
+  | "wa_send_loss_deduction"
+  | "wa_send_attendance_monthly"
 >;
 
 /** A single check-in or check-out event fetched from the attendance module */
@@ -151,16 +177,16 @@ export interface CheckinLog {
   employee_number: string;
   employee_name: string;
   department: string;
-  kind: 'check_in' | 'check_out';
-  logged_at: string;  // ISO UTC timestamp
-  date: string;       // YYYY-MM-DD local date (derived on save)
+  kind: "check_in" | "check_out";
+  logged_at: string; // ISO UTC timestamp
+  date: string; // YYYY-MM-DD local date (derived on save)
   created_at: string;
 }
 
-export type PayrollPeriodType = 'month' | 'half_month';
-export type InterestMethod = 'simple' | 'compound' | 'none';
-export type LoanStatus = 'active' | 'paid';
-export type LossDedStatus = 'pending' | 'deducted' | 'paid';
+export type PayrollPeriodType = "month" | "half_month";
+export type InterestMethod = "simple" | "compound" | "none";
+export type LoanStatus = "active" | "paid";
+export type LossDedStatus = "pending" | "deducted" | "paid";
 
 /**
  * Installment statuses:
@@ -170,14 +196,14 @@ export type LossDedStatus = 'pending' | 'deducted' | 'paid';
  *   paid_payroll         — fully settled via payroll deduction (may have had a prior partial manual payment)
  */
 export type InstallmentStatus =
-  | 'pending'
-  | 'paid_manual'
-  | 'paid_payroll'
-  | 'paid_partial_manual'
+  | "pending"
+  | "paid_manual"
+  | "paid_payroll"
+  | "paid_partial_manual"
   /** Full EMI deferred — obligation moved to a tail installment at the end of the schedule. */
-  | 'skipped'
+  | "skipped"
   /** Partial cash received; remainder deferred — tail installment carries the balance. */
-  | 'partial_skipped';
+  | "partial_skipped";
 
 /**
  * Payroll payment status:
@@ -187,7 +213,7 @@ export type InstallmentStatus =
  *
  * NOTE: existing records with no payment_status field are treated as 'paid' for backwards compat.
  */
-export type PayrollPaymentStatus = 'generated' | 'paid' | 'partial_paid';
+export type PayrollPaymentStatus = "generated" | "paid" | "partial_paid";
 
 export interface Payroll {
   id: string;
@@ -240,8 +266,8 @@ export interface Payroll {
   created_at: string;
   updated_at: string;
 }
-export type PayrollInput = Omit<Payroll, 'id' | 'created_at' | 'updated_at'>;
-export type IncentiveStatus = 'pending' | 'added' | 'paid';
+export type PayrollInput = Omit<Payroll, "id" | "created_at" | "updated_at">;
+export type IncentiveStatus = "pending" | "added" | "paid";
 export interface IncentiveAmount {
   id: string;
   employee_id: string;
@@ -255,8 +281,8 @@ export interface IncentiveAmount {
 }
 
 /** Returns the effective payment status, defaulting old records (null) to 'paid'. */
-export function effectivePaymentStatus(p: Pick<Payroll, 'payment_status'>): PayrollPaymentStatus {
-  return p.payment_status ?? 'paid';
+export function effectivePaymentStatus(p: Pick<Payroll, "payment_status">): PayrollPaymentStatus {
+  return p.payment_status ?? "paid";
 }
 
 export interface Loan {
@@ -277,7 +303,7 @@ export interface Loan {
   created_at: string;
   updated_at: string;
 }
-export type LoanInput = Omit<Loan, 'id' | 'created_at' | 'updated_at'>;
+export type LoanInput = Omit<Loan, "id" | "created_at" | "updated_at">;
 export type Advance = Loan;
 export type AdvanceInput = LoanInput;
 
@@ -285,12 +311,12 @@ export type AdvanceInput = LoanInput;
 export interface LoanInstallment {
   id: string;
   loan_id: string;
-  emi_number: number;   // 1-based
+  emi_number: number; // 1-based
   due_year: number;
-  due_month: number;    // 0-11 (JS month)
-  due_date: string;     // YYYY-MM-DD
+  due_month: number; // 0-11 (JS month)
+  due_date: string; // YYYY-MM-DD
   status: InstallmentStatus;
-  payroll_id: string | null;  // set when paid via payroll generation
+  payroll_id: string | null; // set when paid via payroll generation
   amount: number;
   /**
    * Amount already paid directly by cash (partial payment).
@@ -307,7 +333,7 @@ export interface LoanInstallment {
   created_at: string;
   updated_at: string;
 }
-export type LoanInstallmentInput = Omit<LoanInstallment, 'id' | 'created_at' | 'updated_at'>;
+export type LoanInstallmentInput = Omit<LoanInstallment, "id" | "created_at" | "updated_at">;
 
 /** One EMI installment for an advance — same shape as LoanInstallment but linked to advance_id. */
 export interface AdvanceInstallment {
@@ -327,7 +353,7 @@ export interface AdvanceInstallment {
   created_at: string;
   updated_at: string;
 }
-export type AdvanceInstallmentInput = Omit<AdvanceInstallment, 'id' | 'created_at' | 'updated_at'>;
+export type AdvanceInstallmentInput = Omit<AdvanceInstallment, "id" | "created_at" | "updated_at">;
 
 export interface LossDeduction {
   id: string;
@@ -340,26 +366,40 @@ export interface LossDeduction {
   created_at: string;
   updated_at: string;
 }
-export type LossDeductionInput = Omit<LossDeduction, 'id' | 'created_at' | 'updated_at'>;
+export type LossDeductionInput = Omit<LossDeduction, "id" | "created_at" | "updated_at">;
 
-export const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+export const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
-export function fullName(e: Pick<Employee, 'first_name' | 'middle_name' | 'last_name'>) {
-  return [e.first_name, e.middle_name, e.last_name].filter(Boolean).join(' ');
+export function fullName(e: Pick<Employee, "first_name" | "middle_name" | "last_name">) {
+  return [e.first_name, e.middle_name, e.last_name].filter(Boolean).join(" ");
 }
 
-export function computeSalary(e: Pick<Employee,
-  'basic_salary' | 'hra' | 'travel_allowance' | 'special_allowance' | 'other_allowance' | 'pf_deduction' | 'tax_deduction'
->) {
+export function computeSalary(
+  e: Pick<
+    Employee,
+    | "basic_salary"
+    | "hra"
+    | "travel_allowance"
+    | "special_allowance"
+    | "other_allowance"
+    | "pf_deduction"
+    | "tax_deduction"
+  >,
+) {
   const n = (v: number | string) => Number(v) || 0;
-  const gross = n(e.basic_salary) + n(e.hra) + n(e.travel_allowance) + n(e.special_allowance) + n(e.other_allowance);
+  const gross =
+    n(e.basic_salary) +
+    n(e.hra) +
+    n(e.travel_allowance) +
+    n(e.special_allowance) +
+    n(e.other_allowance);
   const deductions = n(e.pf_deduction) + n(e.tax_deduction);
   return { gross, deductions, net: gross - deductions };
 }
 
-export function dailyHours(e: Pick<Employee, 'work_start_time' | 'work_end_time'>) {
+export function dailyHours(e: Pick<Employee, "work_start_time" | "work_end_time">) {
   const parse = (t: string) => {
-    const [h, m] = t.split(':').map(Number);
+    const [h, m] = t.split(":").map(Number);
     return h + (m || 0) / 60;
   };
   const s = parse(e.work_start_time);

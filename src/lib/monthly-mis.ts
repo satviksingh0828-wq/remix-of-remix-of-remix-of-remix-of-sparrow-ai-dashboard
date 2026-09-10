@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { verifyAppToken } from "@/lib/user-auth";
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import { getEmailSettings, withPriyanshiCc } from "@/lib/email-settings.server";
 import type { AppRole } from "@/lib/roles";
 
 export type MisScheduleType = "daily" | "weekly" | "day_of_month" | "twice_monthly";
@@ -189,8 +190,7 @@ export const serverSaveMisForm = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const auth = await caller(data.token);
-    if (auth.role === "viewer")
-      throw new Error("Viewer accounts are read-only.");
+    if (auth.role === "viewer") throw new Error("Viewer accounts are read-only.");
     if (auth.role === "basic" && !auth.branchIds.includes(data.branchId))
       throw new Error("You do not have access to this branch.");
     const form = await serverLoadMisForm({
@@ -253,20 +253,44 @@ export const serverSaveMisForm = createServerFn({ method: "POST" })
         .maybeSingle();
       const adminEmails = adminAlertEmails();
       const depotEmail = branch?.branch_email || branch?.email_address || branch?.manager_email;
-      if (process.env.RESEND_API_KEY && (depotEmail || adminEmails.length)) {
+      const emailSettings = await getEmailSettings();
+      if (
+        emailSettings.email_send_hr_notifications &&
+        process.env.RESEND_API_KEY &&
+        (depotEmail || adminEmails.length)
+      ) {
         try {
           await sendResendEmail({
             to: [...adminEmails, ...(depotEmail ? [depotEmail] : [])],
+            cc: withPriyanshiCc(),
             subject: `Monthly MIS submitted — ${form.branch_name} — ${data.month}`,
-            html: emailTemplate({ title: "Monthly MIS submitted", eyebrow: "Operations report",
+            html: emailTemplate({
+              title: "Monthly MIS submitted",
+              eyebrow: "Operations report",
               intro: `<strong>${form.branch_name}</strong> submitted its Monthly MIS for <strong>${data.month}</strong>.`,
-              content: `<table style="width:100%;border-collapse:collapse"><tr>${[["Due",metrics.due],["Done",metrics.done],["Missed",metrics.missed],["Compliance",`${metrics.compliance}%`]].map(([k,v]) => `<td style="padding:14px 8px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0"><strong style="font-size:18px">${v}</strong><br><span style="font-size:11px;color:#64748b">${k}</span></td>`).join("")}</tr></table>` }),
+              content: `<table style="width:100%;border-collapse:collapse"><tr>${[
+                ["Due", metrics.due],
+                ["Done", metrics.done],
+                ["Missed", metrics.missed],
+                ["Compliance", `${metrics.compliance}%`],
+              ]
+                .map(
+                  ([k, v]) =>
+                    `<td style="padding:14px 8px;text-align:center;background:#f8fafc;border:1px solid #e2e8f0"><strong style="font-size:18px">${v}</strong><br><span style="font-size:11px;color:#64748b">${k}</span></td>`,
+                )
+                .join("")}</tr></table>`,
+            }),
           });
           // The MIS email above already reached all admins, so do not send a
           // duplicate when the notification bell performs its next sync.
-          await auth.db.from("notifications").update({ emailed_at: new Date().toISOString() })
-            .eq("kind", "monthly_mis").eq("ref_id", `monthly-mis-${saved.id}`);
-        } catch (emailError) { console.error("[Monthly MIS] Email failed:", emailError); }
+          await auth.db
+            .from("notifications")
+            .update({ emailed_at: new Date().toISOString() })
+            .eq("kind", "monthly_mis")
+            .eq("ref_id", `monthly-mis-${saved.id}`);
+        } catch (emailError) {
+          console.error("[Monthly MIS] Email failed:", emailError);
+        }
       }
     }
     return { ok: true, submitted: data.submit, metrics };
@@ -290,7 +314,8 @@ export const serverSaveMisActivities = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const auth = await caller(data.token);
-    if (auth.role !== "admin" && auth.role !== "semi_admin") throw new Error("Admin access required.");
+    if (auth.role !== "admin" && auth.role !== "semi_admin")
+      throw new Error("Admin access required.");
     const { data: current } = await auth.db
       .from("monthly_mis_activities")
       .select("id")
@@ -346,7 +371,8 @@ export const serverReopenMisForm = createServerFn({ method: "POST" })
   )
   .handler(async ({ data }) => {
     const auth = await caller(data.token);
-    if (auth.role !== "admin" && auth.role !== "semi_admin") throw new Error("Admin access required.");
+    if (auth.role !== "admin" && auth.role !== "semi_admin")
+      throw new Error("Admin access required.");
     const { data: instance } = await auth.db
       .from("monthly_mis_instances")
       .select("id,status,snapshot")

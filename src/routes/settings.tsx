@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Wifi,
   MessageCircle,
+  Mail,
 } from "lucide-react";
 import { RequireAuth } from "@/components/RequireAuth";
 import { AppShell } from "@/components/AppShell";
@@ -25,6 +26,7 @@ import { toast } from "sonner";
 import { useAppSettings, useUpdateAppSettings } from "@/lib/hooks";
 import { useSession } from "@/lib/session";
 import { WhatsAppSettings } from "@/components/settings/WhatsAppSettings";
+import { MailSettings } from "@/components/settings/MailSettings";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -61,7 +63,13 @@ const TABS = [
   { id: "theme", label: "Theme Settings", desc: "Universal app appearance", icon: Palette },
   { id: "attendance", label: "Attendance Module", desc: "Device & service connection", icon: Wifi },
   { id: "whatsapp", label: "WhatsApp", desc: "HR PDF sending & connection", icon: MessageCircle },
-  { id: "passkey", label: "Passkey Security", desc: "Admin-controlled device protection", icon: ShieldCheck },
+  { id: "mail", label: "Mail", desc: "All email notifications", icon: Mail },
+  {
+    id: "passkey",
+    label: "Passkey Security",
+    desc: "Admin-controlled device protection",
+    icon: ShieldCheck,
+  },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -160,6 +168,7 @@ function SettingsPage() {
           {tab === "theme" ? <ThemePanel /> : null}
           {tab === "attendance" ? <AttendanceModuleSettings /> : null}
           {tab === "whatsapp" ? <WhatsAppSettings /> : null}
+          {tab === "mail" ? <MailSettings /> : null}
           {tab === "passkey" ? <PasskeySecurityPanel /> : null}
         </div>
       </div>
@@ -181,7 +190,8 @@ function PasskeySecurityPanel() {
       { id: settings.id, values: { passkey_protection_enabled: !enabled } as never },
       {
         onSuccess: () => toast.success(`Passkey protection ${!enabled ? "enabled" : "disabled"}`),
-        onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save passkey setting"),
+        onError: (error) =>
+          toast.error(error instanceof Error ? error.message : "Could not save passkey setting"),
       },
     );
   }
@@ -196,8 +206,9 @@ function PasskeySecurityPanel() {
           <div>
             <h3 className="text-sm font-semibold tracking-tight">Passkey protection</h3>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              When enabled, the existing Windows Hello / passkey device gate verifies the device before the full app renders.
-              It reuses the existing device registrations, user assignments, and challenge tables.
+              When enabled, the existing Windows Hello / passkey device gate verifies the device
+              before the full app renders. It reuses the existing device registrations, user
+              assignments, and challenge tables.
             </p>
           </div>
         </div>
@@ -205,10 +216,15 @@ function PasskeySecurityPanel() {
           <div>
             <p className="text-sm font-medium">Require passkey verification</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Current status: <strong className="text-foreground">{enabled ? "Enabled" : "Disabled"}</strong>
+              Current status:{" "}
+              <strong className="text-foreground">{enabled ? "Enabled" : "Disabled"}</strong>
             </p>
           </div>
-          <Button type="button" onClick={toggleProtection} disabled={isLoading || updateSettings.isPending}>
+          <Button
+            type="button"
+            onClick={toggleProtection}
+            disabled={isLoading || updateSettings.isPending}
+          >
             {updateSettings.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
             {enabled ? "Disable protection" : "Enable protection"}
           </Button>

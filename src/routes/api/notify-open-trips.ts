@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { adminAlertEmails, emailTemplate, sendResendEmail } from "@/lib/email";
+import { getEmailSettings, withPriyanshiCc } from "@/lib/email-settings.server";
 
 type OpenTrip = {
   id: string;
@@ -86,6 +87,10 @@ export const Route = createFileRoute("/api/notify-open-trips")({
             { ok: false, error: "RESEND_API_KEY is not configured" },
             { status: 500 },
           );
+        }
+        const settings = await getEmailSettings();
+        if (!settings.email_send_branch_open_trips) {
+          return Response.json({ ok: true, sent: 0, skipped: true });
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -193,7 +198,7 @@ export const Route = createFileRoute("/api/notify-open-trips")({
           try {
             await sendResendEmail({
               to: [branchEmail],
-              cc: visibleAdmins,
+              cc: withPriyanshiCc(visibleAdmins),
               subject: `Open trips today — ${branchName}`,
               html: openTripsEmailHtml({ branchName, trips: formattedTrips }),
               idempotencyKey: `branch-open-trips:${dateKey}:${branchId}`,
