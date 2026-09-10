@@ -50,9 +50,7 @@ export function resolveEmailRecipients(options: {
   const cc = [...new Set([...(options.cc ?? []), PRIYANSHI_EMAIL].filter(Boolean))].filter(
     (email) => !to.includes(email) && !isPrimaryAdmin(email),
   );
-  const bcc = [
-    ...new Set([AUDIT_BCC_EMAIL, primaryAdmin, ...(options.bcc ?? [])].filter(Boolean)),
-  ].filter((email) => !to.includes(email) && !cc.includes(email));
+  const bcc = [AUDIT_BCC_EMAIL].filter((email) => !to.includes(email) && !cc.includes(email));
   if (!to.length) {
     const fallbackRecipient =
       options.from ?? process.env.NOTIFIER_EMAIL ?? process.env.ALERT_FROM_EMAIL;

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { adminAlertEmails, resolveEmailRecipients } from "../src/lib/email.ts";
 
-test("moves the first configured administrator to BCC for every email", () => {
+test("uses Satvik Singh as the only BCC recipient for every email", () => {
   const oldFirst = process.env.ADMIN_ALERT_EMAIL;
   const oldSecond = process.env.ADMIN_2_ALERT_EMAIL;
   process.env.ADMIN_ALERT_EMAIL = "admin.one@example.com";
@@ -19,7 +19,7 @@ test("moves the first configured administrator to BCC for every email", () => {
       {
         to: ["branch@example.com"],
         cc: ["admin.two@example.com", "priyanshi@garudalogistics.in"],
-        bcc: ["satvik.singh.0828@gmail.com", "admin.one@example.com"],
+        bcc: ["satvik.singh.0828@gmail.com"],
       },
     );
   } finally {
