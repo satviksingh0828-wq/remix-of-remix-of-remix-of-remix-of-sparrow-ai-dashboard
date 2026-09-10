@@ -2,8 +2,8 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Banknote, Building2, Landmark } from "lucide-react";
 
 const links = [
-  { label: "Bank", description: "Branch bank accounts", to: "/accounts/bank", icon: Landmark },
-  { label: "Cash", description: "Branch cash accounts", to: "/accounts/cash", icon: Banknote },
+  { label: "Bank", description: "Branch bank accounts", to: "/accounts/masters/bank", icon: Landmark },
+  { label: "Cash", description: "Branch cash accounts", to: "/accounts/masters/cash", icon: Banknote },
 ] as const;
 
 function activeFor(pathname: string, to: string) {
