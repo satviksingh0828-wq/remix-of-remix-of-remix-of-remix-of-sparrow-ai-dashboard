@@ -65,9 +65,9 @@ export function WorkspaceModulePage({
         {visibleTiles.map((tile, index) => {
           const Icon = tile.icon;
           return (
-            <Link
+            <a
               key={tile.key}
-              to={tile.to as never}
+              href={tile.to}
               style={{ animationDelay: `${index * 55}ms` }}
               className="group surface-card animate-fade-up relative flex h-40 flex-col items-start p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
             >
@@ -79,7 +79,7 @@ export function WorkspaceModulePage({
               </span>
               <span className="mt-1 block text-xs text-muted-foreground">{tile.desc}</span>
               <ArrowRight className="absolute bottom-6 right-6 size-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-1 group-hover:text-foreground" />
-            </Link>
+            </a>
           );
         })}
       </div>
