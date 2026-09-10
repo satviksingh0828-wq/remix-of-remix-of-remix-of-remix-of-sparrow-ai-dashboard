@@ -18,6 +18,7 @@ import type { Employee, PayrollInput, Loan, Advance, LossDeduction, Payroll, Loa
 import { computePayroll, halfMonthPeriods, monthPeriod, loanRemaining } from '@/lib/payroll-utils';
 import { ymd, parseYmd } from '@/lib/attendance-utils';
 import { exportPayrollPdf, getPayrollPdfBase64 } from '@/lib/payroll-pdf';
+import { sendPayrollEmail } from '@/lib/payroll-email';
 import { isWaConnected, sendWaPdf, normalizeWaNumber } from '@/lib/whatsapp';
 import { cn } from '@/lib/utils';
 
@@ -363,6 +364,26 @@ export function PayrollGenerate() {
               if (ok) toast.success('Payslip sent via WhatsApp');
             }
           } catch { /* silent — don't fail payroll generation */ }
+        }
+      }
+
+      // Email the generated payslip to the employee when enabled. Email
+      // failures are reported but never roll back an already-created payroll.
+      if (settings?.email_auto_send_payroll && emp.email) {
+        try {
+          const b64 = getPayrollPdfBase64(pdfOpts);
+          const from = period.from.toLocaleDateString('en-IN');
+          const to = period.to.toLocaleDateString('en-IN');
+          await sendPayrollEmail({
+            to: emp.email,
+            employeeName: fullName(emp),
+            periodLabel: `${from} – ${to}`,
+            filename: `payslip-${ymd(period.from)}.pdf`,
+            pdfBase64: b64,
+          });
+          toast.success('Payslip sent by email');
+        } catch (error) {
+          toast.error(`Payroll saved, but email failed: ${(error as Error).message}`);
         }
       }
     } catch (e) {

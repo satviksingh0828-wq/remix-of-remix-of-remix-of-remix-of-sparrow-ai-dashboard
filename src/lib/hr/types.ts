@@ -8,6 +8,7 @@ export interface Employee {
   middle_name: string | null;
   last_name: string;
   mobile: string;
+  email?: string | null;
   address: string;
   dob: string;
   gender: Gender;
@@ -126,6 +127,8 @@ export interface AppSettings {
   attendance_module_key: string | null;
   /** WhatsApp automation */
   wa_auto_send_payroll: boolean | null;
+  /** Email automation */
+  email_auto_send_payroll?: boolean | null;
   wa_send_on_payment: boolean | null;
   wa_send_loan: boolean | null;
   wa_send_advance: boolean | null;
@@ -138,7 +141,7 @@ export type AppSettingsInput = Pick<
   AppSettings,
   'company_name' | 'company_address' |
   'attendance_module_enabled' | 'attendance_module_url' | 'attendance_module_key' |
-  'wa_auto_send_payroll' | 'wa_send_on_payment' | 'wa_send_loan' |
+  'wa_auto_send_payroll' | 'email_auto_send_payroll' | 'wa_send_on_payment' | 'wa_send_loan' |
   'wa_send_advance' | 'wa_send_loss_deduction' | 'wa_send_attendance_monthly'
 >;
 

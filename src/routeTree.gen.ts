@@ -55,6 +55,7 @@ import { Route as PayrollLoansRouteImport } from './routes/payroll.loans'
 import { Route as PayrollPendingRouteImport } from './routes/payroll.pending'
 import { Route as SettingsAttendanceModuleRouteImport } from './routes/settings.attendance-module'
 import { Route as ApiDriverThemeRouteImport } from './routes/api/driver/theme'
+import { Route as ApiHrPayrollEmailRouteImport } from './routes/api/hr/payroll-email'
 import { Route as AttendanceHistoryIndexRouteImport } from './routes/attendance.history.index'
 import { Route as AttendanceHistoryIdRouteImport } from './routes/attendance.history.$id'
 import { Route as EmployeesIdIndexRouteImport } from './routes/employees.$id.index'
@@ -306,6 +307,11 @@ const ApiDriverThemeRoute = ApiDriverThemeRouteImport.update({
   path: '/api/driver/theme',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHrPayrollEmailRoute = ApiHrPayrollEmailRouteImport.update({
+  id: '/api/hr/payroll-email',
+  path: '/api/hr/payroll-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AttendanceHistoryIndexRoute = AttendanceHistoryIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -457,6 +463,7 @@ export interface FileRoutesByFullPath {
   '/employees/': typeof EmployeesIndexRoute
   '/payroll/': typeof PayrollIndexRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
+  '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
   '/employees/$id/edit': typeof EmployeesIdEditRoute
   '/employees/departments/new': typeof EmployeesDepartmentsNewRoute
@@ -518,6 +525,7 @@ export interface FileRoutesByTo {
   '/employees': typeof EmployeesIndexRoute
   '/payroll': typeof PayrollIndexRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
+  '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
   '/employees/$id/edit': typeof EmployeesIdEditRoute
   '/employees/departments/new': typeof EmployeesDepartmentsNewRoute
@@ -586,6 +594,7 @@ export interface FileRoutesById {
   '/employees/': typeof EmployeesIndexRoute
   '/payroll/': typeof PayrollIndexRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
+  '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
   '/employees/$id/edit': typeof EmployeesIdEditRoute
   '/employees/departments/new': typeof EmployeesDepartmentsNewRoute
@@ -655,6 +664,7 @@ export interface FileRouteTypes {
     | '/employees/'
     | '/payroll/'
     | '/api/driver/theme'
+    | '/api/hr/payroll-email'
     | '/attendance/history/$id'
     | '/employees/$id/edit'
     | '/employees/departments/new'
@@ -716,6 +726,7 @@ export interface FileRouteTypes {
     | '/employees'
     | '/payroll'
     | '/api/driver/theme'
+    | '/api/hr/payroll-email'
     | '/attendance/history/$id'
     | '/employees/$id/edit'
     | '/employees/departments/new'
@@ -783,6 +794,7 @@ export interface FileRouteTypes {
     | '/employees/'
     | '/payroll/'
     | '/api/driver/theme'
+    | '/api/hr/payroll-email'
     | '/attendance/history/$id'
     | '/employees/$id/edit'
     | '/employees/departments/new'
@@ -828,6 +840,7 @@ export interface RootRouteChildren {
   ApiNotifyExpiryRoute: typeof ApiNotifyExpiryRoute
   ApiNotifyOpenTripsRoute: typeof ApiNotifyOpenTripsRoute
   ApiDriverThemeRoute: typeof ApiDriverThemeRoute
+  ApiHrPayrollEmailRoute: typeof ApiHrPayrollEmailRoute
   ApiDriverTripsClaimRoute: typeof ApiDriverTripsClaimRoute
   ApiDriverTripsCurrentRoute: typeof ApiDriverTripsCurrentRoute
   ApiDriverTripsEndRoute: typeof ApiDriverTripsEndRoute
@@ -1165,6 +1178,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDriverThemeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/hr/payroll-email': {
+      id: '/api/hr/payroll-email'
+      path: '/api/hr/payroll-email'
+      fullPath: '/api/hr/payroll-email'
+      preLoaderRoute: typeof ApiHrPayrollEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/attendance/history/': {
       id: '/attendance/history/'
       path: '/'
@@ -1454,6 +1474,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiNotifyExpiryRoute: ApiNotifyExpiryRoute,
   ApiNotifyOpenTripsRoute: ApiNotifyOpenTripsRoute,
   ApiDriverThemeRoute: ApiDriverThemeRoute,
+  ApiHrPayrollEmailRoute: ApiHrPayrollEmailRoute,
   ApiDriverTripsClaimRoute: ApiDriverTripsClaimRoute,
   ApiDriverTripsCurrentRoute: ApiDriverTripsCurrentRoute,
   ApiDriverTripsEndRoute: ApiDriverTripsEndRoute,

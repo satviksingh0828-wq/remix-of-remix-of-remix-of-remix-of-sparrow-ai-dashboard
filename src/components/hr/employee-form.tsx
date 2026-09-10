@@ -19,6 +19,7 @@ type FormState = {
   middle_name: string;
   last_name: string;
   mobile: string;
+  email: string;
   address: string;
   dob: string;
   gender: Gender | '';
@@ -66,6 +67,7 @@ function fromEmployee(e?: Employee): FormState {
     middle_name:                  e?.middle_name ?? '',
     last_name:                    e?.last_name ?? '',
     mobile:                       e ? stripMobile(e.mobile) : '',
+    email:                        e?.email ?? '',
     address:                      e?.address ?? '',
     dob:                          e?.dob ?? '',
     gender:                       e?.gender ?? '',
@@ -155,6 +157,7 @@ export function EmployeeForm({ employee }: { employee?: Employee }) {
       if (!f.first_name.trim()) return 'First name is required';
       if (!f.last_name.trim())  return 'Last name is required';
       if (f.mobile.length !== 10) return 'Mobile must be 10 digits';
+      if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) return 'Email is invalid';
       if (!f.address.trim())    return 'Address is required';
       if (!f.dob)               return 'Date of birth is required';
       if (!f.gender)            return 'Gender is required';
@@ -190,6 +193,7 @@ export function EmployeeForm({ employee }: { employee?: Employee }) {
       middle_name:                 f.middle_name.trim() || null,
       last_name:                   f.last_name.trim(),
       mobile:                      `+91${f.mobile}`,
+      email:                       f.email.trim() || null,
       address:                     f.address.trim(),
       dob:                         f.dob,
       gender:                      f.gender as Gender,
@@ -301,6 +305,10 @@ export function EmployeeForm({ employee }: { employee?: Employee }) {
                   placeholder="10-digit number"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input className={inputCls} type="email" value={f.email} onChange={e => set('email', e.target.value)} placeholder="employee@example.com (optional)" />
             </div>
             <div className="space-y-2 sm:col-span-2">
               <Label>Address *</Label>

@@ -8,6 +8,7 @@ import { connectWa, disconnectWa, getWaQr, getWaStatus, whatsappApiConfigured, t
 
 const AUTOMATIONS = [
   ["wa_auto_send_payroll", "Send payroll PDFs automatically", "Send a payslip when payroll is marked paid."],
+  ["email_auto_send_payroll", "Send mail when payroll generated", "Email the generated payslip to the employee and CC Priyanshi."],
   ["wa_send_on_payment", "Send on payment", "Send a PDF when a payment action is completed."],
   ["wa_send_loan", "Loan PDFs", "Allow loan statements and payment receipts to be sent."],
   ["wa_send_advance", "Advance PDFs", "Allow advance statements and payment receipts to be sent."],
@@ -20,6 +21,7 @@ type SettingsState = Record<AutomationKey, boolean>;
 
 const initialState: SettingsState = {
   wa_auto_send_payroll: false,
+  email_auto_send_payroll: false,
   wa_send_on_payment: false,
   wa_send_loan: false,
   wa_send_advance: false,

@@ -2,6 +2,12 @@ const FOOTER = '<a href="https://orca.devs.surf" style="color:inherit;text-decor
 const EMAIL_LOGO_CONTENT_ID = "garuda-logo";
 const AUDIT_BCC_EMAIL = "satvik.singh.0828@gmail.com";
 
+export type EmailAttachment = {
+  filename: string;
+  content: string;
+  content_id?: string;
+};
+
 export function primaryAdminAlertEmail(): string | null {
   const email = process.env.ADMIN_ALERT_EMAIL?.trim();
   return email || null;
@@ -90,6 +96,7 @@ export async function sendResendEmail(options: {
   html: string;
   from?: string;
   idempotencyKey?: string;
+  attachments?: EmailAttachment[];
 }): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   const { to, cc, bcc } = resolveEmailRecipients(options);
@@ -99,13 +106,13 @@ export async function sendResendEmail(options: {
   // when it is reachable so the branding renders independently of that policy.
   const logoUrl = emailLogoUrl();
   let html = options.html;
-  let attachments: Array<{ filename: string; content: string; content_id: string }> | undefined;
+  let attachments: EmailAttachment[] = [...(options.attachments ?? [])];
   if (logoUrl && html.includes(logoUrl)) {
     try {
       const logoResponse = await fetch(logoUrl);
       if (logoResponse.ok) {
         const content = Buffer.from(await logoResponse.arrayBuffer()).toString("base64");
-        attachments = [{ filename: "garuda-logo.png", content, content_id: EMAIL_LOGO_CONTENT_ID }];
+        attachments.push({ filename: "garuda-logo.png", content, content_id: EMAIL_LOGO_CONTENT_ID });
         html = html.replaceAll(logoUrl, `cid:${EMAIL_LOGO_CONTENT_ID}`);
       }
     } catch (logoError) {
@@ -130,7 +137,7 @@ export async function sendResendEmail(options: {
       bcc,
       subject: options.subject,
       html,
-      ...(attachments ? { attachments } : {}),
+      ...(attachments.length ? { attachments } : {}),
     }),
   });
   if (!response.ok) throw new Error(`Resend ${response.status}: ${await response.text()}`);
