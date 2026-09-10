@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
 import {
   useEmployees,
   useLoans,
@@ -327,14 +328,18 @@ export function PayrollLedger() {
 
   const handleExportPdf = () => {
     if (!employee || entries.length === 0) return;
-    exportLedgerPdf({
-      entries,
-      employeeName: fullName(employee),
-      periodLabel,
-      openingBalance,
-      totals,
-      settings,
-    });
+    try {
+      exportLedgerPdf({
+        entries,
+        employeeName: fullName(employee),
+        periodLabel,
+        openingBalance,
+        totals,
+        settings,
+      });
+    } catch (e) {
+      toast.error(`PDF export failed: ${(e as Error).message}`);
+    }
   };
 
   return (

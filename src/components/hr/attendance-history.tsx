@@ -134,7 +134,13 @@ export function EmployeeAttendanceDetail({ id }: { id: string }) {
     from: range.from, to: range.to, periodLabel: PERIODS.find(p => p.value === period)?.label ?? '', settings, allAttendance: allRecords ?? [],
   });
 
-  const doPdf = () => exportEmployeeAttendancePdf(buildAttOpts());
+  const doPdf = () => {
+    try {
+      exportEmployeeAttendancePdf(buildAttOpts());
+    } catch (e) {
+      toast.error(`PDF export failed: ${(e as Error).message}`);
+    }
+  };
 
   const doWa = async () => {
     const waNum = normalizeWaNumber(employee.mobile);

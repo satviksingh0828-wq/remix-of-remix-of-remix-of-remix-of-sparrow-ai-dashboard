@@ -74,7 +74,13 @@ export function LoansView({ mode }: { mode: 'loan' | 'advance' }) {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={!list?.length} onClick={() => exportLoansSummaryPdf({ loans: list ?? [], employees: employees ?? [], settings, kind: mode })}>
+          <Button variant="outline" disabled={!list?.length} onClick={() => {
+            try {
+              exportLoansSummaryPdf({ loans: list ?? [], employees: employees ?? [], settings, kind: mode });
+            } catch (e) {
+              toast.error(`PDF export failed: ${(e as Error).message}`);
+            }
+          }}>
             <Download className="mr-1 h-4 w-4" />Export all
           </Button>
           <Button onClick={() => setShowAdd(v => !v)}>
@@ -399,7 +405,13 @@ function LoanRow({
               <div className="text-sm font-semibold">EMI schedule (period-wise)</div>
               <div className="flex gap-1.5">
                 {emp && (
-                  <Button size="sm" variant="outline" onClick={() => exportLoanDetailPdf({ loan: l, employee: emp, settings, kind: mode, installments })}>
+                  <Button size="sm" variant="outline" onClick={() => {
+                    try {
+                      exportLoanDetailPdf({ loan: l, employee: emp, settings, kind: mode, installments });
+                    } catch (e) {
+                      toast.error(`PDF export failed: ${(e as Error).message}`);
+                    }
+                  }}>
                     <FileText className="mr-1 h-3 w-3" />PDF
                   </Button>
                 )}

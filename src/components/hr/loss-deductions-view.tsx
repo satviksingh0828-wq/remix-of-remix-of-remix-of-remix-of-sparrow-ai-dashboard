@@ -91,7 +91,13 @@ export function LossDeductionsView() {
           <p className="text-sm text-muted-foreground">Pending amounts auto-deduct from the employee&apos;s next payroll.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" disabled={!list?.length} onClick={() => exportLossDeductionsPdf({ deductions: list ?? [], employees: employees ?? [], settings })}>
+          <Button variant="outline" disabled={!list?.length} onClick={() => {
+            try {
+              exportLossDeductionsPdf({ deductions: list ?? [], employees: employees ?? [], settings });
+            } catch (e) {
+              toast.error(`PDF export failed: ${(e as Error).message}`);
+            }
+          }}>
             <Download className="mr-1 h-4 w-4" />Export PDF
           </Button>
           <Button onClick={() => setShowAdd(v => !v)}><Plus className="mr-1 h-4 w-4" />{showAdd ? 'Close' : 'Add deduction'}</Button>
