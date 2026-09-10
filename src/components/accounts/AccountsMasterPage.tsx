@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Banknote, Landmark, Loader2, Pencil, Plus, Save, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Banknote,
+  Download,
+  FileSpreadsheet,
+  Landmark,
+  Loader2,
+  Pencil,
+  Plus,
+  Save,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +19,13 @@ import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { AccountsSectionNav } from "@/components/accounts/AccountsSectionNav";
 import { useBranches } from "@/lib/use-branches";
+import {
+  accountSheetRows,
+  downloadAccountsTemplate,
+  exportAccounts,
+  parseAccountRows,
+  readAccountWorkbook,
+} from "@/lib/accounts-excel";
 
 type AccountKind = "bank" | "cash";
 type AccountRow = Record<string, unknown> & { id: string; branch_id: string };
@@ -141,13 +160,40 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await db
-      .from(table)
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) toast.error(`Could not load ${title.toLowerCase()} accounts: ${error.message}`);
-    setRows((data as AccountRow[]) ?? []);
-    setLoading(false);
+    try {
+      const { data, error } = await db
+        .from(table)
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+      setRows((data as AccountRow[]) ?? []);
+    } catch (error) {
+      setRows([]);
+      toast.error(
+        `Could not load ${title.toLowerCase()} accounts: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function importAccounts(file: File) {
+    try {
+      const workbook = await readAccountWorkbook(file);
+      const branchIdByName = new Map(
+        branches.map((branch) => [branch.branch_name.trim().toLowerCase(), branch.id]),
+      );
+      const payload = parseAccountRows(kind, accountSheetRows(workbook, kind), branchIdByName);
+      if (payload.length === 0) throw new Error("The account sheet has no data rows.");
+      const { error } = await db.from(table).insert(payload);
+      if (error) throw new Error(error.message);
+      toast.success(
+        `${payload.length} ${title.toLowerCase()} account${payload.length === 1 ? "" : "s"} imported`,
+      );
+      await load();
+    } catch (error) {
+      toast.error(`Import failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   useEffect(() => {
@@ -260,10 +306,47 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
               </p>
             </div>
             {!editing && (
-              <Button type="button" onClick={() => edit()} className="gap-2">
-                <Plus className="size-4" />
-                Add {title.toLowerCase()} account
-              </Button>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => downloadAccountsTemplate(kind)}
+                  className="gap-2"
+                >
+                  <FileSpreadsheet className="size-4" />
+                  Template
+                </Button>
+                <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted">
+                  <Upload className="size-4" />
+                  Import Excel
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls"
+                    className="sr-only"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.currentTarget.value = "";
+                      if (file) void importAccounts(file);
+                    }}
+                  />
+                </label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() =>
+                    exportAccounts(kind, rows, branchMap, new Date().toISOString().slice(0, 10))
+                  }
+                  disabled={rows.length === 0}
+                  className="gap-2"
+                >
+                  <Download className="size-4" />
+                  Export Excel
+                </Button>
+                <Button type="button" onClick={() => edit()} className="gap-2">
+                  <Plus className="size-4" />
+                  Add {title.toLowerCase()} account
+                </Button>
+              </div>
             )}
           </header>
           {editing ? (
