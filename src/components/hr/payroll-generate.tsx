@@ -285,6 +285,22 @@ export function PayrollGenerate() {
     try {
       const created = await create.mutateAsync(values);
 
+      const pdfOpts = {
+        payroll: created, employee: emp, department: dept, position, settings,
+        loans: activeLoans, advances: activeAdvances, lossDeductions: pendingDeds,
+        loanInstallments: (allLoanInst ?? []).filter(i => activeLoans.some(l => l.id === i.loan_id)),
+        advanceInstallments: (allAdvInst ?? []).filter(i => activeAdvances.some(a => a.id === i.advance_id)),
+      };
+
+      // Export immediately after the payroll row is created. Ancillary updates
+      // below must not prevent the user from receiving the payslip download.
+      try {
+        exportPayrollPdf(pdfOpts);
+      } catch (error) {
+        toast.error(`Payroll saved, but PDF export failed: ${(error as Error).message}`);
+      }
+      toast.success('Payroll generated — mark it as paid once the salary is disbursed (see Pending Payroll tab).');
+
       // Mark loan installments as paid via this payroll
       // Also handles partial installments (paid_partial_manual → paid_payroll)
       for (const l of activeLoans) {
@@ -333,15 +349,6 @@ export function PayrollGenerate() {
       for (const d of pendingDeds) {
         await updDed.mutateAsync({ id: d.id, values: { status: 'deducted', payroll_id: created.id, deducted_on: ymd(new Date()) } });
       }
-
-      toast.success('Payroll generated — mark it as paid once the salary is disbursed (see Pending Payroll tab).');
-      const pdfOpts = {
-        payroll: created, employee: emp, department: dept, position, settings,
-        loans: activeLoans, advances: activeAdvances, lossDeductions: pendingDeds,
-        loanInstallments: (allLoanInst ?? []).filter(i => activeLoans.some(l => l.id === i.loan_id)),
-        advanceInstallments: (allAdvInst ?? []).filter(i => activeAdvances.some(a => a.id === i.advance_id)),
-      };
-      exportPayrollPdf(pdfOpts);
 
       // Auto-send payslip via WhatsApp if enabled
       if (settings?.wa_auto_send_payroll && emp.mobile) {
