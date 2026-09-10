@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { RequireAuth } from "@/components/RequireAuth";
+import { AccountsAccessGuard } from "@/components/accounts/AccountsAccessGuard";
 import { AccountsMasterPage } from "@/components/accounts/AccountsMasterPage";
 
 export const Route = createFileRoute("/accounts/bank")({
   component: () => (
-    <RequireAuth>
+    <AccountsAccessGuard>
       <AccountsMasterPage kind="bank" />
-    </RequireAuth>
+    </AccountsAccessGuard>
   ),
 });

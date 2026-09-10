@@ -10,6 +10,7 @@ export const Route = createFileRoute("/accounts")({
         eyebrow="Workspace / Accounts"
         title="Accounts"
         description="Branch-linked bank and cash account masters with dated balance records."
+        allowedRoles={["admin", "semi_admin", "viewer"]}
         tiles={[
           {
             key: "accounts-masters",
