@@ -284,7 +284,9 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
             Workspace
           </Link>
           <span>/</span>
-          <span>Accounts</span>
+          <Link to="/accounts" className="hover:text-foreground">
+            Accounts
+          </Link>
           <span>/</span>
           <span className="text-foreground">Masters</span>
         </span>

@@ -31,6 +31,7 @@ import { Route as TmsRouteImport } from './routes/tms'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as AccountsBankRouteImport } from './routes/accounts.bank'
 import { Route as AccountsCashRouteImport } from './routes/accounts.cash'
+import { Route as AccountsMastersRouteImport } from './routes/accounts.masters'
 import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
 import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
 import { Route as ApiNotifyOpenTripsRouteImport } from './routes/api/notify-open-trips'
@@ -57,6 +58,8 @@ import { Route as PayrollLedgerRouteImport } from './routes/payroll.ledger'
 import { Route as PayrollLoansRouteImport } from './routes/payroll.loans'
 import { Route as PayrollPendingRouteImport } from './routes/payroll.pending'
 import { Route as SettingsAttendanceModuleRouteImport } from './routes/settings.attendance-module'
+import { Route as AccountsMastersBankRouteImport } from './routes/accounts.masters.bank'
+import { Route as AccountsMastersCashRouteImport } from './routes/accounts.masters.cash'
 import { Route as ApiDriverThemeRouteImport } from './routes/api/driver/theme'
 import { Route as ApiHrPayrollEmailRouteImport } from './routes/api/hr/payroll-email'
 import { Route as AttendanceHistoryIndexRouteImport } from './routes/attendance.history.index'
@@ -187,6 +190,11 @@ const AccountsBankRoute = AccountsBankRouteImport.update({
 const AccountsCashRoute = AccountsCashRouteImport.update({
   id: '/cash',
   path: '/cash',
+  getParentRoute: () => AccountsRoute,
+} as any)
+const AccountsMastersRoute = AccountsMastersRouteImport.update({
+  id: '/masters',
+  path: '/masters',
   getParentRoute: () => AccountsRoute,
 } as any)
 const ApiNotifyAdminRoute = ApiNotifyAdminRouteImport.update({
@@ -320,6 +328,16 @@ const SettingsAttendanceModuleRoute =
     path: '/attendance-module',
     getParentRoute: () => SettingsRoute,
   } as any)
+const AccountsMastersBankRoute = AccountsMastersBankRouteImport.update({
+  id: '/bank',
+  path: '/bank',
+  getParentRoute: () => AccountsMastersRoute,
+} as any)
+const AccountsMastersCashRoute = AccountsMastersCashRouteImport.update({
+  id: '/cash',
+  path: '/cash',
+  getParentRoute: () => AccountsMastersRoute,
+} as any)
 const ApiDriverThemeRoute = ApiDriverThemeRouteImport.update({
   id: '/api/driver/theme',
   path: '/api/driver/theme',
@@ -457,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
+  '/accounts/masters': typeof AccountsMastersRouteWithChildren
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -483,6 +502,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/employees/': typeof EmployeesIndexRoute
   '/payroll/': typeof PayrollIndexRoute
+  '/accounts/masters/bank': typeof AccountsMastersBankRoute
+  '/accounts/masters/cash': typeof AccountsMastersCashRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
@@ -524,6 +545,7 @@ export interface FileRoutesByTo {
   '/users': typeof UsersRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
+  '/accounts/masters': typeof AccountsMastersRouteWithChildren
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -548,6 +570,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexRoute
   '/employees': typeof EmployeesIndexRoute
   '/payroll': typeof PayrollIndexRoute
+  '/accounts/masters/bank': typeof AccountsMastersBankRoute
+  '/accounts/masters/cash': typeof AccountsMastersCashRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
@@ -594,6 +618,7 @@ export interface FileRoutesById {
   '/users': typeof UsersRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
+  '/accounts/masters': typeof AccountsMastersRouteWithChildren
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -620,6 +645,8 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/employees/': typeof EmployeesIndexRoute
   '/payroll/': typeof PayrollIndexRoute
+  '/accounts/masters/bank': typeof AccountsMastersBankRoute
+  '/accounts/masters/cash': typeof AccountsMastersCashRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
@@ -667,6 +694,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/accounts/bank'
     | '/accounts/cash'
+    | '/accounts/masters'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
@@ -693,6 +721,8 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/employees/'
     | '/payroll/'
+    | '/accounts/masters/bank'
+    | '/accounts/masters/cash'
     | '/api/driver/theme'
     | '/api/hr/payroll-email'
     | '/attendance/history/$id'
@@ -734,6 +764,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/accounts/bank'
     | '/accounts/cash'
+    | '/accounts/masters'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
@@ -758,6 +789,8 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/employees'
     | '/payroll'
+    | '/accounts/masters/bank'
+    | '/accounts/masters/cash'
     | '/api/driver/theme'
     | '/api/hr/payroll-email'
     | '/attendance/history/$id'
@@ -803,6 +836,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/accounts/bank'
     | '/accounts/cash'
+    | '/accounts/masters'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
@@ -829,6 +863,8 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/employees/'
     | '/payroll/'
+    | '/accounts/masters/bank'
+    | '/accounts/masters/cash'
     | '/api/driver/theme'
     | '/api/hr/payroll-email'
     | '/attendance/history/$id'
@@ -1047,6 +1083,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountsCashRouteImport
       parentRoute: typeof AccountsRoute
     }
+    '/accounts/masters': {
+      id: '/accounts/masters'
+      path: '/masters'
+      fullPath: '/accounts/masters'
+      preLoaderRoute: typeof AccountsMastersRouteImport
+      parentRoute: typeof AccountsRoute
+    }
     '/api/notify-admin': {
       id: '/api/notify-admin'
       path: '/api/notify-admin'
@@ -1229,6 +1272,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAttendanceModuleRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/accounts/masters/bank': {
+      id: '/accounts/masters/bank'
+      path: '/bank'
+      fullPath: '/accounts/masters/bank'
+      preLoaderRoute: typeof AccountsMastersBankRouteImport
+      parentRoute: typeof AccountsMastersRoute
+    }
+    '/accounts/masters/cash': {
+      id: '/accounts/masters/cash'
+      path: '/cash'
+      fullPath: '/accounts/masters/cash'
+      preLoaderRoute: typeof AccountsMastersCashRouteImport
+      parentRoute: typeof AccountsMastersRoute
+    }
     '/api/driver/theme': {
       id: '/api/driver/theme'
       path: '/api/driver/theme'
@@ -1379,14 +1436,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AccountsMastersRouteChildren {
+  AccountsMastersBankRoute: typeof AccountsMastersBankRoute
+  AccountsMastersCashRoute: typeof AccountsMastersCashRoute
+}
+
+const AccountsMastersRouteChildren: AccountsMastersRouteChildren = {
+  AccountsMastersBankRoute: AccountsMastersBankRoute,
+  AccountsMastersCashRoute: AccountsMastersCashRoute,
+}
+
+const AccountsMastersRouteWithChildren = AccountsMastersRoute._addFileChildren(
+  AccountsMastersRouteChildren,
+)
+
 interface AccountsRouteChildren {
   AccountsBankRoute: typeof AccountsBankRoute
   AccountsCashRoute: typeof AccountsCashRoute
+  AccountsMastersRoute: typeof AccountsMastersRouteWithChildren
 }
 
 const AccountsRouteChildren: AccountsRouteChildren = {
   AccountsBankRoute: AccountsBankRoute,
   AccountsCashRoute: AccountsCashRoute,
+  AccountsMastersRoute: AccountsMastersRouteWithChildren,
 }
 
 const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
