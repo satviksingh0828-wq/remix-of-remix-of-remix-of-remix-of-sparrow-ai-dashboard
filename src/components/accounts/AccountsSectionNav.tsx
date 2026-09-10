@@ -1,11 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Banknote, Building2, Check, ChevronDown, Landmark } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Banknote, Building2, Landmark } from "lucide-react";
 
 const links = [
   { label: "Bank", description: "Branch bank accounts", to: "/accounts/bank", icon: Landmark },
@@ -18,96 +12,34 @@ function activeFor(pathname: string, to: string) {
 
 export function AccountsSectionNav({ desktop = false }: { desktop?: boolean }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const active = links.find((link) => activeFor(pathname, link.to)) ?? links[0];
-  const ActiveIcon = active.icon;
-
-  if (desktop) {
-    return (
-      <nav
-        aria-label="Accounts sections"
-        className="app-sidebar-scroll hidden xl:block xl:sticky xl:top-24 xl:max-h-[calc(100dvh-7rem)] xl:self-start xl:overflow-y-auto xl:overscroll-contain xl:pr-1"
-      >
-        <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Masters
-        </p>
-        <ul className="space-y-1">
-          {links.map(({ label, description, to, icon: Icon }) => {
-            const isActive = activeFor(pathname, to);
-            return (
-              <li key={to}>
-                <Link
-                  to={to}
-                  aria-current={isActive ? "page" : undefined}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${isActive ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-                >
-                  <Icon className={`size-4 shrink-0 ${isActive ? "text-primary" : ""}`} />
-                  <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-sm font-medium">{label}</span>
-                    <span className="block truncate text-[11px] opacity-70">{description}</span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
-    );
-  }
-
   return (
-    <nav aria-label="Accounts sections" className="mb-6 xl:hidden">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="flex min-h-14 w-full items-center gap-3 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-left shadow-sm outline-none transition-all hover:border-primary/30 hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ActiveIcon className="size-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                Masters section
-              </span>
-              <span className="block truncate text-sm font-semibold">{active.label}</span>
-            </span>
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-              <ChevronDown className="size-4" />
-            </span>
-          </button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="start"
-          sideOffset={6}
-          collisionPadding={12}
-          className="w-[var(--radix-dropdown-menu-trigger-width)] rounded-2xl border-border p-1.5 shadow-xl"
-        >
-          {links.map(({ label, description, to, icon: Icon }) => {
-            const isActive = activeFor(pathname, to);
-            return (
-              <DropdownMenuItem key={to} asChild>
-                <Link
-                  to={to}
-                  className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl px-2.5 py-2.5 ${isActive ? "bg-primary/10" : ""}`}
+    <nav aria-label="Accounts sections" className={desktop ? "mb-6" : "mb-6 xl:hidden"}>
+      <p className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        Masters
+      </p>
+      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-sm">
+        {links.map(({ label, description, to, icon: Icon }) => {
+          const isActive = activeFor(pathname, to);
+          return (
+            <Link
+              key={to}
+              to={to}
+              aria-current={isActive ? "page" : undefined}
+              className={`flex min-h-14 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors ${isActive ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            >
+              <Icon className="size-4 shrink-0" />
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-semibold">{label}</span>
+                <span
+                  className={`block truncate text-[11px] ${isActive ? "text-primary-foreground/75" : "opacity-70"}`}
                 >
-                  <span
-                    className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}
-                  >
-                    <Icon className="size-4" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{label}</span>
-                    <span className="block text-xs leading-snug text-muted-foreground">
-                      {description}
-                    </span>
-                  </span>
-                  {isActive && <Check className="size-4 shrink-0 text-primary" />}
-                </Link>
-              </DropdownMenuItem>
-            );
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+                  {description}
+                </span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }
