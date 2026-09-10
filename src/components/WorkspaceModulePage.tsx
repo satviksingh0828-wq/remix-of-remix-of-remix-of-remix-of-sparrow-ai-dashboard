@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ArrowRight } from "lucide-react";
-import { useNavigate, Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { useSession } from "@/lib/session";
 import { PoweredBy } from "@/components/PoweredBy";
@@ -65,20 +65,21 @@ export function WorkspaceModulePage({
         {visibleTiles.map((tile, index) => {
           const Icon = tile.icon;
           return (
-            <button
+            <Link
               key={tile.key}
-              type="button"
-              onClick={() => navigate({ to: tile.to as never })}
+              to={tile.to as never}
               style={{ animationDelay: `${index * 55}ms` }}
               className="group surface-card animate-fade-up relative flex h-40 flex-col items-start p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-lift)]"
             >
               <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-primary-foreground transition-colors">
                 <Icon className="size-5" />
               </span>
-              <span className="mt-4 block text-base font-semibold tracking-tight">{tile.label}</span>
+              <span className="mt-4 block text-base font-semibold tracking-tight">
+                {tile.label}
+              </span>
               <span className="mt-1 block text-xs text-muted-foreground">{tile.desc}</span>
               <ArrowRight className="absolute bottom-6 right-6 size-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-1 group-hover:text-foreground" />
-            </button>
+            </Link>
           );
         })}
       </div>
