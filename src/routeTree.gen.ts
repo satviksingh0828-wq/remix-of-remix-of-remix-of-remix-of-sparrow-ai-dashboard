@@ -558,6 +558,7 @@ export interface FileRoutesByTo {
   '/users': typeof UsersRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
+  '/accounts/masters': typeof AccountsMastersRouteWithChildren
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -781,6 +782,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/accounts/bank'
     | '/accounts/cash'
+    | '/accounts/masters'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
