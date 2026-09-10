@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
+  Landmark,
   CalendarCheck,
   Database,
   FileText,
@@ -142,6 +143,15 @@ const ADMIN_VIEWER_MODULES = [
     icon: Users,
     active: true,
     to: "/hrms" as const,
+    roles: ["admin", "semi_admin", "viewer"] as const,
+  },
+  {
+    key: "accounts",
+    label: "Accounts",
+    desc: "Branch bank & cash account masters",
+    icon: Landmark,
+    active: true,
+    to: "/accounts" as const,
     roles: ["admin", "semi_admin", "viewer"] as const,
   },
   {

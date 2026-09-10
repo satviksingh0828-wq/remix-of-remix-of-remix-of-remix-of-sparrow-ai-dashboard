@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountsRouteImport } from './routes/accounts'
 import { Route as AttendanceRouteImport } from './routes/attendance'
 import { Route as CashReportsRouteImport } from './routes/cash-reports'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -28,6 +29,8 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SystemRouteImport } from './routes/system'
 import { Route as TmsRouteImport } from './routes/tms'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as AccountsBankRouteImport } from './routes/accounts.bank'
+import { Route as AccountsCashRouteImport } from './routes/accounts.cash'
 import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
 import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
 import { Route as ApiNotifyOpenTripsRouteImport } from './routes/api/notify-open-trips'
@@ -79,6 +82,11 @@ import { Route as ApiDriverTripsCheckpointsVerifyRouteImport } from './routes/ap
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsRoute = AccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AttendanceRoute = AttendanceRouteImport.update({
@@ -170,6 +178,16 @@ const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsBankRoute = AccountsBankRouteImport.update({
+  id: '/bank',
+  path: '/bank',
+  getParentRoute: () => AccountsRoute,
+} as any)
+const AccountsCashRoute = AccountsCashRouteImport.update({
+  id: '/cash',
+  path: '/cash',
+  getParentRoute: () => AccountsRoute,
 } as any)
 const ApiNotifyAdminRoute = ApiNotifyAdminRouteImport.update({
   id: '/api/notify-admin',
@@ -418,6 +436,7 @@ const ApiDriverTripsCheckpointsVerifyRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRouteWithChildren
   '/attendance': typeof AttendanceRouteWithChildren
   '/cash-reports': typeof CashReportsRoute
   '/dashboard': typeof DashboardRouteWithChildren
@@ -436,6 +455,8 @@ export interface FileRoutesByFullPath {
   '/system': typeof SystemRoute
   '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
+  '/accounts/bank': typeof AccountsBankRoute
+  '/accounts/cash': typeof AccountsCashRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -486,6 +507,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRouteWithChildren
   '/cash-reports': typeof CashReportsRoute
   '/home': typeof HomeRoute
   '/hr-dashboard': typeof HrDashboardRoute
@@ -500,6 +522,8 @@ export interface FileRoutesByTo {
   '/system': typeof SystemRoute
   '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
+  '/accounts/bank': typeof AccountsBankRoute
+  '/accounts/cash': typeof AccountsCashRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -549,6 +573,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/accounts': typeof AccountsRouteWithChildren
   '/attendance': typeof AttendanceRouteWithChildren
   '/cash-reports': typeof CashReportsRoute
   '/dashboard': typeof DashboardRouteWithChildren
@@ -567,6 +592,8 @@ export interface FileRoutesById {
   '/system': typeof SystemRoute
   '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
+  '/accounts/bank': typeof AccountsBankRoute
+  '/accounts/cash': typeof AccountsCashRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -619,6 +646,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/accounts'
     | '/attendance'
     | '/cash-reports'
     | '/dashboard'
@@ -637,6 +665,8 @@ export interface FileRouteTypes {
     | '/system'
     | '/tms'
     | '/users'
+    | '/accounts/bank'
+    | '/accounts/cash'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
@@ -687,6 +717,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/accounts'
     | '/cash-reports'
     | '/home'
     | '/hr-dashboard'
@@ -701,6 +732,8 @@ export interface FileRouteTypes {
     | '/system'
     | '/tms'
     | '/users'
+    | '/accounts/bank'
+    | '/accounts/cash'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
@@ -749,6 +782,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/accounts'
     | '/attendance'
     | '/cash-reports'
     | '/dashboard'
@@ -767,6 +801,8 @@ export interface FileRouteTypes {
     | '/system'
     | '/tms'
     | '/users'
+    | '/accounts/bank'
+    | '/accounts/cash'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
@@ -818,6 +854,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountsRoute: typeof AccountsRouteWithChildren
   AttendanceRoute: typeof AttendanceRouteWithChildren
   CashReportsRoute: typeof CashReportsRoute
   DashboardRoute: typeof DashboardRouteWithChildren
@@ -861,6 +898,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/accounts': {
+      id: '/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof AccountsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/attendance': {
@@ -988,6 +1032,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/accounts/bank': {
+      id: '/accounts/bank'
+      path: '/bank'
+      fullPath: '/accounts/bank'
+      preLoaderRoute: typeof AccountsBankRouteImport
+      parentRoute: typeof AccountsRoute
+    }
+    '/accounts/cash': {
+      id: '/accounts/cash'
+      path: '/cash'
+      fullPath: '/accounts/cash'
+      preLoaderRoute: typeof AccountsCashRouteImport
+      parentRoute: typeof AccountsRoute
     }
     '/api/notify-admin': {
       id: '/api/notify-admin'
@@ -1321,6 +1379,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AccountsRouteChildren {
+  AccountsBankRoute: typeof AccountsBankRoute
+  AccountsCashRoute: typeof AccountsCashRoute
+}
+
+const AccountsRouteChildren: AccountsRouteChildren = {
+  AccountsBankRoute: AccountsBankRoute,
+  AccountsCashRoute: AccountsCashRoute,
+}
+
+const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
+  AccountsRouteChildren,
+)
+
 interface AttendanceHistoryRouteChildren {
   AttendanceHistoryIdRoute: typeof AttendanceHistoryIdRoute
   AttendanceHistoryIndexRoute: typeof AttendanceHistoryIndexRoute
@@ -1452,6 +1524,7 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountsRoute: AccountsRouteWithChildren,
   AttendanceRoute: AttendanceRouteWithChildren,
   CashReportsRoute: CashReportsRoute,
   DashboardRoute: DashboardRouteWithChildren,
