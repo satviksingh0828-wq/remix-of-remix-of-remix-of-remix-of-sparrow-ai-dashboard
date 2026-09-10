@@ -10,6 +10,19 @@ function money(n: number) {
   return 'Rs. ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function downloadPdf(doc: jsPDF, filename: string) {
+  const blob = doc.output('blob');
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
 function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
@@ -351,7 +364,7 @@ export function exportPayrollPdf(opts: {
   doc.setTextColor(0);
   poweredByFooter(doc);
 
-  doc.save(`payslip-${fullName(employee).replace(/\s+/g, '_')}-${payroll.period_start}.pdf`);
+  downloadPdf(doc, `payslip-${fullName(employee).replace(/\s+/g, '_')}-${payroll.period_start}.pdf`);
 }
 
 /**

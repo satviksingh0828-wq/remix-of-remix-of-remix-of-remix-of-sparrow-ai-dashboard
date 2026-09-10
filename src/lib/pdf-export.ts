@@ -12,6 +12,19 @@ function money(n: number) {
   return 'Rs. ' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function downloadPdf(doc: jsPDF, filename: string) {
+  const blob = doc.output('blob');
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
 /** Draw logo + company header. Returns Y position after the header separator line. */
 function header(doc: jsPDF, settings: AppSettings | null | undefined, title: string): number {
   const company = settings?.company_name || '';
@@ -159,7 +172,7 @@ export function exportEmployeeAttendancePdf(opts: {
 
   footer(doc);
   if (outputMode === 'base64') return doc.output('datauristring').split(',')[1];
-  doc.save(`attendance-${fullName(employee).replace(/\s+/g, '_')}-${periodLabel.replace(/\s+/g, '_')}.pdf`);
+  downloadPdf(doc, `attendance-${fullName(employee).replace(/\s+/g, '_')}-${periodLabel.replace(/\s+/g, '_')}.pdf`);
 }
 
 /** Returns the attendance PDF as a pure base64 string (no data-URI prefix). */
@@ -269,7 +282,7 @@ export function exportLoanDetailPdf(opts: {
 
   footer(doc);
   if (outputMode === 'base64') return doc.output('datauristring').split(',')[1];
-  doc.save(`${kind}-${fullName(employee).replace(/\s+/g, '_')}-${loan.start_date}.pdf`);
+  downloadPdf(doc, `${kind}-${fullName(employee).replace(/\s+/g, '_')}-${loan.start_date}.pdf`);
 }
 
 /** Returns the loan/advance detail PDF as a pure base64 string (no data-URI prefix). */
@@ -318,7 +331,7 @@ export function exportLoansSummaryPdf(opts: {
   });
 
   footer(doc);
-  doc.save(`${kind}s-summary-${new Date().toISOString().slice(0, 10)}.pdf`);
+  downloadPdf(doc, `${kind}s-summary-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 /** Loss deductions summary PDF */
@@ -359,7 +372,7 @@ export function exportLossDeductionsPdf(opts: {
   });
 
   footer(doc);
-  doc.save(`loss-deductions-${new Date().toISOString().slice(0, 10)}.pdf`);
+  downloadPdf(doc, `loss-deductions-${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 // ── Ledger PDF ──────────────────────────────────────────────────────────────
@@ -504,5 +517,5 @@ export function exportLedgerPdf(opts: {
   doc.setTextColor(0);
   poweredByFooter(doc);
 
-  doc.save(`ledger-${employeeName.replace(/\s+/g, '_')}-${periodLabel}.pdf`);
+  downloadPdf(doc, `ledger-${employeeName.replace(/\s+/g, '_')}-${periodLabel}.pdf`);
 }
