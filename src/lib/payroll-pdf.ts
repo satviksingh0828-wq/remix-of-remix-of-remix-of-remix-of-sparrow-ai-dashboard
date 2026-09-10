@@ -14,6 +14,25 @@ function fmtDate(d: string) {
   return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+/** Draw the product attribution separately from the existing payslip footer. */
+function poweredByFooter(doc: jsPDF) {
+  const pageCount = doc.getNumberOfPages();
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(220);
+    doc.setLineWidth(0.4);
+    doc.line(36, pageH - 18, pageW - 36, pageH - 18);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120);
+    doc.text('POWERED BY ORCA DEVS SURF', pageW / 2, pageH - 7, { align: 'center' });
+    doc.setTextColor(0);
+    doc.setLineWidth(0.2);
+  }
+}
+
 /** Draw logo + company header on the current page at the top. Returns the Y after the header line. */
 function drawHeader(doc: jsPDF, company: string, address: string): number {
   const logo = getLogoBase64();
@@ -330,6 +349,7 @@ export function exportPayrollPdf(opts: {
   doc.setTextColor(120);
   doc.text(`Generated ${new Date().toLocaleString('en-IN')}`, 36, 820);
   doc.setTextColor(0);
+  poweredByFooter(doc);
 
   doc.save(`payslip-${fullName(employee).replace(/\s+/g, '_')}-${payroll.period_start}.pdf`);
 }
@@ -456,6 +476,7 @@ export function getPayrollPdfBase64(opts: Parameters<typeof exportPayrollPdf>[0]
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(120);
   doc.text(`Generated ${new Date().toLocaleString('en-IN')}`, 36, 820);
   doc.setTextColor(0);
+  poweredByFooter(doc);
 
   return doc.output('datauristring').split(',')[1];
 }

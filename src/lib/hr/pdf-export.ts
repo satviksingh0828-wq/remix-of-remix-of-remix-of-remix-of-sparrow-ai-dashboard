@@ -59,6 +59,26 @@ function footer(doc: jsPDF) {
     doc.text(`Page ${i} of ${pageCount}`, 559, 820, { align: 'right' });
     doc.setTextColor(0);
   }
+  poweredByFooter(doc);
+}
+
+/** Draw the product attribution separately from the existing report footer. */
+function poweredByFooter(doc: jsPDF) {
+  const pageCount = doc.getNumberOfPages();
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(220);
+    doc.setLineWidth(0.4);
+    doc.line(36, pageH - 18, pageW - 36, pageH - 18);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(120);
+    doc.text('POWERED BY ORCA DEVS SURF', pageW / 2, pageH - 7, { align: 'center' });
+    doc.setTextColor(0);
+    doc.setLineWidth(0.2);
+  }
 }
 
 export function exportEmployeeAttendancePdf(opts: {
@@ -482,6 +502,7 @@ export function exportLedgerPdf(opts: {
   doc.setTextColor(120);
   doc.text(`Generated ${new Date().toLocaleString('en-IN')}`, 36, lastY + 16);
   doc.setTextColor(0);
+  poweredByFooter(doc);
 
   doc.save(`ledger-${employeeName.replace(/\s+/g, '_')}-${periodLabel}.pdf`);
 }
