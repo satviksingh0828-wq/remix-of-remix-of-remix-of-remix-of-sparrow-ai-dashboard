@@ -375,12 +375,16 @@ export function PayrollGenerate() {
     const empLoans    = (loans    ?? []).filter(l => l.employee_id === emp.id && l.status === 'active');
     const empAdvances = (advances ?? []).filter(a => a.employee_id === emp.id && a.status === 'active');
     const payrollDeds = (deductions ?? []).filter(d => d.payroll_id === p.id);
-    exportPayrollPdf({
-      payroll: p, employee: emp, department: dept, position, settings,
-      loans: empLoans, advances: empAdvances, lossDeductions: payrollDeds,
-      loanInstallments: (allLoanInst ?? []).filter(i => empLoans.some(l => l.id === i.loan_id)),
-      advanceInstallments: (allAdvInst ?? []).filter(i => empAdvances.some(a => a.id === i.advance_id)),
-    });
+    try {
+      exportPayrollPdf({
+        payroll: p, employee: emp, department: dept, position, settings,
+        loans: empLoans, advances: empAdvances, lossDeductions: payrollDeds,
+        loanInstallments: (allLoanInst ?? []).filter(i => empLoans.some(l => l.id === i.loan_id)),
+        advanceInstallments: (allAdvInst ?? []).filter(i => empAdvances.some(a => a.id === i.advance_id)),
+      });
+    } catch (error) {
+      toast.error(`PDF export failed: ${(error as Error).message}`);
+    }
   };
 
   const scale = preview ? (periodType === 'half_month' ? 0.5 : 1) * preview.c.joinLeaveFactor : 1;

@@ -71,11 +71,20 @@ export async function sendWaMessage(to: string, message: string) {
   return response.json();
 }
 
-function pdfBlob(dataUrl: string) {
-  const match = dataUrl.match(/^data:([^;,]+)?(?:;base64)?,(.*)$/);
-  if (!match) throw new Error("Invalid PDF data");
-  const bytes = Uint8Array.from(atob(match[2]), (char) => char.charCodeAt(0));
-  return new Blob([bytes], { type: match[1] || "application/pdf" });
+function pdfBlob(data: string) {
+  // jsPDF's datauristring output includes a data URI, while the payroll
+  // helper returns only the base64 payload for WhatsApp. Accept both forms.
+  const match = data.match(/^data:([^;,]+)?(?:;base64)?,(.*)$/);
+  const encoded = (match ? match[2] : data).replace(/\s/g, "");
+  if (!encoded) throw new Error("Invalid PDF data");
+  let binary: string;
+  try {
+    binary = atob(encoded);
+  } catch {
+    throw new Error("Invalid PDF base64 data");
+  }
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new Blob([bytes], { type: match?.[1] || "application/pdf" });
 }
 
 export async function sendWaPdf(to: string, dataUrl: string, filename: string, caption?: string) {
