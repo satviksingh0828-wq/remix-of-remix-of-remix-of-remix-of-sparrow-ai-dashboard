@@ -228,7 +228,7 @@ export function PayrollGenerate() {
     if (outsideEmployment) { toast.error(outsideEmployment); return; }
     if (alreadyGenerated)  { toast.error('Payroll for this period already exists'); return; }
 
-    const { c, loanDed, advDed, lossDed, pf, tax, net } = preview;
+    const { c, loanDed, advDed, lossDed, incentiveAmount, pf, tax, net } = preview;
     const extraWorkPay = c.extraWorkPay;
 
     if (net < 0) {
