@@ -16,8 +16,6 @@ const BANK_HEADERS = [
   "Opening Date",
   "Opening Balance",
   "Opening Balance Date",
-  "Current Balance",
-  "Current Balance Date",
 ];
 
 const CASH_HEADERS = [
@@ -27,8 +25,8 @@ const CASH_HEADERS = [
   "Email",
   "Address",
   "Responsible Person Branch",
-  "Current Balance",
-  "Current Balance Date",
+  "Opening Balance",
+  "Opening Balance Date",
 ];
 
 const s = (value: unknown) => String(value ?? "").trim();
@@ -91,8 +89,6 @@ export function exportAccounts(
         "Opening Date": excelDate(row.opening_date),
         "Opening Balance": Number(row.opening_balance ?? 0),
         "Opening Balance Date": excelDate(row.opening_balance_date),
-        "Current Balance": Number(row.current_balance ?? 0),
-        "Current Balance Date": excelDate(row.current_balance_date),
       };
     }
     return {
@@ -102,8 +98,8 @@ export function exportAccounts(
       Email: s(row.email),
       Address: s(row.address),
       "Responsible Person Branch": s(row.responsible_person_branch),
-      "Current Balance": Number(row.current_balance ?? 0),
-      "Current Balance Date": excelDate(row.current_balance_date),
+      "Opening Balance": Number(row.opening_balance ?? 0),
+      "Opening Balance Date": excelDate(row.opening_balance_date),
     };
   });
   const workbook = XLSX.utils.book_new();
@@ -132,8 +128,6 @@ export function downloadAccountsTemplate(kind: AccountKind) {
             "Opening Date": "2026-01-01",
             "Opening Balance": 0,
             "Opening Balance Date": "2026-01-01",
-            "Current Balance": 0,
-            "Current Balance Date": "2026-01-01",
           },
         ]
       : [
@@ -144,8 +138,8 @@ export function downloadAccountsTemplate(kind: AccountKind) {
             Email: "cashier@example.com",
             Address: "Office address",
             "Responsible Person Branch": "Main Branch",
-            "Current Balance": 0,
-            "Current Balance Date": "2026-01-01",
+            "Opening Balance": 0,
+            "Opening Balance Date": "2026-01-01",
           },
         ];
   const workbook = XLSX.utils.book_new();
@@ -171,14 +165,14 @@ export function downloadAccountsTemplate(kind: AccountKind) {
             {
               Field: "Required",
               Guidance:
-                "Branch, Account Holder Name, Bank Name, Account Number, IFSC Code, Bank Branch Name, Current Balance Date.",
+                "Branch, Account Holder Name, Bank Name, Account Number, IFSC Code, Bank Branch Name, Opening Balance Date.",
             },
           ]
         : [
             {
               Field: "Required",
               Guidance:
-                "Branch, Responsible Person, Responsible Person Mobile, Current Balance Date.",
+                "Branch, Responsible Person, Responsible Person Mobile, Opening Balance Date.",
             },
           ]),
     ]),
@@ -197,8 +191,8 @@ export function parseAccountRows(
     const branchName = s(row.Branch);
     const branchId = branchIdByName.get(branchName.toLowerCase());
     if (!branchId) throw new Error(`Branch "${branchName}" was not found on row ${rowNumber}.`);
-    const currentDate = excelDate(row["Current Balance Date"]);
-    if (!currentDate) throw new Error(`Current Balance Date is required on row ${rowNumber}.`);
+    const openingBalanceDate = excelDate(row["Opening Balance Date"]);
+    if (!openingBalanceDate) throw new Error(`Opening Balance Date is required on row ${rowNumber}.`);
     if (kind === "bank") {
       const accountType = s(row["Account Type"]).toLowerCase() || "savings";
       const status = s(row.Status).toLowerCase() || "active";
@@ -226,9 +220,7 @@ export function parseAccountRows(
         status,
         opening_date: excelDate(row["Opening Date"]) || null,
         opening_balance: num(row["Opening Balance"], "Opening Balance", rowNumber),
-        opening_balance_date: excelDate(row["Opening Balance Date"]) || null,
-        current_balance: num(row["Current Balance"], "Current Balance", rowNumber),
-        current_balance_date: currentDate,
+        opening_balance_date: openingBalanceDate,
       };
     }
     const required = ["Responsible Person", "Responsible Person Mobile"];
@@ -241,8 +233,8 @@ export function parseAccountRows(
       email: s(row.Email),
       address: s(row.Address),
       responsible_person_branch: s(row["Responsible Person Branch"]),
-      current_balance: num(row["Current Balance"], "Current Balance", rowNumber),
-      current_balance_date: currentDate,
+      opening_balance: num(row["Opening Balance"], "Opening Balance", rowNumber),
+      opening_balance_date: openingBalanceDate,
     };
   });
 }

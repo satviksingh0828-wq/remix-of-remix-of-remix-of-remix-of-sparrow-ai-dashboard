@@ -42,8 +42,6 @@ type FormState = {
   opening_date: string;
   opening_balance: string;
   opening_balance_date: string;
-  current_balance: string;
-  current_balance_date: string;
   responsible_person: string;
   responsible_person_mobile: string;
   email: string;
@@ -63,8 +61,6 @@ const EMPTY: FormState = {
   opening_date: "",
   opening_balance: "",
   opening_balance_date: "",
-  current_balance: "",
-  current_balance_date: "",
   responsible_person: "",
   responsible_person_mobile: "",
   email: "",
@@ -211,7 +207,6 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
       ...EMPTY,
       ...(row as unknown as FormState),
       opening_balance: String(row.opening_balance ?? ""),
-      current_balance: String(row.current_balance ?? ""),
       id: row.id,
     });
   }
@@ -237,8 +232,6 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
           opening_date: form.opening_date || null,
           opening_balance: Number(form.opening_balance || 0),
           opening_balance_date: form.opening_balance_date || null,
-          current_balance: Number(form.current_balance || 0),
-          current_balance_date: form.current_balance_date || null,
         }
       : {
           branch_id: form.branch_id,
@@ -247,8 +240,8 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
           email: form.email.trim(),
           address: form.address.trim(),
           responsible_person_branch: form.responsible_person_branch.trim(),
-          current_balance: Number(form.current_balance || 0),
-          current_balance_date: form.current_balance_date || null,
+          opening_balance: Number(form.opening_balance || 0),
+          opening_balance_date: form.opening_balance_date || null,
         };
     const query = id ? db.from(table).update(payload).eq("id", id) : db.from(table).insert(payload);
     const { error } = await query;
@@ -303,8 +296,8 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
               </p>
               <h1 className="mt-2 text-3xl font-semibold tracking-tight">{title} accounts</h1>
               <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                Open and manage branch-linked {title.toLowerCase()} accounts. Every balance includes
-                the date it was recorded; no date is assumed automatically.
+                Open and manage branch-linked {title.toLowerCase()} accounts with their opening
+                balance and recorded date.
               </p>
             </div>
             {!editing && (
@@ -483,39 +476,24 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
                 </section>
               )}
               <section className="surface-card p-6">
-                <h3 className="text-sm font-semibold tracking-tight">Balance record</h3>
+                <h3 className="text-sm font-semibold tracking-tight">Opening balance</h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Enter the date this balance belongs to. The application does not assume today.
+                  Enter the opening balance and the date it was recorded. The application does not
+                  assume today.
                 </p>
                 <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  {isBank && (
-                    <>
-                      <InputField
-                        label="Opening balance"
-                        type="number"
-                        value={editing.opening_balance}
-                        onChange={set("opening_balance")}
-                      />
-                      <InputField
-                        label="Opening balance date"
-                        type="date"
-                        value={editing.opening_balance_date}
-                        onChange={set("opening_balance_date")}
-                      />
-                    </>
-                  )}
                   <InputField
-                    label="Available/current balance"
+                    label="Opening balance"
                     type="number"
-                    value={editing.current_balance}
-                    onChange={set("current_balance")}
+                    value={editing.opening_balance}
+                    onChange={set("opening_balance")}
                     required
                   />
                   <InputField
-                    label="Current balance date"
+                    label="Opening balance date"
                     type="date"
-                    value={editing.current_balance_date}
-                    onChange={set("current_balance_date")}
+                    value={editing.opening_balance_date}
+                    onChange={set("opening_balance_date")}
                     required
                   />
                 </div>
@@ -571,13 +549,13 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
                   </div>
                   <div className="mt-5 grid grid-cols-2 gap-3 rounded-xl bg-muted/40 p-3">
                     <div>
-                      <p className="text-[11px] text-muted-foreground">Current balance</p>
-                      <p className="mt-1 text-base font-semibold">{money(row.current_balance)}</p>
+                      <p className="text-[11px] text-muted-foreground">Opening balance</p>
+                      <p className="mt-1 text-base font-semibold">{money(row.opening_balance)}</p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-muted-foreground">Balance date</p>
+                      <p className="text-[11px] text-muted-foreground">Opening balance date</p>
                       <p className="mt-1 text-sm font-medium">
-                        {String(row.current_balance_date ?? "Not recorded")}
+                        {String(row.opening_balance_date ?? "Not recorded")}
                       </p>
                     </div>
                   </div>
