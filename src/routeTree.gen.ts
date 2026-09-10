@@ -29,6 +29,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SystemRouteImport } from './routes/system'
 import { Route as TmsRouteImport } from './routes/tms'
 import { Route as UsersRouteImport } from './routes/users'
+import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as AccountsBankRouteImport } from './routes/accounts.bank'
 import { Route as AccountsCashRouteImport } from './routes/accounts.cash'
 import { Route as AccountsMastersRouteImport } from './routes/accounts.masters'
@@ -182,6 +183,11 @@ const UsersRoute = UsersRouteImport.update({
   id: '/users',
   path: '/users',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AccountsIndexRoute = AccountsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AccountsRoute,
 } as any)
 const AccountsBankRoute = AccountsBankRouteImport.update({
   id: '/bank',
@@ -504,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
   '/settings/attendance-module': typeof SettingsAttendanceModuleRoute
+  '/accounts/': typeof AccountsIndexRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/employees/': typeof EmployeesIndexRoute
@@ -535,7 +542,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/accounts': typeof AccountsRouteWithChildren
   '/cash-reports': typeof CashReportsRoute
   '/home': typeof HomeRoute
   '/hr-dashboard': typeof HrDashboardRoute
@@ -573,6 +579,7 @@ export interface FileRoutesByTo {
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
   '/settings/attendance-module': typeof SettingsAttendanceModuleRoute
+  '/accounts': typeof AccountsIndexRoute
   '/attendance': typeof AttendanceIndexRoute
   '/dashboard': typeof DashboardIndexRoute
   '/employees': typeof EmployeesIndexRoute
@@ -649,6 +656,7 @@ export interface FileRoutesById {
   '/payroll/loans': typeof PayrollLoansRoute
   '/payroll/pending': typeof PayrollPendingRoute
   '/settings/attendance-module': typeof SettingsAttendanceModuleRoute
+  '/accounts/': typeof AccountsIndexRoute
   '/attendance/': typeof AttendanceIndexRoute
   '/dashboard/': typeof DashboardIndexRoute
   '/employees/': typeof EmployeesIndexRoute
@@ -726,6 +734,7 @@ export interface FileRouteTypes {
     | '/payroll/loans'
     | '/payroll/pending'
     | '/settings/attendance-module'
+    | '/accounts/'
     | '/attendance/'
     | '/dashboard/'
     | '/employees/'
@@ -757,7 +766,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/accounts'
     | '/cash-reports'
     | '/home'
     | '/hr-dashboard'
@@ -795,6 +803,7 @@ export interface FileRouteTypes {
     | '/payroll/loans'
     | '/payroll/pending'
     | '/settings/attendance-module'
+    | '/accounts'
     | '/attendance'
     | '/dashboard'
     | '/employees'
@@ -870,6 +879,7 @@ export interface FileRouteTypes {
     | '/payroll/loans'
     | '/payroll/pending'
     | '/settings/attendance-module'
+    | '/accounts/'
     | '/attendance/'
     | '/dashboard/'
     | '/employees/'
@@ -1080,6 +1090,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/users'
       preLoaderRoute: typeof UsersRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/accounts/': {
+      id: '/accounts/'
+      path: '/'
+      fullPath: '/accounts/'
+      preLoaderRoute: typeof AccountsIndexRouteImport
+      parentRoute: typeof AccountsRoute
     }
     '/accounts/bank': {
       id: '/accounts/bank'
@@ -1475,12 +1492,14 @@ interface AccountsRouteChildren {
   AccountsBankRoute: typeof AccountsBankRoute
   AccountsCashRoute: typeof AccountsCashRoute
   AccountsMastersRoute: typeof AccountsMastersRouteWithChildren
+  AccountsIndexRoute: typeof AccountsIndexRoute
 }
 
 const AccountsRouteChildren: AccountsRouteChildren = {
   AccountsBankRoute: AccountsBankRoute,
   AccountsCashRoute: AccountsCashRoute,
   AccountsMastersRoute: AccountsMastersRouteWithChildren,
+  AccountsIndexRoute: AccountsIndexRoute,
 }
 
 const AccountsRouteWithChildren = AccountsRoute._addFileChildren(
