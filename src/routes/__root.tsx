@@ -174,7 +174,10 @@ function DynamicImportRecovery() {
     const key = "sparrow-dynamic-import-recovery";
     const handleError = (event: ErrorEvent) => {
       const message = String(event.message ?? "");
-      const isChunkError = /failed to fetch dynamically imported module|importing a module script failed|loading chunk/i.test(message);
+      const isChunkError =
+        /failed to fetch dynamically imported module|importing a module script failed|loading chunk/i.test(
+          message,
+        );
       if (!isChunkError || sessionStorage.getItem(key) === "1") return;
       sessionStorage.setItem(key, "1");
       const url = new URL(window.location.href);
@@ -239,7 +242,6 @@ function RootComponent() {
         <ThemeProvider>
           <OrcaAIProvider>
             <PasskeyProtectionGate>
-              <SplashScreen />
               <SecurityInit />
               <SessionExpiredListener />
               <DynamicImportRecovery />
