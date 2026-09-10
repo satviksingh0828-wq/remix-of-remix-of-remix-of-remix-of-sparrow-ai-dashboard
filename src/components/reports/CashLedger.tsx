@@ -41,6 +41,15 @@ type CashRow = {
 const today = new Date().toISOString().slice(0, 10);
 const monthNow = today.slice(0, 7);
 const money = (value: unknown) => Number(value ?? 0) || 0;
+const normal = (value: unknown) =>
+  String(value ?? "")
+    .trim()
+    .toLowerCase();
+
+function isExcludedCashLedgerExpense(value: unknown) {
+  const name = normal(value).replace(/[\s_-]+/g, " ");
+  return name === "insurance premium" || name === "road tax";
+}
 
 function monthRange(month: string) {
   const [year, monthNumber] = month.split("-").map(Number);
@@ -162,10 +171,6 @@ export function CashLedger() {
               .lt("updated_at", end) as any,
         ),
       ]);
-      const normal = (value: unknown) =>
-        String(value ?? "")
-          .trim()
-          .toLowerCase();
       const hireTripCodes = Array.from(
         new Set(hirePayments.map((entry) => String(entry.trip_code ?? "").trim()).filter(Boolean)),
       );
@@ -206,7 +211,11 @@ export function CashLedger() {
           amount: money(e.amount),
         })),
         ...expenditures
-          .filter((e) => normal(e.expenditure_name) !== "toll charges")
+          .filter(
+            (e) =>
+              normal(e.expenditure_name) !== "toll charges" &&
+              !isExcludedCashLedgerExpense(e.expenditure_name),
+          )
           .map((e) => ({
             id: `expense-${e.id}`,
             date: e.paid_date,
@@ -238,7 +247,8 @@ export function CashLedger() {
               .filter(
                 (e: any) =>
                   money(e.amount) > 0 &&
-                  !["toll charges", "hire charges"].includes(normal(e.expense_name)),
+                  !["toll charges", "hire charges"].includes(normal(e.expense_name)) &&
+                  !isExcludedCashLedgerExpense(e.expense_name),
               )
               .map((e: any, i: number) => ({
                 id: `closed-expense-${trip.id}-${e.id ?? i}`,
