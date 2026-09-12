@@ -108,7 +108,10 @@ function cacheTheme(theme: ThemeId) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeId>(readCachedTheme);
+  // Keep the server and first client render identical. Reading localStorage
+  // here would make SSR render `sky` while the browser renders the cached
+  // theme, which triggers React hydration error #418.
+  const [theme, setThemeState] = useState<ThemeId>(DEFAULT_THEME);
   const [loginUi, setLoginUiState] = useState<LoginUi>("plain");
   const [saving, setSaving] = useState(false);
 
@@ -162,6 +165,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [apply]);
 
   useEffect(() => {
+    const cached = readCachedTheme();
+    if (cached !== DEFAULT_THEME) {
+      setThemeState(cached);
+      apply(cached);
+    }
     void fetchSettings();
     // Re-fetch whenever the user switches back to this tab (covers cross-device
     // changes that may have happened while the tab was in the background).
