@@ -635,9 +635,9 @@ export function AccountsLedgerPage() {
       }
     >
       <div className="grid items-start gap-6 lg:grid-cols-[220px_1fr]">
-        <AccountsSectionNav desktop />
+        <AccountsSectionNav desktop ledgerTab={tab} onLedgerTabChange={setTab} />
         <div className="min-w-0 lg:col-start-2">
-          <AccountsSectionNav />
+          <AccountsSectionNav ledgerTab={tab} onLedgerTabChange={setTab} />
           <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">
@@ -656,26 +656,6 @@ export function AccountsLedgerPage() {
               Opening entries enabled
             </div>
           </header>
-
-          <div className="mb-6 flex flex-wrap gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-sm">
-            {(
-              [
-                ["create", "Create", Plus],
-                ["list", "List", FileSpreadsheet],
-                ["view", "View", BookOpen],
-              ] as const
-            ).map(([key, label, Icon]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setTab(key)}
-                className={`flex min-h-10 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${tab === key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-              >
-                <Icon className="size-4" />
-                {label}
-              </button>
-            ))}
-          </div>
 
           {tab === "create" && (
             <form onSubmit={createLedger} className="animate-fade-up space-y-5">

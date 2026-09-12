@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Banknote, BookOpen, Building2, Landmark } from "lucide-react";
+import { Banknote, BookOpen, Building2, Landmark, List, Plus } from "lucide-react";
 
 const masterLinks = [
   {
@@ -24,6 +24,14 @@ const topLinks = [
     icon: Building2,
   },
   { label: "Ledger", description: "Create, list & view", to: "/accounts/ledger", icon: BookOpen },
+] as const;
+
+export type LedgerTab = "create" | "list" | "view";
+
+const ledgerLinks = [
+  { key: "create", label: "Create", description: "Create a branch ledger", icon: Plus },
+  { key: "list", label: "List", description: "Browse active ledgers", icon: List },
+  { key: "view", label: "View", description: "View ledger statements", icon: BookOpen },
 ] as const;
 
 function activeFor(pathname: string, to: string) {
@@ -62,7 +70,15 @@ function NavLink({
   );
 }
 
-export function AccountsSectionNav({ desktop = false }: { desktop?: boolean }) {
+export function AccountsSectionNav({
+  desktop = false,
+  ledgerTab,
+  onLedgerTabChange,
+}: {
+  desktop?: boolean;
+  ledgerTab?: LedgerTab;
+  onLedgerTabChange?: (tab: LedgerTab) => void;
+}) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isLedger = activeFor(pathname, "/accounts/ledger");
   const isMasters = !isLedger;
@@ -77,17 +93,41 @@ export function AccountsSectionNav({ desktop = false }: { desktop?: boolean }) {
           Accounts
         </p>
         <ul className="space-y-1">
-          {topLinks.map(({ label, description, to, icon: Icon }) => (
-            <li key={label}>
-              <NavLink
-                label={label}
-                description={description}
-                to={to}
-                Icon={Icon}
-                active={label === "Ledger" ? isLedger : isMasters}
-              />
-            </li>
-          ))}
+          {(isLedger && ledgerTab && onLedgerTabChange ? ledgerLinks : topLinks).map((item) => {
+            if ("key" in item) {
+              const { key, label, description, icon: Icon } = item;
+              return (
+                <li key={key}>
+                  <button
+                    type="button"
+                    onClick={() => onLedgerTabChange(key)}
+                    aria-current={ledgerTab === key ? "page" : undefined}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors duration-200 ${ledgerTab === key ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                  >
+                    <Icon
+                      className={`size-4 shrink-0 ${ledgerTab === key ? "text-primary" : ""}`}
+                    />
+                    <span className="min-w-0 leading-tight">
+                      <span className="block truncate text-sm font-medium">{label}</span>
+                      <span className="block truncate text-[11px] opacity-70">{description}</span>
+                    </span>
+                  </button>
+                </li>
+              );
+            }
+            const { label, description, to, icon: Icon } = item;
+            return (
+              <li key={label}>
+                <NavLink
+                  label={label}
+                  description={description}
+                  to={to}
+                  Icon={Icon}
+                  active={label === "Ledger" ? isLedger : isMasters}
+                />
+              </li>
+            );
+          })}
         </ul>
         {isMasters && (
           <>
@@ -115,25 +155,50 @@ export function AccountsSectionNav({ desktop = false }: { desktop?: boolean }) {
 
   return (
     <nav aria-label="Accounts sections" className="mb-6 lg:hidden">
-      <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-sm">
-        {topLinks.map(({ label, description, to, icon: Icon }) => (
-          <Link
-            key={label}
-            to={to}
-            aria-current={(label === "Ledger" ? isLedger : isMasters) ? "page" : undefined}
-            className={`flex min-h-14 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors ${(label === "Ledger" ? isLedger : isMasters) ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-          >
-            <Icon className="size-4 shrink-0" />
-            <span className="min-w-0 leading-tight">
-              <span className="block truncate text-sm font-semibold">{label}</span>
-              <span
-                className={`block truncate text-[11px] ${(label === "Ledger" ? isLedger : isMasters) ? "text-primary-foreground/75" : "opacity-70"}`}
+      <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-sm">
+        {(isLedger && ledgerTab && onLedgerTabChange ? ledgerLinks : topLinks).map((item) => {
+          if ("key" in item) {
+            const { key, label, description, icon: Icon } = item;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onLedgerTabChange(key)}
+                aria-current={ledgerTab === key ? "page" : undefined}
+                className={`flex min-h-14 flex-1 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors ${ledgerTab === key ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
               >
-                {description}
+                <Icon className="size-4 shrink-0" />
+                <span className="min-w-0 text-left leading-tight">
+                  <span className="block truncate text-sm font-semibold">{label}</span>
+                  <span
+                    className={`block truncate text-[11px] ${ledgerTab === key ? "text-primary-foreground/75" : "opacity-70"}`}
+                  >
+                    {description}
+                  </span>
+                </span>
+              </button>
+            );
+          }
+          const { label, description, to, icon: Icon } = item;
+          return (
+            <Link
+              key={label}
+              to={to}
+              aria-current={(label === "Ledger" ? isLedger : isMasters) ? "page" : undefined}
+              className={`flex min-h-14 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors ${(label === "Ledger" ? isLedger : isMasters) ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            >
+              <Icon className="size-4 shrink-0" />
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-sm font-semibold">{label}</span>
+                <span
+                  className={`block truncate text-[11px] ${(label === "Ledger" ? isLedger : isMasters) ? "text-primary-foreground/75" : "opacity-70"}`}
+                >
+                  {description}
+                </span>
               </span>
-            </span>
-          </Link>
-        ))}
+            </Link>
+          );
+        })}
       </div>
       {isMasters && (
         <div className="mt-2 grid grid-cols-2 gap-2 rounded-2xl border border-border bg-card p-1.5 shadow-sm">
