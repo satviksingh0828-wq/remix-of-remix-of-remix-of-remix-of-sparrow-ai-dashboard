@@ -657,7 +657,7 @@ export function AccountsLedgerPage() {
         {navOpen && (
           <AccountsSectionNav desktop mode="ledger" ledgerTab={tab} onLedgerTabChange={setTab} />
         )}
-        <div className="min-w-0">
+        <div className={`min-w-0 ${navOpen ? "lg:col-start-2" : ""}`}>
           <AccountsSectionNav mode="ledger" ledgerTab={tab} onLedgerTabChange={setTab} />
           <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>

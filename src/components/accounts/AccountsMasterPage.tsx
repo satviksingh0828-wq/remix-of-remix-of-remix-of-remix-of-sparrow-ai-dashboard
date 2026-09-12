@@ -307,7 +307,7 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
         className={`grid items-start gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}
       >
         {navOpen && <AccountsSectionNav desktop mode="masters" />}
-        <div className="min-w-0">
+        <div className={`min-w-0 ${navOpen ? "lg:col-start-2" : ""}`}>
           <AccountsSectionNav mode="masters" />
           <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
