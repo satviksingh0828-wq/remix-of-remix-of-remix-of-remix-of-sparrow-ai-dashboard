@@ -12,14 +12,14 @@ update public.journal_lines jl
 set ledger_account_id = capital.id,
     account_kind = 'ledger',
     branch_id = je.branch_id
-from public.journal_entries je
-join public.ledger_accounts old_offset
-  on old_offset.id = jl.ledger_account_id
- and old_offset.is_opening_offset
-join public.ledger_accounts capital
-  on capital.branch_id = je.branch_id
- and capital.is_default_capital
-where jl.journal_entry_id = je.id;
+from public.journal_entries je,
+     public.ledger_accounts old_offset,
+     public.ledger_accounts capital
+where jl.journal_entry_id = je.id
+  and old_offset.id = jl.ledger_account_id
+  and old_offset.is_opening_offset
+  and capital.branch_id = je.branch_id
+  and capital.is_default_capital;
 
 -- Capital opening balances are stored on the Capital ledger itself; remove the
 -- old synthetic Capital-versus-Opening-Equity voucher after its offset is repaired.
