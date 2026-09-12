@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, Database, FileText } from "lucide-react";
+import { BookOpen, Database, FileText, Settings2 } from "lucide-react";
 import { AccountsAccessGuard } from "@/components/accounts/AccountsAccessGuard";
 import { WorkspaceModulePage } from "@/components/WorkspaceModulePage";
 
@@ -31,6 +31,13 @@ export const Route = createFileRoute("/accounts/")({
             desc: "Balanced journal entries and vouchers",
             icon: FileText,
             to: "/accounts/journal",
+          },
+          {
+            key: "auto-rules",
+            label: "Auto Rules",
+            desc: "HRMS branch mapping and accounting automation",
+            icon: Settings2,
+            to: "/accounts/masters/rules",
           },
         ]}
       />
