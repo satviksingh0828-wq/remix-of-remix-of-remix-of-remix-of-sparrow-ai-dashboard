@@ -484,12 +484,25 @@ begin
 end;
 $$;
 
+create or replace function public.provision_branch_system_accounts_trigger()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  perform public.provision_branch_system_accounts(new.id);
+  return new;
+end;
+$$;
+
 drop trigger if exists branches_provision_accounts on public.branches;
 create trigger branches_provision_accounts
 after insert on public.branches
-for each row execute function public.provision_branch_system_accounts(new.id);
+for each row execute function public.provision_branch_system_accounts_trigger();
 
 grant execute on function public.provision_branch_system_accounts(uuid) to anon, authenticated;
+grant execute on function public.provision_branch_system_accounts_trigger() to anon, authenticated;
 grant execute on function public.create_revenue_ledger(uuid, text) to anon, authenticated;
 grant execute on function public.create_manual_ledger(uuid, text, text, numeric, date, text) to anon, authenticated;
 grant execute on function public.set_capital_opening_balance(uuid, numeric, date, text) to anon, authenticated;
