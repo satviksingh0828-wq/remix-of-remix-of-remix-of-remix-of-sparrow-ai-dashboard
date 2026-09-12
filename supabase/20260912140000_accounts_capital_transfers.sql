@@ -8,6 +8,16 @@ alter table public.journal_entries alter column description drop not null;
 
 -- Opening Balance Equity is no longer a user-facing or posting account. Move any
 -- legacy opening-offset lines into the branch Capital account before hiding it.
+-- Drop the old constraint first because the legacy row is capital-typed but is
+-- about to lose its opening-offset flag.
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'ledger_accounts_capital_system_only') then
+    alter table public.ledger_accounts drop constraint ledger_accounts_capital_system_only;
+  end if;
+end;
+$$;
+
 update public.journal_lines jl
 set ledger_account_id = capital.id,
     account_kind = 'ledger',
@@ -38,9 +48,6 @@ where is_opening_offset = true or system_code = 'OPENING_BALANCE_EQUITY';
 -- capital-ledger creation blocked.
 do $$
 begin
-  if exists (select 1 from pg_constraint where conname = 'ledger_accounts_capital_system_only') then
-    alter table public.ledger_accounts drop constraint ledger_accounts_capital_system_only;
-  end if;
   alter table public.ledger_accounts
     add constraint ledger_accounts_capital_system_only
     check (ledger_type <> 'capital' or is_default_capital or is_opening_offset or system_code like 'INTER_BRANCH:%');
