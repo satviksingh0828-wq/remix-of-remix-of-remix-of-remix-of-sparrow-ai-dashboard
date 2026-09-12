@@ -32,6 +32,7 @@ import { Route as UsersRouteImport } from './routes/users'
 import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
 import { Route as AccountsBankRouteImport } from './routes/accounts.bank'
 import { Route as AccountsCashRouteImport } from './routes/accounts.cash'
+import { Route as AccountsLedgerRouteImport } from './routes/accounts.ledger'
 import { Route as AccountsMastersRouteImport } from './routes/accounts.masters'
 import { Route as ApiNotifyAdminRouteImport } from './routes/api/notify-admin'
 import { Route as ApiNotifyExpiryRouteImport } from './routes/api/notify-expiry'
@@ -197,6 +198,11 @@ const AccountsBankRoute = AccountsBankRouteImport.update({
 const AccountsCashRoute = AccountsCashRouteImport.update({
   id: '/cash',
   path: '/cash',
+  getParentRoute: () => AccountsRoute,
+} as any)
+const AccountsLedgerRoute = AccountsLedgerRouteImport.update({
+  id: '/ledger',
+  path: '/ledger',
   getParentRoute: () => AccountsRoute,
 } as any)
 const AccountsMastersRoute = AccountsMastersRouteImport.update({
@@ -487,6 +493,7 @@ export interface FileRoutesByFullPath {
   '/users': typeof UsersRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
+  '/accounts/ledger': typeof AccountsLedgerRoute
   '/accounts/masters': typeof AccountsMastersRouteWithChildren
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
@@ -558,7 +565,7 @@ export interface FileRoutesByTo {
   '/users': typeof UsersRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
-  '/accounts/masters': typeof AccountsMastersRouteWithChildren
+  '/accounts/ledger': typeof AccountsLedgerRoute
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
   '/api/notify-open-trips': typeof ApiNotifyOpenTripsRoute
@@ -633,6 +640,7 @@ export interface FileRoutesById {
   '/users': typeof UsersRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
+  '/accounts/ledger': typeof AccountsLedgerRoute
   '/accounts/masters': typeof AccountsMastersRouteWithChildren
   '/api/notify-admin': typeof ApiNotifyAdminRoute
   '/api/notify-expiry': typeof ApiNotifyExpiryRoute
@@ -711,6 +719,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/accounts/bank'
     | '/accounts/cash'
+    | '/accounts/ledger'
     | '/accounts/masters'
     | '/api/notify-admin'
     | '/api/notify-expiry'
@@ -782,7 +791,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/accounts/bank'
     | '/accounts/cash'
-    | '/accounts/masters'
+    | '/accounts/ledger'
     | '/api/notify-admin'
     | '/api/notify-expiry'
     | '/api/notify-open-trips'
@@ -856,6 +865,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/accounts/bank'
     | '/accounts/cash'
+    | '/accounts/ledger'
     | '/accounts/masters'
     | '/api/notify-admin'
     | '/api/notify-expiry'
@@ -1110,6 +1120,13 @@ declare module '@tanstack/react-router' {
       path: '/cash'
       fullPath: '/accounts/cash'
       preLoaderRoute: typeof AccountsCashRouteImport
+      parentRoute: typeof AccountsRoute
+    }
+    '/accounts/ledger': {
+      id: '/accounts/ledger'
+      path: '/ledger'
+      fullPath: '/accounts/ledger'
+      preLoaderRoute: typeof AccountsLedgerRouteImport
       parentRoute: typeof AccountsRoute
     }
     '/accounts/masters': {
@@ -1491,6 +1508,7 @@ const AccountsMastersRouteWithChildren = AccountsMastersRoute._addFileChildren(
 interface AccountsRouteChildren {
   AccountsBankRoute: typeof AccountsBankRoute
   AccountsCashRoute: typeof AccountsCashRoute
+  AccountsLedgerRoute: typeof AccountsLedgerRoute
   AccountsMastersRoute: typeof AccountsMastersRouteWithChildren
   AccountsIndexRoute: typeof AccountsIndexRoute
 }
@@ -1498,6 +1516,7 @@ interface AccountsRouteChildren {
 const AccountsRouteChildren: AccountsRouteChildren = {
   AccountsBankRoute: AccountsBankRoute,
   AccountsCashRoute: AccountsCashRoute,
+  AccountsLedgerRoute: AccountsLedgerRoute,
   AccountsMastersRoute: AccountsMastersRouteWithChildren,
   AccountsIndexRoute: AccountsIndexRoute,
 }

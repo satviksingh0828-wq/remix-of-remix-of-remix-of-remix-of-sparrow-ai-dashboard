@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Database } from "lucide-react";
+import { BookOpen, Database } from "lucide-react";
 import { AccountsAccessGuard } from "@/components/accounts/AccountsAccessGuard";
 import { WorkspaceModulePage } from "@/components/WorkspaceModulePage";
 
@@ -17,6 +17,13 @@ export const Route = createFileRoute("/accounts/")({
             desc: "Branch bank and cash account records",
             icon: Database,
             to: "/accounts/masters",
+          },
+          {
+            key: "ledger",
+            label: "Ledger",
+            desc: "Create, list, view and export branch ledgers",
+            icon: BookOpen,
+            to: "/accounts/ledger",
           },
         ]}
       />
