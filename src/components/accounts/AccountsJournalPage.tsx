@@ -30,7 +30,7 @@ type Entry = {
   voucher_number: string;
   entry_date: string;
   branch_id: string;
-  description: string;
+  description: string | null;
   reference: string | null;
   source_module: string;
   status: string;
@@ -66,6 +66,15 @@ function JournalPage() {
   const [filterBranch, setFilterBranch] = useState("all");
   const [filterMonth, setFilterMonth] = useState("");
   const [search, setSearch] = useState("");
+  const [transferSourceBranch, setTransferSourceBranch] = useState("");
+  const [transferDestinationBranch, setTransferDestinationBranch] = useState("");
+  const [transferSourceAccount, setTransferSourceAccount] = useState("");
+  const [transferDestinationAccount, setTransferDestinationAccount] = useState("");
+  const [transferAmount, setTransferAmount] = useState("");
+  const [transferDate, setTransferDate] = useState(new Date().toISOString().slice(0, 10));
+  const [transferDescription, setTransferDescription] = useState("");
+  const [transferReference, setTransferReference] = useState("");
+  const [transferSaving, setTransferSaving] = useState(false);
 
   const branchMap = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch.branch_name])),
@@ -85,7 +94,7 @@ function JournalPage() {
     const matchSearch =
       !q ||
       entry.voucher_number.toLowerCase().includes(q) ||
-      entry.description.toLowerCase().includes(q);
+      (entry.description ?? "").toLowerCase().includes(q);
     return matchBranch && matchMonth && matchSearch;
   });
 
@@ -148,13 +157,12 @@ function JournalPage() {
     event.preventDefault();
     if (
       !branchId ||
-      !description.trim() ||
       lines.some(
         (line) =>
           !line.ledger_account_id || (amount(line.debit) === 0 && amount(line.credit) === 0),
       )
     )
-      return toast.error("Branch, description, account, and amounts are required.");
+      return toast.error("Branch, account, and amounts are required.");
     if (Math.abs(difference) > 0.005 || totalDebit <= 0)
       return toast.error("Journal must have equal debit and credit totals greater than zero.");
     setSaving(true);
@@ -163,7 +171,7 @@ function JournalPage() {
         p_payload: {
           branch_id: branchId,
           entry_date: entryDate,
-          description: description.trim(),
+          description: description.trim() || null,
           reference: reference.trim() || null,
           lines: lines.map((line) => ({
             ...line,
@@ -185,6 +193,68 @@ function JournalPage() {
       );
     } finally {
       setSaving(false);
+    }
+  }
+
+  const bankCashLedgers = useMemo(
+    () =>
+      ledgers.filter((ledger) => ledger.ledger_type === "bank" || ledger.ledger_type === "cash"),
+    [ledgers],
+  );
+
+  async function createTransfer(event: React.FormEvent) {
+    event.preventDefault();
+    const numericAmount = amount(transferAmount);
+    if (
+      !transferSourceBranch ||
+      !transferDestinationBranch ||
+      !transferSourceAccount ||
+      !transferDestinationAccount ||
+      numericAmount <= 0
+    ) {
+      toast.error("Select both branches, a bank/cash account on each side, and a positive amount.");
+      return;
+    }
+    const sourceLedger = ledgers.find((ledger) => ledger.id === transferSourceAccount);
+    const destinationLedger = ledgers.find((ledger) => ledger.id === transferDestinationAccount);
+    if (
+      sourceLedger?.branch_id !== transferSourceBranch ||
+      destinationLedger?.branch_id !== transferDestinationBranch
+    ) {
+      toast.error("Each transfer account must belong to its selected branch.");
+      return;
+    }
+    setTransferSaving(true);
+    try {
+      const { error } = await db.rpc("post_bank_cash_transfer", {
+        p_payload: {
+          entry_date: transferDate,
+          source_branch_id: transferSourceBranch,
+          destination_branch_id: transferDestinationBranch,
+          source_account_id: transferSourceAccount,
+          destination_account_id: transferDestinationAccount,
+          amount: numericAmount,
+          description: transferDescription.trim() || null,
+          reference: transferReference.trim() || null,
+        },
+      });
+      if (error) throw new Error(error.message);
+      toast.success(
+        transferSourceBranch === transferDestinationBranch
+          ? "Bank / cash transfer posted."
+          : "Inter-branch transfer posted in both branch books.",
+      );
+      setTransferAmount("");
+      setTransferDescription("");
+      setTransferReference("");
+      await loadEntries();
+      setTab("list");
+    } catch (error) {
+      toast.error(
+        `Could not post transfer: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setTransferSaving(false);
     }
   }
 
@@ -409,7 +479,7 @@ function JournalPage() {
                     />
                   </label>
                   <label className="space-y-1.5 sm:col-span-3">
-                    <span className="text-xs font-medium text-muted-foreground">Description *</span>
+                    <span className="text-xs font-medium text-muted-foreground">Description</span>
                     <Input
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
@@ -522,6 +592,155 @@ function JournalPage() {
                     <FileDown className="size-4" />
                   )}
                   {saving ? "Posting…" : "Post journal entry"}
+                </Button>
+              </div>
+            </form>
+          )}
+          {tab === "transfer" && (
+            <form onSubmit={createTransfer} className="animate-fade-up space-y-5">
+              <section className="surface-card p-6">
+                <div className="mb-5">
+                  <h2 className="font-semibold">Bank / cash transfer</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Use the same form for bank-to-bank, cash-to-bank, bank-to-cash, and cash-to-cash
+                    movements. Different branches receive separate balanced entries in their own
+                    books.
+                  </p>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">From branch *</span>
+                    <select
+                      required
+                      value={transferSourceBranch}
+                      onChange={(event) => {
+                        setTransferSourceBranch(event.target.value);
+                        setTransferSourceAccount("");
+                      }}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Select source branch</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.branch_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">To branch *</span>
+                    <select
+                      required
+                      value={transferDestinationBranch}
+                      onChange={(event) => {
+                        setTransferDestinationBranch(event.target.value);
+                        setTransferDestinationAccount("");
+                      }}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Select destination branch</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.branch_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      From bank / cash *
+                    </span>
+                    <select
+                      required
+                      value={transferSourceAccount}
+                      onChange={(event) => setTransferSourceAccount(event.target.value)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Select source account</option>
+                      {bankCashLedgers
+                        .filter((ledger) => ledger.branch_id === transferSourceBranch)
+                        .map((ledger) => (
+                          <option key={ledger.id} value={ledger.id}>
+                            {ledger.account_name} · {ledger.ledger_type}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      To bank / cash *
+                    </span>
+                    <select
+                      required
+                      value={transferDestinationAccount}
+                      onChange={(event) => setTransferDestinationAccount(event.target.value)}
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    >
+                      <option value="">Select destination account</option>
+                      {bankCashLedgers
+                        .filter((ledger) => ledger.branch_id === transferDestinationBranch)
+                        .map((ledger) => (
+                          <option key={ledger.id} value={ledger.id}>
+                            {ledger.account_name} · {ledger.ledger_type}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Amount *</span>
+                    <Input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      required
+                      value={transferAmount}
+                      onChange={(event) => setTransferAmount(event.target.value)}
+                      placeholder="0.00"
+                    />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Transfer date *
+                    </span>
+                    <Input
+                      type="date"
+                      required
+                      value={transferDate}
+                      onChange={(event) => setTransferDate(event.target.value)}
+                    />
+                  </label>
+                  <label className="space-y-1.5 md:col-span-2">
+                    <span className="text-xs font-medium text-muted-foreground">Description</span>
+                    <Input
+                      value={transferDescription}
+                      onChange={(event) => setTransferDescription(event.target.value)}
+                      placeholder="Optional"
+                    />
+                  </label>
+                  <label className="space-y-1.5 md:col-span-2">
+                    <span className="text-xs font-medium text-muted-foreground">Reference</span>
+                    <Input
+                      value={transferReference}
+                      onChange={(event) => setTransferReference(event.target.value)}
+                      placeholder="Optional voucher or bank reference"
+                    />
+                  </label>
+                </div>
+              </section>
+              <section className="surface-card p-5 text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground">Posting rule</p>
+                <p className="mt-1">
+                  Same branch: destination bank/cash is debited and source bank/cash is credited.
+                </p>
+                <p>
+                  Different branches: the sender posts Branch A/c Dr / source bank-cash Cr, while
+                  the receiver posts destination bank-cash Dr / sender Branch A/c Cr.
+                </p>
+              </section>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={transferSaving} className="gap-2">
+                  {transferSaving && <Loader2 className="size-4 animate-spin" />}
+                  {transferSaving ? "Posting…" : "Post transfer"}
                 </Button>
               </div>
             </form>
