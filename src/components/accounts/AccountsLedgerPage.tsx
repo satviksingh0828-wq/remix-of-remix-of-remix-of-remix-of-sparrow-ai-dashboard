@@ -65,7 +65,7 @@ type JournalLine = {
 
 type FormState = {
   branch_id: string;
-  ledger_type: "revenue";
+  ledger_type: "revenue" | "capital";
   description: string;
 };
 
@@ -281,12 +281,16 @@ export function AccountsLedgerPage() {
     }
     setSaving(true);
     try {
-      const { error } = await db.rpc("create_revenue_ledger", {
+      const { error } = await db.rpc("create_manual_ledger", {
         p_branch_id: form.branch_id,
+        p_ledger_type: form.ledger_type,
         p_description: form.description.trim(),
+        p_opening_balance: 0,
+        p_opening_balance_date: null,
+        p_opening_balance_side: "cr",
       });
       if (error) throw new Error(error.message);
-      toast.success("Revenue ledger created.");
+      toast.success(`${labelForType(form.ledger_type)} ledger created.`);
       setForm(EMPTY_FORM);
       await loadLedgers();
       setTab("list");
@@ -734,12 +738,17 @@ export function AccountsLedgerPage() {
                       </option>
                     ))}
                   </SelectField>
-                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
-                    <span className="block text-xs font-medium text-muted-foreground">
-                      Ledger type
-                    </span>
-                    <span className="font-semibold">Revenue</span>
-                  </div>
+                  <SelectField
+                    label="Ledger type"
+                    value={form.ledger_type}
+                    onChange={(value) =>
+                      updateForm("ledger_type", value as FormState["ledger_type"])
+                    }
+                    required
+                  >
+                    <option value="revenue">Revenue</option>
+                    <option value="capital">Capital</option>
+                  </SelectField>
                   <label className="space-y-1.5 sm:col-span-2">
                     <span className="text-xs font-medium text-muted-foreground">
                       Description / ledger name *
