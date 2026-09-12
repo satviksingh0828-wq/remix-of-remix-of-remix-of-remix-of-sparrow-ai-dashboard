@@ -5,8 +5,10 @@ import {
   Download,
   FileDown,
   FileSpreadsheet,
+  Landmark,
   Loader2,
   Plus,
+  Save,
   Search,
   Upload,
   WalletCards,
@@ -27,7 +29,7 @@ import { openBrandedTablePdf } from "@/lib/branded-pdf";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = supabase as any;
 
-type LedgerTab = "create" | "list" | "view";
+type LedgerTab = "capital" | "create" | "list" | "view";
 type LedgerType = "revenue" | "capital" | "bank" | "cash";
 type OpeningSide = "dr" | "cr";
 
@@ -63,20 +65,14 @@ type JournalLine = {
 
 type FormState = {
   branch_id: string;
-  ledger_type: "revenue" | "capital";
+  ledger_type: "revenue";
   description: string;
-  opening_balance: string;
-  opening_balance_date: string;
-  opening_balance_side: OpeningSide;
 };
 
 const EMPTY_FORM: FormState = {
   branch_id: "",
   ledger_type: "revenue",
   description: "",
-  opening_balance: "0",
-  opening_balance_date: new Date().toISOString().slice(0, 10),
-  opening_balance_side: "dr",
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -106,14 +102,7 @@ function makeSheet(rows: Record<string, unknown>[], headers: string[]) {
 }
 
 function downloadLedgerTemplate() {
-  const headers = [
-    "Branch",
-    "Ledger Type",
-    "Description",
-    "Opening Balance",
-    "Opening Balance Date",
-    "Opening Balance Side",
-  ];
+  const headers = ["Branch", "Description"];
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, makeSheet([], headers), "Ledgers");
   XLSX.utils.book_append_sheet(
@@ -122,11 +111,7 @@ function downloadLedgerTemplate() {
       [
         {
           Branch: "Main Branch",
-          "Ledger Type": "revenue",
           Description: "Freight Revenue",
-          "Opening Balance": 0,
-          "Opening Balance Date": today,
-          "Opening Balance Side": "dr",
         },
       ],
       headers,
@@ -138,32 +123,18 @@ function downloadLedgerTemplate() {
     makeSheet(
       [
         { Field: "Branch", Guidance: "Must exactly match an existing branch name." },
-        { Field: "Ledger Type", Guidance: "Allowed values: revenue or capital." },
         { Field: "Description", Guidance: "Unique ledger name within the selected branch." },
-        { Field: "Opening Balance Side", Guidance: "Allowed values: dr or cr." },
-        { Field: "Date format", Guidance: "Use YYYY-MM-DD, for example 2026-01-31." },
+        {
+          Field: "Opening balance",
+          Guidance:
+            "Revenue ledgers do not have opening balances. Use the Capital tab for the branch capital opening balance.",
+        },
       ],
       ["Field", "Guidance"],
     ),
     "Instructions",
   );
   XLSX.writeFile(workbook, "ledger-import-template.xlsx");
-}
-
-function parseExcelDate(value: unknown) {
-  if (value instanceof Date && !Number.isNaN(value.getTime()))
-    return value.toISOString().slice(0, 10);
-  if (typeof value === "number" && Number.isFinite(value)) {
-    const date = XLSX.SSF.parse_date_code(value);
-    if (date)
-      return `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
-  }
-  const raw = String(value ?? "").trim();
-  const iso = raw.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
-  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
-  const indian = raw.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/);
-  if (indian) return `${indian[3]}-${indian[2].padStart(2, "0")}-${indian[1].padStart(2, "0")}`;
-  return raw;
 }
 
 function parseNumber(value: unknown) {
@@ -236,6 +207,10 @@ export function AccountsLedgerPage() {
   const [viewRows, setViewRows] = useState<JournalLine[]>([]);
   const [viewOpeningNet, setViewOpeningNet] = useState(0);
   const [viewLoading, setViewLoading] = useState(false);
+  const [capitalBranch, setCapitalBranch] = useState("");
+  const [capitalOpening, setCapitalOpening] = useState("0");
+  const [capitalDate, setCapitalDate] = useState(today);
+  const [capitalSide, setCapitalSide] = useState<OpeningSide>("cr");
 
   const updateForm = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -268,7 +243,8 @@ export function AccountsLedgerPage() {
 
   useEffect(() => {
     if (!viewBranch && branches[0]) setViewBranch(branches[0].id);
-  }, [branches, viewBranch]);
+    if (!capitalBranch && branches[0]) setCapitalBranch(branches[0].id);
+  }, [branches, viewBranch, capitalBranch]);
 
   const filteredList = useMemo(() => {
     const search = listSearch.trim().toLowerCase();
@@ -299,33 +275,52 @@ export function AccountsLedgerPage() {
 
   async function createLedger(event: React.FormEvent) {
     event.preventDefault();
-    const opening = parseNumber(form.opening_balance);
-    if (!form.branch_id || !form.description.trim() || !form.opening_balance_date) {
-      toast.error("Select a branch and complete the ledger description and opening date.");
-      return;
-    }
-    if (opening < 0) {
-      toast.error("Opening balance cannot be negative. Choose Dr or Cr for the side.");
+    if (!form.branch_id || !form.description.trim()) {
+      toast.error("Select a branch and complete the ledger description.");
       return;
     }
     setSaving(true);
     try {
-      const { error } = await db.rpc("create_manual_ledger", {
+      const { error } = await db.rpc("create_revenue_ledger", {
         p_branch_id: form.branch_id,
-        p_ledger_type: form.ledger_type,
         p_description: form.description.trim(),
-        p_opening_balance: opening,
-        p_opening_balance_date: form.opening_balance_date,
-        p_opening_balance_side: form.opening_balance_side,
       });
       if (error) throw new Error(error.message);
-      toast.success("Ledger created with its opening entry.");
+      toast.success("Revenue ledger created.");
       setForm(EMPTY_FORM);
       await loadLedgers();
       setTab("list");
     } catch (error) {
       toast.error(
         `Could not create ledger: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveCapitalOpening(event: React.FormEvent) {
+    event.preventDefault();
+    const amount = parseNumber(capitalOpening);
+    if (!capitalBranch || amount < 0 || (amount > 0 && !capitalDate)) {
+      toast.error("Select a branch and provide a valid capital opening balance and date.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await db.rpc("set_capital_opening_balance", {
+        p_branch_id: capitalBranch,
+        p_opening_balance: amount,
+        p_opening_balance_date: amount > 0 ? capitalDate : null,
+        p_opening_balance_side: capitalSide,
+      });
+      if (error) throw new Error(error.message);
+      toast.success("Capital opening balance saved with a balanced journal entry.");
+      await loadLedgers();
+      setTab("list");
+    } catch (error) {
+      toast.error(
+        `Could not save capital opening balance: ${error instanceof Error ? error.message : String(error)}`,
       );
     } finally {
       setSaving(false);
@@ -350,28 +345,12 @@ export function AccountsLedgerPage() {
             .trim()
             .toLowerCase(),
         );
-        const type = String(row["Ledger Type"] ?? "")
-          .trim()
-          .toLowerCase();
-        const side = String(row["Opening Balance Side"] ?? "dr")
-          .trim()
-          .toLowerCase();
         const description = String(row.Description ?? "").trim();
-        const date = parseExcelDate(row["Opening Balance Date"]);
         if (!branchId) throw new Error(`Branch was not found on row ${rowNumber}.`);
-        if (!(type === "revenue" || type === "capital"))
-          throw new Error(`Ledger Type must be revenue or capital on row ${rowNumber}.`);
-        if (!(side === "dr" || side === "cr"))
-          throw new Error(`Opening Balance Side must be dr or cr on row ${rowNumber}.`);
-        if (!description || !date)
-          throw new Error(`Description and opening date are required on row ${rowNumber}.`);
-        const { error } = await db.rpc("create_manual_ledger", {
+        if (!description) throw new Error(`Description is required on row ${rowNumber}.`);
+        const { error } = await db.rpc("create_revenue_ledger", {
           p_branch_id: branchId,
-          p_ledger_type: type,
           p_description: description,
-          p_opening_balance: parseNumber(row["Opening Balance"]),
-          p_opening_balance_date: date,
-          p_opening_balance_side: side,
         });
         if (error) throw new Error(`Row ${rowNumber}: ${error.message}`);
         imported += 1;
@@ -652,6 +631,81 @@ export function AccountsLedgerPage() {
             </div>
           </header>
 
+          {tab === "capital" && (
+            <form onSubmit={saveCapitalOpening} className="animate-fade-up space-y-5">
+              <section className="surface-card p-6">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                    <Landmark className="size-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">Branch capital ledger</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Each branch has one default capital ledger. Its opening balance is posted
+                      automatically against that branch’s Opening Balance Equity ledger.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                  <SelectField
+                    label="Branch"
+                    value={capitalBranch}
+                    onChange={setCapitalBranch}
+                    required
+                  >
+                    <option value="">Select branch</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.branch_name}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Opening balance
+                    </span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={capitalOpening}
+                      onChange={(event) => setCapitalOpening(event.target.value)}
+                    />
+                  </label>
+                  <SelectField
+                    label="Opening balance side"
+                    value={capitalSide}
+                    onChange={(value) => setCapitalSide(value as OpeningSide)}
+                    required
+                  >
+                    <option value="cr">Cr (Credit)</option>
+                    <option value="dr">Dr (Debit)</option>
+                  </SelectField>
+                  <label className="space-y-1.5 sm:col-span-3">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Opening balance date
+                    </span>
+                    <Input
+                      type="date"
+                      value={capitalDate}
+                      onChange={(event) => setCapitalDate(event.target.value)}
+                    />
+                  </label>
+                </div>
+              </section>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={saving || branches.length === 0} className="gap-2">
+                  {saving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  {saving ? "Saving…" : "Save capital opening balance"}
+                </Button>
+              </div>
+            </form>
+          )}
+
           {tab === "create" && (
             <form onSubmit={createLedger} className="animate-fade-up space-y-5">
               <section className="surface-card p-6">
@@ -680,17 +734,12 @@ export function AccountsLedgerPage() {
                       </option>
                     ))}
                   </SelectField>
-                  <SelectField
-                    label="Ledger type"
-                    value={form.ledger_type}
-                    onChange={(value) =>
-                      updateForm("ledger_type", value as FormState["ledger_type"])
-                    }
-                    required
-                  >
-                    <option value="revenue">Revenue</option>
-                    <option value="capital">Capital</option>
-                  </SelectField>
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+                    <span className="block text-xs font-medium text-muted-foreground">
+                      Ledger type
+                    </span>
+                    <span className="font-semibold">Revenue</span>
+                  </div>
                   <label className="space-y-1.5 sm:col-span-2">
                     <span className="text-xs font-medium text-muted-foreground">
                       Description / ledger name *
@@ -702,45 +751,6 @@ export function AccountsLedgerPage() {
                       placeholder="e.g. Freight Revenue or Owner Capital"
                     />
                   </label>
-                </div>
-              </section>
-              <section className="surface-card p-6">
-                <h3 className="text-sm font-semibold tracking-tight">Opening balance</h3>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  The opening entry is posted on the selected date and remains part of this ledger’s
-                  permanent history.
-                </p>
-                <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Amount</span>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={form.opening_balance}
-                      onChange={(event) => updateForm("opening_balance", event.target.value)}
-                    />
-                  </label>
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Opening balance date *
-                    </span>
-                    <Input
-                      required
-                      type="date"
-                      value={form.opening_balance_date}
-                      onChange={(event) => updateForm("opening_balance_date", event.target.value)}
-                    />
-                  </label>
-                  <SelectField
-                    label="Opening balance side"
-                    value={form.opening_balance_side}
-                    onChange={(value) => updateForm("opening_balance_side", value as OpeningSide)}
-                    required
-                  >
-                    <option value="dr">Dr (Debit)</option>
-                    <option value="cr">Cr (Credit)</option>
-                  </SelectField>
                 </div>
               </section>
               <div className="flex justify-end">

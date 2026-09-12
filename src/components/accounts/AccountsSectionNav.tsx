@@ -2,8 +2,9 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { Banknote, BookOpen, Landmark, List, Plus } from "lucide-react";
 import { MobileTabDropdown } from "@/components/MobileTabDropdown";
 
-export type LedgerTab = "create" | "list" | "view";
-type SectionMode = "masters" | "ledger";
+export type LedgerTab = "capital" | "create" | "list" | "view";
+type SectionMode = "masters" | "ledger" | "journal";
+export type JournalTab = "create" | "list";
 
 const masterLinks = [
   {
@@ -21,7 +22,8 @@ const masterLinks = [
 ] as const;
 
 const ledgerLinks = [
-  { key: "create", label: "Create", description: "Create ledger", icon: Plus },
+  { key: "capital", label: "Capital", description: "Branch default capital", icon: Landmark },
+  { key: "create", label: "Create", description: "Create revenue ledger", icon: Plus },
   { key: "list", label: "List", description: "Browse ledgers", icon: List },
   { key: "view", label: "View", description: "View statement", icon: BookOpen },
 ] as const;
@@ -40,6 +42,18 @@ const ledgerMobileTabs = ledgerLinks.map((item) => ({
   icon: item.icon,
 }));
 
+const journalLinks = [
+  { key: "create", label: "Create", description: "Post journal entry", icon: Plus },
+  { key: "list", label: "List", description: "Browse journal entries", icon: List },
+] as const;
+
+const journalMobileTabs = journalLinks.map((item) => ({
+  id: item.key,
+  label: item.label,
+  desc: item.description,
+  icon: item.icon,
+}));
+
 function activeFor(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
 }
@@ -49,14 +63,19 @@ export function AccountsSectionNav({
   mode,
   ledgerTab = "create",
   onLedgerTabChange,
+  journalTab = "create",
+  onJournalTabChange,
 }: {
   desktop?: boolean;
   mode: SectionMode;
   ledgerTab?: LedgerTab;
   onLedgerTabChange?: (tab: LedgerTab) => void;
+  journalTab?: JournalTab;
+  onJournalTabChange?: (tab: JournalTab) => void;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const title = mode === "masters" ? "Master tabs" : "Ledger tabs";
+  const title =
+    mode === "masters" ? "Master tabs" : mode === "ledger" ? "Ledger tabs" : "Journal tabs";
 
   if (desktop) {
     return (
@@ -86,21 +105,41 @@ export function AccountsSectionNav({
                   </Link>
                 );
               })
-            : ledgerLinks.map(({ key, label, description, icon: Icon }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => onLedgerTabChange?.(key)}
-                  aria-current={ledgerTab === key ? "page" : undefined}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${ledgerTab === key ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
-                >
-                  <Icon className={`size-4 shrink-0 ${ledgerTab === key ? "text-primary" : ""}`} />
-                  <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-sm font-semibold">{label}</span>
-                    <span className="block truncate text-[11px] opacity-70">{description}</span>
-                  </span>
-                </button>
-              ))}
+            : mode === "ledger"
+              ? ledgerLinks.map(({ key, label, description, icon: Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onLedgerTabChange?.(key)}
+                    aria-current={ledgerTab === key ? "page" : undefined}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${ledgerTab === key ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                  >
+                    <Icon
+                      className={`size-4 shrink-0 ${ledgerTab === key ? "text-primary" : ""}`}
+                    />
+                    <span className="min-w-0 leading-tight">
+                      <span className="block truncate text-sm font-semibold">{label}</span>
+                      <span className="block truncate text-[11px] opacity-70">{description}</span>
+                    </span>
+                  </button>
+                ))
+              : journalLinks.map(({ key, label, description, icon: Icon }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => onJournalTabChange?.(key)}
+                    aria-current={journalTab === key ? "page" : undefined}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${journalTab === key ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                  >
+                    <Icon
+                      className={`size-4 shrink-0 ${journalTab === key ? "text-primary" : ""}`}
+                    />
+                    <span className="min-w-0 leading-tight">
+                      <span className="block truncate text-sm font-semibold">{label}</span>
+                      <span className="block truncate text-[11px] opacity-70">{description}</span>
+                    </span>
+                  </button>
+                ))}
         </div>
       </nav>
     );
@@ -108,6 +147,7 @@ export function AccountsSectionNav({
 
   const selectedMaster = masterLinks.find((item) => activeFor(pathname, item.to));
   const selectedLedger = ledgerLinks.find((item) => item.key === ledgerTab);
+  const selectedJournal = journalLinks.find((item) => item.key === journalTab);
   if (mode === "masters") {
     return (
       <MobileTabDropdown
@@ -115,6 +155,17 @@ export function AccountsSectionNav({
         activeId={selectedMaster?.to ?? masterMobileTabs[0].id}
         label="Master tabs"
         onChange={(to) => window.location.assign(to)}
+      />
+    );
+  }
+
+  if (mode === "journal") {
+    return (
+      <MobileTabDropdown
+        tabs={journalMobileTabs}
+        activeId={selectedJournal?.key ?? journalMobileTabs[0].id}
+        label="Journal tabs"
+        onChange={(tab) => onJournalTabChange?.(tab as JournalTab)}
       />
     );
   }
