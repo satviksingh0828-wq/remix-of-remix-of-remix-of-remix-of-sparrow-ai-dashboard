@@ -654,9 +654,11 @@ export function AccountsLedgerPage() {
       <div
         className={`grid items-start gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}
       >
-        {navOpen && <AccountsSectionNav desktop ledgerTab={tab} onLedgerTabChange={setTab} />}
+        {navOpen && (
+          <AccountsSectionNav desktop mode="ledger" ledgerTab={tab} onLedgerTabChange={setTab} />
+        )}
         <div className="min-w-0">
-          <AccountsSectionNav ledgerTab={tab} onLedgerTabChange={setTab} />
+          <AccountsSectionNav mode="ledger" ledgerTab={tab} onLedgerTabChange={setTab} />
           <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">
