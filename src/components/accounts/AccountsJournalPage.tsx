@@ -75,9 +75,6 @@ function JournalPage() {
   const [transferDescription, setTransferDescription] = useState("");
   const [transferReference, setTransferReference] = useState("");
   const [transferSaving, setTransferSaving] = useState(false);
-  const [verifySelectedIds, setVerifySelectedIds] = useState<string[]>([]);
-  const [verifyAccountId, setVerifyAccountId] = useState("");
-  const [verifySaving, setVerifySaving] = useState(false);
 
   const branchMap = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch.branch_name])),
@@ -100,12 +97,6 @@ function JournalPage() {
       (entry.description ?? "").toLowerCase().includes(q);
     return matchBranch && matchMonth && matchSearch;
   });
-  const pendingEntries = entries.filter(
-    (entry) => entry.source_module === "hrms" && entry.status === "pending",
-  );
-  const verifyAccounts = ledgers.filter(
-    (ledger) => ledger.ledger_type === "bank" || ledger.ledger_type === "cash",
-  );
 
   async function loadLedgers() {
     const { data, error } = await db
@@ -264,37 +255,6 @@ function JournalPage() {
       );
     } finally {
       setTransferSaving(false);
-    }
-  }
-
-  async function verifyEntries(ids: string[]) {
-    if (!ids.length) return toast.error("Select at least one pending HRMS entry.");
-    const selected = pendingEntries.filter((entry) => ids.includes(entry.id));
-    const branchesInSelection = new Set(selected.map((entry) => entry.branch_id));
-    if (verifyAccountId && branchesInSelection.size !== 1) {
-      return toast.error(
-        "A replacement bank/cash account can be used only when selected entries belong to one branch.",
-      );
-    }
-    setVerifySaving(true);
-    try {
-      const { error } = await db.rpc("verify_hrms_journal_entries", {
-        p_entry_ids: ids,
-        p_bank_cash_ledger_id: verifyAccountId || null,
-      });
-      if (error) throw new Error(error.message);
-      toast.success(
-        `${ids.length} HRMS journal entr${ids.length === 1 ? "y" : "ies"} verified and posted.`,
-      );
-      setVerifySelectedIds([]);
-      setVerifyAccountId("");
-      await loadEntries();
-    } catch (error) {
-      toast.error(
-        `Could not verify entries: ${error instanceof Error ? error.message : String(error)}`,
-      );
-    } finally {
-      setVerifySaving(false);
     }
   }
 
@@ -635,168 +595,6 @@ function JournalPage() {
                 </Button>
               </div>
             </form>
-          )}
-          {tab === "verify" && (
-            <div className="space-y-5 animate-fade-up">
-              <section className="surface-card p-5">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div>
-                    <h2 className="font-semibold">Pending HRMS entries</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Verify payroll, loan, and advance cash-basis entries before they affect posted
-                      accounts.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={exportEntries}
-                      disabled={!pendingEntries.length}
-                    >
-                      Export pending
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => void verifyEntries(verifySelectedIds)}
-                      disabled={verifySaving || !verifySelectedIds.length}
-                    >
-                      {verifySaving
-                        ? "Verifying…"
-                        : `Verify selected (${verifySelectedIds.length})`}
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-                  <label className="space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      Replacement bank / cash account (optional)
-                    </span>
-                    <select
-                      value={verifyAccountId}
-                      onChange={(event) => setVerifyAccountId(event.target.value)}
-                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                    >
-                      <option value="">Keep each rule account</option>
-                      {verifyAccounts.map((ledger) => (
-                        <option key={ledger.id} value={ledger.id}>
-                          {ledger.account_name} · {ledger.ledger_type}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <div className="flex items-end gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setVerifySelectedIds(pendingEntries.map((entry) => entry.id))}
-                      disabled={!pendingEntries.length}
-                    >
-                      Select all
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setVerifySelectedIds([])}
-                      disabled={!verifySelectedIds.length}
-                    >
-                      Clear
-                    </Button>
-                  </div>
-                </div>
-              </section>
-              <section className="overflow-hidden rounded-2xl border border-border bg-card">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        <th className="px-4 py-3">
-                          <input
-                            type="checkbox"
-                            checked={
-                              pendingEntries.length > 0 &&
-                              verifySelectedIds.length === pendingEntries.length
-                            }
-                            onChange={(event) =>
-                              setVerifySelectedIds(
-                                event.target.checked ? pendingEntries.map((entry) => entry.id) : [],
-                              )
-                            }
-                          />
-                        </th>
-                        <th className="px-4 py-3">Voucher</th>
-                        <th className="px-4 py-3">Date</th>
-                        <th className="px-4 py-3">Branch</th>
-                        <th className="px-4 py-3">Details</th>
-                        <th className="px-4 py-3">Amount</th>
-                        <th className="px-4 py-3">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {pendingEntries.map((entry) => (
-                        <tr key={entry.id} className="hover:bg-muted/30">
-                          <td className="px-4 py-3 align-top">
-                            <input
-                              type="checkbox"
-                              checked={verifySelectedIds.includes(entry.id)}
-                              onChange={(event) =>
-                                setVerifySelectedIds((current) =>
-                                  event.target.checked
-                                    ? [...current, entry.id]
-                                    : current.filter((id) => id !== entry.id),
-                                )
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3 align-top font-semibold">
-                            {entry.voucher_number}
-                          </td>
-                          <td className="px-4 py-3 align-top">{entry.entry_date}</td>
-                          <td className="px-4 py-3 align-top">
-                            {branchMap.get(entry.branch_id) ?? "—"}
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <p>{entry.description ?? "HRMS automatic entry"}</p>
-                            <div className="mt-1 space-y-1 text-xs text-muted-foreground">
-                              {(entry.lines ?? []).map((line) => (
-                                <div key={line.line_no}>
-                                  {line.ledger_account?.account_name ?? "Account"}: ₹
-                                  {amount(line.debit || line.credit).toFixed(2)}{" "}
-                                  {amount(line.debit) ? "Dr" : "Cr"}
-                                </div>
-                              ))}
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 align-top font-medium">
-                            ₹{totalFor(entry, "debit").toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3 align-top">
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="outline"
-                              onClick={() => void verifyEntries([entry.id])}
-                            >
-                              Verify
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                      {!pendingEntries.length && (
-                        <tr>
-                          <td
-                            colSpan={7}
-                            className="py-12 text-center text-sm text-muted-foreground"
-                          >
-                            No pending HRMS entries require verification.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
           )}
           {tab === "transfer" && (
             <form onSubmit={createTransfer} className="animate-fade-up space-y-5">

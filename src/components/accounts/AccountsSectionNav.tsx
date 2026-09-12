@@ -1,14 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import {
-  ArrowRightLeft,
-  Banknote,
-  BookOpen,
-  Landmark,
-  List,
-  Plus,
-  Settings2,
-  ShieldCheck,
-} from "lucide-react";
+import { ArrowRightLeft, Banknote, BookOpen, Landmark, List, Plus } from "lucide-react";
 import { MobileTabDropdown } from "@/components/MobileTabDropdown";
 
 export type LedgerTab = "capital" | "create" | "list" | "view";
@@ -27,12 +18,6 @@ const masterLinks = [
     description: "Branch cash accounts",
     to: "/accounts/masters/cash",
     icon: Banknote,
-  },
-  {
-    label: "Rules",
-    description: "HRMS auto-entry rules",
-    to: "/accounts/masters/rules",
-    icon: Settings2,
   },
 ] as const;
 
@@ -60,7 +45,6 @@ const ledgerMobileTabs = ledgerLinks.map((item) => ({
 const journalLinks = [
   { key: "create", label: "Create", description: "Post journal entry", icon: Plus },
   { key: "transfer", label: "Transfer", description: "Move bank / cash", icon: ArrowRightLeft },
-  { key: "verify", label: "Verify", description: "Review HRMS entries", icon: ShieldCheck },
   { key: "list", label: "List", description: "Browse journal entries", icon: List },
 ] as const;
 
