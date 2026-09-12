@@ -80,6 +80,8 @@ const firstDayOfYear = `${new Date().getFullYear()}-01-01`;
 const money = (value: unknown) => Number(value ?? 0) || 0;
 const moneyText = (value: number) =>
   `₹${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const pdfMoneyText = (value: number) =>
+  `Rs. ${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const dateText = (value: string | null | undefined) =>
   value ? new Date(`${value}T00:00:00`).toLocaleDateString("en-IN") : "—";
 
@@ -550,10 +552,10 @@ export function AccountsLedgerPage() {
                 viewStart,
                 "B/F",
                 "Balance brought forward",
-                report.openingNet > 0 ? moneyText(report.openingNet) : "—",
-                report.openingNet < 0 ? moneyText(Math.abs(report.openingNet)) : "—",
-                report.openingNet > 0 ? moneyText(report.openingNet) : "—",
-                report.openingNet < 0 ? moneyText(Math.abs(report.openingNet)) : "—",
+                report.openingNet > 0 ? pdfMoneyText(report.openingNet) : "—",
+                report.openingNet < 0 ? pdfMoneyText(Math.abs(report.openingNet)) : "—",
+                report.openingNet > 0 ? pdfMoneyText(report.openingNet) : "—",
+                report.openingNet < 0 ? pdfMoneyText(Math.abs(report.openingNet)) : "—",
               ],
             ]
           : []),
@@ -561,19 +563,19 @@ export function AccountsLedgerPage() {
           dateText(row.date),
           row.voucher,
           row.particulars,
-          row.debit ? moneyText(row.debit) : "—",
-          row.credit ? moneyText(row.credit) : "—",
-          row.balanceDr ? moneyText(row.balanceDr) : "—",
-          row.balanceCr ? moneyText(row.balanceCr) : "—",
+          row.debit ? pdfMoneyText(row.debit) : "—",
+          row.credit ? pdfMoneyText(row.credit) : "—",
+          row.balanceDr ? pdfMoneyText(row.balanceDr) : "—",
+          row.balanceCr ? pdfMoneyText(row.balanceCr) : "—",
         ]),
         [
           dateText(viewEnd),
           "C/F",
           "Balance carried forward",
-          report.closing < 0 ? moneyText(Math.abs(report.closing)) : "—",
-          report.closing > 0 ? moneyText(report.closing) : "—",
-          report.closing > 0 ? moneyText(report.closing) : "—",
-          report.closing < 0 ? moneyText(Math.abs(report.closing)) : "—",
+          report.closing < 0 ? pdfMoneyText(Math.abs(report.closing)) : "—",
+          report.closing > 0 ? pdfMoneyText(report.closing) : "—",
+          report.closing > 0 ? pdfMoneyText(report.closing) : "—",
+          report.closing < 0 ? pdfMoneyText(Math.abs(report.closing)) : "—",
         ],
       ];
       await openBrandedTablePdf({
@@ -586,12 +588,13 @@ export function AccountsLedgerPage() {
         summary: [
           [
             "Opening balance",
-            moneyText(Math.abs(report.openingNet)) +
+            pdfMoneyText(Math.abs(report.openingNet)) +
               ` ${balanceSide(report.openingNet).toUpperCase()}`,
           ],
           [
             "Closing balance",
-            moneyText(Math.abs(report.closing)) + ` ${balanceSide(report.closing).toUpperCase()}`,
+            pdfMoneyText(Math.abs(report.closing)) +
+              ` ${balanceSide(report.closing).toUpperCase()}`,
           ],
         ],
       });

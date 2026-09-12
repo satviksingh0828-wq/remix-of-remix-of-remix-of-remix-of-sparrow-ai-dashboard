@@ -50,6 +50,8 @@ const blankLine = (): Line => ({
   line_description: "",
 });
 const amount = (value: string | number | null | undefined) => Number(value ?? 0) || 0;
+const pdfAmount = (value: string | number | null | undefined) =>
+  `Rs. ${amount(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function JournalPage() {
   const branches = useBranches();
@@ -397,8 +399,8 @@ function JournalPage() {
       line.ledger_account?.account_name ?? "—",
       line.ledger_account?.ledger_type ?? "—",
       line.line_description ?? entry.description,
-      amount(line.debit) ? amount(line.debit).toFixed(2) : "—",
-      amount(line.credit) ? amount(line.credit).toFixed(2) : "—",
+      amount(line.debit) ? pdfAmount(line.debit) : "—",
+      amount(line.credit) ? pdfAmount(line.credit) : "—",
     ]);
     await openBrandedTablePdf({
       title: `Journal Voucher ${entry.voucher_number}`,
@@ -408,8 +410,8 @@ function JournalPage() {
       columns: ["Account", "Type", "Description", "Debit", "Credit"],
       rows,
       summary: [
-        ["Total debit", totalFor(entry, "debit").toFixed(2)],
-        ["Total credit", totalFor(entry, "credit").toFixed(2)],
+        ["Total debit", pdfAmount(totalFor(entry, "debit"))],
+        ["Total credit", pdfAmount(totalFor(entry, "credit"))],
         ["Source", entry.source_module === "auto" ? "Automatic opening balance" : "Manual journal"],
       ],
     });
