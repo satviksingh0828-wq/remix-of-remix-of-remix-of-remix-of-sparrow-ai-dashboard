@@ -154,7 +154,21 @@ function JournalPage() {
     setDeletingId(entry.id);
     try {
       const { error } = await db.rpc("delete_manual_journal_entry", { p_entry_id: entry.id });
-      if (error) throw new Error(error.message);
+      if (error) {
+        const message = String(error.message ?? error);
+        if (!message.toLowerCase().includes("schema cache")) throw new Error(message);
+
+        // Older deployments may have the migration file but not the refreshed RPC
+        // in PostgREST's schema cache. The source-module filter keeps this fallback
+        // limited to manual entries; deleting the parent cascades to journal_lines,
+        // so the ledger no longer includes the deleted debit/credit lines.
+        const { error: fallbackError } = await db
+          .from("journal_entries")
+          .delete()
+          .eq("id", entry.id)
+          .eq("source_module", "manual");
+        if (fallbackError) throw new Error(fallbackError.message);
+      }
       toast.success(`Journal entry ${entry.voucher_number} deleted.`);
       await loadEntries();
     } catch (error) {
