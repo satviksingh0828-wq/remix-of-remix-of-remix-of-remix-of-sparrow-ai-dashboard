@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Banknote, BookOpen, Landmark, List, Plus } from "lucide-react";
+import { MobileTabDropdown } from "@/components/MobileTabDropdown";
 
 export type LedgerTab = "create" | "list" | "view";
 type SectionMode = "masters" | "ledger";
@@ -24,6 +25,20 @@ const ledgerLinks = [
   { key: "list", label: "List", description: "Browse ledgers", icon: List },
   { key: "view", label: "View", description: "View statement", icon: BookOpen },
 ] as const;
+
+const masterMobileTabs = masterLinks.map((item) => ({
+  id: item.to,
+  label: item.label,
+  desc: item.description,
+  icon: item.icon,
+}));
+
+const ledgerMobileTabs = ledgerLinks.map((item) => ({
+  id: item.key,
+  label: item.label,
+  desc: item.description,
+  icon: item.icon,
+}));
 
 function activeFor(pathname: string, to: string) {
   return pathname === to || pathname.startsWith(`${to}/`);
@@ -93,43 +108,23 @@ export function AccountsSectionNav({
 
   const selectedMaster = masterLinks.find((item) => activeFor(pathname, item.to));
   const selectedLedger = ledgerLinks.find((item) => item.key === ledgerTab);
-  const selectedLabel =
-    mode === "masters"
-      ? (selectedMaster?.label ?? "Select tab")
-      : (selectedLedger?.label ?? "Select tab");
+  if (mode === "masters") {
+    return (
+      <MobileTabDropdown
+        tabs={masterMobileTabs}
+        activeId={selectedMaster?.to ?? masterMobileTabs[0].id}
+        label="Master tabs"
+        onChange={(to) => window.location.assign(to)}
+      />
+    );
+  }
 
   return (
-    <div className="mb-6 lg:hidden">
-      <label className="block">
-        <span className="mb-1.5 block px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {title}
-        </span>
-        <select
-          value={mode === "masters" ? (selectedMaster?.to ?? "") : ledgerTab}
-          onChange={(event) => {
-            if (mode === "masters") {
-              window.location.assign(event.target.value);
-            } else {
-              onLedgerTabChange?.(event.target.value as LedgerTab);
-            }
-          }}
-          aria-label={title}
-          className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-semibold text-foreground shadow-sm outline-none focus:ring-2 focus:ring-ring"
-        >
-          {mode === "masters"
-            ? masterLinks.map(({ label, to }) => (
-                <option key={to} value={to}>
-                  {label}
-                </option>
-              ))
-            : ledgerLinks.map(({ key, label }) => (
-                <option key={key} value={key}>
-                  {label}
-                </option>
-              ))}
-        </select>
-        <span className="sr-only">Current tab: {selectedLabel}</span>
-      </label>
-    </div>
+    <MobileTabDropdown
+      tabs={ledgerMobileTabs}
+      activeId={selectedLedger?.key ?? ledgerMobileTabs[0].id}
+      label="Ledger tabs"
+      onChange={(tab) => onLedgerTabChange?.(tab as LedgerTab)}
+    />
   );
 }
