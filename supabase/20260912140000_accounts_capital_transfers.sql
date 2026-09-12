@@ -45,12 +45,13 @@ set is_opening_offset = false,
 where is_opening_offset = true or system_code = 'OPENING_BALANCE_EQUITY';
 
 -- Permit system inter-branch due-to/due-from ledgers while keeping manual
--- capital-ledger creation blocked.
+-- capital-ledger creation blocked. Inactive legacy capital rows remain for
+-- historical reporting but cannot be selected for new postings.
 do $$
 begin
   alter table public.ledger_accounts
     add constraint ledger_accounts_capital_system_only
-    check (ledger_type <> 'capital' or is_default_capital or is_opening_offset or system_code like 'INTER_BRANCH:%');
+    check (ledger_type <> 'capital' or not is_active or is_default_capital or is_opening_offset or system_code like 'INTER_BRANCH:%');
 end;
 $$;
 
