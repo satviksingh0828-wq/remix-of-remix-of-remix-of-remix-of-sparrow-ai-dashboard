@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
-import { Download, FileDown, FileSpreadsheet, Loader2, Plus, Search, Upload } from "lucide-react";
+import {
+  Download,
+  FileDown,
+  FileSpreadsheet,
+  Loader2,
+  Plus,
+  Search,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import * as XLSX from "xlsx";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -77,6 +86,7 @@ function JournalPage() {
   const [transferDescription, setTransferDescription] = useState("");
   const [transferReference, setTransferReference] = useState("");
   const [transferSaving, setTransferSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const branchMap = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch.branch_name])),
@@ -129,6 +139,30 @@ function JournalPage() {
       );
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function deleteEntry(entry: Entry) {
+    if (entry.source_module !== "manual") {
+      toast.error("Automatic and transfer entries must be removed from their source transaction.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete journal entry ${entry.voucher_number}? This will permanently delete its journal lines.`,
+    );
+    if (!confirmed) return;
+    setDeletingId(entry.id);
+    try {
+      const { error } = await db.rpc("delete_manual_journal_entry", { p_entry_id: entry.id });
+      if (error) throw new Error(error.message);
+      toast.success(`Journal entry ${entry.voucher_number} deleted.`);
+      await loadEntries();
+    } catch (error) {
+      toast.error(
+        `Could not delete journal entry: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -869,7 +903,7 @@ function JournalPage() {
                                 {entry.source_module === "auto" ? "Automatic opening" : "Manual"}
                               </span>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="flex gap-2 px-4 py-3">
                               <Button
                                 type="button"
                                 variant="outline"
@@ -877,6 +911,28 @@ function JournalPage() {
                                 onClick={() => void exportPdf(entry)}
                               >
                                 PDF
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="gap-1.5 text-destructive hover:text-destructive"
+                                disabled={
+                                  entry.source_module !== "manual" || deletingId === entry.id
+                                }
+                                title={
+                                  entry.source_module === "manual"
+                                    ? "Delete journal entry"
+                                    : "Automatic entries must be removed from their source transaction"
+                                }
+                                onClick={() => void deleteEntry(entry)}
+                              >
+                                {deletingId === entry.id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-3.5" />
+                                )}
+                                Delete
                               </Button>
                             </td>
                           </tr>
