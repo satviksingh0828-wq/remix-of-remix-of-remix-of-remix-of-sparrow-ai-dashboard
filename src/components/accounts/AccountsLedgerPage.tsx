@@ -633,390 +633,401 @@ export function AccountsLedgerPage() {
         </span>
       }
     >
-      <div className="min-w-0">
-        <AccountsSectionNav mode="ledger" ledgerTab={tab} onLedgerTabChange={setTab} />
-        <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">
-              Accounts / Ledger
-            </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Branch ledger workspace</h1>
-            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-              Create revenue and capital ledgers, review automatic bank and cash ledgers, and print
-              a balanced period statement.
-            </p>
-          </div>
-        </header>
-
-        {tab === "create" && (
-          <form onSubmit={createLedger} className="animate-fade-up space-y-5">
-            <section className="surface-card p-6">
-              <div className="flex items-start gap-3">
-                <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
-                  <Plus className="size-5" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold">Create ledger</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    A ledger is created for one branch and starts with one dated opening entry.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <SelectField
-                  label="Branch"
-                  value={form.branch_id}
-                  onChange={(value) => updateForm("branch_id", value)}
-                  required
-                >
-                  <option value="">Select branch</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.branch_name}
-                    </option>
-                  ))}
-                </SelectField>
-                <SelectField
-                  label="Ledger type"
-                  value={form.ledger_type}
-                  onChange={(value) => updateForm("ledger_type", value as FormState["ledger_type"])}
-                  required
-                >
-                  <option value="revenue">Revenue</option>
-                  <option value="capital">Capital</option>
-                </SelectField>
-                <label className="space-y-1.5 sm:col-span-2">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Description / ledger name *
-                  </span>
-                  <Input
-                    required
-                    value={form.description}
-                    onChange={(event) => updateForm("description", event.target.value)}
-                    placeholder="e.g. Freight Revenue or Owner Capital"
-                  />
-                </label>
-              </div>
-            </section>
-            <section className="surface-card p-6">
-              <h3 className="text-sm font-semibold tracking-tight">Opening balance</h3>
-              <p className="mt-1 text-xs text-muted-foreground">
-                The opening entry is posted on the selected date and remains part of this ledger’s
-                permanent history.
+      <div className="grid items-start gap-6 lg:grid-cols-[220px_1fr]">
+        <AccountsSectionNav desktop mode="ledger" ledgerTab={tab} onLedgerTabChange={setTab} />
+        <div className="min-w-0 lg:col-start-2">
+          <AccountsSectionNav mode="ledger" ledgerTab={tab} onLedgerTabChange={setTab} />
+          <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">
+                Accounts / Ledger
               </p>
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                <label className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Amount</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.opening_balance}
-                    onChange={(event) => updateForm("opening_balance", event.target.value)}
-                  />
-                </label>
-                <label className="space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Opening balance date *
-                  </span>
-                  <Input
-                    required
-                    type="date"
-                    value={form.opening_balance_date}
-                    onChange={(event) => updateForm("opening_balance_date", event.target.value)}
-                  />
-                </label>
-                <SelectField
-                  label="Opening balance side"
-                  value={form.opening_balance_side}
-                  onChange={(value) => updateForm("opening_balance_side", value as OpeningSide)}
-                  required
-                >
-                  <option value="dr">Dr (Debit)</option>
-                  <option value="cr">Cr (Credit)</option>
-                </SelectField>
-              </div>
-            </section>
-            <div className="flex justify-end">
-              <Button type="submit" disabled={saving || branches.length === 0} className="gap-2">
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                {saving ? "Creating…" : "Create ledger"}
-              </Button>
+              <h1 className="mt-2 text-3xl font-semibold tracking-tight">
+                Branch ledger workspace
+              </h1>
+              <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                Create revenue and capital ledgers, review automatic bank and cash ledgers, and
+                print a balanced period statement.
+              </p>
             </div>
-          </form>
-        )}
+          </header>
 
-        {tab === "list" && (
-          <div className="space-y-5 animate-fade-up">
-            <section className="surface-card p-5">
-              <div className="flex flex-wrap items-end gap-3">
-                <label className="min-w-44 flex-1 space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Branch</span>
-                  <select
-                    value={listBranch}
-                    onChange={(event) => setListBranch(event.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          {tab === "create" && (
+            <form onSubmit={createLedger} className="animate-fade-up space-y-5">
+              <section className="surface-card p-6">
+                <div className="flex items-start gap-3">
+                  <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+                    <Plus className="size-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold">Create ledger</h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      A ledger is created for one branch and starts with one dated opening entry.
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <SelectField
+                    label="Branch"
+                    value={form.branch_id}
+                    onChange={(value) => updateForm("branch_id", value)}
+                    required
                   >
-                    <option value="all">All branches</option>
+                    <option value="">Select branch</option>
                     {branches.map((branch) => (
                       <option key={branch.id} value={branch.id}>
                         {branch.branch_name}
                       </option>
                     ))}
-                  </select>
-                </label>
-                <label className="min-w-40 space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Ledger type</span>
-                  <select
-                    value={listType}
-                    onChange={(event) => setListType(event.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  </SelectField>
+                  <SelectField
+                    label="Ledger type"
+                    value={form.ledger_type}
+                    onChange={(value) =>
+                      updateForm("ledger_type", value as FormState["ledger_type"])
+                    }
+                    required
                   >
-                    <option value="all">All types</option>
                     <option value="revenue">Revenue</option>
                     <option value="capital">Capital</option>
-                    <option value="bank">Bank</option>
-                    <option value="cash">Cash</option>
-                  </select>
-                </label>
-                <label className="min-w-56 flex-[1.3] space-y-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Search ledger</span>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                  </SelectField>
+                  <label className="space-y-1.5 sm:col-span-2">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Description / ledger name *
+                    </span>
                     <Input
-                      className="pl-9"
-                      value={listSearch}
-                      onChange={(event) => setListSearch(event.target.value)}
-                      placeholder="Search by ledger or description"
+                      required
+                      value={form.description}
+                      onChange={(event) => updateForm("description", event.target.value)}
+                      placeholder="e.g. Freight Revenue or Owner Capital"
                     />
+                  </label>
+                </div>
+              </section>
+              <section className="surface-card p-6">
+                <h3 className="text-sm font-semibold tracking-tight">Opening balance</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The opening entry is posted on the selected date and remains part of this ledger’s
+                  permanent history.
+                </p>
+                <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Amount</span>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.opening_balance}
+                      onChange={(event) => updateForm("opening_balance", event.target.value)}
+                    />
+                  </label>
+                  <label className="space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      Opening balance date *
+                    </span>
+                    <Input
+                      required
+                      type="date"
+                      value={form.opening_balance_date}
+                      onChange={(event) => updateForm("opening_balance_date", event.target.value)}
+                    />
+                  </label>
+                  <SelectField
+                    label="Opening balance side"
+                    value={form.opening_balance_side}
+                    onChange={(value) => updateForm("opening_balance_side", value as OpeningSide)}
+                    required
+                  >
+                    <option value="dr">Dr (Debit)</option>
+                    <option value="cr">Cr (Credit)</option>
+                  </SelectField>
+                </div>
+              </section>
+              <div className="flex justify-end">
+                <Button type="submit" disabled={saving || branches.length === 0} className="gap-2">
+                  {saving ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Plus className="size-4" />
+                  )}
+                  {saving ? "Creating…" : "Create ledger"}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {tab === "list" && (
+            <div className="space-y-5 animate-fade-up">
+              <section className="surface-card p-5">
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="min-w-44 flex-1 space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Branch</span>
+                    <select
+                      value={listBranch}
+                      onChange={(event) => setListBranch(event.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="all">All branches</option>
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.branch_name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="min-w-40 space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Ledger type</span>
+                    <select
+                      value={listType}
+                      onChange={(event) => setListType(event.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="all">All types</option>
+                      <option value="revenue">Revenue</option>
+                      <option value="capital">Capital</option>
+                      <option value="bank">Bank</option>
+                      <option value="cash">Cash</option>
+                    </select>
+                  </label>
+                  <label className="min-w-56 flex-[1.3] space-y-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Search ledger</span>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                      <Input
+                        className="pl-9"
+                        value={listSearch}
+                        onChange={(event) => setListSearch(event.target.value)}
+                        placeholder="Search by ledger or description"
+                      />
+                    </div>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={downloadLedgerTemplate}
+                      className="gap-2"
+                    >
+                      <FileSpreadsheet className="size-4" />
+                      Template
+                    </Button>
+                    <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted">
+                      <Upload className="size-4" />
+                      Import Excel
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls"
+                        className="sr-only"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          event.currentTarget.value = "";
+                          if (file) void importLedgers(file);
+                        }}
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={exportList}
+                      disabled={filteredList.length === 0}
+                      className="gap-2"
+                    >
+                      <Download className="size-4" />
+                      Export Excel
+                    </Button>
                   </div>
-                </label>
-                <div className="flex flex-wrap gap-2">
+                </div>
+              </section>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  {filteredList.length} active ledger{filteredList.length === 1 ? "" : "s"}
+                </p>
+                <Button type="button" size="sm" onClick={() => setTab("create")} className="gap-2">
+                  <Plus className="size-4" />
+                  Create ledger
+                </Button>
+              </div>
+              <section className="overflow-hidden rounded-2xl border border-border bg-card">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <th className="px-4 py-3">Ledger</th>
+                        <th className="px-4 py-3">Branch</th>
+                        <th className="px-4 py-3">Type</th>
+                        <th className="px-4 py-3">Opening balance</th>
+                        <th className="px-4 py-3">Opening date</th>
+                        <th className="px-4 py-3">Source</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {loading ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                            <Loader2 className="mx-auto size-5 animate-spin" />
+                          </td>
+                        </tr>
+                      ) : filteredList.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="py-12 text-center text-muted-foreground">
+                            <WalletCards className="mx-auto mb-2 size-6 opacity-50" />
+                            No active ledgers match these filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredList.map((ledger) => (
+                          <tr key={ledger.id} className="hover:bg-muted/30">
+                            <td className="px-4 py-3">
+                              <p className="font-semibold">{ledger.account_name}</p>
+                              <p className="max-w-xs truncate text-xs text-muted-foreground">
+                                {ledger.description || "—"}
+                              </p>
+                            </td>
+                            <td className="px-4 py-3">
+                              {branchById.get(ledger.branch_id)?.branch_name ?? "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <LedgerTypeBadge type={ledger.ledger_type} />
+                            </td>
+                            <td className="px-4 py-3 font-medium">
+                              {moneyText(money(ledger.opening_balance))}{" "}
+                              <span className="text-xs text-muted-foreground">
+                                {ledger.opening_balance_side.toUpperCase()}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {dateText(ledger.opening_balance_date)}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">
+                              {ledger.is_system ? "Automatic account" : "Manual ledger"}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {tab === "view" && (
+            <div className="space-y-5 animate-fade-up">
+              <section className="surface-card p-5">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 xl:items-end">
+                  <SelectField
+                    label="Branch"
+                    value={viewBranch}
+                    onChange={(value) => {
+                      setViewBranch(value);
+                      setViewLedgerId("");
+                    }}
+                    required
+                  >
+                    <option value="">Select branch</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.branch_name}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <label className="space-y-1.5 xl:col-span-2">
+                    <span className="text-xs font-medium text-muted-foreground">Search ledger</span>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
+                      <Input
+                        className="pl-9"
+                        value={ledgerSearch}
+                        onChange={(event) => setLedgerSearch(event.target.value)}
+                        placeholder="Type to narrow the ledger selector"
+                      />
+                    </div>
+                  </label>
+                  <SelectField
+                    label="Ledger"
+                    value={viewLedgerId}
+                    onChange={setViewLedgerId}
+                    required
+                  >
+                    <option value="">Select ledger</option>
+                    {viewLedgers.map((ledger) => (
+                      <option key={ledger.id} value={ledger.id}>
+                        {ledger.account_name} · {labelForType(ledger.ledger_type)}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <div className="flex gap-2">
+                    <label className="min-w-0 flex-1 space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Start date</span>
+                      <Input
+                        type="date"
+                        value={viewStart}
+                        onChange={(event) => setViewStart(event.target.value)}
+                      />
+                    </label>
+                    <label className="min-w-0 flex-1 space-y-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">End date</span>
+                      <Input
+                        type="date"
+                        value={viewEnd}
+                        onChange={(event) => setViewEnd(event.target.value)}
+                      />
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => void loadView()}
+                    disabled={viewLoading || !viewLedgerId}
+                    className="gap-2"
+                  >
+                    {viewLoading ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <BookOpen className="size-4" />
+                    )}
+                    {viewLoading ? "Loading…" : "View ledger"}
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={downloadLedgerTemplate}
+                    onClick={() => void exportViewExcel()}
+                    disabled={
+                      !selectedLedger ||
+                      (viewRows.length === 0 && viewOpeningNet === 0 && !viewLoading)
+                    }
                     className="gap-2"
                   >
                     <FileSpreadsheet className="size-4" />
-                    Template
+                    Excel
                   </Button>
-                  <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-muted">
-                    <Upload className="size-4" />
-                    Import Excel
-                    <input
-                      type="file"
-                      accept=".xlsx,.xls"
-                      className="sr-only"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.currentTarget.value = "";
-                        if (file) void importLedgers(file);
-                      }}
-                    />
-                  </label>
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={exportList}
-                    disabled={filteredList.length === 0}
+                    onClick={() => void exportViewPdf()}
+                    disabled={
+                      !selectedLedger ||
+                      (viewRows.length === 0 && viewOpeningNet === 0 && !viewLoading)
+                    }
                     className="gap-2"
                   >
-                    <Download className="size-4" />
-                    Export Excel
+                    <FileDown className="size-4" />
+                    PDF
                   </Button>
                 </div>
-              </div>
-            </section>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">
-                {filteredList.length} active ledger{filteredList.length === 1 ? "" : "s"}
-              </p>
-              <Button type="button" size="sm" onClick={() => setTab("create")} className="gap-2">
-                <Plus className="size-4" />
-                Create ledger
-              </Button>
+              </section>
+              <LedgerStatement
+                ledger={selectedLedger}
+                branch={selectedLedger ? branchById.get(selectedLedger.branch_id) : undefined}
+                rows={viewRows}
+                openingNet={viewOpeningNet}
+                start={viewStart}
+                end={viewEnd}
+              />
             </div>
-            <section className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      <th className="px-4 py-3">Ledger</th>
-                      <th className="px-4 py-3">Branch</th>
-                      <th className="px-4 py-3">Type</th>
-                      <th className="px-4 py-3">Opening balance</th>
-                      <th className="px-4 py-3">Opening date</th>
-                      <th className="px-4 py-3">Source</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {loading ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                          <Loader2 className="mx-auto size-5 animate-spin" />
-                        </td>
-                      </tr>
-                    ) : filteredList.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="py-12 text-center text-muted-foreground">
-                          <WalletCards className="mx-auto mb-2 size-6 opacity-50" />
-                          No active ledgers match these filters.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredList.map((ledger) => (
-                        <tr key={ledger.id} className="hover:bg-muted/30">
-                          <td className="px-4 py-3">
-                            <p className="font-semibold">{ledger.account_name}</p>
-                            <p className="max-w-xs truncate text-xs text-muted-foreground">
-                              {ledger.description || "—"}
-                            </p>
-                          </td>
-                          <td className="px-4 py-3">
-                            {branchById.get(ledger.branch_id)?.branch_name ?? "—"}
-                          </td>
-                          <td className="px-4 py-3">
-                            <LedgerTypeBadge type={ledger.ledger_type} />
-                          </td>
-                          <td className="px-4 py-3 font-medium">
-                            {moneyText(money(ledger.opening_balance))}{" "}
-                            <span className="text-xs text-muted-foreground">
-                              {ledger.opening_balance_side.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            {dateText(ledger.opening_balance_date)}
-                          </td>
-                          <td className="px-4 py-3 text-xs text-muted-foreground">
-                            {ledger.is_system ? "Automatic account" : "Manual ledger"}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          </div>
-        )}
-
-        {tab === "view" && (
-          <div className="space-y-5 animate-fade-up">
-            <section className="surface-card p-5">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5 xl:items-end">
-                <SelectField
-                  label="Branch"
-                  value={viewBranch}
-                  onChange={(value) => {
-                    setViewBranch(value);
-                    setViewLedgerId("");
-                  }}
-                  required
-                >
-                  <option value="">Select branch</option>
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.branch_name}
-                    </option>
-                  ))}
-                </SelectField>
-                <label className="space-y-1.5 xl:col-span-2">
-                  <span className="text-xs font-medium text-muted-foreground">Search ledger</span>
-                  <div className="relative">
-                    <Search className="pointer-events-none absolute left-3 top-2.5 size-4 text-muted-foreground" />
-                    <Input
-                      className="pl-9"
-                      value={ledgerSearch}
-                      onChange={(event) => setLedgerSearch(event.target.value)}
-                      placeholder="Type to narrow the ledger selector"
-                    />
-                  </div>
-                </label>
-                <SelectField
-                  label="Ledger"
-                  value={viewLedgerId}
-                  onChange={setViewLedgerId}
-                  required
-                >
-                  <option value="">Select ledger</option>
-                  {viewLedgers.map((ledger) => (
-                    <option key={ledger.id} value={ledger.id}>
-                      {ledger.account_name} · {labelForType(ledger.ledger_type)}
-                    </option>
-                  ))}
-                </SelectField>
-                <div className="flex gap-2">
-                  <label className="min-w-0 flex-1 space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Start date</span>
-                    <Input
-                      type="date"
-                      value={viewStart}
-                      onChange={(event) => setViewStart(event.target.value)}
-                    />
-                  </label>
-                  <label className="min-w-0 flex-1 space-y-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">End date</span>
-                    <Input
-                      type="date"
-                      value={viewEnd}
-                      onChange={(event) => setViewEnd(event.target.value)}
-                    />
-                  </label>
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap justify-end gap-2">
-                <Button
-                  type="button"
-                  onClick={() => void loadView()}
-                  disabled={viewLoading || !viewLedgerId}
-                  className="gap-2"
-                >
-                  {viewLoading ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <BookOpen className="size-4" />
-                  )}
-                  {viewLoading ? "Loading…" : "View ledger"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void exportViewExcel()}
-                  disabled={
-                    !selectedLedger ||
-                    (viewRows.length === 0 && viewOpeningNet === 0 && !viewLoading)
-                  }
-                  className="gap-2"
-                >
-                  <FileSpreadsheet className="size-4" />
-                  Excel
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => void exportViewPdf()}
-                  disabled={
-                    !selectedLedger ||
-                    (viewRows.length === 0 && viewOpeningNet === 0 && !viewLoading)
-                  }
-                  className="gap-2"
-                >
-                  <FileDown className="size-4" />
-                  PDF
-                </Button>
-              </div>
-            </section>
-            <LedgerStatement
-              ledger={selectedLedger}
-              branch={selectedLedger ? branchById.get(selectedLedger.branch_id) : undefined}
-              rows={viewRows}
-              openingNet={viewOpeningNet}
-              start={viewStart}
-              end={viewEnd}
-            />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </AppShell>
   );

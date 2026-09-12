@@ -30,23 +30,29 @@ function activeFor(pathname: string, to: string) {
 }
 
 export function AccountsSectionNav({
+  desktop = false,
   mode,
   ledgerTab = "create",
   onLedgerTabChange,
 }: {
+  desktop?: boolean;
   mode: SectionMode;
   ledgerTab?: LedgerTab;
   onLedgerTabChange?: (tab: LedgerTab) => void;
 }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const title = mode === "masters" ? "Master tabs" : "Ledger tabs";
 
-  return (
-    <nav aria-label={mode === "masters" ? "Master tabs" : "Ledger tabs"} className="mb-6 lg:hidden">
-      <div className="rounded-2xl border border-border bg-card p-1.5 shadow-sm">
-        <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {mode === "masters" ? "Master tabs" : "Ledger tabs"}
+  if (desktop) {
+    return (
+      <nav
+        aria-label={title}
+        className="app-sidebar-scroll hidden lg:fixed lg:left-[max(1.5rem,calc((100vw-1280px)/2+1.5rem))] lg:top-20 lg:block lg:h-[calc(100dvh-5rem)] lg:w-[220px] lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-1"
+      >
+        <p className="mb-3 px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+          {title}
         </p>
-        <div className={`grid gap-1 ${mode === "masters" ? "grid-cols-2" : "grid-cols-3"}`}>
+        <div className="space-y-1">
           {mode === "masters"
             ? masterLinks.map(({ label, description, to, icon: Icon }) => {
                 const active = activeFor(pathname, to);
@@ -55,12 +61,12 @@ export function AccountsSectionNav({
                     key={to}
                     to={to}
                     aria-current={active ? "page" : undefined}
-                    className={`flex min-h-12 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${active ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                   >
-                    <Icon className="size-4 shrink-0" />
+                    <Icon className={`size-4 shrink-0 ${active ? "text-primary" : ""}`} />
                     <span className="min-w-0 leading-tight">
-                      <span className="block truncate text-xs font-semibold">{label}</span>
-                      <span className="block truncate text-[10px] opacity-75">{description}</span>
+                      <span className="block truncate text-sm font-semibold">{label}</span>
+                      <span className="block truncate text-[11px] opacity-70">{description}</span>
                     </span>
                   </Link>
                 );
@@ -71,17 +77,59 @@ export function AccountsSectionNav({
                   type="button"
                   onClick={() => onLedgerTabChange?.(key)}
                   aria-current={ledgerTab === key ? "page" : undefined}
-                  className={`flex min-h-12 items-center gap-2 rounded-xl px-2.5 py-2 text-left transition-colors ${ledgerTab === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${ledgerTab === key ? "bg-primary-soft text-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                 >
-                  <Icon className="size-4 shrink-0" />
+                  <Icon className={`size-4 shrink-0 ${ledgerTab === key ? "text-primary" : ""}`} />
                   <span className="min-w-0 leading-tight">
-                    <span className="block truncate text-xs font-semibold">{label}</span>
-                    <span className="block truncate text-[10px] opacity-75">{description}</span>
+                    <span className="block truncate text-sm font-semibold">{label}</span>
+                    <span className="block truncate text-[11px] opacity-70">{description}</span>
                   </span>
                 </button>
               ))}
         </div>
-      </div>
-    </nav>
+      </nav>
+    );
+  }
+
+  const selectedMaster = masterLinks.find((item) => activeFor(pathname, item.to));
+  const selectedLedger = ledgerLinks.find((item) => item.key === ledgerTab);
+  const selectedLabel =
+    mode === "masters"
+      ? (selectedMaster?.label ?? "Select tab")
+      : (selectedLedger?.label ?? "Select tab");
+
+  return (
+    <div className="mb-6 lg:hidden">
+      <label className="block">
+        <span className="mb-1.5 block px-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+          {title}
+        </span>
+        <select
+          value={mode === "masters" ? (selectedMaster?.to ?? "") : ledgerTab}
+          onChange={(event) => {
+            if (mode === "masters") {
+              window.location.assign(event.target.value);
+            } else {
+              onLedgerTabChange?.(event.target.value as LedgerTab);
+            }
+          }}
+          aria-label={title}
+          className="h-11 w-full rounded-xl border border-border bg-card px-3 text-sm font-semibold text-foreground shadow-sm outline-none focus:ring-2 focus:ring-ring"
+        >
+          {mode === "masters"
+            ? masterLinks.map(({ label, to }) => (
+                <option key={to} value={to}>
+                  {label}
+                </option>
+              ))
+            : ledgerLinks.map(({ key, label }) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+        </select>
+        <span className="sr-only">Current tab: {selectedLabel}</span>
+      </label>
+    </div>
   );
 }
