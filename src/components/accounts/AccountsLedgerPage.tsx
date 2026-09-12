@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
-  CheckCircle2,
   Download,
   FileDown,
   FileSpreadsheet,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
   Search,
   Upload,
@@ -237,6 +238,7 @@ export function AccountsLedgerPage() {
   const [viewRows, setViewRows] = useState<JournalLine[]>([]);
   const [viewOpeningNet, setViewOpeningNet] = useState(0);
   const [viewLoading, setViewLoading] = useState(false);
+  const [navOpen, setNavOpen] = useState(true);
 
   const updateForm = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
@@ -630,13 +632,30 @@ export function AccountsLedgerPage() {
             Accounts
           </Link>
           <span>/</span>
-          <span className="text-foreground">Ledger</span>
+          <span className="text-foreground">Modules</span>
         </span>
       }
+      headerEnd={
+        <button
+          type="button"
+          onClick={() => setNavOpen((open) => !open)}
+          title={navOpen ? "Hide sidebar" : "Show sidebar"}
+          className="hidden items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+        >
+          {navOpen ? (
+            <PanelLeftClose className="size-3.5" />
+          ) : (
+            <PanelLeftOpen className="size-3.5" />
+          )}
+          <span>{navOpen ? "Hide sidebar" : "Show sidebar"}</span>
+        </button>
+      }
     >
-      <div className="grid items-start gap-6 lg:grid-cols-[220px_1fr]">
-        <AccountsSectionNav desktop ledgerTab={tab} onLedgerTabChange={setTab} />
-        <div className="min-w-0 lg:col-start-2">
+      <div
+        className={`grid items-start gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}
+      >
+        {navOpen && <AccountsSectionNav desktop ledgerTab={tab} onLedgerTabChange={setTab} />}
+        <div className="min-w-0">
           <AccountsSectionNav ledgerTab={tab} onLedgerTabChange={setTab} />
           <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -650,10 +669,6 @@ export function AccountsLedgerPage() {
                 Create revenue and capital ledgers, review automatic bank and cash ledgers, and
                 print a balanced period statement.
               </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
-              <CheckCircle2 className="size-4 text-emerald-600" />
-              Opening entries enabled
             </div>
           </header>
 

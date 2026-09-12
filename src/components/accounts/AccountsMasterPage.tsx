@@ -6,6 +6,8 @@ import {
   FileSpreadsheet,
   Landmark,
   Loader2,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Plus,
   Save,
@@ -145,6 +147,7 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState<(FormState & { id?: string }) | null>(null);
+  const [navOpen, setNavOpen] = useState(true);
   const isBank = kind === "bank";
   const table = isBank ? "bank_accounts" : "cash_accounts";
   const title = isBank ? "Bank" : "Cash";
@@ -281,13 +284,30 @@ export function AccountsMasterPage({ kind }: { kind: AccountKind }) {
             Accounts
           </Link>
           <span>/</span>
-          <span className="text-foreground">Masters</span>
+          <span className="text-foreground">Modules</span>
         </span>
       }
+      headerEnd={
+        <button
+          type="button"
+          onClick={() => setNavOpen((open) => !open)}
+          title={navOpen ? "Hide sidebar" : "Show sidebar"}
+          className="hidden items-center gap-1.5 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:flex"
+        >
+          {navOpen ? (
+            <PanelLeftClose className="size-3.5" />
+          ) : (
+            <PanelLeftOpen className="size-3.5" />
+          )}
+          <span>{navOpen ? "Hide sidebar" : "Show sidebar"}</span>
+        </button>
+      }
     >
-      <div className="grid items-start gap-6 lg:grid-cols-[220px_1fr]">
-        <AccountsSectionNav desktop />
-        <div className="min-w-0 lg:col-start-2">
+      <div
+        className={`grid items-start gap-6 ${navOpen ? "lg:grid-cols-[220px_1fr]" : "grid-cols-1"}`}
+      >
+        {navOpen && <AccountsSectionNav desktop />}
+        <div className="min-w-0">
           <AccountsSectionNav />
           <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
             <div>
