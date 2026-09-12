@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { ArrowRightLeft, Banknote, BookOpen, Landmark, List, Plus } from "lucide-react";
+import { ArrowRightLeft, Banknote, BookOpen, Landmark, List, Plus, Settings2 } from "lucide-react";
 import { MobileTabDropdown } from "@/components/MobileTabDropdown";
 
 export type LedgerTab = "capital" | "create" | "list" | "view";
@@ -18,6 +18,12 @@ const masterLinks = [
     description: "Branch cash accounts",
     to: "/accounts/masters/cash",
     icon: Banknote,
+  },
+  {
+    label: "Rules",
+    description: "HRMS auto-entry rules",
+    to: "/accounts/masters/rules",
+    icon: Settings2,
   },
 ] as const;
 

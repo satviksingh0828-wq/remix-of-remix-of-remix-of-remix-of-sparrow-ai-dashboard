@@ -64,6 +64,7 @@ import { Route as SettingsAttendanceModuleRouteImport } from './routes/settings.
 import { Route as AccountsMastersIndexRouteImport } from './routes/accounts.masters.index'
 import { Route as AccountsMastersBankRouteImport } from './routes/accounts.masters.bank'
 import { Route as AccountsMastersCashRouteImport } from './routes/accounts.masters.cash'
+import { Route as AccountsMastersRulesRouteImport } from './routes/accounts.masters.rules'
 import { Route as ApiDriverThemeRouteImport } from './routes/api/driver/theme'
 import { Route as ApiHrPayrollEmailRouteImport } from './routes/api/hr/payroll-email'
 import { Route as AttendanceHistoryIndexRouteImport } from './routes/attendance.history.index'
@@ -362,6 +363,11 @@ const AccountsMastersCashRoute = AccountsMastersCashRouteImport.update({
   path: '/cash',
   getParentRoute: () => AccountsMastersRoute,
 } as any)
+const AccountsMastersRulesRoute = AccountsMastersRulesRouteImport.update({
+  id: '/rules',
+  path: '/rules',
+  getParentRoute: () => AccountsMastersRoute,
+} as any)
 const ApiDriverThemeRoute = ApiDriverThemeRouteImport.update({
   id: '/api/driver/theme',
   path: '/api/driver/theme',
@@ -531,6 +537,7 @@ export interface FileRoutesByFullPath {
   '/payroll/': typeof PayrollIndexRoute
   '/accounts/masters/bank': typeof AccountsMastersBankRoute
   '/accounts/masters/cash': typeof AccountsMastersCashRoute
+  '/accounts/masters/rules': typeof AccountsMastersRulesRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
@@ -601,6 +608,7 @@ export interface FileRoutesByTo {
   '/payroll': typeof PayrollIndexRoute
   '/accounts/masters/bank': typeof AccountsMastersBankRoute
   '/accounts/masters/cash': typeof AccountsMastersCashRoute
+  '/accounts/masters/rules': typeof AccountsMastersRulesRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
@@ -680,6 +688,7 @@ export interface FileRoutesById {
   '/payroll/': typeof PayrollIndexRoute
   '/accounts/masters/bank': typeof AccountsMastersBankRoute
   '/accounts/masters/cash': typeof AccountsMastersCashRoute
+  '/accounts/masters/rules': typeof AccountsMastersRulesRoute
   '/api/driver/theme': typeof ApiDriverThemeRoute
   '/api/hr/payroll-email': typeof ApiHrPayrollEmailRoute
   '/attendance/history/$id': typeof AttendanceHistoryIdRoute
@@ -760,6 +769,7 @@ export interface FileRouteTypes {
     | '/payroll/'
     | '/accounts/masters/bank'
     | '/accounts/masters/cash'
+    | '/accounts/masters/rules'
     | '/api/driver/theme'
     | '/api/hr/payroll-email'
     | '/attendance/history/$id'
@@ -830,6 +840,7 @@ export interface FileRouteTypes {
     | '/payroll'
     | '/accounts/masters/bank'
     | '/accounts/masters/cash'
+    | '/accounts/masters/rules'
     | '/api/driver/theme'
     | '/api/hr/payroll-email'
     | '/attendance/history/$id'
@@ -908,6 +919,7 @@ export interface FileRouteTypes {
     | '/payroll/'
     | '/accounts/masters/bank'
     | '/accounts/masters/cash'
+    | '/accounts/masters/rules'
     | '/api/driver/theme'
     | '/api/hr/payroll-email'
     | '/attendance/history/$id'
@@ -1358,6 +1370,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountsMastersCashRouteImport
       parentRoute: typeof AccountsMastersRoute
     }
+    '/accounts/masters/rules': {
+      id: '/accounts/masters/rules'
+      path: '/rules'
+      fullPath: '/accounts/masters/rules'
+      preLoaderRoute: typeof AccountsMastersRulesRouteImport
+      parentRoute: typeof AccountsMastersRoute
+    }
     '/api/driver/theme': {
       id: '/api/driver/theme'
       path: '/api/driver/theme'
@@ -1511,12 +1530,14 @@ declare module '@tanstack/react-router' {
 interface AccountsMastersRouteChildren {
   AccountsMastersBankRoute: typeof AccountsMastersBankRoute
   AccountsMastersCashRoute: typeof AccountsMastersCashRoute
+  AccountsMastersRulesRoute: typeof AccountsMastersRulesRoute
   AccountsMastersIndexRoute: typeof AccountsMastersIndexRoute
 }
 
 const AccountsMastersRouteChildren: AccountsMastersRouteChildren = {
   AccountsMastersBankRoute: AccountsMastersBankRoute,
   AccountsMastersCashRoute: AccountsMastersCashRoute,
+  AccountsMastersRulesRoute: AccountsMastersRulesRoute,
   AccountsMastersIndexRoute: AccountsMastersIndexRoute,
 }
 
