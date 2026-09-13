@@ -74,12 +74,18 @@ type FormState = {
   branch_id: string;
   ledger_type: "asset" | "liability" | "income" | "expenditure";
   description: string;
+  opening_balance: string;
+  opening_balance_date: string;
+  opening_balance_side: OpeningSide;
 };
 
 const EMPTY_FORM: FormState = {
   branch_id: "",
   ledger_type: "asset",
   description: "",
+  opening_balance: "0",
+  opening_balance_date: "",
+  opening_balance_side: "dr",
 };
 
 const today = new Date().toISOString().slice(0, 10);
@@ -296,9 +302,12 @@ export function AccountsLedgerPage() {
         p_branch_id: form.branch_id,
         p_ledger_type: form.ledger_type,
         p_description: form.description.trim(),
-        p_opening_balance: 0,
-        p_opening_balance_date: null,
-        p_opening_balance_side: "cr",
+        p_opening_balance: Number(form.opening_balance || 0),
+        p_opening_balance_date:
+          form.ledger_type === "asset" || form.ledger_type === "liability"
+            ? form.opening_balance_date || null
+            : null,
+        p_opening_balance_side: form.opening_balance_side,
       });
       if (error) throw new Error(error.message);
       toast.success(`${labelForType(form.ledger_type)} ledger created.`);
@@ -774,6 +783,52 @@ export function AccountsLedgerPage() {
                       placeholder="e.g. Customer Receivable or Diesel Expense"
                     />
                   </label>
+                  {(form.ledger_type === "asset" || form.ledger_type === "liability") && (
+                    <>
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Opening balance
+                        </span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={form.opening_balance}
+                          onChange={(event) =>
+                            updateForm("opening_balance", event.target.value)
+                          }
+                          placeholder="0.00"
+                        />
+                      </label>
+                      <label className="space-y-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          Opening balance date
+                        </span>
+                        <Input
+                          type="date"
+                          value={form.opening_balance_date}
+                          onChange={(event) =>
+                            updateForm("opening_balance_date", event.target.value)
+                          }
+                        />
+                      </label>
+                      <SelectField
+                        label="Opening balance side"
+                        value={form.opening_balance_side}
+                        onChange={(value) =>
+                          updateForm("opening_balance_side", value as OpeningSide)
+                        }
+                        required
+                      >
+                        <option value="dr">Dr (Debit)</option>
+                        <option value="cr">Cr (Credit)</option>
+                      </SelectField>
+                      <p className="text-xs text-muted-foreground sm:col-span-2">
+                        The opening entry is posted automatically against this branch&apos;s Capital
+                        account.
+                      </p>
+                    </>
+                  )}
                 </div>
               </section>
               <div className="flex justify-end">
