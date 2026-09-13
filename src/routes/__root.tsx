@@ -227,15 +227,16 @@ function OrcaAIPanelMount() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
-  const [showEntrySplash, setShowEntrySplash] = useState(() => {
-    if (typeof window === "undefined") return true;
-    if (window.location.pathname !== "/") return false;
+  const [showEntrySplash, setShowEntrySplash] = useState(false);
+  useEffect(() => {
+    if (window.location.pathname !== "/") return;
     try {
-      return window.sessionStorage.getItem("sparrow-orca-splash-shown") !== "1";
+      if (window.sessionStorage.getItem("sparrow-orca-splash-shown") === "1") return;
     } catch {
-      return true;
+      // Storage may be unavailable; allow the root entry splash to mount.
     }
-  });
+    setShowEntrySplash(true);
+  }, []);
   const persister = useMemo(
     () => (typeof window === "undefined" ? null : createIdbPersister()),
     [],
