@@ -30,6 +30,7 @@ import { Route as SystemRouteImport } from './routes/system'
 import { Route as TmsRouteImport } from './routes/tms'
 import { Route as UsersRouteImport } from './routes/users'
 import { Route as AccountsIndexRouteImport } from './routes/accounts.index'
+import { Route as AccountsAutoRulesRouteImport } from './routes/accounts.auto-rules'
 import { Route as AccountsBankRouteImport } from './routes/accounts.bank'
 import { Route as AccountsCashRouteImport } from './routes/accounts.cash'
 import { Route as AccountsJournalRouteImport } from './routes/accounts.journal'
@@ -190,6 +191,11 @@ const UsersRoute = UsersRouteImport.update({
 const AccountsIndexRoute = AccountsIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AccountsRoute,
+} as any)
+const AccountsAutoRulesRoute = AccountsAutoRulesRouteImport.update({
+  id: '/auto-rules',
+  path: '/auto-rules',
   getParentRoute: () => AccountsRoute,
 } as any)
 const AccountsBankRoute = AccountsBankRouteImport.update({
@@ -503,6 +509,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof SystemRoute
   '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
+  '/accounts/auto-rules': typeof AccountsAutoRulesRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
   '/accounts/journal': typeof AccountsJournalRoute
@@ -577,6 +584,7 @@ export interface FileRoutesByTo {
   '/system': typeof SystemRoute
   '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
+  '/accounts/auto-rules': typeof AccountsAutoRulesRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
   '/accounts/journal': typeof AccountsJournalRoute
@@ -654,6 +662,7 @@ export interface FileRoutesById {
   '/system': typeof SystemRoute
   '/tms': typeof TmsRoute
   '/users': typeof UsersRoute
+  '/accounts/auto-rules': typeof AccountsAutoRulesRoute
   '/accounts/bank': typeof AccountsBankRoute
   '/accounts/cash': typeof AccountsCashRoute
   '/accounts/journal': typeof AccountsJournalRoute
@@ -735,6 +744,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tms'
     | '/users'
+    | '/accounts/auto-rules'
     | '/accounts/bank'
     | '/accounts/cash'
     | '/accounts/journal'
@@ -809,6 +819,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tms'
     | '/users'
+    | '/accounts/auto-rules'
     | '/accounts/bank'
     | '/accounts/cash'
     | '/accounts/journal'
@@ -885,6 +896,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/tms'
     | '/users'
+    | '/accounts/auto-rules'
     | '/accounts/bank'
     | '/accounts/cash'
     | '/accounts/journal'
@@ -1130,6 +1142,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/accounts/'
       preLoaderRoute: typeof AccountsIndexRouteImport
+      parentRoute: typeof AccountsRoute
+    }
+    '/accounts/auto-rules': {
+      id: '/accounts/auto-rules'
+      path: '/auto-rules'
+      fullPath: '/accounts/auto-rules'
+      preLoaderRoute: typeof AccountsAutoRulesRouteImport
       parentRoute: typeof AccountsRoute
     }
     '/accounts/bank': {
@@ -1546,6 +1565,7 @@ const AccountsMastersRouteWithChildren = AccountsMastersRoute._addFileChildren(
 )
 
 interface AccountsRouteChildren {
+  AccountsAutoRulesRoute: typeof AccountsAutoRulesRoute
   AccountsBankRoute: typeof AccountsBankRoute
   AccountsCashRoute: typeof AccountsCashRoute
   AccountsJournalRoute: typeof AccountsJournalRoute
@@ -1555,6 +1575,7 @@ interface AccountsRouteChildren {
 }
 
 const AccountsRouteChildren: AccountsRouteChildren = {
+  AccountsAutoRulesRoute: AccountsAutoRulesRoute,
   AccountsBankRoute: AccountsBankRoute,
   AccountsCashRoute: AccountsCashRoute,
   AccountsJournalRoute: AccountsJournalRoute,

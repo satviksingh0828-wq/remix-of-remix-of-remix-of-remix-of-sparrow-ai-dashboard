@@ -37,7 +37,7 @@ export const Route = createFileRoute("/accounts/")({
             label: "Auto Rules",
             desc: "HRMS branch mapping and accounting automation",
             icon: Settings2,
-            to: "/accounts/masters/rules",
+            to: "/accounts/auto-rules",
           },
         ]}
       />

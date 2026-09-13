@@ -4,7 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import { AccountsAccessGuard } from "@/components/accounts/AccountsAccessGuard";
-import { AccountsSectionNav } from "@/components/accounts/AccountsSectionNav";
+import { AccountsSectionNav, type AutoRulesTab } from "@/components/accounts/AccountsSectionNav";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranches } from "@/lib/use-branches";
@@ -218,9 +218,18 @@ export function AccountsRulesPage() {
         }
       >
         <div className="grid items-start gap-6 lg:grid-cols-[220px_1fr]">
-          <AccountsSectionNav desktop mode="masters" />
+          <AccountsSectionNav
+            desktop
+            mode="auto-rules"
+            autoRulesTab={tab}
+            onAutoRulesTabChange={(nextTab: AutoRulesTab) => setTab(nextTab)}
+          />
           <div className="min-w-0 lg:col-start-2">
-            <AccountsSectionNav mode="masters" />
+            <AccountsSectionNav
+              mode="auto-rules"
+              autoRulesTab={tab}
+              onAutoRulesTabChange={(nextTab: AutoRulesTab) => setTab(nextTab)}
+            />
             <header className="mb-6">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-primary">
                 Accounts / Auto Rules
