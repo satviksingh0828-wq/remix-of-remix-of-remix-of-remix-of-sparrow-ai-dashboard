@@ -229,6 +229,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const [showEntrySplash, setShowEntrySplash] = useState(() => {
     if (typeof window === "undefined") return true;
+    if (window.location.pathname !== "/") return false;
     try {
       return window.sessionStorage.getItem("sparrow-orca-splash-shown") !== "1";
     } catch {
