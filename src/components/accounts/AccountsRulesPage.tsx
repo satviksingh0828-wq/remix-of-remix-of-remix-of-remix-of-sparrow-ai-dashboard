@@ -22,6 +22,7 @@ type Rule = {
   requires_verification: boolean;
   default_bank_cash_ledger_id: string | null;
   debit_ledger_id: string | null;
+  effective_from: string | null;
 };
 type Ledger = {
   id: string;
@@ -145,6 +146,7 @@ export function AccountsRulesPage() {
         requires_verification: true,
         default_bank_cash_ledger_id: null,
         debit_ledger_id: null,
+        effective_from: null,
       }
     );
   }
@@ -169,6 +171,7 @@ export function AccountsRulesPage() {
         requires_verification: rule.requires_verification,
         default_bank_cash_ledger_id: rule.default_bank_cash_ledger_id,
         debit_ledger_id: rule.debit_ledger_id,
+        effective_from: rule.effective_from || null,
       },
       { onConflict: "branch_id,rule_key" },
     );
@@ -345,6 +348,23 @@ export function AccountsRulesPage() {
                         </span>
                       </div>
                       <div className="mt-5 grid gap-4 md:grid-cols-2">
+                        <label className="space-y-1.5">
+                          <span className="text-xs font-medium text-muted-foreground">
+                            Effective from *
+                          </span>
+                          <input
+                            type="date"
+                            value={rule.effective_from ?? ""}
+                            onChange={(event) =>
+                              updateRule(rule, { effective_from: event.target.value || null })
+                            }
+                            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                            required
+                          />
+                          <span className="block text-xs text-muted-foreground">
+                            Entries on or after this date can use the rule, including past entries.
+                          </span>
+                        </label>
                         <label className="space-y-1.5">
                           <span className="text-xs font-medium text-muted-foreground">
                             Debit ledger *
