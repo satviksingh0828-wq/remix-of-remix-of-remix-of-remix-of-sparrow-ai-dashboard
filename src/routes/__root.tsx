@@ -8,7 +8,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { createIdbPersister } from "../lib/query-persist";
 import { initSecurity } from "../lib/security";
@@ -221,38 +221,49 @@ function OrcaAIPanelMount() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const [showEntrySplash, setShowEntrySplash] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return window.sessionStorage.getItem("sparrow-orca-splash-shown") !== "1";
+    } catch {
+      return true;
+    }
+  });
   const persister = useMemo(
     () => (typeof window === "undefined" ? null : createIdbPersister()),
     [],
   );
 
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{
-        persister: persister ?? {
-          persistClient: async () => {},
-          restoreClient: async () => undefined,
-          removeClient: async () => {},
-        },
-        maxAge: 24 * 60 * 60 * 1000,
-      }}
-    >
-      <SessionProvider>
-        <ThemeProvider>
-          <OrcaAIProvider>
-            <PasskeyProtectionGate>
-              <SecurityInit />
-              <SessionExpiredListener />
-              <DynamicImportRecovery />
-              <Outlet />
-              <InactivityChallenge />
-              <Toaster position="top-right" />
-              <OrcaAIPanelMount />
-            </PasskeyProtectionGate>
-          </OrcaAIProvider>
-        </ThemeProvider>
-      </SessionProvider>
-    </PersistQueryClientProvider>
+    <>
+      {showEntrySplash && <SplashScreen onComplete={() => setShowEntrySplash(false)} />}
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister: persister ?? {
+            persistClient: async () => {},
+            restoreClient: async () => undefined,
+            removeClient: async () => {},
+          },
+          maxAge: 24 * 60 * 60 * 1000,
+        }}
+      >
+        <SessionProvider>
+          <ThemeProvider>
+            <OrcaAIProvider>
+              <PasskeyProtectionGate>
+                <SecurityInit />
+                <SessionExpiredListener />
+                <DynamicImportRecovery />
+                <Outlet />
+                <InactivityChallenge />
+                <Toaster position="top-right" />
+                <OrcaAIPanelMount />
+              </PasskeyProtectionGate>
+            </OrcaAIProvider>
+          </ThemeProvider>
+        </SessionProvider>
+      </PersistQueryClientProvider>
+    </>
   );
 }

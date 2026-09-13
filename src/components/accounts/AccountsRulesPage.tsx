@@ -242,19 +242,6 @@ export function AccountsRulesPage() {
                 and verify entries before they reach the ledger.
               </p>
             </header>
-            <div className="mb-5 grid gap-2 rounded-2xl border border-border bg-card p-2 sm:grid-cols-3">
-              {tabItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setTab(item.id)}
-                  className={`rounded-xl px-4 py-3 text-left transition-colors ${tab === item.id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                >
-                  <span className="block text-xs font-bold tracking-wider">{item.label}</span>
-                  <span className="mt-1 block text-xs opacity-80">{item.description}</span>
-                </button>
-              ))}
-            </div>
             {tab === "base" && (
               <section className="surface-card p-5">
                 <div className="mb-5 flex items-start gap-3">
