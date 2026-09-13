@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { AccountsRulesRoute } from "@/components/accounts/AccountsRulesPage";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/accounts/auto-rules")({
-  component: AccountsRulesRoute,
+  beforeLoad: () => {
+    throw redirect({ to: "/accounts", replace: true });
+  },
 });

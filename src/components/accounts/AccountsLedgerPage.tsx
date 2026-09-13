@@ -30,7 +30,14 @@ import { openBrandedTablePdf } from "@/lib/branded-pdf";
 const db = supabase as any;
 
 type LedgerTab = "capital" | "create" | "list" | "view";
-type LedgerType = "revenue" | "capital" | "bank" | "cash";
+type LedgerType =
+  | "asset"
+  | "liability"
+  | "income"
+  | "expenditure"
+  | "capital"
+  | "bank"
+  | "cash";
 type OpeningSide = "dr" | "cr";
 
 type LedgerRow = {
@@ -65,13 +72,13 @@ type JournalLine = {
 
 type FormState = {
   branch_id: string;
-  ledger_type: "revenue" | "capital";
+  ledger_type: "asset" | "liability" | "income" | "expenditure";
   description: string;
 };
 
 const EMPTY_FORM: FormState = {
   branch_id: "",
-  ledger_type: "revenue",
+  ledger_type: "asset",
   description: "",
 };
 
@@ -90,7 +97,9 @@ function labelForType(type: LedgerType) {
     ? "Bank"
     : type === "cash"
       ? "Cash"
-      : type[0].toUpperCase() + type.slice(1);
+      : type === "capital"
+        ? "Capital"
+        : type[0].toUpperCase() + type.slice(1);
 }
 
 function balanceSide(value: number): OpeningSide {
@@ -129,7 +138,7 @@ function downloadLedgerTemplate() {
         {
           Field: "Opening balance",
           Guidance:
-            "Revenue ledgers do not have opening balances. Use the Capital tab for the branch capital opening balance.",
+            "Income and expenditure ledgers do not have opening balances. Use the Capital tab for branch opening balances.",
         },
       ],
       ["Field", "Guidance"],
@@ -632,8 +641,8 @@ export function AccountsLedgerPage() {
                 Branch ledger workspace
               </h1>
               <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-                Create revenue and capital ledgers, review automatic bank and cash ledgers, and
-                print a balanced period statement.
+                Create categorized ledgers, review automatic bank and cash ledgers, and print a
+                balanced period statement.
               </p>
             </div>
           </header>
@@ -749,8 +758,10 @@ export function AccountsLedgerPage() {
                     }
                     required
                   >
-                    <option value="revenue">Revenue</option>
-                    <option value="capital">Capital</option>
+                    <option value="asset">Asset</option>
+                    <option value="liability">Liability</option>
+                    <option value="income">Income</option>
+                    <option value="expenditure">Expenditure</option>
                   </SelectField>
                   <label className="space-y-1.5 sm:col-span-2">
                     <span className="text-xs font-medium text-muted-foreground">
@@ -760,7 +771,7 @@ export function AccountsLedgerPage() {
                       required
                       value={form.description}
                       onChange={(event) => updateForm("description", event.target.value)}
-                      placeholder="e.g. Freight Revenue or Owner Capital"
+                      placeholder="e.g. Customer Receivable or Diesel Expense"
                     />
                   </label>
                 </div>
@@ -805,8 +816,11 @@ export function AccountsLedgerPage() {
                       className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       <option value="all">All types</option>
-                      <option value="revenue">Revenue</option>
-                      <option value="capital">Capital</option>
+                      <option value="asset">Asset</option>
+                      <option value="liability">Liability</option>
+                      <option value="income">Income</option>
+                      <option value="expenditure">Expenditure</option>
+                      <option value="capital">Capital (system)</option>
                       <option value="bank">Bank</option>
                       <option value="cash">Cash</option>
                     </select>
