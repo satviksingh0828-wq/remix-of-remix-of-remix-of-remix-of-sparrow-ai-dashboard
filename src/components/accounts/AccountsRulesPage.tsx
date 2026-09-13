@@ -156,8 +156,8 @@ export function AccountsRulesPage() {
       return toast.error("Select a debit ledger from the selected branch.");
     if (rule.rule_key === "payroll_paid" && debit.ledger_type !== "revenue")
       return toast.error("Salary paid must debit a revenue ledger.");
-    if (rule.rule_key !== "payroll_paid" && debit.ledger_type !== "asset")
-      return toast.error("Loan and advance rules must debit an asset ledger.");
+    if (rule.rule_key !== "payroll_paid" && !["asset", "capital"].includes(debit.ledger_type))
+      return toast.error("Loan and advance rules must debit an asset or capital ledger.");
     if (!credit || credit.branch_id !== branchId || !["bank", "cash"].includes(credit.ledger_type))
       return toast.error("Select a bank or cash credit account from the selected branch.");
     setSaving(rule.rule_key);
