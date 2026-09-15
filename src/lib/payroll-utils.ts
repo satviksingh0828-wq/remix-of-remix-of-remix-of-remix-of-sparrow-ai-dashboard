@@ -78,7 +78,9 @@ export interface PayrollComputation {
  * - If `emp.unpaid_leave_deduction_rate > 0`, deduction = rate × unpaidLeaves (0.5 rate for half-days
  *   is already handled because unpaidLeavesThisPeriod uses 0.5 for half-days).
  * - Otherwise falls back to pro-rata (gross / workingDays × unpaidLeaves).
- * - `paidLeavePayout` = `paidLeavesLeftBefore × paid_leave_payout_rate`, only when `isFinalPayroll`.
+ * - `paidLeavePayout` = remaining paid-leave balance × the final-settlement rate, only when
+ *   `isFinalPayroll`. The final-settlement rate can be supplied at generation time instead of
+ *   using the employee's saved default.
  *
  * EMI logic: handled externally via installment records — not in this function.
  */
@@ -92,6 +94,7 @@ export function computePayroll(
   periodType: 'month' | 'half_month',
   lastPayroll?: Payroll | null,
   isFinalPayroll = false,
+  finalLeavePayoutRate?: number,
 ): PayrollComputation {
   const fullPeriodWorkingDays = countWorkingDays(from, to, dept, holidays);
   const { from: cf, to: ct } = clampToEmployment(from, to, emp);
@@ -126,9 +129,11 @@ export function computePayroll(
 
   if (lastPayroll) {
     const lastEnd    = parseYmd(lastPayroll.period_end);
-    const monthsSince = Math.max(
-      0,
-      (ct.getFullYear() - lastEnd.getFullYear()) * 12 + (ct.getMonth() - lastEnd.getMonth()),
+    // A monthly entitlement is earned once for each new calendar month after the
+    // last saved payroll. For example: August balance 5 + one leave/month =
+    // September opening balance 6 (not 7).
+    const monthsSince = Math.max(0,
+      (ct.getFullYear() * 12 + ct.getMonth()) - (lastEnd.getFullYear() * 12 + lastEnd.getMonth()),
     );
     leftBefore       = Number(lastPayroll.paid_leaves_left) + monthsSince * perMonth;
     paidLeavesEarned = leftBefore + Number(lastPayroll.paid_leaves_used);
@@ -168,7 +173,12 @@ export function computePayroll(
   // ── Paid-leave payout (final payroll only) ─────────────────────────────────
   // Uses paidLeavesLeftAfter (not leftBefore) so leaves consumed THIS period are not double-paid:
   // those days were already paid as "present" via paid-leave cover, not deducted.
-  const payoutRate     = n(emp.paid_leave_payout_rate);
+  // A final settlement must use the rate explicitly entered by the payroll user.
+  // The saved employee rate is retained only as the default for callers that do
+  // not provide an override (for backwards-compatible programmatic use).
+  const payoutRate     = finalLeavePayoutRate === undefined
+    ? n(emp.paid_leave_payout_rate)
+    : n(finalLeavePayoutRate);
   const paidLeavePayout = isFinalPayroll && payoutRate > 0
     ? payoutRate * paidLeavesLeftAfter
     : 0;
